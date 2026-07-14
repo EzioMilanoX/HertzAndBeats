@@ -187,6 +187,27 @@ def test_clearing_stage_reaches_results_then_next_stage(flow_game, null_input):
     assert clock.now_seconds() == 0.0
 
 
+def test_music_end_with_leftover_threats_still_reaches_results(flow_game, null_input):
+    """Guard anti-softlock: se a musica acaba com ameacas ainda vivas
+    (o relogio congela e elas nunca receberiam veredito), a fase encerra
+    mesmo assim pela carencia em tempo real."""
+    loop, clock = flow_game([[_basic(3.0)]])
+    _press(loop, null_input, "confirm")
+
+    clock.set_now_seconds(1.5)  # spawna a ameaca (spawner termina o beatmap)
+    loop.advance_frame(DT)
+    threat_pool = loop.composed.memory_manager.get_pool("rhythm_threat")
+    assert threat_pool.count == 1
+    assert loop.composed.spawner_system.is_finished
+
+    clock.set_playing(False)  # a faixa terminou; get_pos congelaria em 0
+    for _ in range(80):  # > 1s de carencia em dt de frame
+        loop.advance_frame(DT)
+        if loop.flow == FLOW_RESULTS:
+            break
+    assert loop.flow == FLOW_RESULTS
+
+
 def test_game_over_to_menu(flow_game, null_input):
     loop, clock = flow_game([[_basic(3.0)]], overrides_list=[{"max_health": 1}])
     _press(loop, null_input, "confirm")

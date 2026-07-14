@@ -48,8 +48,10 @@ def main(argv=None) -> int:
             audio_path=Path(track_path),
             output_path=Path(stage.beatmap_path),
             track_id=stage.stage_id,
-            min_gap_seconds=stage.beatmap_params.get("min_gap_seconds", 0.20),
+            min_gap_seconds=stage.beatmap_params.get("min_gap_seconds", 0.45),
             min_start_seconds=stage.beatmap_params.get("min_start_seconds", 2.5),
+            target_density_per_second=stage.beatmap_params.get("target_density_per_second", 1.4),
+            end_margin_seconds=stage.beatmap_params.get("end_margin_seconds", 1.2),
         )
         print(
             f"[{stage.stage_id}] beatmap da IA: bpm={summary['bpm']:.2f} "

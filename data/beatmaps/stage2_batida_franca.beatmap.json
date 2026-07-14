@@ -10,85 +10,37 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 3.01859410430839,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 3.250793650793651,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 3.4829931972789114,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
+      "lane": 1,
       "strength": 1.2828179023927078e-05
-    },
-    {
-      "timestamp_seconds": 3.7151927437641725,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
     },
     {
       "timestamp_seconds": 3.9706122448979593,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 4.179591836734694,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 4.435011337868481,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 4.667210884353741,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 4.899410430839002,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 5.131609977324263,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 5.363809523809524,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 5.596009070294785,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 5.828208616780046,
-      "threat_type": "rhythm_threat_basic",
       "lane": 5,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 6.060408163265306,
+      "timestamp_seconds": 5.828208616780046,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
       "strength": 0.0
@@ -100,94 +52,46 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 6.524807256235827,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 6.780226757369615,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 6.989206349206349,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 0,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 7.244625850340136,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 7.476825396825397,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 1,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 7.7090249433106575,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 7.9412244897959186,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 8.17342403628118,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 8.40562358276644,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 8.661043083900227,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 8.870022675736962,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 9.125442176870749,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 9.334421768707482,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 5,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 9.58984126984127,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.4516378939151764
-    },
-    {
-      "timestamp_seconds": 9.822040816326531,
-      "threat_type": "rhythm_threat_basic",
       "lane": 6,
-      "strength": 0.0
+      "strength": 0.4516378939151764
     },
     {
       "timestamp_seconds": 10.054240362811791,
@@ -196,91 +100,43 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 10.286439909297052,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 10.518639455782314,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 10.750839002267574,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 0,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 10.983038548752834,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 11.215238095238096,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 1,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 11.470657596371883,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 11.679637188208616,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 11.935056689342403,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 12.167256235827665,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 12.399455782312925,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 12.631655328798185,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 12.863854875283447,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 13.096054421768708,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 13.328253968253968,
-      "threat_type": "rhythm_threat_basic",
       "lane": 5,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 13.56045351473923,
+      "timestamp_seconds": 13.328253968253968,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
       "strength": 0.0
@@ -292,94 +148,46 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 14.02485260770975,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 14.280272108843537,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 14.489251700680272,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 0,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 14.744671201814059,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 14.97687074829932,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 1,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 15.209070294784581,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 15.441269841269841,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 15.673469387755102,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 15.905668934240364,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 16.16108843537415,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 16.370068027210884,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 16.62548752834467,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 16.834467120181404,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 5,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 17.08988662131519,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.44868388772010803
-    },
-    {
-      "timestamp_seconds": 17.322086167800453,
-      "threat_type": "rhythm_threat_basic",
       "lane": 6,
-      "strength": 0.0
+      "strength": 0.44868388772010803
     },
     {
       "timestamp_seconds": 17.554285714285715,
@@ -388,91 +196,43 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 17.786485260770974,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 18.018684807256236,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 18.250884353741498,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 0,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 18.483083900226756,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
+      "lane": 1,
       "strength": 0.4780631363391876
     },
     {
-      "timestamp_seconds": 18.715283446712018,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 18.970702947845805,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 19.17968253968254,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 19.435102040816325,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.2665182948112488
-    },
-    {
-      "timestamp_seconds": 19.667301587301587,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 19.89950113378685,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 20.131700680272107,
       "threat_type": "rhythm_threat_basic",
       "lane": 2,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 20.36390022675737,
+      "timestamp_seconds": 19.435102040816325,
       "threat_type": "rhythm_threat_basic",
       "lane": 3,
-      "strength": 0.0
+      "strength": 0.2665182948112488
     },
     {
-      "timestamp_seconds": 20.59609977324263,
+      "timestamp_seconds": 19.89950113378685,
       "threat_type": "rhythm_threat_basic",
       "lane": 4,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 20.82829931972789,
+      "timestamp_seconds": 20.36390022675737,
       "threat_type": "rhythm_threat_basic",
       "lane": 5,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 21.060498866213152,
+      "timestamp_seconds": 20.82829931972789,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
       "strength": 0.0
@@ -484,91 +244,43 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 21.524897959183672,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 21.78031746031746,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
+      "lane": 0,
       "strength": 0.24960291385650635
-    },
-    {
-      "timestamp_seconds": 21.989297052154196,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
     },
     {
       "timestamp_seconds": 22.244716553287983,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 22.47691609977324,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 1,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 22.709115646258503,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 22.941315192743765,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 23.173514739229024,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 23.405714285714286,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 23.661133786848072,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 23.870113378684806,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 24.125532879818593,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 24.33451247165533,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 24.589931972789117,
-      "threat_type": "rhythm_threat_basic",
       "lane": 5,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 24.822131519274375,
+      "timestamp_seconds": 24.589931972789117,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
       "strength": 0.0
@@ -580,91 +292,43 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 25.2865306122449,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 25.518730158730158,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 25.75092970521542,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 0,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 25.98312925170068,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 26.21532879818594,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 1,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 26.470748299319727,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 26.679727891156464,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 26.93514739229025,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 27.16734693877551,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 27.39954648526077,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 27.631746031746033,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 27.86394557823129,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 28.096145124716553,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 28.328344671201815,
-      "threat_type": "rhythm_threat_basic",
       "lane": 5,
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 28.560544217687074,
+      "timestamp_seconds": 28.328344671201815,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
       "strength": 0.0
@@ -676,412 +340,64 @@
       "strength": 0.0
     },
     {
-      "timestamp_seconds": 29.024943310657598,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
       "timestamp_seconds": 29.280362811791385,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 29.489342403628118,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 0,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 29.744761904761905,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 29.976961451247167,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
+      "lane": 1,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 30.209160997732425,
       "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 30.441360544217687,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
+      "lane": 2,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 30.67356009070295,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 30.905759637188208,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
+      "lane": 3,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 31.161179138321994,
       "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 31.37015873015873,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
+      "lane": 4,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 31.62557823129252,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 31.834557823129252,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 32.08997732426304,
-      "threat_type": "rhythm_threat_basic",
       "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 32.3221768707483,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 32.55437641723356,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 32.78657596371882,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 33.01877551020408,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 33.25097505668934,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 33.483174603174604,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 33.715374149659866,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 33.97079365079365,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 34.17977324263038,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
       "strength": 0.0
     },
     {
       "timestamp_seconds": 34.43519274376417,
       "threat_type": "rhythm_threat_basic",
-      "lane": 7,
+      "lane": 6,
       "strength": 0.2622852921485901
-    },
-    {
-      "timestamp_seconds": 34.66739229024943,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 34.89959183673469,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 35.131791383219955,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 35.36399092970522,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 35.59619047619048,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
     },
     {
       "timestamp_seconds": 35.828390022675734,
       "threat_type": "rhythm_threat_heavy",
-      "lane": 5,
+      "lane": 7,
       "strength": 1.0
-    },
-    {
-      "timestamp_seconds": 36.060589569160996,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 36.31600907029478,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 36.52498866213152,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 36.78040816326531,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 36.989387755102044,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 37.24480725623583,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 37.477006802721085,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 37.70920634920635,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 37.94140589569161,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 38.17360544217687,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 38.40580498866213,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 38.66122448979592,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 38.87020408163265,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
     },
     {
       "timestamp_seconds": 39.12562358276644,
       "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.11015984416007996
-    },
-    {
-      "timestamp_seconds": 39.334603174603174,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 39.59002267573696,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 39.82222222222222,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 40.054421768707485,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 40.28662131519275,
-      "threat_type": "rhythm_threat_basic",
       "lane": 0,
-      "strength": 0.0
+      "strength": 0.11015984416007996
     },
     {
       "timestamp_seconds": 40.518820861678,
       "threat_type": "rhythm_threat_heavy",
       "lane": 1,
       "strength": 0.9057410955429077
-    },
-    {
-      "timestamp_seconds": 40.751020408163264,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 40.983219954648526,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 41.21541950113379,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 41.470839002267574,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 41.67981859410431,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 41.9352380952381,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 42.16743764172335,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 42.399637188208615,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 42.63183673469388,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 42.86403628117914,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 43.0962358276644,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 43.32843537414966,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 43.56063492063492,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 43.816054421768705,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 44.02503401360544,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 44.28045351473923,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 44.489433106575966,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.0
-    },
-    {
-      "timestamp_seconds": 44.74485260770975,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.0
     }
   ]
 }

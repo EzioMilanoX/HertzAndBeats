@@ -1,6 +1,7 @@
 """HertzConfig: toda a afinacao de gameplay carregada de JSON (data-driven, nunca hardcoded em sistema)."""
 from __future__ import annotations
 
+import dataclasses
 import json
 from dataclasses import dataclass
 from typing import Dict, Tuple
@@ -92,3 +93,40 @@ class HertzConfig:
             dash_cooldown_seconds=raw["dash_cooldown_seconds"],
             output_latency_seconds=raw["output_latency_seconds"],
         )
+
+
+def fit_config_to_display(
+    config: HertzConfig,
+    display_width: int,
+    display_height: int,
+    height_margin: int = 90,
+    width_margin: int = 20,
+) -> HertzConfig:
+    """Encolhe a janela (e TODA a geometria de gameplay, na mesma
+    proporcao) quando o monitor nao comporta o tamanho configurado --
+    uma janela 960x960 numa tela de 768 de altura ficaria cortada, com
+    HUD e metade da arena invisiveis.
+
+    Escala uniformemente: janela, raio de spawn, nucleo e meios-tamanhos
+    de ameaca. Como as VELOCIDADES derivam de distancia/tempo no spawn,
+    a fisica e o julgamento continuam cravados na batida em qualquer
+    escala; `approach_seconds` e as janelas temporais nao mudam.
+    Retorna a config intocada se ela ja cabe na tela. Funcao PURA
+    (testavel sem pygame); quem sonda o tamanho real do display e o
+    adapter concreto.
+    """
+    usable = min(display_width - width_margin, display_height - height_margin)
+    if usable <= 0 or usable >= config.window_width:
+        return config
+
+    scale = usable / float(config.window_width)
+    return dataclasses.replace(
+        config,
+        window_width=usable,
+        window_height=usable,
+        spawn_radius=config.spawn_radius * scale,
+        core_half_extent=config.core_half_extent * scale,
+        threat_half_extents={
+            name: half * scale for name, half in config.threat_half_extents.items()
+        },
+    )

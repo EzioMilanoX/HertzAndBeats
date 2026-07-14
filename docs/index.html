@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hertz &amp; Beats — Documentação</title>
+<style>
+:root { --bg:#faf9ff; --fg:#1d1a2e; --muted:#5f5a78; --card:#efedf8; --accent:#6b4fd8; --gold:#a07800; --line:#d8d4ea; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0c0a18; --fg:#e8e6f4; --muted:#a09ac0; --card:#171430; --accent:#a78bfa; --gold:#ffd640; --line:#2c2750; }
+}
+* { box-sizing:border-box; }
+body { margin:0; font:16px/1.6 system-ui,'Segoe UI',sans-serif; background:var(--bg); color:var(--fg); }
+main { max-width:980px; margin:0 auto; padding:2rem 1.2rem 6rem; }
+h1 { font-size:2.4rem; margin:.2em 0; } h1 span { color:var(--accent); }
+h2 { margin-top:2.6em; border-bottom:2px solid var(--line); padding-bottom:.25em; }
+h3 { margin-top:1.6em; } h4 { margin:.9em 0 .2em; color:var(--muted); }
+code { background:var(--card); padding:.12em .38em; border-radius:5px; font-size:.92em; }
+pre { background:var(--card); padding:.9em 1.1em; border-radius:10px; overflow-x:auto; }
+pre.doc { white-space:pre-wrap; color:var(--muted); font-size:.88em; margin:.3em 0 .9em; }
+table { border-collapse:collapse; width:100%; margin:1em 0; font-size:.93em; }
+th,td { border:1px solid var(--line); padding:.5em .7em; text-align:left; vertical-align:top; }
+th { background:var(--card); }
+details { border:1px solid var(--line); border-radius:10px; padding:.55em .9em; margin:.55em 0; }
+summary { cursor:pointer; font-weight:600; }
+details.module > summary { font-weight:500; }
+.pill { display:inline-block; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:.1em .8em; margin:.15em; font-size:.9em; }
+.flow { background:var(--card); border-radius:10px; padding:1em 1.2em; overflow-x:auto; }
+nav { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); padding:.6em 1.2em; z-index:2; }
+nav a { color:var(--accent); text-decoration:none; margin-right:1.1em; font-size:.92em; }
+.gold { color:var(--gold); font-weight:600; }
+small, .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<nav>
+  <a href="#visao">Visão geral</a><a href="#rodar">Rodar</a><a href="#jogar">Como jogar</a>
+  <a href="#fluxo">Fluxo</a><a href="#fases">Fases</a><a href="#arquitetura">Arquitetura</a>
+  <a href="#config">Config</a><a href="#ferramentas">Ferramentas</a><a href="#testes">Testes</a><a href="#api">API</a>
+</nav>
+<main>
+<h1>Hertz <span>&amp;</span> Beats</h1>
+<p class="muted">Bullet Hell Rítmico radial ("Defesa de Perímetro") sobre a
+<a href="https://github.com/EzioMilanoX/OuroborosEngine">Ouroboros Engine</a> ·
+<a href="https://github.com/EzioMilanoX/HertzAndBeats">github.com/EzioMilanoX/HertzAndBeats</a></p>
+
+<h2 id="visao">Visão geral</h2>
+<p>Você é o <strong>núcleo</strong> no centro da arena. Ameaças nascem na borda da tela e voam
+em sua direção com velocidade matematicamente calculada para a borda delas tocar o
+<span class="gold">anel de julgamento</span> exatamente no milissegundo da batida — batidas extraídas
+da música pela IA offline da engine (BPM + onsets via librosa). Mire em 360° com o mouse,
+atire no ritmo, ou atravesse o impacto com um Dash de invencibilidade.</p>
+<p>Princípios herdados da engine e mantidos em todo o jogo:</p>
+<ul>
+<li><strong>Zero-GC no gameplay</strong>: tudo é SoA (Structure of Arrays) sobre <code>ComponentPool</code>;
+nenhum objeto Python ("HitEvent", "Threat", string) é instanciado por frame — vereditos são inteiros
+gravados na própria linha do array, dígitos do HUD são aritmética sobre buffers pré-alocados.</li>
+<li><strong>Relógio de áudio como única verdade temporal</strong>: spawner, julgamento e tutorial leem
+o <code>IAudioClock</code> (posição real de reprodução, compensada de latência) — nunca delta-time
+acumulado. Sem drift; pausar a música congela o jogo inteiro em sincronia.</li>
+<li><strong>Data-driven</strong>: fases, beatmaps, bindings e toda a afinação vivem em JSON, nunca
+hardcoded em sistema.</li>
+</ul>
+
+<h2 id="rodar">Como rodar</h2>
+<pre>pip install -e ../OuroborosEngine --no-deps   # engine clonada ao lado
+pip install numpy pygame-ce
+python -m hertzbeats</pre>
+<ul>
+<li><strong>jogar.bat</strong> — duplo clique, roda com console (mostra placar final e erros).</li>
+<li><strong>Atalho na área de trabalho</strong> — <code>powershell -ExecutionPolicy Bypass -File tools\create_desktop_shortcut.ps1</code>
+cria o atalho "Hertz &amp; Beats" (pythonw, sem console, com ícone).</li>
+<li>Áudio adiantado/atrasado? Calibre: <code>python -m hertzbeats --latency 0.10</code>.</li>
+<li>As faixas <code>.wav</code> são re-sintetizadas deterministicamente no primeiro build (não são versionadas);
+os <code>beatmap.json</code> extraídos pela IA são versionados.</li>
+<li>Se o monitor for menor que a janela configurada, a janela <em>e toda a geometria da arena</em>
+encolhem na mesma proporção (<code>fit_config_to_display</code>) — a física e o julgamento continuam
+cravados na batida em qualquer escala.</li>
+</ul>
+
+<h2 id="jogar">Como jogar</h2>
+<table>
+<tr><th>Ação</th><th>Controle</th></tr>
+<tr><td>Mira 360°</td><td>Mouse (direção a partir do núcleo; o marcador orbita <em>sobre</em> o anel de julgamento)</td></tr>
+<tr><td>Atirar / Parry</td><td>Botão esquerdo do mouse</td></tr>
+<tr><td>Dash (i-frames)</td><td>Espaço</td></tr>
+<tr><td>Menu: escolher fase</td><td>Setas ↑/↓ · ENTER ou clique para jogar · ESC sai</td></tr>
+<tr><td>Pausar / retomar</td><td>ESC</td></tr>
+<tr><td>Derrota / vitória</td><td>R repete · ENTER próxima fase · M menu</td></tr>
+</table>
+<table>
+<tr><th>Veredito</th><th>Condição</th><th>Efeito</th></tr>
+<tr><td class="gold">PERFECT</td><td>|delta| ≤ 50 ms da batida, mira dentro do cone de ±35°</td><td>+300 pts, combo +1</td></tr>
+<tr><td>GOOD</td><td>|delta| ≤ 100 ms</td><td>+100 pts, combo +1</td></tr>
+<tr><td>MISS</td><td>batida passou 150 ms, ou a ameaça atingiu o núcleo</td><td>combo zera; impacto custa 1 de vida</td></tr>
+<tr><td>DODGED</td><td>impacto durante os i-frames do Dash (0.25s; cooldown 0.8s)</td><td>sem dano, combo preservado, sem pontos</td></tr>
+</table>
+<p class="muted">O visual e a mecânica coincidem: a ameaça deve ser atingida quando a borda dela
+toca o anel — que é exatamente onde a sua mira orbita.</p>
+
+<h2 id="fluxo">Fluxo de partida</h2>
+<div class="flow"><pre>
+MENU ──ENTER/clique──▶ PLAYING ◀──ESC──▶ PAUSED ──M──▶ MENU
+                          │
+        vida zerada ──────┤────── beatmap completo E (ameaças resolvidas OU música acabou)
+                          ▼                              ▼ (carência de 1s)
+                      GAME OVER                       RESULTS
+                      R: repete                       ENTER: próxima fase
+                      M: menu                         R: repete · M: menu
+</pre></div>
+<ul>
+<li>Trocar/reiniciar fase = <strong>recomposição total</strong> do <code>World</code> (pools novas, placar
+zerado, cursor do spawner em 0, música do zero) — nenhum estado vaza entre partidas.</li>
+<li>Pausa congela <code>pygame.mixer.music.get_pos()</code> → o <code>IAudioClock</code> congela → todo o
+gameplay rítmico para em sincronia e retoma do ponto exato.</li>
+<li>Guard anti-softlock: se a música termina com ameaças ainda vivas (o relógio congela no fim da faixa),
+a fase encerra pela carência em tempo real — e a curadoria de beatmap garante margem de fim ≥ 1s
+para isso não acontecer em condições normais.</li>
+</ul>
+
+<h2 id="fases">Fases</h2>
+<table>
+<tr><th>Fase</th><th>Faixa (síntese)</th><th>Ameaças</th><th>Densidade</th><th>Gap mín.</th><th>Overrides</th><th>Tutorial</th></tr>
+<tr><td><strong>TUTORIAL</strong><br><small>80 BPM - aprenda o basico</small></td><td>80 BPM · 21 compassos · calm</td><td>19 (1 pesadas)</td><td>0.40/s</td><td>1.50s</td><td>approach_seconds=2.8, max_health=6, aim_tolerance_degrees=40.0</td><td>5 passos</td></tr>
+<tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
+<tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
+<tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
+</table>
+<p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
+os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
+janela temporal jogável (nada antes da pista completa de aproximação, nada depois de
+<code>duração − 1.2s</code>). Picos com strength ≥ 0.8 viram <strong>ameaças pesadas</strong>.</p>
+<h3>Passos do tutorial</h3>
+<table><tr><th>Janela</th><th>Instrução</th></tr><tr><td>ate 9s</td><td>Mova o MOUSE: a mira orbita o nucleo</td></tr>
+<tr><td>ate 24s</td><td>CLIQUE quando a ameaca tocar o anel dourado</td></tr>
+<tr><td>ate 39s</td><td>No ritmo: PERFECT (50 ms) vale mais que GOOD (100 ms)</td></tr>
+<tr><td>ate 51s</td><td>Cercado? DASH (ESPACO) atravessa tudo sem dano</td></tr>
+<tr><td>ate 61s</td><td>Agora e com voce: feche o combo!</td></tr></table>
+<h3>Use a sua própria música</h3>
+<pre>pip install librosa
+python tools/make_beatmap.py --audio minha.mp3 --output data/beatmaps/minha.beatmap.json --track-id minha</pre>
+<p>Depois adicione uma entrada em <code>stages.json</code> (sem o bloco <code>synth</code>) e ela aparece no menu.</p>
+
+<h2 id="arquitetura">Arquitetura</h2>
+<p>Ordem <strong>exata</strong> de execução por frame, registrada em
+<code>hertzbeats/bootstrap/rhythm_composition_root.py</code>:</p>
+<ol>
+<li><code>PlayerInputSystem</code> — mira 360° (eixos abstratos <code>aim_x/aim_y</code>), Dash, i-frames, crosshair;</li>
+<li><code>RadialRhythmSpawnerSystem</code> — <em>é</em> o <code>RhythmSpawnerSystem</code> da engine (cursor
+monotônico + compensação de latência intactos), estendido para materializar cada ameaça na borda com
+<code>velocidade = (raio_spawn − contato) / tempo_restante</code> — o impacto crava na batida mesmo que o
+spawn atrase um frame;</li>
+<li><code>JudgmentSystem</code> — varre o RhythmThreatPool com <code>|target_hit_time − relógio|</code>
+vetorizado em buffers <code>out=</code>; janelas Perfect/Good/Miss + cone de mira; vence a candidata de menor
+|delta|; marca <code>is_hit</code>, enfileira destruição diferida, atualiza placar por aritmética;</li>
+<li><code>PhysicsSystem</code> (engine) — integra posições;</li>
+<li><code>CollisionSystem</code> (engine) + <code>CoreDamageSystem</code> — pares AABB núcleo×ameaça;
+punição só quando a ameaça está vencida além da janela GOOD (senão roubaria o acerto tardio) e fora de
+i-frames; cada ameaça recebe exatamente <strong>um</strong> veredito (campo <code>judgment</code> guarda contra dupla contagem);</li>
+<li><code>TutorialSystem</code> (só em fases com <code>tutorial_steps</code>) — banner de instruções por cursor de tempo;</li>
+<li><code>UIRenderSystem</code> — dígitos por <code>(valor // 10^i) % 10</code> vetorizado sobre sprites de HUD
+pré-criados; glifos e palavras pré-renderizados uma única vez no carregamento.</li>
+</ol>
+<p>O HUD e os overlays (menu/PAUSADO/GAME OVER/FASE CONCLUÍDA) usam superfícies pré-renderizadas na
+composição — nenhum <code>font.render</code> por frame. A destruição de entidades dentro de sistemas usa o
+padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própria linha SoA da ameaça.</p>
+
+<h2 id="config">Referência de configuração (<code>data/config/hertz_beats.config.json</code>)</h2>
+<table><tr><th>Campo</th><th>Valor atual</th></tr><tr><td><code>window_width</code></td><td><code>960</code></td></tr>
+<tr><td><code>window_height</code></td><td><code>960</code></td></tr>
+<tr><td><code>window_title</code></td><td><code>&quot;Hertz &amp; Beats&quot;</code></td></tr>
+<tr><td><code>entity_capacity</code></td><td><code>4096</code></td></tr>
+<tr><td><code>max_threats</code></td><td><code>512</code></td></tr>
+<tr><td><code>max_threats_per_frame</code></td><td><code>32</code></td></tr>
+<tr><td><code>target_fps</code></td><td><code>60</code></td></tr>
+<tr><td><code>beatmap_path</code></td><td><code>&quot;data/beatmaps/stage2_batida_franca.beatmap.json&quot;</code></td></tr>
+<tr><td><code>track_path</code></td><td><code>&quot;data/tracks/stage2_batida_franca.wav&quot;</code></td></tr>
+<tr><td><code>input_bindings_path</code></td><td><code>&quot;data/input_bindings/default_keyboard.json&quot;</code></td></tr>
+<tr><td><code>stages_path</code></td><td><code>&quot;data/stages/stages.json&quot;</code></td></tr>
+<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1}</code></td></tr>
+<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0}</code></td></tr>
+<tr><td><code>lane_count</code></td><td><code>8</code></td></tr>
+<tr><td><code>approach_seconds</code></td><td><code>2.0</code></td></tr>
+<tr><td><code>spawn_radius</code></td><td><code>420.0</code></td></tr>
+<tr><td><code>core_half_extent</code></td><td><code>16.0</code></td></tr>
+<tr><td><code>perfect_window_seconds</code></td><td><code>0.05</code></td></tr>
+<tr><td><code>good_window_seconds</code></td><td><code>0.1</code></td></tr>
+<tr><td><code>miss_window_seconds</code></td><td><code>0.15</code></td></tr>
+<tr><td><code>aim_tolerance_degrees</code></td><td><code>35.0</code></td></tr>
+<tr><td><code>score_perfect</code></td><td><code>300</code></td></tr>
+<tr><td><code>score_good</code></td><td><code>100</code></td></tr>
+<tr><td><code>max_health</code></td><td><code>3</code></td></tr>
+<tr><td><code>judgment_display_seconds</code></td><td><code>0.6</code></td></tr>
+<tr><td><code>dash_duration_seconds</code></td><td><code>0.25</code></td></tr>
+<tr><td><code>dash_cooldown_seconds</code></td><td><code>0.8</code></td></tr>
+<tr><td><code>output_latency_seconds</code></td><td><code>0.06</code></td></tr></table>
+<p class="muted">Fases sobrescrevem campos via <code>overrides</code> (aplicados com
+<code>dataclasses.replace</code>; campo desconhecido = erro, nunca ignorado).</p>
+
+<h2 id="ferramentas">Ferramentas</h2>
+<ul>
+<li><code>tools/generate_stage_assets.py [--force]</code> — sintetiza as faixas e regenera os beatmaps
+de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
+<li><code>tools/make_beatmap.py</code> — gera beatmap de qualquer música sua;</li>
+<li><code>tools/make_icon.py</code> — regenera o ícone (PNG + ICO);</li>
+<li><code>tools/create_desktop_shortcut.ps1</code> — cria o atalho na área de trabalho;</li>
+<li><code>tools/build_docs.py</code> — regenera esta documentação a partir do código/dados reais.</li>
+</ul>
+
+<h2 id="testes">Testes automatizados</h2>
+<p>Total: <strong>43 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
+<details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
+<details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
+<details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (6 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
+<details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (8 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
+<details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
+<details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
+<details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
+<details><summary><code>test_tutorial_stage.py</code> — Tutorial: banner sincronizado ao relogio de audio e validade dos dados versionados das fases. (4 testes)</summary><ul><li><code>test_repo_stage_data_is_valid</code></li><li><code>test_tutorial_banner_follows_music_clock</code></li><li><code>test_stage_without_tutorial_steps_has_no_tutorial_system</code></li><li><code>test_simultaneous_tutorial_wave_all_dodged_with_one_dash</code></li></ul></details>
+<details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
+<p>Rodar: <code>python -m pytest</code> (na raiz). A suíte inclui <strong>invariantes de jogabilidade</strong>
+sobre os beatmaps versionados: densidade média/pico dentro do humanamente jogável, espaçamento mínimo entre
+janelas de julgamento, margem de fim de faixa (anti-softlock) e pista completa para a primeira ameaça.</p>
+
+<h2 id="api">Referência de API (docstrings do código)</h2>
+<details class="module" id="hertzbeats-__main__"><summary><code>hertzbeats/__main__.py</code> — Entrypoint do Hertz &amp; Beats: `python -m hertzbeats [--config caminho] [--latency segundos]`.</summary>
+<pre class="doc">Entrypoint do Hertz &amp; Beats: `python -m hertzbeats [--config caminho] [--latency segundos]`.</pre>
+<p class='constants'>Constantes: <code>DEFAULT_CONFIG_PATH</code></p>
+<h4><code>main()</code></h4>
+</details>
+<details class="module" id="hertzbeats-adapters-hb_pygame_audio_engine"><summary><code>hertzbeats/adapters/hb_pygame_audio_engine.py</code> — PygameAudioEngine estendido com pausa/retomada da faixa (congela o IAudioClock junto).</summary>
+<pre class="doc">PygameAudioEngine estendido com pausa/retomada da faixa (congela o IAudioClock junto).</pre>
+<h3>classe <code>HBPygameAudioEngine</code></h3><pre class="doc">`PygameAudioEngine` da engine estendido com `pause_track`/
+`resume_track` para o fluxo de pausa do Hertz &amp; Beats.
+
+Propriedade central: `pygame.mixer.music.pause()` congela tambem o
+`music.get_pos()` (verificado empiricamente -- a posicao conta audio
+efetivamente consumido). Como o `PygameAudioClock` deriva
+`now_seconds()` de `get_pos()`, pausar a musica congela o relogio, e
+TODO o gameplay ritmico (spawner/julgamento) congela em sincronia
+sem nenhum estado extra; `unpause()` retoma do exato ponto.</pre>
+<h4><code>.pause_track()</code></h4><pre class="doc">Pausa a faixa em reproducao (e, com ela, o `IAudioClock`).</pre>
+<h4><code>.resume_track()</code></h4><pre class="doc">Retoma a faixa pausada do ponto exato em que congelou.</pre>
+</details>
+<details class="module" id="hertzbeats-adapters-hb_pygame_input_provider"><summary><code>hertzbeats/adapters/hb_pygame_input_provider.py</code> — PygameInputProvider estendido com os eixos de mira 360 derivados do mouse.</summary>
+<pre class="doc">PygameInputProvider estendido com os eixos de mira 360 derivados do mouse.</pre>
+<h3>classe <code>HBPygameInputProvider</code></h3><pre class="doc">`PygameInputProvider` da engine estendido para publicar a mira 360
+como os eixos abstratos `aim_x`/`aim_y` (vetor unitario do nucleo
+para o cursor do mouse, coordenadas de tela). O gameplay consome
+apenas `get_axis(&quot;aim_x&quot;)`/`get_axis(&quot;aim_y&quot;)` -- nenhum codigo de
+sistema sabe que existe um mouse (Regra 2 da Constituicao: nada de
+pygame fora dos adapters).</pre>
+<h4><code>.configure_aim_origin()</code></h4><pre class="doc">Define o centro da arena a partir do qual a mira e medida.
+Chamado uma vez na composicao.</pre>
+</details>
+<details class="module" id="hertzbeats-adapters-hb_pygame_renderer"><summary><code>hertzbeats/adapters/hb_pygame_renderer.py</code> — PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</summary>
+<pre class="doc">PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</pre>
+<h3>classe <code>HBPygameRenderer</code></h3><pre class="doc">`PygameRenderer` da engine estendido para o Hertz &amp; Beats com:
+
+    - `register_texture(texture_id, surface)`: associa um inteiro de
+      `sprite.texture_id` a uma Surface PRE-RENDERIZADA na tela de
+      carregamento (digitos 0-9, palavras PERFECT/GOOD/MISS, pips).
+      `draw_batch` blita a textura registrada; ids sem textura caem
+      no desenho procedural (circulos -- nucleo, ameacas, mira).
+    - `configure_playfield(...)`: aneis-guia da arena radial (borda
+      de spawn e anel de julgamento do nucleo), desenhados em
+      `begin_frame`.
+    - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
+      esquerda e palavras expiradas).
+
+Continua respeitando o contrato `IRenderer`: uma unica chamada
+`draw_batch` por frame cruzando a fronteira core-&gt;adapter. O laco
+por sprite vive AQUI no adapter, fora da jurisdicao Zero-GC do
+gameplay (mesma nota honesta do renderer base da engine).</pre>
+<h4><code>.register_texture()</code></h4><pre class="doc">Registra `surface` (ja convertida com alpha) para `texture_id`.
+Chamado apenas na fase de carregamento, nunca no loop.</pre>
+<h4><code>.register_overlay_surface()</code></h4><pre class="doc">Registra uma superficie de overlay de meta-jogo (titulo do
+menu, nomes de fase, PAUSADO, GAME OVER, ...) pre-renderizada na
+composicao. Chaves consumidas por `_draw_overlay`.</pre>
+<h4><code>.set_overlay()</code></h4><pre class="doc">Publica o estado de fluxo a desenhar sobre o frame: `None`
+(jogando, sem overlay), &quot;menu&quot;, &quot;paused&quot;, &quot;game_over&quot; ou
+&quot;results&quot;. Chamado pelo `HertzGameLoop` a cada frame.</pre>
+<h4><code>.configure_playfield()</code></h4><pre class="doc">Define os aneis-guia da arena, desenhados a cada `begin_frame`.</pre>
+<h4><code>.probe_display_size()</code></h4><pre class="doc">Resolucao do monitor atual, consultada ANTES de criar a
+janela (para `fit_config_to_display`). Inicializa apenas o
+subsistema de video do pygame, sem abrir janela.</pre>
+<h4><code>.set_window_icon()</code></h4><pre class="doc">Define o icone da janela/barra de tarefas a partir de um PNG.
+No-op silencioso se o arquivo nao existir (icone e opcional).</pre>
+<h4><code>._blit_centered()</code></h4><pre class="doc">Blita a superficie `key` centrada horizontalmente em
+`center_x`, topo em `y`; retorna a altura consumida (0 se a
+chave nao foi registrada).</pre>
+<h4><code>._draw_overlay()</code></h4><pre class="doc">Desenha o overlay do estado publicado por `set_overlay` usando
+apenas superficies pre-renderizadas (nenhum font.render aqui).</pre>
+</details>
+<details class="module" id="hertzbeats-adapters-texture_bank"><summary><code>hertzbeats/adapters/texture_bank.py</code> — Pre-renderizacao das texturas de HUD na tela de carregamento: os</summary>
+<pre class="doc">Pre-renderizacao das texturas de HUD na tela de carregamento: os
+digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
+registradas no renderer UMA unica vez. Nenhum `font.render` acontece
+depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
+aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
+<p class='constants'>Constantes: <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code></p>
+<h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
+composicao, depois de `renderer.initialize` (precisa do display
+ativo para `convert_alpha`).</pre>
+<h4><code>build_and_register_overlay_surfaces()</code></h4><pre class="doc">Pre-renderiza as superficies dos overlays de meta-jogo (menu de
+fases, PAUSADO, GAME OVER, FASE CONCLUIDA e dicas de tecla). Chamado
+UMA vez na composicao -- o desenho por frame e so blit.</pre>
+<h4><code>build_and_register_tutorial_textures()</code></h4><pre class="doc">Pre-renderiza os textos de instrucao de TODAS as fases com
+tutorial: o passo `j` da fase `i` vira a textura
+`TEX_TUTORIAL_BASE + i * MAX_TUTORIAL_STEPS + j`, consumida pelo
+`TutorialSystem` durante o gameplay sem nenhum font.render.</pre>
+</details>
+<details class="module" id="hertzbeats-audio-demo_track_synth"><summary><code>hertzbeats/audio/demo_track_synth.py</code> — Sintese DETERMINISTICA das faixas das fases (numpy puro + stdlib wave,</summary>
+<pre class="doc">Sintese DETERMINISTICA das faixas das fases (numpy puro + stdlib wave,
+sem librosa). Nenhum .wav e versionado no repositorio: qualquer maquina
+reconstroi bit a bit a mesma faixa a partir da especificacao
+`{&quot;bpm&quot;, &quot;bars&quot;, &quot;style&quot;}` da fase -- por isso o beatmap.json gerado
+pela IA offline sobre ela permanece valido apos um clone.
+
+Estilos:
+    calm     -- bumbo por batida, caixa em 2/4, sem chimbal, sem drops:
+                onsets esparsos e limpos (fase introdutoria).
+    standard -- bateria completa + drop a cada 8 compassos.
+    intense  -- chimbal em colcheias acentuadas, bumbo dobrado no fim de
+                cada 4 compassos e drop a cada 4: mapa denso.
+
+Roda 100% fora do loop de gameplay (carregamento/ferramentas offline).</pre>
+<p class='constants'>Constantes: <code>_BASS_PROGRESSION_HZ</code></p>
+<h4><code>synthesize_track()</code></h4><pre class="doc">Sintetiza uma faixa (mono, float64 em [-1, 1]) com bateria marcada
+para que o extrator de onsets da engine encontre batidas fortes e
+limpas. Drops (acentos de crash + bumbo pesado) rendem onsets de
+strength alta, que o pipeline converte em ameacas pesadas.</pre>
+<h4><code>write_wav()</code></h4><pre class="doc">Grava `samples` (float em [-1, 1]) como WAV mono 16-bit.</pre>
+<h4><code>ensure_track()</code></h4><pre class="doc">Garante que a faixa exista em `track_path`, re-sintetizando-a
+deterministicamente a partir de `synth_spec` se necessario. Sem
+`synth_spec` (faixa do usuario), o arquivo precisa existir.</pre>
+<h4><code>synthesize_demo_track()</code></h4><pre class="doc">Compat: a faixa demo original e o estilo `standard` em 128 BPM.</pre>
+<h4><code>ensure_demo_track()</code></h4><pre class="doc">Compat: garante a faixa demo (estilo `standard`, 128 BPM, 24 compassos).</pre>
+</details>
+<details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
+<pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
+<p class='constants'>Constantes: <code>FLOW_MENU</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>_RESULTS_GRACE_SECONDS</code></p>
+<h3>classe <code>HertzGameLoop</code></h3><pre class="doc">`GameLoop` da engine estendido com a maquina de estados da partida:
+
+    MENU -&gt; (confirmar) -&gt; PLAYING &lt;-&gt; PAUSED
+    PLAYING -&gt; vida zerada -&gt; GAME_OVER -&gt; (R) repete / (M) menu
+    PLAYING -&gt; fase limpa  -&gt; RESULTS  -&gt; (ENTER) proxima fase /
+                                          (R) repete / (M) menu
+
+Papel arquitetural: o fluxo NAO vive em nenhum `ISystem` -- sistemas
+julgam UMA fase em andamento; trocar/reiniciar fase e recomposicao
+(fase de carregamento, onde alocar e permitido). Cada
+`_start_stage` recompoe o `World` inteiro via `compose_world` (pools
+novas, `GameState` zerado, cursor do spawner em 0) e reinicia a
+faixa do zero -- nenhum estado de partida anterior sobrevive por
+acidente.
+
+PAUSA SEM DRIFT: pausar congela a musica (`pause_track`, quando o
+backend oferece -- `pygame.mixer.music.pause` congela `get_pos`).
+Como TODOS os sistemas ritmicos leem exclusivamente o `IAudioClock`,
+o gameplay inteiro congela em sincronia; ao retomar, nada precisa
+ser re-calibrado. `world.step` simplesmente nao e chamado enquanto
+pausado/menu/telas finais -- mas o frame continua sendo renderizado
+(arena visivel ao fundo dos overlays).
+
+Os overlays (menu/PAUSADO/GAME OVER/FASE CONCLUIDA) sao desenhados
+pelo adapter concreto via `set_overlay` (superficies pre-
+renderizadas na composicao); com um renderer sem esse metodo (ex.:
+`NullRenderer` nos testes headless), o fluxo roda identico, apenas
+sem apresentacao.</pre>
+<h4><code>.flow()</code></h4><pre class="doc">Estado atual do fluxo de partida (telemetria/testes).</pre>
+<h4><code>.composed()</code></h4><pre class="doc">Composicao da fase atualmente carregada.</pre>
+<h4><code>.selected_stage()</code></h4><pre class="doc">Indice da fase selecionada no menu.</pre>
+<h4><code>.loaded_stage()</code></h4><pre class="doc">Indice da fase atualmente composta/carregada.</pre>
+<h4><code>._compose_stage()</code></h4><pre class="doc">Recompoe o `World` inteiro para a fase `stage_index` e garante
+que a faixa exista (re-sintese deterministica se necessario).</pre>
+<h4><code>._start_stage()</code></h4><pre class="doc">Recompoe a fase e inicia a musica do zero -&gt; PLAYING.</pre>
+<h4><code>.advance_frame()</code></h4><pre class="doc">Um frame do fluxo: trata as acoes de meta-jogo do estado atual
+e, apenas em PLAYING, avanca a simulacao (`world.step`).</pre>
+<h4><code>._sync_overlay()</code></h4><pre class="doc">Publica o estado do fluxo no renderer concreto (no-op com um
+renderer sem suporte a overlay, ex. NullRenderer).</pre>
+<h4><code>.run()</code></h4><pre class="doc">Mesmo timing do `GameLoop.run` da engine (perf_counter + cap
+de fps), com `advance_frame` no lugar do `world.step`
+incondicional. A renderizacao acontece em TODO estado -- a arena
+fica visivel ao fundo dos overlays.</pre>
+</details>
+<details class="module" id="hertzbeats-bootstrap-rhythm_composition_root"><summary><code>hertzbeats/bootstrap/rhythm_composition_root.py</code> — rhythm_composition_root: o &quot;cimento&quot; que une a Ouroboros Engine ao</summary>
+<pre class="doc">rhythm_composition_root: o &quot;cimento&quot; que une a Ouroboros Engine ao
+Hertz &amp; Beats. Unico modulo do jogo -- alem de `hertzbeats.adapters` --
+que instancia backends concretos (Pygame*), espelhando o papel do
+`CompositionRoot` da engine.
+
+Sequencia executada por `RhythmCompositionRoot.build()`:
+    1. Instancia `PygameAudioEngine` e o renderer/input Pygame do jogo.
+    2. Instancia o `MemoryManager` (alocando as pools de Hitbox,
+       Transform, RhythmThreat, ...).
+    3. Carrega o `beatmap.json` via `BeatmapLoader` da engine.
+    4. Registra a ordem EXATA de execucao dos sistemas:
+         PlayerInputSystem        (le teclado/mouse)
+         RadialRhythmSpawnerSystem(le o relogio e acorda ameacas na batida)
+         JudgmentSystem           (input x batida -&gt; PERFECT/GOOD/MISS)
+         PhysicsSystem            (move as ameacas nao destruidas)
+         CollisionSystem          (detecta ameaca que passou do ponto)
+         CoreDamageSystem         (pune o jogador pelo par detectado)
+         UIRenderSystem           (monta os arrays de HUD do placar)
+    5. Devolve o `HertzGameLoop` pronto: `while rodando: world.step(dt)`
+       sob a maquina de estados de partida (menu de fases, pausa,
+       derrota, resultados).
+
+A parte pura (`compose_world`) e separada da parte Pygame para que os
+testes headless componham o jogo INTEIRO com backends Null.</pre>
+<p class='constants'>Constantes: <code>PLAYER_COLLISION_LAYER</code>, <code>THREAT_COLLISION_LAYER</code>, <code>MAX_COLLISION_PAIRS</code>, <code>SCORE_DIGITS</code>, <code>COMBO_DIGITS</code>, <code>HUD_LAYER_Z</code>, <code>_THREAT_TEXTURE_BY_NAME</code></p>
+<h4><code>compose_world()</code></h4><pre class="doc">Composicao PURA (sem pygame): pools, arquetipos, entidades
+persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
+sistemas. Backends concretos entram por parametro -- os testes
+injetam Null*, o `build()` injeta Pygame*.
+
+`tutorial_steps` (da definicao da fase) liga o modo tutorial: cria o
+sprite-banner de instrucoes e registra o `TutorialSystem`;
+`stage_ordinal` enderessa a faixa de texturas de texto da fase.</pre>
+<h4><code>_create_player_core()</code></h4><pre class="doc">Cria a entidade do nucleo no centro da arena e retorna seu indice.</pre>
+<h4><code>_create_hud_sprite()</code></h4><pre class="doc">Cria uma entidade de HUD (`transform` + `sprite`) com posicao fixa
+escrita UMA unica vez aqui; retorna o indice da entidade.</pre>
+<h4><code>_create_hud()</code></h4><pre class="doc">Cria todas as entidades de HUD com layout fixo e devolve os
+arrays de indices (digito menos significativo primeiro) consumidos
+pelo `UIRenderSystem`.</pre>
+<h3>classe <code>ComposedGame</code></h3><pre class="doc">Referencias resultantes da composicao pura, para o `build()`
+concreto, para o `__main__` (placar final) e para testes headless.</pre>
+<h3>classe <code>RhythmCompositionRoot</code></h3><pre class="doc">Composicao CONCRETA (Pygame) do Hertz &amp; Beats -- ver docstring do
+modulo para a sequencia exata. As FASES (`data/stages/stages.json`)
+e o fluxo de partida (menu/pausa/derrota/resultados) vivem no
+`HertzGameLoop`, que recompoe o `World` via `compose_world` a cada
+fase iniciada/reiniciada.</pre>
+<h4><code>.build()</code></h4><pre class="doc">Monta o jogo completo e retorna `(game_loop, audio_engine)`
+prontos para `run()` (o menu de fases assume a partir dai).</pre>
+</details>
+<details class="module" id="hertzbeats-components-schemas"><summary><code>hertzbeats/components/schemas.py</code> — Schemas SoA especificos do Hertz &amp; Beats. Assim como os schemas do</summary>
+<pre class="doc">Schemas SoA especificos do Hertz &amp; Beats. Assim como os schemas do
+nucleo da engine, NAO sao classes instanciadas por entidade -- sao
+`numpy.dtype` estruturados consumidos por `MemoryManager.create_pool`
+na composicao do jogo. Nenhum &quot;HitEvent&quot;/&quot;Threat&quot; Python existe em
+runtime: apenas linhas destes arrays contiguos.</pre>
+</details>
+<details class="module" id="hertzbeats-components-texture_ids"><summary><code>hertzbeats/components/texture_ids.py</code> — Identificadores logicos de textura compartilhados entre os sistemas de</summary>
+<pre class="doc">Identificadores logicos de textura compartilhados entre os sistemas de
+gameplay (que so escrevem inteiros em `sprite.texture_id`) e o adapter
+de renderizacao (que resolve cada inteiro para uma Surface pre-
+renderizada ou uma forma procedural). Modulo PURO: nao importa pygame,
+para que sistemas e testes headless o usem sem backend grafico.</pre>
+</details>
+<details class="module" id="hertzbeats-config"><summary><code>hertzbeats/config.py</code> — HertzConfig: toda a afinacao de gameplay carregada de JSON (data-driven, nunca hardcoded em sistema).</summary>
+<pre class="doc">HertzConfig: toda a afinacao de gameplay carregada de JSON (data-driven, nunca hardcoded em sistema).</pre>
+<h4><code>fit_config_to_display()</code></h4><pre class="doc">Encolhe a janela (e TODA a geometria de gameplay, na mesma
+proporcao) quando o monitor nao comporta o tamanho configurado --
+uma janela 960x960 numa tela de 768 de altura ficaria cortada, com
+HUD e metade da arena invisiveis.
+
+Escala uniformemente: janela, raio de spawn, nucleo e meios-tamanhos
+de ameaca. Como as VELOCIDADES derivam de distancia/tempo no spawn,
+a fisica e o julgamento continuam cravados na batida em qualquer
+escala; `approach_seconds` e as janelas temporais nao mudam.
+Retorna a config intocada se ela ja cabe na tela. Funcao PURA
+(testavel sem pygame); quem sonda o tamanho real do display e o
+adapter concreto.</pre>
+<h3>classe <code>HertzConfig</code></h3><pre class="doc">Configuracao imutavel do Hertz &amp; Beats, carregada de
+`data/config/hertz_beats.config.json` ANTES da composicao -- mesmo
+papel da `EngineConfig` da engine, estendida com a afinacao do
+gameplay radial/ritmico. Sistemas recebem valores primitivos ja
+resolvidos no construtor; nenhum sistema le JSON em runtime.</pre>
+<h4><code>.center_xy()</code></h4><pre class="doc">Centro da arena (posicao do nucleo), derivado da janela.</pre>
+<h4><code>.from_json()</code></h4><pre class="doc">Carrega e valida uma `HertzConfig` a partir de um arquivo JSON.</pre>
+</details>
+<details class="module" id="hertzbeats-game_state"><summary><code>hertzbeats/game_state.py</code> — Placar global da partida: o equivalente das &quot;variaveis globais no World&quot; da arquitetura.</summary>
+<pre class="doc">Placar global da partida: o equivalente das &quot;variaveis globais no World&quot; da arquitetura.</pre>
+<h3>classe <code>GameState</code></h3><pre class="doc">Placar/estado global da partida, alocado UMA UNICA VEZ na composicao
+e injetado nos sistemas que leem/escrevem pontuacao
+(`JudgmentSystem`, `CoreDamageSystem`, `UIRenderSystem`).
+
+O `World` da engine e agnostico de produto e nao possui campos de
+placar; este objeto cumpre o papel de &quot;variaveis globais de
+pontuacao no World&quot; da arquitetura sem tocar o nucleo. Mutar
+atributos primitivos de uma instancia pre-alocada e Zero-GC pelo
+mesmo criterio dos contadores internos da engine (ex.:
+`World._pending_destroy_count`).</pre>
+<h4><code>.register_judgment_feedback()</code></h4><pre class="doc">Atualiza o feedback visual de julgamento consumido pelo
+`UIRenderSystem` (palavra PERFECT/GOOD/MISS por alguns frames).</pre>
+</details>
+<details class="module" id="hertzbeats-offline-beatmap_pipeline"><summary><code>hertzbeats/offline/beatmap_pipeline.py</code> — Gera beatmaps do Hertz &amp; Beats com a IA offline da engine: os extratores</summary>
+<pre class="doc">Gera beatmaps do Hertz &amp; Beats com a IA offline da engine: os extratores
+de BPM/onset (librosa) fazem a analise; este modulo aplica apenas o
+MAPEAMENTO especifico do jogo radial (curadoria de espacamento, lane em
+setor angular, ameacas pesadas nos picos) antes da escrita atomica.</pre>
+<p class='constants'>Constantes: <code>THREAT_TYPE_BASIC</code>, <code>THREAT_TYPE_HEAVY</code></p>
+<h4><code>select_onsets()</code></h4><pre class="doc">Seleciona os indices dos onsets que viram ameacas: os MAIS FORTES
+da faixa, ate a densidade-alvo, respeitando o espacamento minimo.
+
+Algoritmo (guloso por forca, nao por ordem temporal): percorre os
+onsets em ordem DECRESCENTE de strength e aceita cada um que (a)
+caiba na janela temporal jogavel e (b) nao fique a menos de
+`min_gap_seconds` de um onset ja aceito; para ao atingir
+`target_density * duracao_jogavel` aceitos. Isso e o que faz a
+dificuldade ser ESTAVEL entre musicas: um limiar absoluto de
+strength nao transfere (a distribuicao muda por faixa/mixagem) -- ou
+corta quase tudo, ou nao corta nada; ja &quot;as N batidas mais fortes,
+espacadas&quot; produz sempre um mapa na cadencia desejada, ancorado nos
+picos reais da musica (bumbo/caixa/drops), nunca no ruido continuo
+de baixo/chimbal.
+
+Retorna os indices aceitos em ordem TEMPORAL.</pre>
+<h4><code>generate_beatmap()</code></h4><pre class="doc">Roda a IA da engine sobre `audio_path` e grava um beatmap.json
+jogavel para a arena radial.
+
+Curadoria pos-IA (o que difere do mapeador default da engine):
+    - Janela temporal jogavel: nada antes de `min_start_seconds` (a
+      primeira ameaca precisa de pista completa) nem depois de
+      `duracao - end_margin_seconds` -- toda ameaca precisa ser
+      resolvivel (janela de miss + punicao) ANTES da musica acabar,
+      pois o relogio de audio congela no fim da faixa.
+    - Selecao adaptativa (ver `select_onsets`): os onsets MAIS
+      FORTES ate `target_density_per_second`, espacados por
+      `min_gap_seconds` -- densidade estavel entre musicas, ancorada
+      nas batidas reais.
+    - Onsets com strength &gt;= `heavy_strength_threshold` (drops/picos
+      de energia) viram `rhythm_threat_heavy`.
+    - `lane = indice_aceito % lane_count` distribui as ameacas em
+      setores angulares alternados da borda.
+
+Retorna um resumo primitivo (bpm, contagens) para logging da CLI.</pre>
+</details>
+<details class="module" id="hertzbeats-stages"><summary><code>hertzbeats/stages.py</code> — Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</summary>
+<pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>
+<h4><code>load_stages()</code></h4><pre class="doc">Carrega a lista ordenada de fases de `stages_path` (JSON).</pre>
+<h4><code>resolve_stage_config()</code></h4><pre class="doc">Deriva a `HertzConfig` efetiva da fase: caminhos de beatmap/faixa
+da fase + `overrides` aplicados sobre a configuracao base. Um campo
+desconhecido em `overrides` e um erro de dados (TypeError), nunca
+silenciosamente ignorado.</pre>
+<h3>classe <code>StageDef</code></h3><pre class="doc">Definicao imutavel de UMA fase, carregada de `stages.json`.
+
+Atributos:
+    stage_id: identificador logico (tambem usado como track_id no
+        `IAudioEngine`).
+    name/subtitle: textos exibidos no menu de selecao (pre-
+        renderizados como texturas na composicao).
+    track_path: caminho do audio da fase. String vazia = fase muda
+        (usado por testes headless).
+    beatmap_path: beatmap.json correspondente (gerado pela IA
+        offline e VERSIONADO no repositorio).
+    synth: especificacao de re-sintese deterministica da faixa
+        (`{&quot;bpm&quot;, &quot;bars&quot;, &quot;style&quot;}`) -- permite nao versionar o .wav;
+        `None` desabilita a re-sintese (faixa do usuario).
+    beatmap_params: parametros da curadoria pos-IA usados por
+        `tools/generate_stage_assets.py` (`min_gap_seconds`,
+        `min_start_seconds`); ignorados em runtime.
+    overrides: campos de `HertzConfig` sobrescritos nesta fase
+        (approach_seconds, max_health, aim_tolerance_degrees, ...).
+    tutorial_steps: passos de instrucao exibidos durante o gameplay
+        (`{&quot;until_seconds&quot;, &quot;text&quot;}`, ordenados). Nao-vazio marca a
+        fase como tutorial: o beatmap e AUTORAL (didatico) e
+        `tools/generate_stage_assets.py` nao o sobrescreve com IA.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-core_damage_system"><summary><code>hertzbeats/systems/core_damage_system.py</code> — Consome os pares do CollisionSystem: pune o jogador quando uma ameaca vencida atinge o nucleo.</summary>
+<pre class="doc">Consome os pares do CollisionSystem: pune o jogador quando uma ameaca vencida atinge o nucleo.</pre>
+<h3>classe <code>CoreDamageSystem</code></h3><pre class="doc">Metade &quot;punitiva&quot; do passo de colisao da composicao: o
+`CollisionSystem` generico da engine DETECTA os pares AABB
+(nucleo x ameaca, filtrados por layer/mask bitwise); este sistema,
+registrado imediatamente depois, decide as CONSEQUENCIAS.
+
+Regras, por par envolvendo o nucleo:
+    - Ameaca com `judgment != PENDING` e ignorada: ou o jogador ja
+      a acertou neste exato frame (`is_hit`, destruicao ja
+      enfileirada), ou ela ja foi varrida como MISS -- o veredito de
+      uma ameaca e emitido no maximo UMA vez.
+    - A punicao so vale se a ameaca esta VENCIDA
+      (`agora_efetivo - target_hit_time_sec &gt; good_window`): como a
+      geometria faz a borda da ameaca tocar o anel do nucleo
+      exatamente em `target_hit_time_sec`, o overlap AABB comeca
+      junto com a janela de acerto tardio -- sem este guarda
+      temporal, a colisao roubaria da janela GOOD do jogador.
+    - I-frames de Dash ativos -&gt; DODGED: destroi a ameaca sem dano
+      e sem quebrar o combo (&quot;atravessou o anel no ritmo certo&quot;).
+    - Caso contrario -&gt; dano no nucleo, combo zerado e feedback de
+      MISS.
+
+Zero-GC: itera apenas sobre a view de pares ja pre-alocada do
+`CollisionSystem` (tipicamente 0-2 pares por frame), com leituras
+escalares primitivas. Como toda destruicao e DIFERIDA para o flush,
+os pares permanecem validos durante o frame inteiro.</pre>
+<h4><code>.update()</code></h4><pre class="doc">Processa os pares de colisao do frame corrente (ver regras na
+docstring da classe).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-judgment_system"><summary><code>hertzbeats/systems/judgment_system.py</code> — Julga o input do jogador contra as ameacas vivas: PERFECT/GOOD/MISS, sem alocar um unico objeto.</summary>
+<pre class="doc">Julga o input do jogador contra as ameacas vivas: PERFECT/GOOD/MISS, sem alocar um unico objeto.</pre>
+<p class='constants'>Constantes: <code>_TAU</code></p>
+<h3>classe <code>JudgmentSystem</code></h3><pre class="doc">Roda logo apos a leitura do input e avalia se o jogador apertou
+&quot;fire&quot; no tempo E na direcao certos.
+
+LOGICA ZERO-GC: a cada frame o sistema varre a pool `rhythm_threat`
+(o RhythmThreatPool) calculando, VETORIZADO e sobre buffers
+pre-alocados no construtor (`out=` em todas as ufuncs), a diferenca
+`delta = target_hit_time_sec - agora_efetivo`, onde `agora_efetivo`
+vem exclusivamente do `IAudioClock` compensado de latencia -- a
+MESMA formula do spawner, entao julgamento e impacto compartilham a
+mesma base de tempo. Nenhum &quot;HitEvent&quot; ou string dinamica e criado:
+o veredito e um inteiro gravado na propria linha SoA da ameaca.
+
+JANELAS DE TOLERANCIA (data-driven via config):
+    |delta| &lt;= perfect_window  -&gt; PERFECT
+    |delta| &lt;= good_window     -&gt; GOOD
+    delta   &lt; -miss_window     -&gt; MISS (passou do tempo)
+
+MIRA 360: alem da janela temporal, o acerto exige que a mira do
+jogador (`player_state.aim_angle_rad`) aponte para a ameaca dentro
+de `aim_tolerance_rad` (diferenca angular com wrap em +-pi,
+vetorizada). Entre as candidatas validas, vence a de menor |delta|.
+
+ATUALIZACAO DE ESTADO: no acerto, `is_hit = True` e gravado na linha
+(o restante do frame -- CollisionSystem/CoreDamageSystem -- passa a
+ignora-la), a destruicao e enfileirada via `world.destroy_entity`
+(DIFERIDA: efetivada no flush ao final do step, nunca no meio do
+frame), e o placar global (`GameState.score`/`combo_count`) e
+atualizado por aritmetica de inteiros. Zero alocacao dinamica.</pre>
+<h4><code>.update()</code></h4><pre class="doc">Executa o julgamento do frame: (1) varre MISSes vencidos,
+(2) se &quot;fire&quot; foi pressionado neste frame, tenta converter a
+melhor candidata em PERFECT/GOOD. `delta_time` e ignorado para
+decisoes ritmicas -- a fonte de verdade e o `IAudioClock`.</pre>
+<h4><code>._sweep_overdue_misses()</code></h4><pre class="doc">Marca como MISS (e enfileira destruicao) toda ameaca ainda
+pendente cujo tempo ja passou alem da janela de miss
+(`delta &lt; -miss_window`). Quebra o combo UMA vez por frame,
+independente de quantas ameacas vencerem juntas.</pre>
+<h4><code>._try_player_hit()</code></h4><pre class="doc">Seleciona a melhor candidata (menor |delta|) dentro da janela
+Good E do cone de mira, e converte em PERFECT/GOOD. Se nenhuma
+candidata existe, o disparo simplesmente nao acerta nada (sem
+punicao -- o jogo pune pelo impacto no nucleo, nao pelo tiro
+errado).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-player_input_system"><summary><code>hertzbeats/systems/player_input_system.py</code> — O &quot;InputSystem&quot; da composicao: traduz teclado/mouse em mira 360, Dash e i-frames.</summary>
+<pre class="doc">O &quot;InputSystem&quot; da composicao: traduz teclado/mouse em mira 360, Dash e i-frames.</pre>
+<h3>classe <code>PlayerInputSystem</code></h3><pre class="doc">Primeiro sistema do frame (o &quot;InputSystem&quot; da ordem de composicao):
+le o `IInputProvider` (ja `poll()`ado pelo GameLoop) e escreve o
+estado do jogador nas pools SoA -- nenhum outro sistema toca o
+backend de input para decidir gameplay de mira/dash.
+
+Responsabilidades:
+    - Mira 360: converte os eixos `aim_x`/`aim_y` (vetor unitario
+      mouse-&gt;nucleo publicado pelo adapter) em `aim_angle_rad` via
+      `math.atan2` escalar (uma unica entidade: o jogador).
+    - Dash: na borda de pressao de `dash`, se fora de cooldown,
+      arma `iframe_timer_sec` (janela de invencibilidade que o
+      `CoreDamageSystem` respeita) e o cooldown.
+    - Timers: decrementados com `delta_time` de frame -- correto
+      aqui, pois i-frames/cooldown sao &quot;game feel&quot;, nao eventos
+      sincronizados a batida (estes consultam `IAudioClock`).
+    - Feedback visual: reposiciona a entidade do crosshair no anel
+      de mira e pisca o tint do nucleo durante os i-frames.
+
+Zero-GC: apenas leituras/escritas escalares em linhas densas
+re-resolvidas por frame (`dense_row_of`, nunca cacheadas -- um
+swap-remove alheio pode move-las entre frames).</pre>
+<h4><code>.update()</code></h4><pre class="doc">Atualiza mira, dash e timers do jogador para este frame.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-radial_spawner_system"><summary><code>hertzbeats/systems/radial_spawner_system.py</code> — Especializacao radial do RhythmSpawnerSystem: nasce na borda, toca o nucleo exatamente na batida.</summary>
+<pre class="doc">Especializacao radial do RhythmSpawnerSystem: nasce na borda, toca o nucleo exatamente na batida.</pre>
+<p class='constants'>Constantes: <code>_TAU</code></p>
+<h3>classe <code>RadialRhythmSpawnerSystem</code></h3><pre class="doc">E o `RhythmSpawnerSystem` da engine (herda cursor monotonico,
+compensacao de latencia e idempotencia inalterados), estendido com a
+materializacao RADIAL de cada ameaca no momento do disparo:
+
+    - O array agendado passado a base class contem TEMPOS DE SPAWN
+      (`hit_time - approach_seconds`, com clamp em 0.0), preparado
+      na composicao. `hit_times` (parametro deste construtor) guarda
+      os tempos de IMPACTO originais do beatmap, paralelos linha a
+      linha.
+    - No spawn, a ameaca nasce na borda (`spawn_radius` a partir do
+      centro), no angulo derivado da `lane` extraida pela IA
+      (`angulo = TAU * lane / lane_count`), e recebe uma velocidade
+      constante MATEMATICAMENTE calculada para que sua borda toque o
+      anel do nucleo exatamente em `target_hit_time_sec`::
+
+          distancia_util = spawn_radius - (core_half + threat_half)
+          velocidade     = distancia_util / (hit_time - agora_efetivo)
+
+      Como o tempo restante e medido contra o `IAudioClock` ja
+      compensado de latencia, um spawn atrasado por um frame lento
+      simplesmente viaja proporcionalmente mais rapido -- o impacto
+      continua cravado na batida.
+
+Zero-GC: toda a inicializacao e feita com escritas escalares
+primitivas nas linhas densas recem-anexadas (mesmo padrao do
+`_create_threat_entity` original); pools e arrays de afinacao por
+tipo de ameaca sao resolvidos UMA unica vez aqui no construtor.</pre>
+<h4><code>._create_threat_entity()</code></h4><pre class="doc">Cria a entidade via base class (que escreve `lane`/
+`threat_type` na pool `rhythm_threat`) e entao materializa os
+componentes radiais: posicao na borda, velocidade em direcao ao
+nucleo, hitbox/sprite por tipo, e os campos ritmicos
+(`target_hit_time_sec`, `spawn_angle_rad`, `packed_handle`)
+consumidos por `JudgmentSystem`/`CoreDamageSystem`.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-tutorial_system"><summary><code>hertzbeats/systems/tutorial_system.py</code> — Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</summary>
+<pre class="doc">Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</pre>
+<h3>classe <code>TutorialSystem</code></h3><pre class="doc">Exibe as instrucoes do tutorial DURANTE o gameplay, trocando a
+textura de um unico sprite-banner de HUD conforme a musica avanca.
+
+Os passos vem da definicao da fase (`tutorial_steps` em
+`stages.json`, data-driven): cada passo vale ate `until_seconds` na
+linha do tempo da faixa. O texto de cada passo foi pre-renderizado
+na composicao (`TEX_TUTORIAL_BASE + ...`); aqui so se escolhe QUAL
+id mostrar -- nenhum `font.render`, nenhuma string em runtime.
+
+Mesmo padrao de cursor monotonico do `RhythmSpawnerSystem`: um unico
+inteiro `_current_step` avanca contra o array pre-alocado de
+`until_seconds`, comparado ao `IAudioClock` compensado de latencia
+(a MESMA base de tempo do spawner/julgamento -- o banner de &quot;dash&quot;
+aparece exatamente junto da onda que ensina o dash). Pausar a musica
+congela o relogio e, com ele, o tutorial inteiro.</pre>
+<h4><code>.current_step()</code></h4><pre class="doc">Indice do passo ativo (== total de passos quando o tutorial acabou).</pre>
+<h4><code>.update()</code></h4><pre class="doc">Avanca o cursor de passo contra o relogio de audio e escreve
+textura/alfa do banner (escritas escalares em linha densa
+re-resolvida por frame).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-ui_render_system"><summary><code>hertzbeats/systems/ui_render_system.py</code> — Monta o HUD (placar/combo/veredito/vida) por aritmetica de digitos sobre sprites pre-criados.</summary>
+<pre class="doc">Monta o HUD (placar/combo/veredito/vida) por aritmetica de digitos sobre sprites pre-criados.</pre>
+<h3>classe <code>UIRenderSystem</code></h3><pre class="doc">Ultimo sistema do frame: converte o placar global (`GameState`) em
+estado de SPRITE das entidades de HUD -- que sao entidades comuns
+(`transform` + `sprite`) criadas UMA unica vez na composicao e
+desenhadas pelo MESMO `IRenderer.draw_batch()` ultra-rapido do jogo
+base. Nenhum `font.render(...)` acontece aqui: os glifos 0-9 e as
+palavras PERFECT/GOOD/MISS foram pre-renderizados como texturas
+estaticas na tela de carregamento (ver `texture_bank`), e este
+sistema apenas escolhe `texture_id`/`tint_a` por aritmetica.
+
+LOGICA ZERO-GC dos digitos: se o combo e 142, o sistema extrai os
+digitos 1, 4 e 2 com `digito_i = (valor // 10**i) % 10`,
+VETORIZADO sobre buffers pre-alocados (`np.floor_divide`/`np.mod`
+com `out=`), e grava `TEX_DIGIT_BASE + digito` no `texture_id` de
+cada entidade-digito. Zeros a esquerda sao ocultados com
+`tint_a = 0` (o adapter pula sprites transparentes). As posicoes dos
+digitos sao fixas, escritas uma unica vez na composicao.
+
+O timer da palavra de veredito decrementa com `delta_time` de frame
+(feedback visual, nao evento ritmico).</pre>
+<h4><code>.update()</code></h4><pre class="doc">Reescreve texture_id/tint_a dos sprites de HUD a partir do
+`GameState` corrente.</pre>
+<h4><code>._write_number()</code></h4><pre class="doc">Extrai os digitos de `value` (base 10, vetorizado, buffers
+`out=`) e grava textura/alfa nos sprites correspondentes; digitos
+alem do mais significativo ficam com alfa 0 (ocultos), exceto o
+das unidades, sempre visivel (mostra o proprio 0).</pre>
+</details>
+
+<p class="muted" style="margin-top:4rem">Gerado por <code>tools/build_docs.py</code> a partir do código e
+dos dados reais do repositório.</p>
+</main>
+</body>
+</html>

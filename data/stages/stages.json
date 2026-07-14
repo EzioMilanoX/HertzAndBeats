@@ -27,7 +27,7 @@
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
       "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
-      "beatmap": { "min_gap_seconds": 0.30, "min_start_seconds": 3.2 },
+      "beatmap": { "min_gap_seconds": 0.75, "min_start_seconds": 3.2, "target_density_per_second": 0.9 },
       "overrides": {
         "approach_seconds": 2.4,
         "max_health": 4,
@@ -41,7 +41,7 @@
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
-      "beatmap": { "min_gap_seconds": 0.20, "min_start_seconds": 2.6 },
+      "beatmap": { "min_gap_seconds": 0.45, "min_start_seconds": 2.6, "target_density_per_second": 1.6 },
       "overrides": {}
     },
     {
@@ -51,7 +51,7 @@
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
       "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
-      "beatmap": { "min_gap_seconds": 0.18, "min_start_seconds": 2.2 },
+      "beatmap": { "min_gap_seconds": 0.35, "min_start_seconds": 2.2, "target_density_per_second": 2.2 },
       "overrides": {
         "approach_seconds": 1.6,
         "aim_tolerance_degrees": 30.0

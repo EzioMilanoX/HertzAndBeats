@@ -69,6 +69,16 @@ class HBPygameRenderer(PygameRenderer):
         """Define os aneis-guia da arena, desenhados a cada `begin_frame`."""
         self._playfield = (int(center_x), int(center_y), int(spawn_radius), int(judgment_radius))
 
+    @staticmethod
+    def probe_display_size() -> Tuple[int, int]:
+        """Resolucao do monitor atual, consultada ANTES de criar a
+        janela (para `fit_config_to_display`). Inicializa apenas o
+        subsistema de video do pygame, sem abrir janela."""
+        if not pygame.display.get_init():
+            pygame.display.init()
+        info = pygame.display.Info()
+        return int(info.current_w), int(info.current_h)
+
     def initialize(self, width: int, height: int, title: str) -> None:
         super().initialize(width, height, title)
         self._dim_surface = pygame.Surface((width, height), pygame.SRCALPHA)

@@ -191,6 +191,12 @@ def compose_world(
         max_pairs=MAX_COLLISION_PAIRS,
     )
 
+    # A mira orbita EXATAMENTE sobre o anel de julgamento (nucleo +
+    # ameaca basica): "atire quando a ameaca tocar a sua mira" e a
+    # mecanica literal, nao so uma metafora visual.
+    judgment_ring_radius = config.core_half_extent + config.threat_half_extents.get(
+        "rhythm_threat_basic", 10.0
+    )
     world.register_system(
         PlayerInputSystem(
             input_provider=input_provider,
@@ -198,7 +204,7 @@ def compose_world(
             player_entity_index=player_entity_index,
             crosshair_entity_index=crosshair_entity_index,
             center_xy=(center_x, center_y),
-            crosshair_orbit_radius=config.core_half_extent + 26.0,
+            crosshair_orbit_radius=judgment_ring_radius,
             dash_duration_seconds=config.dash_duration_seconds,
             dash_cooldown_seconds=config.dash_cooldown_seconds,
         )
@@ -404,10 +410,16 @@ class RhythmCompositionRoot:
             build_and_register_overlay_surfaces,
             build_and_register_tutorial_textures,
         )
+        from hertzbeats.audio.demo_track_synth import ensure_track
         from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
+        from hertzbeats.config import fit_config_to_display
         from hertzbeats.stages import load_stages
 
-        config = self._config
+        # A geometria toda encolhe junto se o monitor nao comportar a
+        # janela configurada (ex.: 960x960 numa tela de 768 de altura).
+        display_width, display_height = HBPygameRenderer.probe_display_size()
+        config = fit_config_to_display(self._config, display_width, display_height)
+        self._config = config
         center_x, center_y = config.center_xy
 
         # 1. Backends concretos.
@@ -431,7 +443,12 @@ class RhythmCompositionRoot:
 
         # 2-4. Fases data-driven + fluxo de partida. O HertzGameLoop ja
         # compoe a fase 0 (via `compose_world`) para o fundo do menu.
+        # Todas as faixas sao garantidas AQUI (tela de carregamento) para
+        # nao haver hitch de sintese no primeiro start de cada fase.
         stages = load_stages(config.stages_path)
+        for stage in stages:
+            if stage.track_path:
+                ensure_track(stage.track_path, stage.synth)
         game_loop = HertzGameLoop(
             base_config=config,
             stages=stages,
