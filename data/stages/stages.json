@@ -1,6 +1,26 @@
 {
   "stages": [
     {
+      "stage_id": "tutorial",
+      "name": "TUTORIAL",
+      "subtitle": "80 BPM - aprenda o basico",
+      "track_path": "data/tracks/tutorial.wav",
+      "beatmap_path": "data/beatmaps/tutorial.beatmap.json",
+      "synth": { "bpm": 80.0, "bars": 21, "style": "calm" },
+      "overrides": {
+        "approach_seconds": 2.8,
+        "max_health": 6,
+        "aim_tolerance_degrees": 40.0
+      },
+      "tutorial_steps": [
+        { "until_seconds": 9.0, "text": "Mova o MOUSE: a mira orbita o nucleo" },
+        { "until_seconds": 24.0, "text": "CLIQUE quando a ameaca tocar o anel dourado" },
+        { "until_seconds": 39.0, "text": "No ritmo: PERFECT (50 ms) vale mais que GOOD (100 ms)" },
+        { "until_seconds": 51.0, "text": "Cercado? DASH (ESPACO) atravessa tudo sem dano" },
+        { "until_seconds": 61.0, "text": "Agora e com voce: feche o combo!" }
+      ]
+    },
+    {
       "stage_id": "stage1_pulso_leve",
       "name": "1 - PULSO LEVE",
       "subtitle": "100 BPM - aquecimento",

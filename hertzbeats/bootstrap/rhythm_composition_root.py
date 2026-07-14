@@ -43,6 +43,7 @@ from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.components.texture_ids import (
+    MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
     TEX_HEALTH_PIP,
     TEX_LABEL_COMBO,
@@ -50,6 +51,7 @@ from hertzbeats.components.texture_ids import (
     TEX_PLAYER_CORE,
     TEX_THREAT_BASIC,
     TEX_THREAT_HEAVY,
+    TEX_TUTORIAL_BASE,
 )
 from hertzbeats.config import HertzConfig
 from hertzbeats.game_state import GameState
@@ -57,6 +59,7 @@ from hertzbeats.systems.core_damage_system import CoreDamageSystem
 from hertzbeats.systems.judgment_system import JudgmentSystem
 from hertzbeats.systems.player_input_system import PlayerInputSystem
 from hertzbeats.systems.radial_spawner_system import RadialRhythmSpawnerSystem
+from hertzbeats.systems.tutorial_system import TutorialSystem
 from hertzbeats.systems.ui_render_system import UIRenderSystem
 
 PLAYER_COLLISION_LAYER = 1
@@ -108,11 +111,17 @@ def compose_world(
     config: HertzConfig,
     input_provider: IInputProvider,
     audio_clock: IAudioClock,
+    tutorial_steps: tuple = (),
+    stage_ordinal: int = 0,
 ) -> ComposedGame:
     """Composicao PURA (sem pygame): pools, arquetipos, entidades
     persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
     sistemas. Backends concretos entram por parametro -- os testes
     injetam Null*, o `build()` injeta Pygame*.
+
+    `tutorial_steps` (da definicao da fase) liga o modo tutorial: cria o
+    sprite-banner de instrucoes e registra o `TutorialSystem`;
+    `stage_ordinal` enderessa a faixa de texturas de texto da fase.
     """
     center_x, center_y = config.center_xy
 
@@ -224,6 +233,25 @@ def compose_world(
             judgment_display_seconds=config.judgment_display_seconds,
         )
     )
+    if tutorial_steps:
+        banner_entity_index = _create_hud_sprite(
+            world, memory_manager, 0, center_x, 96.0, alpha=0
+        )
+        step_until_seconds = np.array(
+            [step["until_seconds"] for step in tutorial_steps], dtype=np.float64
+        )
+        texture_base = TEX_TUTORIAL_BASE + stage_ordinal * MAX_TUTORIAL_STEPS
+        step_texture_ids = np.arange(texture_base, texture_base + len(tutorial_steps), dtype=np.int64)
+        world.register_system(
+            TutorialSystem(
+                audio_clock=audio_clock,
+                memory_manager=memory_manager,
+                banner_entity_index=banner_entity_index,
+                step_until_seconds=step_until_seconds,
+                step_texture_ids=step_texture_ids,
+            )
+        )
+
     world.register_system(
         UIRenderSystem(
             memory_manager=memory_manager,
@@ -374,6 +402,7 @@ class RhythmCompositionRoot:
         from hertzbeats.adapters.texture_bank import (
             build_and_register_hud_textures,
             build_and_register_overlay_surfaces,
+            build_and_register_tutorial_textures,
         )
         from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
         from hertzbeats.stages import load_stages
@@ -412,8 +441,10 @@ class RhythmCompositionRoot:
             audio_clock=audio_clock,
         )
 
-        # Texturas de HUD e overlays pre-renderizados (tela de carregamento).
+        # Texturas de HUD, overlays e textos de tutorial pre-renderizados
+        # (tela de carregamento).
         build_and_register_hud_textures(renderer)
         build_and_register_overlay_surfaces(renderer, stages)
+        build_and_register_tutorial_textures(renderer, stages)
 
         return game_loop, audio_engine

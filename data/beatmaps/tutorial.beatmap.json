@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "track_id": "tutorial",
+  "bpm": 80.0,
+  "threats": [
+    { "timestamp_seconds": 12.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.4 },
+    { "timestamp_seconds": 15.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.4 },
+    { "timestamp_seconds": 18.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.4 },
+    { "timestamp_seconds": 21.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.4 },
+
+    { "timestamp_seconds": 27.0, "threat_type": "rhythm_threat_basic", "lane": 2, "strength": 0.4 },
+    { "timestamp_seconds": 30.0, "threat_type": "rhythm_threat_basic", "lane": 4, "strength": 0.4 },
+    { "timestamp_seconds": 33.0, "threat_type": "rhythm_threat_basic", "lane": 6, "strength": 0.4 },
+    { "timestamp_seconds": 36.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.4 },
+
+    { "timestamp_seconds": 43.0, "threat_type": "rhythm_threat_basic", "lane": 1, "strength": 0.6 },
+    { "timestamp_seconds": 43.0, "threat_type": "rhythm_threat_basic", "lane": 4, "strength": 0.6 },
+    { "timestamp_seconds": 43.0, "threat_type": "rhythm_threat_basic", "lane": 7, "strength": 0.6 },
+    { "timestamp_seconds": 47.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.6 },
+    { "timestamp_seconds": 47.0, "threat_type": "rhythm_threat_basic", "lane": 3, "strength": 0.6 },
+    { "timestamp_seconds": 47.0, "threat_type": "rhythm_threat_basic", "lane": 6, "strength": 0.6 },
+
+    { "timestamp_seconds": 53.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5 },
+    { "timestamp_seconds": 54.5, "threat_type": "rhythm_threat_basic", "lane": 2, "strength": 0.5 },
+    { "timestamp_seconds": 56.0, "threat_type": "rhythm_threat_basic", "lane": 4, "strength": 0.5 },
+    { "timestamp_seconds": 57.5, "threat_type": "rhythm_threat_basic", "lane": 6, "strength": 0.5 },
+    { "timestamp_seconds": 59.0, "threat_type": "rhythm_threat_heavy", "lane": 3, "strength": 0.9 }
+  ]
+}

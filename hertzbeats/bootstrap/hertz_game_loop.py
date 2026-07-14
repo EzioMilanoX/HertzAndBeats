@@ -116,7 +116,13 @@ class HertzGameLoop(GameLoop):
         stage_config = resolve_stage_config(self._base_config, stage)
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
-        composed = compose_world(stage_config, self._input_provider, self._audio_clock)
+        composed = compose_world(
+            stage_config,
+            self._input_provider,
+            self._audio_clock,
+            tutorial_steps=stage.tutorial_steps,
+            stage_ordinal=stage_index,
+        )
         self._composed = composed
         self._loaded_stage = stage_index
         self._world = composed.world  # GameLoop renderiza sempre o world da fase carregada

@@ -38,6 +38,12 @@ def main(argv=None) -> int:
         track_path = ensure_track(stage.track_path, stage.synth)
         print(f"[{stage.stage_id}] faixa pronta: {track_path}")
 
+        if stage.tutorial_steps:
+            # beatmap do tutorial e AUTORAL (timing didatico): nunca
+            # sobrescrever com a saida da IA
+            print(f"[{stage.stage_id}] beatmap autoral preservado: {stage.beatmap_path}")
+            continue
+
         summary = generate_beatmap(
             audio_path=Path(track_path),
             output_path=Path(stage.beatmap_path),

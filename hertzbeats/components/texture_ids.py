@@ -34,3 +34,11 @@ JUDGMENT_WORD_TEXTURES: tuple = (0, TEX_WORD_PERFECT, TEX_WORD_GOOD, TEX_WORD_MI
 """Mapeia `JUDGMENT_*` (indice) -> textura da palavra correspondente.
 Indices PENDING/DODGED nao tem palavra (0 = sem textura). Tupla criada
 uma unica vez no carregamento do modulo, indexada por inteiro no loop."""
+
+TEX_TUTORIAL_BASE: int = 200
+"""Textos de instrucao do tutorial, pre-renderizados na composicao:
+o passo `j` da fase de indice `i` usa
+`TEX_TUTORIAL_BASE + i * MAX_TUTORIAL_STEPS + j`."""
+
+MAX_TUTORIAL_STEPS: int = 32
+"""Passos maximos de tutorial por fase (dimensiona a faixa de ids)."""

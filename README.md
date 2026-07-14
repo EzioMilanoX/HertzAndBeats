@@ -21,13 +21,16 @@ O fluxo da partida: **menu de fases → jogando ⇄ pausado → GAME OVER** (vid
 
 ## Fases
 
-Três fases padrões, definidas em [data/stages/stages.json](data/stages/stages.json) (data-driven — adicione as suas):
+Um tutorial e três fases padrões, definidos em [data/stages/stages.json](data/stages/stages.json) (data-driven — adicione as suas):
 
 | Fase | Faixa | Dificuldade |
 | --- | --- | --- |
+| **Tutorial** | 80 BPM, estilo `calm` | Guiado por instruções na tela; 6 de vida, aproximação 2.8s |
 | **1 · Pulso Leve** | 100 BPM, estilo `calm` | Aproximação 2.4s, 4 de vida, cone de mira 40° |
 | **2 · Batida Franca** | 128 BPM, estilo `standard` | Afinação padrão (2.0s, 3 de vida, 35°) |
 | **3 · Sobrecarga** | 150 BPM, estilo `intense`, drops a cada 4 compassos | Aproximação 1.6s, cone 30° |
+
+O **tutorial** ensina jogando: faixas de instrução aparecem no topo da tela em sincronia com a música (mova a mira → atire quando a ameaça tocar o anel → janelas PERFECT/GOOD → uma onda de 3 ameaças simultâneas para aprender o Dash → sequência final). O beatmap do tutorial é **autoral** (timing didático, em [data/beatmaps/tutorial.beatmap.json](data/beatmaps/tutorial.beatmap.json)) — o `generate_stage_assets.py` preserva ele e só regenera os das fases via IA. Por baixo, é o mesmo motor: um `TutorialSystem` zero-GC avança um cursor de passos contra o `IAudioClock` (a mesma base de tempo do spawner) e troca a textura de um sprite-banner pré-renderizado; os passos vêm do JSON da fase (`tutorial_steps`), então qualquer fase pode virar um tutorial.
 
 Cada fase tem sua faixa sintetizada deterministicamente (o `.wav` não é versionado; é reconstruído bit a bit no primeiro uso) e seu beatmap extraído pela IA offline da engine — 107, 180 e 168 ameaças respectivamente. Para regenerar tudo: `python tools/generate_stage_assets.py --force` (requer `librosa`).
 

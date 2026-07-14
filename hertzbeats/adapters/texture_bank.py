@@ -11,11 +11,13 @@ import pygame
 
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
 from hertzbeats.components.texture_ids import (
+    MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
     TEX_DIGIT_BASE,
     TEX_HEALTH_PIP,
     TEX_LABEL_COMBO,
     TEX_LABEL_SCORE,
+    TEX_TUTORIAL_BASE,
     TEX_WORD_GOOD,
     TEX_WORD_MISS,
     TEX_WORD_PERFECT,
@@ -89,3 +91,25 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         label = f"{stage.name}    {stage.subtitle}" if stage.subtitle else stage.name
         register_text(f"stage_{i}", stage_font, label, _LABEL_COLOR)
         register_text(f"stage_{i}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
+
+
+def build_and_register_tutorial_textures(renderer: HBPygameRenderer, stages) -> None:
+    """Pre-renderiza os textos de instrucao de TODAS as fases com
+    tutorial: o passo `j` da fase `i` vira a textura
+    `TEX_TUTORIAL_BASE + i * MAX_TUTORIAL_STEPS + j`, consumida pelo
+    `TutorialSystem` durante o gameplay sem nenhum font.render."""
+    if not pygame.font.get_init():
+        pygame.font.init()
+    banner_font = pygame.font.Font(None, 38)
+
+    for stage_index, stage in enumerate(stages):
+        steps = stage.tutorial_steps
+        if len(steps) > MAX_TUTORIAL_STEPS:
+            raise ValueError(
+                f"fase {stage.stage_id}: {len(steps)} passos de tutorial excedem MAX_TUTORIAL_STEPS"
+            )
+        for step_index, step in enumerate(steps):
+            surface = banner_font.render(step["text"], True, _PERFECT_COLOR).convert_alpha()
+            renderer.register_texture(
+                TEX_TUTORIAL_BASE + stage_index * MAX_TUTORIAL_STEPS + step_index, surface
+            )

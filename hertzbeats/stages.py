@@ -31,6 +31,10 @@ class StageDef:
             `min_start_seconds`); ignorados em runtime.
         overrides: campos de `HertzConfig` sobrescritos nesta fase
             (approach_seconds, max_health, aim_tolerance_degrees, ...).
+        tutorial_steps: passos de instrucao exibidos durante o gameplay
+            (`{"until_seconds", "text"}`, ordenados). Nao-vazio marca a
+            fase como tutorial: o beatmap e AUTORAL (didatico) e
+            `tools/generate_stage_assets.py` nao o sobrescreve com IA.
     """
 
     stage_id: str
@@ -41,6 +45,7 @@ class StageDef:
     synth: Optional[Dict]
     beatmap_params: Dict
     overrides: Dict
+    tutorial_steps: Tuple[Dict, ...] = ()
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
@@ -59,6 +64,7 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
                 synth=entry.get("synth"),
                 beatmap_params=dict(entry.get("beatmap", {})),
                 overrides=dict(entry.get("overrides", {})),
+                tutorial_steps=tuple(entry.get("tutorial_steps", ())),
             )
         )
     if not stages:
