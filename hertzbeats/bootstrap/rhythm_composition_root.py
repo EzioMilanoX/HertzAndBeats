@@ -384,6 +384,7 @@ class RhythmCompositionRoot:
         # 1. Backends concretos.
         renderer = HBPygameRenderer()
         renderer.initialize(config.window_width, config.window_height, config.window_title)
+        renderer.set_window_icon("assets/icon.png")
         renderer.configure_playfield(
             center_x,
             center_y,

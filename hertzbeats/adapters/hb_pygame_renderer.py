@@ -74,6 +74,14 @@ class HBPygameRenderer(PygameRenderer):
         self._dim_surface = pygame.Surface((width, height), pygame.SRCALPHA)
         self._dim_surface.fill((4, 2, 12, 178))
 
+    def set_window_icon(self, icon_path: str) -> None:
+        """Define o icone da janela/barra de tarefas a partir de um PNG.
+        No-op silencioso se o arquivo nao existir (icone e opcional)."""
+        try:
+            pygame.display.set_icon(pygame.image.load(icon_path))
+        except (FileNotFoundError, pygame.error):
+            pass
+
     def begin_frame(self) -> None:
         self._surface.fill((8, 6, 20))
         if self._playfield is not None:
