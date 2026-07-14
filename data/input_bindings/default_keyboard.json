@@ -1,5 +1,10 @@
 {
   "fire": "MOUSE_LEFT",
   "dash": "KEY_SPACE",
-  "pause": "KEY_ESCAPE"
+  "pause": "KEY_ESCAPE",
+  "menu_up": "KEY_UP",
+  "menu_down": "KEY_DOWN",
+  "confirm": "KEY_RETURN",
+  "retry": "KEY_R",
+  "to_menu": "KEY_M"
 }

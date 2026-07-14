@@ -27,6 +27,7 @@ class HertzConfig:
     beatmap_path: str
     track_path: str
     input_bindings_path: str
+    stages_path: str
 
     threat_type_ids: Dict[str, int]
     threat_half_extents: Dict[str, float]
@@ -72,6 +73,7 @@ class HertzConfig:
             beatmap_path=raw["beatmap_path"],
             track_path=raw["track_path"],
             input_bindings_path=raw["input_bindings_path"],
+            stages_path=raw["stages_path"],
             threat_type_ids=dict(raw["threat_type_ids"]),
             threat_half_extents=dict(raw["threat_half_extents"]),
             lane_count=raw["lane_count"],

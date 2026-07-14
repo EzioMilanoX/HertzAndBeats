@@ -58,3 +58,34 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
     pygame.draw.circle(pip, (255, 80, 96), (9, 9), 8)
     pygame.draw.circle(pip, (255, 180, 190), (9, 9), 8, 2)
     renderer.register_texture(TEX_HEALTH_PIP, pip.convert_alpha())
+
+
+def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> None:
+    """Pre-renderiza as superficies dos overlays de meta-jogo (menu de
+    fases, PAUSADO, GAME OVER, FASE CONCLUIDA e dicas de tecla). Chamado
+    UMA vez na composicao -- o desenho por frame e so blit."""
+    if not pygame.font.get_init():
+        pygame.font.init()
+
+    title_font = pygame.font.Font(None, 96)
+    big_font = pygame.font.Font(None, 84)
+    stage_font = pygame.font.Font(None, 52)
+    hint_font = pygame.font.Font(None, 30)
+
+    def register_text(key, font, text, color):
+        renderer.register_overlay_surface(key, font.render(text, True, color).convert_alpha())
+
+    register_text("title", title_font, "HERTZ & BEATS", _DIGIT_COLOR)
+    register_text("subtitle", hint_font, "defesa de perimetro no ritmo da musica", _LABEL_COLOR)
+    register_text("paused", big_font, "PAUSADO", _DIGIT_COLOR)
+    register_text("game_over", big_font, "GAME OVER", _MISS_COLOR)
+    register_text("results", big_font, "FASE CONCLUIDA", _GOOD_COLOR)
+    register_text("hint_menu", hint_font, "SETAS: escolher    ENTER ou CLIQUE: jogar    ESC: sair", _LABEL_COLOR)
+    register_text("hint_paused", hint_font, "ESC: continuar    M: menu", _LABEL_COLOR)
+    register_text("hint_end", hint_font, "R: tentar de novo    M: menu", _LABEL_COLOR)
+    register_text("hint_results", hint_font, "ENTER: proxima fase    R: repetir    M: menu", _LABEL_COLOR)
+
+    for i, stage in enumerate(stages):
+        label = f"{stage.name}    {stage.subtitle}" if stage.subtitle else stage.name
+        register_text(f"stage_{i}", stage_font, label, _LABEL_COLOR)
+        register_text(f"stage_{i}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)

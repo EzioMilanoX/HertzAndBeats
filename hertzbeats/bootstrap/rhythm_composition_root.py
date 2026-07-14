@@ -17,7 +17,9 @@ Sequencia executada por `RhythmCompositionRoot.build()`:
          CollisionSystem          (detecta ameaca que passou do ponto)
          CoreDamageSystem         (pune o jogador pelo par detectado)
          UIRenderSystem           (monta os arrays de HUD do placar)
-    5. Devolve o `GameLoop` pronto: `while rodando: world.step(dt)`.
+    5. Devolve o `HertzGameLoop` pronto: `while rodando: world.step(dt)`
+       sob a maquina de estados de partida (menu de fases, pausa,
+       derrota, resultados).
 
 A parte pura (`compose_world`) e separada da parte Pygame para que os
 testes headless componham o jogo INTEIRO com backends Null.
@@ -29,7 +31,6 @@ from pathlib import Path
 
 import numpy as np
 
-from ouroboros.bootstrap.game_loop import GameLoop
 from ouroboros.core.components.schemas import COMPONENT_SCHEMAS
 from ouroboros.core.memory.handles import unpack_index
 from ouroboros.core.memory.memory_manager import MemoryManager
@@ -353,24 +354,29 @@ def _create_hud(world: World, memory_manager: MemoryManager, config: HertzConfig
 
 class RhythmCompositionRoot:
     """Composicao CONCRETA (Pygame) do Hertz & Beats -- ver docstring do
-    modulo para a sequencia exata."""
+    modulo para a sequencia exata. As FASES (`data/stages/stages.json`)
+    e o fluxo de partida (menu/pausa/derrota/resultados) vivem no
+    `HertzGameLoop`, que recompoe o `World` via `compose_world` a cada
+    fase iniciada/reiniciada."""
 
     def __init__(self, config: HertzConfig) -> None:
         """Guarda `config`; nada pesado e construido antes de `build()`."""
         self._config = config
 
     def build(self):
-        """Monta o jogo completo e retorna `(game_loop, audio_engine,
-        composed)` prontos: o chamador dispara `play_track` e `run()`.
-        """
+        """Monta o jogo completo e retorna `(game_loop, audio_engine)`
+        prontos para `run()` (o menu de fases assume a partir dai)."""
         # Imports locais: manter `compose_world` importavel em ambiente
         # headless sem pygame instalado/inicializado.
-        from ouroboros.adapters.pygame_backend.pygame_audio_engine import PygameAudioEngine
-
+        from hertzbeats.adapters.hb_pygame_audio_engine import HBPygameAudioEngine
         from hertzbeats.adapters.hb_pygame_input_provider import HBPygameInputProvider
         from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
-        from hertzbeats.adapters.texture_bank import build_and_register_hud_textures
-        from hertzbeats.audio.demo_track_synth import ensure_demo_track
+        from hertzbeats.adapters.texture_bank import (
+            build_and_register_hud_textures,
+            build_and_register_overlay_surfaces,
+        )
+        from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
+        from hertzbeats.stages import load_stages
 
         config = self._config
         center_x, center_y = config.center_xy
@@ -389,32 +395,24 @@ class RhythmCompositionRoot:
         input_provider.load_bindings(config.input_bindings_path)
         input_provider.configure_aim_origin(center_x, center_y)
 
-        audio_engine = PygameAudioEngine()
+        audio_engine = HBPygameAudioEngine()
         audio_clock = audio_engine.get_clock()
         audio_clock.calibrate_latency(config.output_latency_seconds)
 
-        # Faixa demo e re-sintetizada deterministicamente se ausente
-        # (o .wav nao e versionado; o beatmap.json e).
-        track_path = Path(config.track_path)
-        if not track_path.exists():
-            if "demo_track" in track_path.name:
-                ensure_demo_track(config.track_path)
-            else:
-                raise FileNotFoundError(f"faixa de audio nao encontrada: {track_path}")
-        audio_engine.load_track("main", config.track_path)
-
-        # 2-4. Composicao pura (pools, beatmap, entidades, sistemas).
-        composed = compose_world(config, input_provider, audio_clock)
-
-        # Texturas de HUD pre-renderizadas (tela de carregamento).
-        build_and_register_hud_textures(renderer)
-
-        # 5. Loop principal da engine: poll -> world.step -> draw_batch.
-        game_loop = GameLoop(
-            composed.world,
-            renderer,
-            input_provider,
-            audio_engine,
-            target_fps=config.target_fps,
+        # 2-4. Fases data-driven + fluxo de partida. O HertzGameLoop ja
+        # compoe a fase 0 (via `compose_world`) para o fundo do menu.
+        stages = load_stages(config.stages_path)
+        game_loop = HertzGameLoop(
+            base_config=config,
+            stages=stages,
+            renderer=renderer,
+            input_provider=input_provider,
+            audio_engine=audio_engine,
+            audio_clock=audio_clock,
         )
-        return game_loop, audio_engine, composed
+
+        # Texturas de HUD e overlays pre-renderizados (tela de carregamento).
+        build_and_register_hud_textures(renderer)
+        build_and_register_overlay_surfaces(renderer, stages)
+
+        return game_loop, audio_engine

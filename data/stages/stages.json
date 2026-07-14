@@ -1,0 +1,41 @@
+{
+  "stages": [
+    {
+      "stage_id": "stage1_pulso_leve",
+      "name": "1 - PULSO LEVE",
+      "subtitle": "100 BPM - aquecimento",
+      "track_path": "data/tracks/stage1_pulso_leve.wav",
+      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
+      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
+      "beatmap": { "min_gap_seconds": 0.30, "min_start_seconds": 3.2 },
+      "overrides": {
+        "approach_seconds": 2.4,
+        "max_health": 4,
+        "aim_tolerance_degrees": 40.0
+      }
+    },
+    {
+      "stage_id": "stage2_batida_franca",
+      "name": "2 - BATIDA FRANCA",
+      "subtitle": "128 BPM - ritmo cheio",
+      "track_path": "data/tracks/stage2_batida_franca.wav",
+      "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
+      "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
+      "beatmap": { "min_gap_seconds": 0.20, "min_start_seconds": 2.6 },
+      "overrides": {}
+    },
+    {
+      "stage_id": "stage3_sobrecarga",
+      "name": "3 - SOBRECARGA",
+      "subtitle": "150 BPM - drops dobrados",
+      "track_path": "data/tracks/stage3_sobrecarga.wav",
+      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
+      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "beatmap": { "min_gap_seconds": 0.18, "min_start_seconds": 2.2 },
+      "overrides": {
+        "approach_seconds": 1.6,
+        "aim_tolerance_degrees": 30.0
+      }
+    }
+  ]
+}

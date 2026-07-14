@@ -29,18 +29,17 @@ def main(argv=None) -> int:
 
     config = HertzConfig.from_json(args.config)
     root = RhythmCompositionRoot(config)
-    game_loop, audio_engine, composed = root.build()
+    game_loop, audio_engine = root.build()
 
     if args.latency is not None:
         audio_engine.get_clock().calibrate_latency(args.latency)
 
-    audio_engine.play_track("main")
     try:
-        game_loop.run()
+        game_loop.run()  # menu de fases -> jogo; ESC no menu encerra
     finally:
-        state = composed.game_state
+        state = game_loop.composed.game_state
         print(
-            "resultado: "
+            "ultima partida: "
             f"score={state.score} max_combo={state.max_combo} "
             f"perfect={state.perfect_count} good={state.good_count} "
             f"miss={state.miss_count} dodge={state.dodge_count} "

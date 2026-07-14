@@ -7,9 +7,10 @@
   "max_threats_per_frame": 32,
   "target_fps": 60,
 
-  "beatmap_path": "data/beatmaps/demo_track.beatmap.json",
-  "track_path": "data/tracks/demo_track.wav",
+  "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
+  "track_path": "data/tracks/stage2_batida_franca.wav",
   "input_bindings_path": "data/input_bindings/default_keyboard.json",
+  "stages_path": "data/stages/stages.json",
 
   "threat_type_ids": { "rhythm_threat_basic": 0, "rhythm_threat_heavy": 1 },
   "threat_half_extents": { "rhythm_threat_basic": 10.0, "rhythm_threat_heavy": 16.0 },
