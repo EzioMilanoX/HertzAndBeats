@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# Audio gerado em runtime (re-sintetizado deterministicamente pelo jogo;
+# o beatmap.json correspondente E versionado)
+data/tracks/*.wav
+data/tracks/*.ogg
+data/tracks/*.mp3
+
+# IDE / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

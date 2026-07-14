@@ -1,0 +1,97 @@
+# Hertz & Beats
+
+**Bullet Hell Rítmico radial ("Defesa de Perímetro") construído sobre a [Ouroboros Engine](https://github.com/EzioMilanoX/OuroborosEngine).**
+
+Você é o núcleo no centro da arena. Ameaças nascem na borda da tela e voam em sua direção com velocidade matematicamente calculada para tocar o seu anel **exatamente no milissegundo da batida** extraída da música pela IA offline da engine (librosa). Mire em 360º com o mouse e atire no ritmo — ou atravesse o impacto com um Dash de i-frames.
+
+Na pegada de *Just Shapes & Beats* / *BPM: Bullets Per Minute*.
+
+## Como jogar
+
+| Ação | Controle |
+| --- | --- |
+| Mira 360º | Mouse (direção a partir do núcleo) |
+| Atirar / Parry | Botão esquerdo do mouse |
+| Dash (i-frames) | Espaço |
+
+- **PERFECT** — tiro com \|delta\| ≤ 50 ms da batida (300 pts)
+- **GOOD** — \|delta\| ≤ 100 ms (100 pts)
+- **MISS** — a ameaça passou 150 ms do tempo, ou atingiu o núcleo (quebra o combo e custa vida)
+- **Dash no tempo certo** — a ameaça atravessa você sem dano e sem quebrar o combo
+
+O visual e a mecânica coincidem: a borda da ameaça toca o anel de julgamento do núcleo no instante exato da batida — atire quando encostar.
+
+## Rodando
+
+Requisitos: Python ≥ 3.11, `numpy`, `pygame-ce` e a Ouroboros Engine.
+
+```bash
+# com o repositório da engine clonado ao lado (recomendado para dev):
+pip install -e ../OuroborosEngine --no-deps
+pip install numpy pygame-ce
+
+# ou direto do GitHub:
+pip install "ouroboros-engine @ git+https://github.com/EzioMilanoX/OuroborosEngine.git"
+
+# na raiz deste repositório:
+python -m hertzbeats
+```
+
+Na primeira execução a faixa demo (`data/tracks/demo_track.wav`) é **re-sintetizada deterministicamente** (numpy puro) — o `.wav` não é versionado, mas o `beatmap.json` extraído dela pela IA é, então o jogo abre pronto para jogar.
+
+Se o áudio parecer adiantado/atrasado, calibre a latência de saída: `python -m hertzbeats --latency 0.10`.
+
+## Use a sua própria música
+
+O pipeline offline de IA da engine (BPM + onsets via librosa) gera o beatmap de qualquer faixa:
+
+```bash
+pip install librosa  # só para a etapa offline, nunca no jogo
+python tools/make_beatmap.py --audio minha_musica.mp3 \
+    --output data/beatmaps/minha.beatmap.json --track-id minha
+```
+
+Depois aponte `beatmap_path`/`track_path` em `data/config/hertz_beats.config.json`. A curadoria pós-IA do jogo descarta onsets a menos de 200 ms do anterior (janelas de julgamento nunca se sobrepõem) e converte picos de energia (strength ≥ 0.8) em **ameaças pesadas**.
+
+## Arquitetura
+
+Tudo é SoA (Structure of Arrays) sobre as `ComponentPool` da engine — nenhum objeto "HitEvent"/"Threat" Python é instanciado no loop de gameplay (Zero-GC).
+
+Ordem exata de execução registrada por `hertzbeats/bootstrap/rhythm_composition_root.py` (o "cimento" entre engine e jogo):
+
+1. **PlayerInputSystem** — lê teclado/mouse: mira 360º, Dash e i-frames
+2. **RadialRhythmSpawnerSystem** — *é* o `RhythmSpawnerSystem` da engine (cursor monotônico + compensação de latência intactos), estendido para materializar a ameaça na borda com velocidade calculada para o impacto cravar na batida
+3. **JudgmentSystem** — varre o RhythmThreatPool com `|target_hit_time_sec − IAudioClock.now|` vetorizado em buffers pré-alocados; janelas Perfect/Good/Miss; marca `is_hit` e atualiza `score`/`combo_count`
+4. **PhysicsSystem** (engine) — integra as ameaças não destruídas
+5. **CollisionSystem** (engine) + **CoreDamageSystem** — detecta a ameaça que passou do ponto e pune (dano, combo quebrado), respeitando i-frames de Dash
+6. **UIRenderSystem** — decompõe o placar em dígitos por aritmética (`(valor // 10^i) % 10`) e escreve `texture_id`/`tint_a` em sprites de HUD pré-criados; os glifos 0-9 e as palavras PERFECT/GOOD/MISS foram pré-renderizados **uma única vez** no carregamento — nenhum `font.render` por frame
+
+O HUD é desenhado pela mesma pipeline `IRenderer.draw_batch()` ultra-rápida do jogo base: dígitos são entidades `transform+sprite` comuns.
+
+A única fonte de verdade temporal é o `IAudioClock` (posição real de reprodução, compensada de latência) — nunca delta-time acumulado, então áudio e gameplay não sofrem drift.
+
+## Testes
+
+Suíte headless (backends Null da engine, clock de áudio manual e determinístico):
+
+```bash
+pip install pytest
+python -m pytest
+```
+
+Cobre: spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD e uma partida completa em autoplay perfeito.
+
+## Estrutura
+
+```
+hertzbeats/
+  components/    schemas SoA (RhythmThreat, PlayerState) e ids de textura
+  systems/       PlayerInput, RadialSpawner, Judgment, CoreDamage, UIRender
+  adapters/      renderer/input pygame do jogo (texturas de HUD, mira de mouse)
+  audio/         síntese determinística da faixa demo
+  offline/       pipeline de beatmap com a IA da engine (librosa; nunca em runtime)
+  bootstrap/     rhythm_composition_root — composição e ordem dos sistemas
+data/            config, bindings, beatmaps (gerados pela IA, versionados)
+tools/           generate_demo_assets.py, make_beatmap.py
+tests/           suíte headless
+```

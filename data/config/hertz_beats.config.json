@@ -1,0 +1,36 @@
+{
+  "window_width": 960,
+  "window_height": 960,
+  "window_title": "Hertz & Beats",
+  "entity_capacity": 4096,
+  "max_threats": 512,
+  "max_threats_per_frame": 32,
+  "target_fps": 60,
+
+  "beatmap_path": "data/beatmaps/demo_track.beatmap.json",
+  "track_path": "data/tracks/demo_track.wav",
+  "input_bindings_path": "data/input_bindings/default_keyboard.json",
+
+  "threat_type_ids": { "rhythm_threat_basic": 0, "rhythm_threat_heavy": 1 },
+  "threat_half_extents": { "rhythm_threat_basic": 10.0, "rhythm_threat_heavy": 16.0 },
+  "lane_count": 8,
+
+  "approach_seconds": 2.0,
+  "spawn_radius": 420.0,
+  "core_half_extent": 16.0,
+
+  "perfect_window_seconds": 0.05,
+  "good_window_seconds": 0.10,
+  "miss_window_seconds": 0.15,
+  "aim_tolerance_degrees": 35.0,
+
+  "score_perfect": 300,
+  "score_good": 100,
+  "max_health": 3,
+  "judgment_display_seconds": 0.6,
+
+  "dash_duration_seconds": 0.25,
+  "dash_cooldown_seconds": 0.8,
+
+  "output_latency_seconds": 0.06
+}

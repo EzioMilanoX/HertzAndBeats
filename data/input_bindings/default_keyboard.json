@@ -1,0 +1,5 @@
+{
+  "fire": "MOUSE_LEFT",
+  "dash": "KEY_SPACE",
+  "pause": "KEY_ESCAPE"
+}

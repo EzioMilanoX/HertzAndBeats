@@ -1,0 +1,28 @@
+[project]
+name = "hertz-and-beats"
+version = "0.1.0"
+description = "Bullet Hell Ritmico radial (Defesa de Perimetro) construido sobre a Ouroboros Engine: ameacas nascem na borda e tocam o nucleo exatamente na batida extraida por IA"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pygame-ce>=2.5",
+    "ouroboros-engine @ git+https://github.com/EzioMilanoX/OuroborosEngine.git",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+hertz-beats = "hertzbeats.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["hertzbeats*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
