@@ -6,12 +6,24 @@ Você é o núcleo no centro da arena. Ameaças nascem na borda da tela e voam e
 
 Na pegada de *Just Shapes & Beats* / *BPM: Bullets Per Minute*.
 
+## Modos de jogo
+
+A IA dita o **tempo** (o mesmo `beatmap.json`); o modo dita a **interpretação espacial e de input**:
+
+| Modo | Estilo | Como se joga |
+| --- | --- | --- |
+| **Defensor** | BPM / Metal: Hellsinger | Núcleo fixo, ameaças radiais 360º; mire com o mouse e atire quando a ameaça tocar sua mira. Atirar **fora do tempo é misfire** e zera o combo. |
+| **Sobrevivência** | Just Shapes & Beats | Mova-se livre (WASD); paredes de som varrem a arena cruzando o centro na batida. **Não há ataque**: o Dash (Espaço, i-frames) atravessa as paredes no ritmo — atravessar ou esquivar pontua. |
+| **Arcade 4K** | FNF / VSRG | 4 colunas fixas; notas caem até a linha de julgamento. Aperte **D F J K** na coluna certa, na janela certa. Ghost taps não punem. |
+
 ## Como jogar
 
 | Ação | Controle |
 | --- | --- |
-| Mira 360º | Mouse (direção a partir do núcleo) |
-| Atirar / Parry | Botão esquerdo do mouse |
+| Mira 360º (Defensor) | Mouse (direção a partir do núcleo) |
+| Atirar / Parry (Defensor) | Botão esquerdo do mouse |
+| Mover (Sobrevivência) | W A S D |
+| Colunas (Arcade 4K) | D F J K |
 | Dash (i-frames) | Espaço |
 | Menu: escolher fase | Setas ↑/↓, ENTER (ou clique) para jogar |
 | Pausar / retomar | ESC |
@@ -23,12 +35,16 @@ O fluxo da partida: **menu de fases → jogando ⇄ pausado → GAME OVER** (vid
 
 Um tutorial e três fases padrões, definidos em [data/stages/stages.json](data/stages/stages.json) (data-driven — adicione as suas):
 
-| Fase | Faixa | Dificuldade |
-| --- | --- | --- |
-| **Tutorial** | 80 BPM, estilo `calm` | Guiado por instruções na tela; 6 de vida, aproximação 2.8s |
-| **1 · Pulso Leve** | 100 BPM, estilo `calm` | Aproximação 2.4s, 4 de vida, cone de mira 40° |
-| **2 · Batida Franca** | 128 BPM, estilo `standard` | Afinação padrão (2.0s, 3 de vida, 35°) |
-| **3 · Sobrecarga** | 150 BPM, estilo `intense`, drops a cada 4 compassos | Aproximação 1.6s, cone 30° |
+| Fase | Modo | Faixa | Dificuldade |
+| --- | --- | --- | --- |
+| **Tutorial** | Defensor | 80 BPM, `calm` | Guiado por instruções na tela; 6 de vida, sem misfire |
+| **1 · Pulso Leve** | Defensor | 100 BPM, `calm` | Aproximação 2.4s, 4 de vida, cone de mira 40° |
+| **2 · Batida Franca** | Defensor | 128 BPM, `standard` | Afinação padrão (2.0s, 3 de vida, 35°) |
+| **3 · Sobrecarga** | Defensor | 150 BPM, `intense`, drops a cada 4 compassos | Aproximação 1.6s, cone 30° |
+| **4 · Ondas de Choque** | Sobrevivência | **mesmo beatmap da fase 1** | 4 de vida, varreduras a cada batida forte |
+| **5 · Arcade 4K** | Arcade | **mesmo beatmap da fase 2** | Notas D/F/J/K, queda em 1.8s |
+
+As fases 4 e 5 consomem **os mesmos `beatmap.json`** das fases 1 e 2 — a demonstração literal da tese: o modo é só outra interpretação espacial do mesmo tempo extraído pela IA. Trocar o modo de uma fase é uma linha no JSON: `"overrides": { "game_mode": "survival" }`.
 
 O **tutorial** ensina jogando: faixas de instrução aparecem no topo da tela em sincronia com a música (mova a mira → atire quando a ameaça tocar o anel → janelas PERFECT/GOOD → uma onda de 3 ameaças simultâneas para aprender o Dash → sequência final). O beatmap do tutorial é **autoral** (timing didático, em [data/beatmaps/tutorial.beatmap.json](data/beatmaps/tutorial.beatmap.json)) — o `generate_stage_assets.py` preserva ele e só regenera os das fases via IA. Por baixo, é o mesmo motor: um `TutorialSystem` zero-GC avança um cursor de passos contra o `IAudioClock` (a mesma base de tempo do spawner) e troca a textura de um sprite-banner pré-renderizado; os passos vêm do JSON da fase (`tutorial_steps`), então qualquer fase pode virar um tutorial.
 
@@ -96,6 +112,8 @@ O HUD é desenhado pela mesma pipeline `IRenderer.draw_batch()` ultra-rápida do
 A única fonte de verdade temporal é o `IAudioClock` (posição real de reprodução, compensada de latência) — nunca delta-time acumulado, então áudio e gameplay não sofrem drift.
 
 O **fluxo de partida** (menu/pausa/derrota/resultados) vive no `HertzGameLoop` — não em um `ISystem`: sistemas julgam uma fase em andamento; trocar ou reiniciar fase é *recomposição* (`compose_world` de novo: pools novas, placar zerado, cursor do spawner em 0, música do zero), na fase de carregamento, onde alocar é permitido. Os overlays (menu, PAUSADO, GAME OVER, FASE CONCLUÍDA) usam superfícies pré-renderizadas na composição — nenhum `font.render` por frame.
+
+Os **modos de jogo** são o `GameModeStrategy` da arquitetura, resolvido em tempo de composição: `MODE_COMPOSERS` mapeia `game_mode` → função que registra os sistemas do modo (`defender`: spawner radial + JudgmentSystem com misfire; `survival`: jogador móvel + spawner de varreduras + julgamento 100% por colisão; `lanes`: spawner de notas + julgamento por tecla/coluna). Todos os spawners **são** o `RhythmSpawnerSystem` da engine (cursor monotônico e compensação de latência intactos) e todos consomem o mesmo `RHYTHM_THREAT_DTYPE` — o modo só muda a interpretação espacial dos campos (`lane` = setor angular, eixo de varredura ou coluna). Zero branch por evento no hot-path.
 
 ## Testes
 

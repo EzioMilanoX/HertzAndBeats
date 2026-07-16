@@ -15,13 +15,19 @@ from hertzbeats.components.texture_ids import (
     TEX_CROSSHAIR,
     TEX_DIGIT_BASE,
     TEX_HEALTH_PIP,
+    TEX_KEY_LABEL_BASE,
     TEX_LABEL_COMBO,
     TEX_LABEL_SCORE,
+    TEX_LANE_RECEPTOR,
     TEX_TUTORIAL_BASE,
     TEX_WORD_GOOD,
     TEX_WORD_MISS,
     TEX_WORD_PERFECT,
 )
+
+LANE_KEY_LABELS = ("D", "F", "J", "K")
+"""Rotulos exibidos sob os receptores do Arcade 4K (espelham os
+bindings padrao `lane_0..lane_3`)."""
 
 _DIGIT_COLOR = (235, 235, 255)
 _LABEL_COLOR = (130, 125, 170)
@@ -60,6 +66,15 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
     pygame.draw.circle(pip, (255, 80, 96), (9, 9), 8)
     pygame.draw.circle(pip, (255, 180, 190), (9, 9), 8, 2)
     renderer.register_texture(TEX_HEALTH_PIP, pip.convert_alpha())
+
+    receptor = pygame.Surface((34, 34), pygame.SRCALPHA)
+    pygame.draw.circle(receptor, (150, 145, 190), (17, 17), 16, 3)
+    renderer.register_texture(TEX_LANE_RECEPTOR, receptor.convert_alpha())
+
+    key_font = pygame.font.Font(None, 34)
+    for lane, key_label in enumerate(LANE_KEY_LABELS):
+        surface = key_font.render(key_label, True, _LABEL_COLOR).convert_alpha()
+        renderer.register_texture(TEX_KEY_LABEL_BASE + lane, surface)
 
 
 def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> None:

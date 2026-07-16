@@ -28,11 +28,16 @@ def test_repo_stage_data_is_valid():
 
     assert stages[0].stage_id == "tutorial"
     assert len(stages[0].tutorial_steps) == 5
-    assert len(stages) == 4  # tutorial + 3 fases
+    assert len(stages) == 6  # tutorial + 3 defensor + sobrevivencia + arcade
+
+    from hertzbeats.bootstrap.rhythm_composition_root import MODE_COMPOSERS
 
     loader = BeatmapLoader(base_config.threat_type_ids)
     for stage in stages:
         stage_config = resolve_stage_config(base_config, stage)  # overrides validos
+        assert stage_config.game_mode in MODE_COMPOSERS, (
+            f"{stage.stage_id}: game_mode invalido {stage_config.game_mode!r}"
+        )
         scheduled = loader.load(stage.beatmap_path)
         assert scheduled.shape[0] > 0
         assert np.all(np.diff(scheduled["timestamp_seconds"]) >= 0.0)

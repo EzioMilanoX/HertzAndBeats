@@ -53,6 +53,16 @@ class HertzConfig:
 
     output_latency_seconds: float
 
+    # -- modo de jogo (a IA dita o TEMPO; o modo dita a interpretacao
+    #    espacial e de input do MESMO beatmap.json). Selecionado por
+    #    fase via `overrides` (dataclasses.replace).
+    game_mode: str = "defender"
+    misfire_breaks_combo: bool = True
+    survival_move_speed: float = 320.0
+    survival_dash_speed: float = 820.0
+    lane_spacing: float = 110.0
+    judgment_line_offset: float = 170.0
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -92,6 +102,12 @@ class HertzConfig:
             dash_duration_seconds=raw["dash_duration_seconds"],
             dash_cooldown_seconds=raw["dash_cooldown_seconds"],
             output_latency_seconds=raw["output_latency_seconds"],
+            game_mode=raw.get("game_mode", "defender"),
+            misfire_breaks_combo=raw.get("misfire_breaks_combo", True),
+            survival_move_speed=raw.get("survival_move_speed", 320.0),
+            survival_dash_speed=raw.get("survival_dash_speed", 820.0),
+            lane_spacing=raw.get("lane_spacing", 110.0),
+            judgment_line_offset=raw.get("judgment_line_offset", 170.0),
         )
 
 

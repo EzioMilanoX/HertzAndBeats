@@ -6,5 +6,13 @@
   "menu_down": "KEY_DOWN",
   "confirm": "KEY_RETURN",
   "retry": "KEY_R",
-  "to_menu": "KEY_M"
+  "to_menu": "KEY_M",
+  "move_left": "KEY_A",
+  "move_right": "KEY_D",
+  "move_up": "KEY_W",
+  "move_down": "KEY_S",
+  "lane_0": "KEY_D",
+  "lane_1": "KEY_F",
+  "lane_2": "KEY_J",
+  "lane_3": "KEY_K"
 }

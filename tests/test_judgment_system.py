@@ -85,6 +85,35 @@ def test_overdue_threat_becomes_miss_and_breaks_combo(compose, null_clock, null_
     assert threat_pool.count == 1
 
 
+def test_misfire_outside_any_window_breaks_combo(compose, null_clock, null_input):
+    """Estilo BPM: atirar FORA do tempo e um misfire -- zera o combo
+    mesmo sem ameaca por perto (disciplina ritmica)."""
+    composed, _ = compose([_basic(3.0, lane=0)])
+    state = composed.game_state
+    state.combo_count = 6
+
+    null_clock.set_now_seconds(2.5)  # ameaca visivel, mas 0.5s fora da janela
+    _aim_and_fire(null_input, 1.0, 0.0, fire=True)
+    composed.world.step(0.016)
+
+    assert state.misfire_count == 1
+    assert state.combo_count == 0
+    assert composed.memory_manager.get_pool("rhythm_threat").count == 1  # ameaca segue viva
+
+
+def test_misfire_with_empty_arena_also_breaks_combo(compose, null_clock, null_input):
+    composed, _ = compose([_basic(99.0, lane=0)])  # nada spawnado ainda
+    state = composed.game_state
+    state.combo_count = 3
+
+    null_clock.set_now_seconds(1.0)
+    _aim_and_fire(null_input, 1.0, 0.0, fire=True)
+    composed.world.step(0.016)
+
+    assert state.misfire_count == 1
+    assert state.combo_count == 0
+
+
 def test_two_hits_build_combo_and_pick_closest_threat(compose, null_clock, null_input):
     composed, _ = compose([_basic(3.0, lane=0), _basic(3.4, lane=0)])
     threat_pool = composed.memory_manager.get_pool("rhythm_threat")

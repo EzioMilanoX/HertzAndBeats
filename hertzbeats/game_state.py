@@ -26,6 +26,8 @@ class GameState:
         "good_count",
         "miss_count",
         "dodge_count",
+        "misfire_count",
+        "survive_count",
         "health",
         "last_judgment",
         "judgment_display_seconds_left",
@@ -39,6 +41,8 @@ class GameState:
         self.good_count: int = 0
         self.miss_count: int = 0
         self.dodge_count: int = 0
+        self.misfire_count: int = 0
+        self.survive_count: int = 0
         self.health: int = max_health
         self.last_judgment: int = JUDGMENT_PENDING
         self.judgment_display_seconds_left: float = 0.0

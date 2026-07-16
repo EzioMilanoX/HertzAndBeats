@@ -121,10 +121,12 @@ para isso não acontecer em condições normais.</li>
 <h2 id="fases">Fases</h2>
 <table>
 <tr><th>Fase</th><th>Faixa (síntese)</th><th>Ameaças</th><th>Densidade</th><th>Gap mín.</th><th>Overrides</th><th>Tutorial</th></tr>
-<tr><td><strong>TUTORIAL</strong><br><small>80 BPM - aprenda o basico</small></td><td>80 BPM · 21 compassos · calm</td><td>19 (1 pesadas)</td><td>0.40/s</td><td>1.50s</td><td>approach_seconds=2.8, max_health=6, aim_tolerance_degrees=40.0</td><td>5 passos</td></tr>
+<tr><td><strong>TUTORIAL</strong><br><small>80 BPM - aprenda o basico</small></td><td>80 BPM · 21 compassos · calm</td><td>19 (1 pesadas)</td><td>0.40/s</td><td>1.50s</td><td>approach_seconds=2.8, max_health=6, aim_tolerance_degrees=40.0, misfire_breaks_combo=False</td><td>5 passos</td></tr>
 <tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
 <tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
 <tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
+<tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia - mesmo beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
+<tr><td><strong>5 - ARCADE 4K</strong><br><small>D F J K - mesmo beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
 os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
@@ -193,7 +195,13 @@ padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própr
 <tr><td><code>judgment_display_seconds</code></td><td><code>0.6</code></td></tr>
 <tr><td><code>dash_duration_seconds</code></td><td><code>0.25</code></td></tr>
 <tr><td><code>dash_cooldown_seconds</code></td><td><code>0.8</code></td></tr>
-<tr><td><code>output_latency_seconds</code></td><td><code>0.06</code></td></tr></table>
+<tr><td><code>output_latency_seconds</code></td><td><code>0.06</code></td></tr>
+<tr><td><code>game_mode</code></td><td><code>&quot;defender&quot;</code></td></tr>
+<tr><td><code>misfire_breaks_combo</code></td><td><code>true</code></td></tr>
+<tr><td><code>survival_move_speed</code></td><td><code>320.0</code></td></tr>
+<tr><td><code>survival_dash_speed</code></td><td><code>820.0</code></td></tr>
+<tr><td><code>lane_spacing</code></td><td><code>110.0</code></td></tr>
+<tr><td><code>judgment_line_offset</code></td><td><code>170.0</code></td></tr></table>
 <p class="muted">Fases sobrescrevem campos via <code>overrides</code> (aplicados com
 <code>dataclasses.replace</code>; campo desconhecido = erro, nunca ignorado).</p>
 
@@ -208,14 +216,16 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>43 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
+<p>Total: <strong>54 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
-<details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (6 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
+<details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
+<details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
 <details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (8 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
 <details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
+<details><summary><code>test_survival_mode.py</code> — Modo Sobrevivencia: paredes cruzam o centro na batida; dano por toque, DODGED no dash, SURVIVED na expiracao. (4 testes)</summary><ul><li><code>test_wall_crosses_arena_center_exactly_on_beat</code></li><li><code>test_touching_wall_damages_and_breaks_combo</code></li><li><code>test_dash_through_wall_scores_dodge_and_keeps_combo</code></li><li><code>test_expired_wall_scores_survival</code></li></ul></details>
 <details><summary><code>test_tutorial_stage.py</code> — Tutorial: banner sincronizado ao relogio de audio e validade dos dados versionados das fases. (4 testes)</summary><ul><li><code>test_repo_stage_data_is_valid</code></li><li><code>test_tutorial_banner_follows_music_clock</code></li><li><code>test_stage_without_tutorial_steps_has_no_tutorial_system</code></li><li><code>test_simultaneous_tutorial_wave_all_dodged_with_one_dash</code></li></ul></details>
 <details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
 <p>Rodar: <code>python -m pytest</code> (na raiz). A suíte inclui <strong>invariantes de jogabilidade</strong>
@@ -298,7 +308,7 @@ digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
 registradas no renderer UMA unica vez. Nenhum `font.render` acontece
 depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
 aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
-<p class='constants'>Constantes: <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code></p>
+<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code></p>
 <h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
 composicao, depois de `renderer.initialize` (precisa do display
 ativo para `convert_alpha`).</pre>
@@ -409,7 +419,22 @@ Sequencia executada por `RhythmCompositionRoot.build()`:
 
 A parte pura (`compose_world`) e separada da parte Pygame para que os
 testes headless componham o jogo INTEIRO com backends Null.</pre>
-<p class='constants'>Constantes: <code>PLAYER_COLLISION_LAYER</code>, <code>THREAT_COLLISION_LAYER</code>, <code>MAX_COLLISION_PAIRS</code>, <code>SCORE_DIGITS</code>, <code>COMBO_DIGITS</code>, <code>HUD_LAYER_Z</code>, <code>_THREAT_TEXTURE_BY_NAME</code></p>
+<p class='constants'>Constantes: <code>PLAYER_COLLISION_LAYER</code>, <code>THREAT_COLLISION_LAYER</code>, <code>MAX_COLLISION_PAIRS</code>, <code>SCORE_DIGITS</code>, <code>COMBO_DIGITS</code>, <code>HUD_LAYER_Z</code>, <code>_THREAT_TEXTURE_BY_NAME</code>, <code>MODE_COMPOSERS</code></p>
+<h4><code>_hide_sprite()</code></h4><pre class="doc">Zera o alfa do sprite de uma entidade persistente (o modo decide
+o que fica visivel: mira no Defensor, nada no Arcade, ...).</pre>
+<h4><code>_compose_defender_mode()</code></h4><pre class="doc">MODO 1 -- O Defensor (estilo BPM/Hellsinger): nucleo fixo no
+centro, ameacas radiais 360, mira livre + tiro na batida; misfire
+zera o combo. Ordem: PlayerInput -&gt; Spawner radial -&gt; Judgment -&gt;
+Physics -&gt; Collision -&gt; CoreDamage.</pre>
+<h4><code>_compose_survival_mode()</code></h4><pre class="doc">MODO 2 -- Sobrevivencia Pura (estilo Just Shapes &amp; Beats):
+movimento livre, paredes de som varrem a arena cruzando o centro na
+batida; sem botao de ataque -- julgamento 100% via CollisionSystem,
+Dash com i-frames atravessa. Ordem: SurvivalPlayer -&gt; Spawner de
+varreduras -&gt; Physics -&gt; Collision -&gt; SurvivalDamage.</pre>
+<h4><code>_compose_lanes_mode()</code></h4><pre class="doc">MODO 3 -- Arcade Classico 4K (estilo FNF/VSRG): 4 colunas fixas,
+notas caem ate a linha de julgamento, teclas D/F/J/K por coluna.
+Sem CollisionSystem: o julgamento e temporal por coluna. Ordem:
+Spawner de notas -&gt; LaneJudgment -&gt; Physics.</pre>
 <h4><code>compose_world()</code></h4><pre class="doc">Composicao PURA (sem pygame): pools, arquetipos, entidades
 persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
 sistemas. Backends concretos entram por parametro -- os testes
@@ -426,6 +451,9 @@ arrays de indices (digito menos significativo primeiro) consumidos
 pelo `UIRenderSystem`.</pre>
 <h3>classe <code>ComposedGame</code></h3><pre class="doc">Referencias resultantes da composicao pura, para o `build()`
 concreto, para o `__main__` (placar final) e para testes headless.</pre>
+<h3>classe <code>_ModeContext</code></h3><pre class="doc">Pacote de referencias comuns entregue a cada estrategia de modo
+(`MODE_COMPOSERS`): tudo que uma estrategia precisa para registrar
+seus sistemas na ordem certa, sem parametros posicionais frageis.</pre>
 <h3>classe <code>RhythmCompositionRoot</code></h3><pre class="doc">Composicao CONCRETA (Pygame) do Hertz &amp; Beats -- ver docstring do
 modulo para a sequencia exata. As FASES (`data/stages/stages.json`)
 e o fluxo de partida (menu/pausa/derrota/resultados) vivem no
@@ -627,11 +655,57 @@ decisoes ritmicas -- a fonte de verdade e o `IAudioClock`.</pre>
 pendente cujo tempo ja passou alem da janela de miss
 (`delta &lt; -miss_window`). Quebra o combo UMA vez por frame,
 independente de quantas ameacas vencerem juntas.</pre>
+<h4><code>._register_misfire()</code></h4><pre class="doc">MISFIRE (estilo BPM/Hellsinger): disparo SEM candidata na
+janela de tempo + cone de mira. Falha de ritmo: zera o combo e
+exibe feedback de MISS -- e a disciplina que forca o jogador a
+atirar NA batida, nao a metralhar. Desligavel por fase
+(`misfire_breaks_combo: false`, ex.: tutorial).</pre>
 <h4><code>._try_player_hit()</code></h4><pre class="doc">Seleciona a melhor candidata (menor |delta|) dentro da janela
-Good E do cone de mira, e converte em PERFECT/GOOD. Se nenhuma
-candidata existe, o disparo simplesmente nao acerta nada (sem
-punicao -- o jogo pune pelo impacto no nucleo, nao pelo tiro
-errado).</pre>
+Good E do cone de mira, e converte em PERFECT/GOOD. Disparo sem
+candidata alguma e um MISFIRE (ver `_register_misfire`).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-lane_judgment_system"><summary><code>hertzbeats/systems/lane_judgment_system.py</code> — Modo Arcade 4K: julga a tecla da coluna (D/F/J/K) contra a janela temporal da nota.</summary>
+<pre class="doc">Modo Arcade 4K: julga a tecla da coluna (D/F/J/K) contra a janela temporal da nota.</pre>
+<h3>classe <code>LaneJudgmentSystem</code></h3><pre class="doc">Julgamento do modo Arcade 4K: para cada coluna cuja tecla foi
+PRESSIONADA neste frame, avalia
+`delta = target_hit_time_sec - agora_efetivo` (relogio de audio
+compensado de latencia -- a MESMA base de tempo do spawner) contra
+as janelas de tolerancia, exigindo que a nota candidata pertenca a
+MESMA coluna (`lane == coluna da tecla`, igualdade vetorizada).
+
+Entre as candidatas da coluna vence a de menor |delta|; o veredito
+(PERFECT/GOOD) e um inteiro gravado na linha SoA da nota, a
+destruicao e diferida para o flush e o placar e atualizado por
+aritmetica -- nenhum evento/objeto alocado dinamicamente.
+
+Notas nao pressionadas vencem por varredura de MISS
+(`delta &lt; -miss_window`), zerando o combo -- identico ao modo
+Defensor. Tecla pressionada SEM nota na janela da coluna (ghost tap)
+nao pune: fiel ao estilo VSRG/FNF.</pre>
+<h4><code>.update()</code></h4><pre class="doc">Varre MISSes vencidos e julga as teclas de coluna do frame.</pre>
+<h4><code>._sweep_overdue_misses()</code></h4><pre class="doc">Nota que passou da linha alem da janela de miss sem tecla:
+MISS, combo zerado (uma vez por frame), destruicao diferida.</pre>
+<h4><code>._try_lane_hit()</code></h4><pre class="doc">Melhor candidata (menor |delta|) DENTRO da janela Good E da
+coluna `lane_index`; ghost taps nao punem.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-lane_note_spawner_system"><summary><code>hertzbeats/systems/lane_note_spawner_system.py</code> — Modo Arcade 4K: notas caem em 4 colunas rumo a linha de julgamento (estilo FNF/VSRG).</summary>
+<pre class="doc">Modo Arcade 4K: notas caem em 4 colunas rumo a linha de julgamento (estilo FNF/VSRG).</pre>
+<h3>classe <code>LaneNoteSpawnerSystem</code></h3><pre class="doc">Estrategia de spawn do modo Arcade 4K sobre o MESMO `beatmap.json`:
+e o `RhythmSpawnerSystem` da engine materializando cada evento como
+uma NOTA que cai verticalmente e cruza a linha de julgamento
+exatamente em `target_hit_time_sec`.
+
+Interpretacao espacial dos campos do beatmap:
+    - `lane % 4` escolhe a coluna (distribuicao deterministica dos
+      dados do JSON -- a IA ja alterna as lanes por indice). O campo
+      `lane` da pool e REESCRITO com o valor reduzido (0..3) para o
+      `LaneJudgmentSystem` comparar por igualdade vetorizada.
+    - `threat_type`/`strength` ditam o tamanho/brilho da nota.
+
+Cinematica: `velocidade_y = (linha_julgamento - y_spawn) / tempo_restante`
+(mesma compensacao de atraso de frame dos outros modos: spawn tardio
+cai proporcionalmente mais rapido e cruza a linha na batida).</pre>
+<h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a nota do evento `row_index` na sua coluna.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-player_input_system"><summary><code>hertzbeats/systems/player_input_system.py</code> — O &quot;InputSystem&quot; da composicao: traduz teclado/mouse em mira 360, Dash e i-frames.</summary>
 <pre class="doc">O &quot;InputSystem&quot; da composicao: traduz teclado/mouse em mira 360, Dash e i-frames.</pre>
@@ -694,6 +768,80 @@ componentes radiais: posicao na borda, velocidade em direcao ao
 nucleo, hitbox/sprite por tipo, e os campos ritmicos
 (`target_hit_time_sec`, `spawn_angle_rad`, `packed_handle`)
 consumidos por `JudgmentSystem`/`CoreDamageSystem`.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-survival_damage_system"><summary><code>hertzbeats/systems/survival_damage_system.py</code> — Modo Sobrevivencia: julgamento 100% via CollisionSystem -- tocar a parede pune, atravessar no Dash pontua.</summary>
+<pre class="doc">Modo Sobrevivencia: julgamento 100% via CollisionSystem -- tocar a parede pune, atravessar no Dash pontua.</pre>
+<h3>classe <code>SurvivalDamageSystem</code></h3><pre class="doc">Unico juiz do modo Sobrevivencia (nao ha botao de ritmo): consome os
+pares do `CollisionSystem` e o relogio de audio para dar a cada
+parede de som exatamente UM veredito:
+
+    - Toque SEM i-frames  -&gt; MISS: dano, combo zerado. A parede NAO
+      e destruida (segue varrendo, so o veredito impede dano duplo).
+    - Toque COM i-frames  -&gt; DODGED: atravessou a parede no ritmo --
+      pontua e estende o combo (o Dash e o &quot;acerto&quot; deste modo).
+    - Expirou sem toque   -&gt; SURVIVED: o jogador saiu do caminho por
+      posicionamento -- pontua e estende o combo.
+
+A varredura de expiracao (vetorizada, buffers pre-alocados) tambem e
+o coletor de lixo do modo: TODA parede com `expire_time_sec` vencido
+e destruida (destruicao diferida da engine), pontuando apenas as
+ainda pendentes. Sem isso a pool nunca esvaziaria e a fase nunca
+terminaria.</pre>
+<h4><code>.update()</code></h4><pre class="doc">Aplica vereditos de colisao e a varredura de expiracao.</pre>
+<h4><code>._judge_collisions()</code></h4><pre class="doc">Pares jogador x parede do frame: MISS (dano) ou DODGED (dash).</pre>
+<h4><code>._sweep_expired()</code></h4><pre class="doc">Destroi TODA parede vencida; pontua as que expiraram ainda
+pendentes (SURVIVED).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-survival_player_system"><summary><code>hertzbeats/systems/survival_player_system.py</code> — Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames (estilo Just Shapes &amp; Beats).</summary>
+<pre class="doc">Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames (estilo Just Shapes &amp; Beats).</pre>
+<p class='constants'>Constantes: <code>_DIAGONAL_NORMALIZER</code></p>
+<h3>classe <code>SurvivalPlayerSystem</code></h3><pre class="doc">O &quot;InputSystem&quot; do modo Sobrevivencia: em vez de mira 360 fixa no
+centro, o jogador MOVE o nucleo livremente pela arena (WASD) e usa o
+Dash como unico verbo ritmico -- nao ha botao de ataque; atravessar
+as paredes de som no tempo certo E o gameplay.
+
+- Movimento: eixos derivados das acoes seguradas (`move_*`),
+  diagonal normalizada, posicao integrada com `delta_time` de frame
+  (game feel, nao evento ritmico) e CLAMPED a arena.
+- Dash: na borda de `dash` fora de cooldown, arma i-frames
+  (`iframe_timer_sec`, respeitados pelo `SurvivalDamageSystem`) e um
+  impulso de velocidade na direcao atual de movimento
+  (`survival_dash_speed` durante os i-frames). A direcao fica
+  gravada em `player_state.aim_angle_rad` (reinterpretada pelo modo
+  como &quot;direcao de deslocamento&quot;).
+- Feedback: tint ciano no nucleo durante os i-frames.
+
+Zero-GC: leituras de acao escalares + escritas escalares em linhas
+densas re-resolvidas por frame.</pre>
+<h4><code>.update()</code></h4><pre class="doc">Integra movimento/dash do frame e escreve o estado do jogador.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-survival_spawner_system"><summary><code>hertzbeats/systems/survival_spawner_system.py</code> — Modo Sobrevivencia: paredes de som varrem a arena e cruzam o CENTRO exatamente na batida.</summary>
+<pre class="doc">Modo Sobrevivencia: paredes de som varrem a arena e cruzam o CENTRO exatamente na batida.</pre>
+<p class='constants'>Constantes: <code>_HALF_PI</code></p>
+<h3>classe <code>SurvivalSpawnerSystem</code></h3><pre class="doc">Estrategia de spawn do modo Sobrevivencia sobre o MESMO
+`beatmap.json`: e o `RhythmSpawnerSystem` da engine (cursor
+monotonico + compensacao de latencia intactos) materializando cada
+evento como uma PAREDE DE SOM -- uma barra laser que atravessa a
+arena inteira e cruza o centro exatamente em `target_hit_time_sec`.
+
+Interpretacao espacial dos campos do beatmap:
+    - `lane % 4` escolhe a borda/eixo da varredura:
+      0 = horizontal descendo (nasce no topo), 1 = vertical indo a
+      direita (nasce a esquerda), 2 = horizontal subindo,
+      3 = vertical indo a esquerda.
+    - `threat_type` dita a espessura (pesadas sao mais grossas --
+      mas sempre atravessaveis com um Dash bem cronometrado).
+    - `strength` clareia o tint (picos de energia brilham mais).
+
+Cinematica (mesma compensacao do modo radial):
+    velocidade = (metade_da_arena + espessura + margem) / tempo_restante
+    posicao    = centro - direcao * distancia_total
+    expire     = batida + tempo_restante  (saiu da arena do outro lado)
+
+Nao ha botao de ataque: o julgamento e 100% via CollisionSystem
+(`SurvivalDamageSystem`), e o Dash com i-frames e a unica defesa.</pre>
+<h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a parede de som do evento `row_index` (ver
+docstring da classe para a cinematica).</pre>
 </details>
 <details class="module" id="hertzbeats-systems-tutorial_system"><summary><code>hertzbeats/systems/tutorial_system.py</code> — Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</summary>
 <pre class="doc">Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</pre>

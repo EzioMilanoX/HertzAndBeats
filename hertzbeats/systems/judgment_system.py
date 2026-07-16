@@ -68,6 +68,7 @@ class JudgmentSystem(ISystem):
         score_perfect: int,
         score_good: int,
         judgment_display_seconds: float,
+        misfire_breaks_combo: bool = True,
         fire_action_name: str = "fire",
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
@@ -88,6 +89,7 @@ class JudgmentSystem(ISystem):
         self._score_perfect = int(score_perfect)
         self._score_good = int(score_good)
         self._judgment_display_seconds = float(judgment_display_seconds)
+        self._misfire_breaks_combo = bool(misfire_breaks_combo)
         self._fire_action_name = fire_action_name
 
         capacity = self._threat_pool.capacity
@@ -108,6 +110,8 @@ class JudgmentSystem(ISystem):
 
         active_count = self._threat_pool.count
         if active_count == 0:
+            if self._input_provider.is_action_pressed(self._fire_action_name):
+                self._register_misfire()  # tiro com a arena vazia tambem e fora do tempo
             return
 
         now_effective = max(
@@ -158,6 +162,18 @@ class JudgmentSystem(ISystem):
         self._game_state.combo_count = 0
         self._game_state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
 
+    def _register_misfire(self) -> None:
+        """MISFIRE (estilo BPM/Hellsinger): disparo SEM candidata na
+        janela de tempo + cone de mira. Falha de ritmo: zera o combo e
+        exibe feedback de MISS -- e a disciplina que forca o jogador a
+        atirar NA batida, nao a metralhar. Desligavel por fase
+        (`misfire_breaks_combo: false`, ex.: tutorial)."""
+        state = self._game_state
+        state.misfire_count += 1
+        if self._misfire_breaks_combo:
+            state.combo_count = 0
+            state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+
     def _try_player_hit(
         self,
         world: World,
@@ -166,10 +182,8 @@ class JudgmentSystem(ISystem):
         active_count: int,
     ) -> None:
         """Seleciona a melhor candidata (menor |delta|) dentro da janela
-        Good E do cone de mira, e converte em PERFECT/GOOD. Se nenhuma
-        candidata existe, o disparo simplesmente nao acerta nada (sem
-        punicao -- o jogo pune pelo impacto no nucleo, nao pelo tiro
-        errado).
+        Good E do cone de mira, e converte em PERFECT/GOOD. Disparo sem
+        candidata alguma e um MISFIRE (ver `_register_misfire`).
         """
         player_row = self._player_pool.dense_row_of(self._player_entity_index)
         aim_angle = float(self._player_pool.active_view()["aim_angle_rad"][player_row])
@@ -197,6 +211,7 @@ class JudgmentSystem(ISystem):
         np.logical_and(candidates, self._scratch_mask[:active_count], out=candidates)
 
         if not np.any(candidates):
+            self._register_misfire()
             return
 
         selection = self._selection_buffer[:active_count]

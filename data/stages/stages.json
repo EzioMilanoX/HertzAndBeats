@@ -10,7 +10,8 @@
       "overrides": {
         "approach_seconds": 2.8,
         "max_health": 6,
-        "aim_tolerance_degrees": 40.0
+        "aim_tolerance_degrees": 40.0,
+        "misfire_breaks_combo": false
       },
       "tutorial_steps": [
         { "until_seconds": 9.0, "text": "Mova o MOUSE: a mira orbita o nucleo" },
@@ -55,6 +56,31 @@
       "overrides": {
         "approach_seconds": 1.6,
         "aim_tolerance_degrees": 30.0
+      }
+    },
+    {
+      "stage_id": "stage4_ondas_de_choque",
+      "name": "4 - ONDAS DE CHOQUE",
+      "subtitle": "sobrevivencia - mesmo beatmap da fase 1",
+      "track_path": "data/tracks/stage1_pulso_leve.wav",
+      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
+      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
+      "overrides": {
+        "game_mode": "survival",
+        "approach_seconds": 2.0,
+        "max_health": 4
+      }
+    },
+    {
+      "stage_id": "stage5_arcade_4k",
+      "name": "5 - ARCADE 4K",
+      "subtitle": "D F J K - mesmo beatmap da fase 2",
+      "track_path": "data/tracks/stage2_batida_franca.wav",
+      "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
+      "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
+      "overrides": {
+        "game_mode": "lanes",
+        "approach_seconds": 1.8
       }
     }
   ]

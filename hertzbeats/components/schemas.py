@@ -22,8 +22,13 @@ JUDGMENT_MISS: int = 3
 """Passou do tempo sem acerto, ou atingiu o nucleo."""
 
 JUDGMENT_DODGED: int = 4
-"""Atravessou o nucleo durante os i-frames de um Dash: nao pune nem
-quebra o combo, mas tambem nao pontua."""
+"""Atravessou a ameaca durante os i-frames de um Dash: nao pune nem
+quebra o combo, mas tambem nao pontua (no modo Sobrevivencia, pontua
+como sobrevivida)."""
+
+JUDGMENT_SURVIVED: int = 5
+"""Modo Sobrevivencia: a ameaca varreu a arena e expirou sem tocar o
+jogador -- pontua e estende o combo."""
 
 RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
     [
@@ -31,34 +36,45 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("threat_type", np.int16),
         ("strength", np.float32),
         ("target_hit_time_sec", np.float64),
+        ("expire_time_sec", np.float64),
         ("spawn_angle_rad", np.float32),
         ("is_hit", np.bool_),
         ("judgment", np.int8),
         ("packed_handle", np.uint64),
     ]
 )
-"""Estado ritmico de UMA ameaca radial viva (o "RhythmThreatPool" da
-arquitetura).
+"""Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
+arquitetura). O MESMO schema serve aos tres modos de jogo: a IA dita o
+TEMPO (`target_hit_time_sec`); o modo ativo dita a INTERPRETACAO
+espacial dos campos (ver abaixo).
 
 Campos:
     lane/threat_type: escritos pelo `RhythmSpawnerSystem` da engine no
         momento do disparo (contrato `lane_pool_name`/
         `threat_type_pool_name` -- esta pool cumpre os dois papeis, pois
-        possui ambos os campos).
+        possui ambos os campos). Interpretacao por modo:
+        Defensor -> setor angular da borda (angulo = tau*lane/8);
+        Sobrevivencia -> eixo/borda da varredura (lane % 4);
+        Arcade 4K -> coluna da nota (lane % 4).
     strength: intensidade 0..1 extraida pela IA offline (onset strength).
     target_hit_time_sec: instante EXATO (base de tempo de
-        `IAudioClock.now_seconds`) em que a ameaca toca o anel do
-        nucleo. E contra este campo que o `JudgmentSystem` mede o delta
-        do input do jogador.
-    spawn_angle_rad: angulo (coordenadas de tela, y para baixo) da borda
-        onde a ameaca nasceu; comparado com a mira 360 do jogador.
-    is_hit: marcada True quando o jogador acerta o tiro/parry -- o
-        restante do frame (CollisionSystem/CoreDamageSystem) ignora a
-        ameaca, que ja esta com destruicao enfileirada para o flush.
+        `IAudioClock.now_seconds`) do evento ritmico: toque no anel do
+        nucleo (Defensor), cruzamento do centro da arena
+        (Sobrevivencia) ou chegada a linha de julgamento (Arcade). E
+        contra este campo que os JudgmentSystems medem o delta do input.
+    expire_time_sec: instante em que a ameaca deixa de ser relevante
+        (Sobrevivencia: varredura saiu da arena -> vira SURVIVED se
+        ninguem foi atingido). Nos demais modos, o proprio instante da
+        batida (telemetria).
+    spawn_angle_rad: Defensor: angulo (tela, y para baixo) da borda onde
+        nasceu, comparado com a mira 360. Demais modos: orientacao
+        visual/telemetria.
+    is_hit: marcada True quando o jogador converte a ameaca com input
+        correto -- o restante do frame ignora a linha, ja com destruicao
+        enfileirada para o flush.
     judgment: JUDGMENT_* -- toda ameaca termina com exatamente UM
-        veredito (perfect/good/miss/dodged); sistemas so agem sobre
-        linhas ainda JUDGMENT_PENDING, o que impede dupla contagem no
-        mesmo frame.
+        veredito; sistemas so agem sobre linhas ainda JUDGMENT_PENDING,
+        o que impede dupla contagem no mesmo frame.
     packed_handle: `PackedEntityId` (uint64 primitivo) da propria
         entidade, gravado no spawn -- padrao da engine (ver
         `handles.py`/`DungeonStreamingSystem`) para que qualquer sistema

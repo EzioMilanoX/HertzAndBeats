@@ -30,22 +30,32 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     stages = load_stages(STAGES_PATH)
+    processed_tracks = set()
+    processed_beatmaps = set()
     for stage in stages:
         if not stage.track_path:
             continue
-        if args.force:
-            Path(stage.track_path).unlink(missing_ok=True)
-        track_path = ensure_track(stage.track_path, stage.synth)
-        print(f"[{stage.stage_id}] faixa pronta: {track_path}")
+        if stage.track_path not in processed_tracks:
+            processed_tracks.add(stage.track_path)
+            if args.force:
+                Path(stage.track_path).unlink(missing_ok=True)
+            track_path = ensure_track(stage.track_path, stage.synth)
+            print(f"[{stage.stage_id}] faixa pronta: {track_path}")
 
         if stage.tutorial_steps:
             # beatmap do tutorial e AUTORAL (timing didatico): nunca
             # sobrescrever com a saida da IA
             print(f"[{stage.stage_id}] beatmap autoral preservado: {stage.beatmap_path}")
             continue
+        if stage.beatmap_path in processed_beatmaps:
+            # fases de modos alternativos consomem o MESMO beatmap de uma
+            # fase anterior (a tese multi-modo): a curadoria e a da fase dona
+            print(f"[{stage.stage_id}] beatmap compartilhado (mesmo json): {stage.beatmap_path}")
+            continue
+        processed_beatmaps.add(stage.beatmap_path)
 
         summary = generate_beatmap(
-            audio_path=Path(track_path),
+            audio_path=Path(stage.track_path),
             output_path=Path(stage.beatmap_path),
             track_id=stage.stage_id,
             min_gap_seconds=stage.beatmap_params.get("min_gap_seconds", 0.45),

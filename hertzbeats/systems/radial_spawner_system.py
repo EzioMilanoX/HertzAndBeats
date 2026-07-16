@@ -133,6 +133,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         strength = float(self._scheduled_threats["strength"][row_index])
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
+        threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
         threat_view["spawn_angle_rad"][threat_row] = angle
         threat_view["is_hit"][threat_row] = False
         threat_view["judgment"][threat_row] = JUDGMENT_PENDING

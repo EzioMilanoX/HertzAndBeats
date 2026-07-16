@@ -13,6 +13,12 @@ TEX_PLAYER_CORE: int = 1
 TEX_CROSSHAIR: int = 2
 """Indicador da mira 360 orbitando o nucleo."""
 
+TEX_LANE_RECEPTOR: int = 3
+"""Receptor (anel) de uma coluna na linha de julgamento do modo Arcade 4K."""
+
+TEX_KEY_LABEL_BASE: int = 140
+"""Rotulo da tecla da coluna `k` do Arcade 4K = `TEX_KEY_LABEL_BASE + k`."""
+
 TEX_THREAT_BASIC: int = 10
 """Ameaca comum (batida/beat)."""
 
@@ -30,10 +36,11 @@ TEX_LABEL_SCORE: int = 113
 TEX_LABEL_COMBO: int = 114
 TEX_HEALTH_PIP: int = 115
 
-JUDGMENT_WORD_TEXTURES: tuple = (0, TEX_WORD_PERFECT, TEX_WORD_GOOD, TEX_WORD_MISS, 0)
+JUDGMENT_WORD_TEXTURES: tuple = (0, TEX_WORD_PERFECT, TEX_WORD_GOOD, TEX_WORD_MISS, 0, 0)
 """Mapeia `JUDGMENT_*` (indice) -> textura da palavra correspondente.
-Indices PENDING/DODGED nao tem palavra (0 = sem textura). Tupla criada
-uma unica vez no carregamento do modulo, indexada por inteiro no loop."""
+Indices PENDING/DODGED/SURVIVED nao tem palavra (0 = sem textura). Tupla
+criada uma unica vez no carregamento do modulo, indexada por inteiro no
+loop."""
 
 TEX_TUTORIAL_BASE: int = 200
 """Textos de instrucao do tutorial, pre-renderizados na composicao:

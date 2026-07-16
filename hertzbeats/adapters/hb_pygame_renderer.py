@@ -168,6 +168,14 @@ class HBPygameRenderer(PygameRenderer):
                     (int(x - texture.get_width() / 2), int(y - texture.get_height() / 2)),
                 )
             else:
-                radius = max(1, int(8.0 * max(float(scales_xy[i, 0]), 0.01)))
+                scale_x = max(float(scales_xy[i, 0]), 0.01)
+                scale_y = max(float(scales_xy[i, 1]), 0.01)
                 color = (int(tint_rgba[i, 0]), int(tint_rgba[i, 1]), int(tint_rgba[i, 2]))
-                pygame.draw.circle(self._surface, color, (int(x), int(y)), radius)
+                if abs(scale_x - scale_y) > 0.01:
+                    # escala anisotropica = barra/laser (modo Sobrevivencia)
+                    width = max(1, int(16.0 * scale_x))
+                    height = max(1, int(16.0 * scale_y))
+                    rect = pygame.Rect(int(x - width / 2), int(y - height / 2), width, height)
+                    pygame.draw.rect(self._surface, color, rect)
+                else:
+                    pygame.draw.circle(self._surface, color, (int(x), int(y)), max(1, int(8.0 * scale_x)))
