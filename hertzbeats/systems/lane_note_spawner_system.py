@@ -107,8 +107,10 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         transform_view = self._transform_pool.active_view()
         transform_view["position_x"][transform_row] = float(self._lane_center_xs[lane])
         transform_view["position_y"][transform_row] = self._spawn_y
-        transform_view["scale_x"][transform_row] = note_half / 8.0
-        transform_view["scale_y"][transform_row] = note_half / 8.0
+        # notas 1.7x maiores que o meio-tamanho logico: legibilidade da
+        # queda importa mais que o volume exato (nao ha colisao no 4K)
+        transform_view["scale_x"][transform_row] = note_half * 1.7 / 8.0
+        transform_view["scale_y"][transform_row] = note_half * 1.7 / 8.0
 
         velocity_row = self._velocity_pool.dense_row_of(entity_index)
         velocity_view = self._velocity_pool.active_view()

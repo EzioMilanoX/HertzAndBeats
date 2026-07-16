@@ -11,7 +11,11 @@ from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.interfaces.renderer import IRenderer
 
 from hertzbeats.audio.demo_track_synth import ensure_track
-from hertzbeats.bootstrap.rhythm_composition_root import ComposedGame, compose_world
+from hertzbeats.bootstrap.rhythm_composition_root import (
+    ComposedGame,
+    compose_world,
+    lane_center_positions,
+)
 from hertzbeats.config import HertzConfig
 from hertzbeats.stages import StageDef, resolve_stage_config
 
@@ -86,6 +90,7 @@ class HertzGameLoop(GameLoop):
             audio_engine,
             target_fps=base_config.target_fps,
         )
+        self._apply_playfield()
 
     @property
     def flow(self) -> str:
@@ -124,19 +129,62 @@ class HertzGameLoop(GameLoop):
             stage_ordinal=stage_index,
         )
         self._composed = composed
+        self._stage_config = stage_config
         self._loaded_stage = stage_index
         self._world = composed.world  # GameLoop renderiza sempre o world da fase carregada
         return composed
 
+    def _apply_playfield(self) -> None:
+        """Sincroniza a decoracao de arena do renderer com o MODO da fase
+        carregada (no-op com renderer sem suporte, ex. NullRenderer)."""
+        renderer = getattr(self, "_renderer", None)
+        if renderer is None or not hasattr(renderer, "set_playfield"):
+            return
+        config = self._stage_config
+        mode = config.game_mode
+        if mode in ("defender", "hybrid"):
+            kind = "radial" if mode == "defender" else "radial_arena"
+            center_x, center_y = config.center_xy
+            renderer.set_playfield(
+                kind,
+                center_x=center_x,
+                center_y=center_y,
+                spawn_radius=config.spawn_radius,
+                judgment_radius=config.core_half_extent
+                + config.threat_half_extents.get("rhythm_threat_basic", 10.0),
+                width=config.window_width,
+                height=config.window_height,
+            )
+        elif mode == "survival":
+            renderer.set_playfield("arena", width=config.window_width, height=config.window_height)
+        elif mode == "lanes":
+            renderer.set_playfield(
+                "lanes",
+                lane_xs=lane_center_positions(config).tolist(),
+                lane_half_width=config.lane_spacing * 0.42,
+                judgment_y=config.window_height - config.judgment_line_offset,
+                width=config.window_width,
+                height=config.window_height,
+            )
+        else:
+            renderer.set_playfield(None)
+
     def _start_stage(self, stage_index: int) -> None:
         """Recompoe a fase e inicia a musica do zero -> PLAYING."""
         self._compose_stage(stage_index)
+        self._apply_playfield()
         stage = self._stages[stage_index]
         if stage.track_path:
             self._audio_engine.load_track(stage.stage_id, stage.track_path)
             self._audio_engine.play_track(stage.stage_id)
         self._flow = FLOW_PLAYING
         self._results_grace = 0.0
+
+    def start_stage(self, stage_index: int) -> None:
+        """Entrada publica: pula o menu e inicia `stage_index` direto
+        (usada pelo atalho de CLI `--stage`)."""
+        self._selected_stage = stage_index % len(self._stages)
+        self._start_stage(self._selected_stage)
 
     def _stop_music(self) -> None:
         stage = self._stages[self._loaded_stage]

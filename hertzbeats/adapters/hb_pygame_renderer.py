@@ -18,9 +18,12 @@ class HBPygameRenderer(PygameRenderer):
           carregamento (digitos 0-9, palavras PERFECT/GOOD/MISS, pips).
           `draw_batch` blita a textura registrada; ids sem textura caem
           no desenho procedural (circulos -- nucleo, ameacas, mira).
-        - `configure_playfield(...)`: aneis-guia da arena radial (borda
-          de spawn e anel de julgamento do nucleo), desenhados em
-          `begin_frame`.
+        - `set_playfield(...)`: decoracao de arena POR MODO (aneis do
+          Defensor, borda da Sobrevivencia, colunas + linha do Arcade),
+          desenhada em `begin_frame` e sincronizada pelo `HertzGameLoop`
+          a cada troca de fase.
+        - Barras/lasers procedurais quando a escala e anisotropica
+          (paredes de som da Sobrevivencia).
         - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
           esquerda e palavras expiradas).
 
@@ -33,7 +36,8 @@ class HBPygameRenderer(PygameRenderer):
     def __init__(self) -> None:
         super().__init__()
         self._textures: Dict[int, pygame.Surface] = {}
-        self._playfield: Optional[Tuple[int, int, int, int]] = None
+        self._playfield_kind: Optional[str] = None
+        self._playfield_params: Dict = {}
         self._overlay_surfaces: Dict[str, pygame.Surface] = {}
         self._overlay_mode: Optional[str] = None
         self._overlay_selected: int = 0
@@ -59,15 +63,20 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_selected = int(selected_index)
         self._overlay_stage_count = int(stage_count)
 
-    def configure_playfield(
-        self,
-        center_x: float,
-        center_y: float,
-        spawn_radius: float,
-        judgment_radius: float,
-    ) -> None:
-        """Define os aneis-guia da arena, desenhados a cada `begin_frame`."""
-        self._playfield = (int(center_x), int(center_y), int(spawn_radius), int(judgment_radius))
+    def set_playfield(self, kind: Optional[str], **params) -> None:
+        """Define a decoracao de arena do MODO ativo, desenhada a cada
+        `begin_frame`. Chamado pelo `HertzGameLoop` a cada troca de fase:
+
+            "radial" -- aneis-guia do Defensor (spawn + anel de julgamento):
+                center_x, center_y, spawn_radius, judgment_radius
+            "arena"  -- borda da arena da Sobrevivencia: width, height
+            "lanes"  -- colunas + linha de julgamento do Arcade 4K:
+                lane_xs (iteravel), lane_half_width, judgment_y, height
+            "radial_arena" -- Hibrido: aneis + borda.
+            None     -- sem decoracao.
+        """
+        self._playfield_kind = kind
+        self._playfield_params = params
 
     @staticmethod
     def probe_display_size() -> Tuple[int, int]:
@@ -82,7 +91,7 @@ class HBPygameRenderer(PygameRenderer):
     def initialize(self, width: int, height: int, title: str) -> None:
         super().initialize(width, height, title)
         self._dim_surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        self._dim_surface.fill((4, 2, 12, 178))
+        self._dim_surface.fill((4, 2, 12, 216))
 
     def set_window_icon(self, icon_path: str) -> None:
         """Define o icone da janela/barra de tarefas a partir de um PNG.
@@ -94,10 +103,31 @@ class HBPygameRenderer(PygameRenderer):
 
     def begin_frame(self) -> None:
         self._surface.fill((8, 6, 20))
-        if self._playfield is not None:
-            center_x, center_y, spawn_radius, judgment_radius = self._playfield
-            pygame.draw.circle(self._surface, (36, 28, 70), (center_x, center_y), spawn_radius, 1)
-            pygame.draw.circle(self._surface, (90, 70, 160), (center_x, center_y), judgment_radius, 2)
+        kind = self._playfield_kind
+        if kind is None:
+            return
+        params = self._playfield_params
+        if kind in ("radial", "radial_arena"):
+            center = (int(params["center_x"]), int(params["center_y"]))
+            pygame.draw.circle(self._surface, (36, 28, 70), center, int(params["spawn_radius"]), 1)
+            pygame.draw.circle(self._surface, (90, 70, 160), center, int(params["judgment_radius"]), 2)
+        if kind in ("arena", "radial_arena"):
+            width = int(params["width"])
+            height = int(params["height"])
+            pygame.draw.rect(self._surface, (60, 48, 110), pygame.Rect(6, 6, width - 12, height - 12), 2)
+        if kind == "lanes":
+            height = int(params["height"])
+            judgment_y = int(params["judgment_y"])
+            lane_half = int(params["lane_half_width"])
+            for lane_x in params["lane_xs"]:
+                column = pygame.Rect(int(lane_x) - lane_half, 0, lane_half * 2, height)
+                pygame.draw.rect(self._surface, (16, 13, 36), column)
+                pygame.draw.line(self._surface, (36, 28, 70), (column.left, 0), (column.left, height))
+                pygame.draw.line(self._surface, (36, 28, 70), (column.right, 0), (column.right, height))
+            pygame.draw.line(
+                self._surface, (90, 70, 160),
+                (0, judgment_y), (int(params.get("width", self._width)), judgment_y), 2,
+            )
 
     def end_frame(self) -> None:
         if self._overlay_mode is not None:
@@ -121,13 +151,15 @@ class HBPygameRenderer(PygameRenderer):
         center_x = self._width // 2
 
         if self._overlay_mode == "menu":
-            y = int(self._height * 0.18)
-            y += self._blit_centered("title", center_x, y) + 18
-            y += self._blit_centered("subtitle", center_x, y) + 60
+            y = int(self._height * 0.09)
+            y += self._blit_centered("title", center_x, y) + 10
+            y += self._blit_centered("subtitle", center_x, y) + 34
             for i in range(self._overlay_stage_count):
                 key = f"stage_{i}_sel" if i == self._overlay_selected else f"stage_{i}"
-                y += self._blit_centered(key, center_x, y) + 26
-            self._blit_centered("hint_menu", center_x, self._height - 110)
+                y += self._blit_centered(key, center_x, y) + 16
+            # controles do MODO da fase selecionada, logo abaixo da lista
+            self._blit_centered(f"stage_{self._overlay_selected}_hint", center_x, y + 16)
+            self._blit_centered("hint_menu", center_x, self._height - 54)
         elif self._overlay_mode == "paused":
             self._blit_centered("paused", center_x, int(self._height * 0.40))
             self._blit_centered("hint_paused", center_x, self._height - 110)
@@ -159,10 +191,10 @@ class HBPygameRenderer(PygameRenderer):
             x, y = float(positions_xy[i, 0]), float(positions_xy[i, 1])
             texture = self._textures.get(int(texture_ids[i]))
             if texture is not None:
-                if alpha != 255:
-                    texture.set_alpha(alpha)
-                else:
-                    texture.set_alpha(None)
+                # NUNCA set_alpha(None): em pygame isso DESLIGA o alpha
+                # por pixel e o texto blitaria como um bloco solido da
+                # cor da fonte. 255 = opaco preservando o canal alpha.
+                texture.set_alpha(alpha)
                 self._surface.blit(
                     texture,
                     (int(x - texture.get_width() / 2), int(y - texture.get_height() / 2)),

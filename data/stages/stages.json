@@ -61,7 +61,7 @@
     {
       "stage_id": "stage4_ondas_de_choque",
       "name": "4 - ONDAS DE CHOQUE",
-      "subtitle": "sobrevivencia - mesmo beatmap da fase 1",
+      "subtitle": "sobrevivencia | beatmap da fase 1",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
       "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
@@ -74,7 +74,7 @@
     {
       "stage_id": "stage5_arcade_4k",
       "name": "5 - ARCADE 4K",
-      "subtitle": "D F J K - mesmo beatmap da fase 2",
+      "subtitle": "D F J K | beatmap da fase 2",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
@@ -86,7 +86,7 @@
     {
       "stage_id": "stage6_hibrido",
       "name": "6 - HIBRIDO",
-      "subtitle": "atire nas batidas, dashe nas ondas - beatmap da fase 3",
+      "subtitle": "tiro + dash | beatmap da fase 3",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
       "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },

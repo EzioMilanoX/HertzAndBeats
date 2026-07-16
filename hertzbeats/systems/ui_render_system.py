@@ -42,6 +42,7 @@ class UIRenderSystem(ISystem):
         combo_digit_entity_indices: np.ndarray,
         judgment_word_entity_index: int,
         health_pip_entity_indices: np.ndarray,
+        show_health_pips: bool = True,
     ) -> None:
         """Os arrays de indices de entidade do HUD (int64, ordem: digito
         menos significativo primeiro) sao pre-alocados pela composicao.
@@ -53,6 +54,7 @@ class UIRenderSystem(ISystem):
         self._combo_digit_indices = combo_digit_entity_indices
         self._judgment_word_entity_index = int(judgment_word_entity_index)
         self._health_pip_indices = health_pip_entity_indices
+        self._show_health_pips = bool(show_health_pips)
 
         score_digits = score_digit_entity_indices.shape[0]
         combo_digits = combo_digit_entity_indices.shape[0]
@@ -96,10 +98,14 @@ class UIRenderSystem(ISystem):
         else:
             sprite_view["tint_a"][word_row] = 0
 
+        # modos sem pressao de vida (Arcade 4K) ocultam os pips
         pip_count = self._health_pip_indices.shape[0]
         for pip in range(pip_count):
             pip_row = self._sprite_pool.dense_row_of(int(self._health_pip_indices[pip]))
-            sprite_view["tint_a"][pip_row] = 255 if pip < state.health else 45
+            if not self._show_health_pips:
+                sprite_view["tint_a"][pip_row] = 0
+            else:
+                sprite_view["tint_a"][pip_row] = 255 if pip < state.health else 45
 
     def _write_number(
         self,

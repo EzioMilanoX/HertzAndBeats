@@ -25,6 +25,12 @@ def main(argv=None) -> int:
         default=None,
         help="Sobrescreve a latencia de saida de audio calibrada, em segundos.",
     )
+    parser.add_argument(
+        "--stage",
+        type=int,
+        default=None,
+        help="Pula o menu e inicia direto a fase N (0 = tutorial).",
+    )
     args = parser.parse_args(argv)
 
     config = HertzConfig.from_json(args.config)
@@ -33,6 +39,8 @@ def main(argv=None) -> int:
 
     if args.latency is not None:
         audio_engine.get_clock().calibrate_latency(args.latency)
+    if args.stage is not None:
+        game_loop.start_stage(args.stage)
 
     try:
         game_loop.run()  # menu de fases -> jogo; ESC no menu encerra

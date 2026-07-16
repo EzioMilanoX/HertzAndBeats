@@ -307,18 +307,27 @@ def _compose_survival_mode(ctx: _ModeContext):
     return (spawner_system,), collision_system
 
 
+def lane_center_positions(config: HertzConfig) -> np.ndarray:
+    """Posicoes X centrais das 4 colunas do Arcade 4K (compartilhado
+    entre a composicao do modo e a decoracao de arena do adapter)."""
+    center_x, _ = config.center_xy
+    return np.array(
+        [
+            center_x + (lane - (LANE_COUNT_4K - 1) / 2.0) * config.lane_spacing
+            for lane in range(LANE_COUNT_4K)
+        ],
+        dtype=np.float64,
+    )
+
+
 def _compose_lanes_mode(ctx: _ModeContext):
     """MODO 3 -- Arcade Classico 4K (estilo FNF/VSRG): 4 colunas fixas,
     notas caem ate a linha de julgamento, teclas D/F/J/K por coluna.
     Sem CollisionSystem: o julgamento e temporal por coluna. Ordem:
     Spawner de notas -> LaneJudgment -> Physics."""
     config = ctx.config
-    center_x, _ = config.center_xy
     judgment_line_y = config.window_height - config.judgment_line_offset
-    lane_center_xs = np.array(
-        [center_x + (lane - (LANE_COUNT_4K - 1) / 2.0) * config.lane_spacing for lane in range(LANE_COUNT_4K)],
-        dtype=np.float64,
-    )
+    lane_center_xs = lane_center_positions(config)
     lane_tints_rgb = np.array(
         [[255, 214, 64], [64, 255, 214], [167, 139, 250], [255, 80, 96]], dtype=np.uint8
     )
@@ -630,6 +639,7 @@ def compose_world(
             combo_digit_entity_indices=combo_digit_indices,
             judgment_word_entity_index=judgment_word_index,
             health_pip_entity_indices=health_pip_indices,
+            show_health_pips=(config.game_mode != "lanes"),
         )
     )
 
@@ -786,16 +796,11 @@ class RhythmCompositionRoot:
         self._config = config
         center_x, center_y = config.center_xy
 
-        # 1. Backends concretos.
+        # 1. Backends concretos. (A decoracao de arena e POR MODO,
+        # sincronizada pelo HertzGameLoop a cada troca de fase.)
         renderer = HBPygameRenderer()
         renderer.initialize(config.window_width, config.window_height, config.window_title)
         renderer.set_window_icon("assets/icon.png")
-        renderer.configure_playfield(
-            center_x,
-            center_y,
-            config.spawn_radius,
-            config.core_half_extent + config.threat_half_extents.get("rhythm_threat_basic", 10.0),
-        )
 
         input_provider = HBPygameInputProvider()
         input_provider.load_bindings(config.input_bindings_path)
