@@ -11,7 +11,7 @@ from ouroboros.core.world import World
 from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.rhythm.runtime.rhythm_spawner_system import RhythmSpawnerSystem
 
-from hertzbeats.components.schemas import JUDGMENT_PENDING
+from hertzbeats.components.schemas import JUDGMENT_PENDING, MODE_TAG_SURVIVAL
 
 _HALF_PI = math.pi / 2.0
 
@@ -114,6 +114,7 @@ class SurvivalSpawnerSystem(RhythmSpawnerSystem):
         sign = 1.0 if sweep_kind < 2 else -1.0  # 0/1: topo->baixo, esq->dir; 2/3: contrario
 
         strength = float(self._scheduled_threats["strength"][row_index])
+        threat_view["mode_tag"][threat_row] = MODE_TAG_SURVIVAL
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time + time_remaining

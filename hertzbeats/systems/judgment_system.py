@@ -16,6 +16,7 @@ from hertzbeats.components.schemas import (
     JUDGMENT_MISS,
     JUDGMENT_PENDING,
     JUDGMENT_PERFECT,
+    MODE_TAG_DEFENDER,
 )
 from hertzbeats.game_state import GameState
 
@@ -98,6 +99,7 @@ class JudgmentSystem(ISystem):
         self._angle_buffer = np.zeros(capacity, dtype=np.float64)
         self._candidate_mask = np.zeros(capacity, dtype=bool)
         self._scratch_mask = np.zeros(capacity, dtype=bool)
+        self._owned_mask = np.zeros(capacity, dtype=bool)
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
 
     def update(self, world: World, delta_time: float) -> None:
@@ -123,8 +125,14 @@ class JudgmentSystem(ISystem):
         deltas = self._delta_buffer[:active_count]
         np.subtract(threat_view["target_hit_time_sec"], now_effective, out=deltas)
 
+        # este juiz so e dono das ameacas RADIAIS -- no modo Hibrido,
+        # paredes de som coexistem na mesma pool e pertencem a outro juiz
+        owned = self._owned_mask[:active_count]
+        np.equal(threat_view["mode_tag"], MODE_TAG_DEFENDER, out=owned)
+
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(pending, owned, out=pending)
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
 
@@ -196,6 +204,7 @@ class JudgmentSystem(ISystem):
 
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(pending, self._owned_mask[:active_count], out=pending)
         np.logical_and(candidates, pending, out=candidates)
 
         # Diferenca angular com wrap em +-pi, toda em buffers pre-alocados:

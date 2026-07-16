@@ -194,15 +194,16 @@ class HertzGameLoop(GameLoop):
             self._stop_music()
             return
 
-        # Fase concluida quando todo o beatmap foi disparado E (todas as
-        # ameacas foram resolvidas OU a musica acabou). O segundo caso e
-        # o guard anti-softlock: quando a faixa termina, o relogio de
-        # audio congela (pygame get_pos() volta -1 -> 0) e qualquer
-        # ameaca restante ficaria eternamente sem veredito -- a fase
-        # encerra mesmo assim, pela carencia em tempo real de frame.
+        # Fase concluida quando TODOS os spawners consumiram seus
+        # beatmaps (o Hibrido tem dois) E (todas as ameacas foram
+        # resolvidas OU a musica acabou). O segundo caso e o guard
+        # anti-softlock: quando a faixa termina, o relogio de audio
+        # congela (pygame get_pos() volta -1 -> 0) e qualquer ameaca
+        # restante ficaria eternamente sem veredito -- a fase encerra
+        # mesmo assim, pela carencia em tempo real de frame.
         threat_pool = self._composed.memory_manager.get_pool("rhythm_threat")
         music_over = not self._audio_clock.is_playing()
-        if self._composed.spawner_system.is_finished and (threat_pool.count == 0 or music_over):
+        if self._composed.all_spawners_finished and (threat_pool.count == 0 or music_over):
             self._results_grace += delta_time
             if self._results_grace >= _RESULTS_GRACE_SECONDS:
                 self._flow = FLOW_RESULTS

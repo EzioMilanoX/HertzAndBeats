@@ -127,6 +127,7 @@ para isso não acontecer em condições normais.</li>
 <tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
 <tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia - mesmo beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
 <tr><td><strong>5 - ARCADE 4K</strong><br><small>D F J K - mesmo beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
+<tr><td><strong>6 - HIBRIDO</strong><br><small>atire nas batidas, dashe nas ondas - beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
 os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
@@ -201,7 +202,8 @@ padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própr
 <tr><td><code>survival_move_speed</code></td><td><code>320.0</code></td></tr>
 <tr><td><code>survival_dash_speed</code></td><td><code>820.0</code></td></tr>
 <tr><td><code>lane_spacing</code></td><td><code>110.0</code></td></tr>
-<tr><td><code>judgment_line_offset</code></td><td><code>170.0</code></td></tr></table>
+<tr><td><code>judgment_line_offset</code></td><td><code>170.0</code></td></tr>
+<tr><td><code>mixed_section_seconds</code></td><td><code>12.0</code></td></tr></table>
 <p class="muted">Fases sobrescrevem campos via <code>overrides</code> (aplicados com
 <code>dataclasses.replace</code>; campo desconhecido = erro, nunca ignorado).</p>
 
@@ -216,9 +218,10 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>54 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
+<p>Total: <strong>59 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
+<details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
 <details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (8 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
@@ -435,6 +438,17 @@ varreduras -&gt; Physics -&gt; Collision -&gt; SurvivalDamage.</pre>
 notas caem ate a linha de julgamento, teclas D/F/J/K por coluna.
 Sem CollisionSystem: o julgamento e temporal por coluna. Ordem:
 Spawner de notas -&gt; LaneJudgment -&gt; Physics.</pre>
+<h4><code>_compose_hybrid_mode()</code></h4><pre class="doc">MODO 4 -- Hibrido (Defensor + Sobrevivencia alternando por SECAO
+da musica): o beatmap e PARTICIONADO na composicao -- eventos de
+secoes pares viram ameacas radiais (atire na batida), os de secoes
+impares viram paredes de som (dashe atraves). Dois spawners
+coexistem, cada um consumindo APENAS a sua particao pre-filtrada
+(zero decisao de modo em runtime); os juizes se ignoram mutuamente
+via `mode_tag`. O jogador MOVE o corpo (WASD/dash, i-frames) e mira
+a torreta do nucleo com o mouse -- &#x27;voce e o escudo movel do
+nucleo&#x27;. Ordem: SurvivalPlayer (corpo) -&gt; PlayerInput (mira, sem
+dash) -&gt; Spawner radial -&gt; Spawner de varreduras -&gt; Judgment -&gt;
+Physics -&gt; Collision -&gt; CoreDamage -&gt; SurvivalDamage.</pre>
 <h4><code>compose_world()</code></h4><pre class="doc">Composicao PURA (sem pygame): pools, arquetipos, entidades
 persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
 sistemas. Backends concretos entram por parametro -- os testes
@@ -451,6 +465,9 @@ arrays de indices (digito menos significativo primeiro) consumidos
 pelo `UIRenderSystem`.</pre>
 <h3>classe <code>ComposedGame</code></h3><pre class="doc">Referencias resultantes da composicao pura, para o `build()`
 concreto, para o `__main__` (placar final) e para testes headless.</pre>
+<h4><code>.spawner_system()</code></h4><pre class="doc">Atalho de conveniencia: o spawner principal (modos puros tem
+exatamente um; o Hibrido tem dois -- ver `spawner_systems`).</pre>
+<h4><code>.all_spawners_finished()</code></h4><pre class="doc">True quando TODOS os spawners consumiram seus beatmaps.</pre>
 <h3>classe <code>_ModeContext</code></h3><pre class="doc">Pacote de referencias comuns entregue a cada estrategia de modo
 (`MODE_COMPOSERS`): tudo que uma estrategia precisa para registrar
 seus sistemas na ordem certa, sem parametros posicionais frageis.</pre>

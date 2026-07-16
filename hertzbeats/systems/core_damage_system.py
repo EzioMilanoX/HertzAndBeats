@@ -8,7 +8,12 @@ from ouroboros.core.systems.collision_system import CollisionSystem
 from ouroboros.core.world import World
 from ouroboros.interfaces.audio_clock import IAudioClock
 
-from hertzbeats.components.schemas import JUDGMENT_DODGED, JUDGMENT_MISS, JUDGMENT_PENDING
+from hertzbeats.components.schemas import (
+    JUDGMENT_DODGED,
+    JUDGMENT_MISS,
+    JUDGMENT_PENDING,
+    MODE_TAG_DEFENDER,
+)
 from hertzbeats.game_state import GameState
 
 
@@ -97,6 +102,8 @@ class CoreDamageSystem(ISystem):
             threat_row = self._threat_pool.dense_row_of(other_index)
             if threat_row == INVALID_DENSE_ROW:
                 continue
+            if int(threat_view["mode_tag"][threat_row]) != MODE_TAG_DEFENDER:
+                continue  # parede de som de outro juiz (modo Hibrido)
             if int(threat_view["judgment"][threat_row]) != JUDGMENT_PENDING:
                 continue
             overdue_by = now_effective - float(threat_view["target_hit_time_sec"][threat_row])

@@ -62,6 +62,7 @@ class HertzConfig:
     survival_dash_speed: float = 820.0
     lane_spacing: float = 110.0
     judgment_line_offset: float = 170.0
+    mixed_section_seconds: float = 12.0
 
     @property
     def center_xy(self) -> Tuple[float, float]:
@@ -108,6 +109,7 @@ class HertzConfig:
             survival_dash_speed=raw.get("survival_dash_speed", 820.0),
             lane_spacing=raw.get("lane_spacing", 110.0),
             judgment_line_offset=raw.get("judgment_line_offset", 170.0),
+            mixed_section_seconds=raw.get("mixed_section_seconds", 12.0),
         )
 
 

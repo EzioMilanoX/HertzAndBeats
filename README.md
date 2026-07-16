@@ -15,6 +15,7 @@ A IA dita o **tempo** (o mesmo `beatmap.json`); o modo dita a **interpretação 
 | **Defensor** | BPM / Metal: Hellsinger | Núcleo fixo, ameaças radiais 360º; mire com o mouse e atire quando a ameaça tocar sua mira. Atirar **fora do tempo é misfire** e zera o combo. |
 | **Sobrevivência** | Just Shapes & Beats | Mova-se livre (WASD); paredes de som varrem a arena cruzando o centro na batida. **Não há ataque**: o Dash (Espaço, i-frames) atravessa as paredes no ritmo — atravessar ou esquivar pontua. |
 | **Arcade 4K** | FNF / VSRG | 4 colunas fixas; notas caem até a linha de julgamento. Aperte **D F J K** na coluna certa, na janela certa. Ghost taps não punem. |
+| **Híbrido** | Defensor + Sobrevivência | As **seções da música alternam** os modos: atire nas batidas das seções pares, dashe pelas ondas das ímpares. Você move o corpo (WASD) e mira a torreta do núcleo com o mouse — o escudo móvel do núcleo. |
 
 ## Como jogar
 
@@ -43,6 +44,7 @@ Um tutorial e três fases padrões, definidos em [data/stages/stages.json](data/
 | **3 · Sobrecarga** | Defensor | 150 BPM, `intense`, drops a cada 4 compassos | Aproximação 1.6s, cone 30° |
 | **4 · Ondas de Choque** | Sobrevivência | **mesmo beatmap da fase 1** | 4 de vida, varreduras a cada batida forte |
 | **5 · Arcade 4K** | Arcade | **mesmo beatmap da fase 2** | Notas D/F/J/K, queda em 1.8s |
+| **6 · Híbrido** | Defensor+Sobrevivência | **mesmo beatmap da fase 3** | Seções de 9.6s alternando tiro e dash |
 
 As fases 4 e 5 consomem **os mesmos `beatmap.json`** das fases 1 e 2 — a demonstração literal da tese: o modo é só outra interpretação espacial do mesmo tempo extraído pela IA. Trocar o modo de uma fase é uma linha no JSON: `"overrides": { "game_mode": "survival" }`.
 
@@ -113,7 +115,9 @@ A única fonte de verdade temporal é o `IAudioClock` (posição real de reprodu
 
 O **fluxo de partida** (menu/pausa/derrota/resultados) vive no `HertzGameLoop` — não em um `ISystem`: sistemas julgam uma fase em andamento; trocar ou reiniciar fase é *recomposição* (`compose_world` de novo: pools novas, placar zerado, cursor do spawner em 0, música do zero), na fase de carregamento, onde alocar é permitido. Os overlays (menu, PAUSADO, GAME OVER, FASE CONCLUÍDA) usam superfícies pré-renderizadas na composição — nenhum `font.render` por frame.
 
-Os **modos de jogo** são o `GameModeStrategy` da arquitetura, resolvido em tempo de composição: `MODE_COMPOSERS` mapeia `game_mode` → função que registra os sistemas do modo (`defender`: spawner radial + JudgmentSystem com misfire; `survival`: jogador móvel + spawner de varreduras + julgamento 100% por colisão; `lanes`: spawner de notas + julgamento por tecla/coluna). Todos os spawners **são** o `RhythmSpawnerSystem` da engine (cursor monotônico e compensação de latência intactos) e todos consomem o mesmo `RHYTHM_THREAT_DTYPE` — o modo só muda a interpretação espacial dos campos (`lane` = setor angular, eixo de varredura ou coluna). Zero branch por evento no hot-path.
+Os **modos de jogo** são o `GameModeStrategy` da arquitetura, resolvido em tempo de composição: `MODE_COMPOSERS` mapeia `game_mode` → função que registra os sistemas do modo (`defender`: spawner radial + JudgmentSystem com misfire; `survival`: jogador móvel + spawner de varreduras + julgamento 100% por colisão; `lanes`: spawner de notas + julgamento por tecla/coluna; `hybrid`: os dois primeiros coexistindo). Todos os spawners **são** o `RhythmSpawnerSystem` da engine (cursor monotônico e compensação de latência intactos) e todos consomem o mesmo `RHYTHM_THREAT_DTYPE` — o modo só muda a interpretação espacial dos campos (`lane` = setor angular, eixo de varredura ou coluna). Zero branch por evento no hot-path.
+
+No **modo Híbrido**, o beatmap é **particionado na composição** por seção musical (`mixed_section_seconds`): cada spawner consome apenas a sua partição pré-filtrada, e cada juiz filtra pelo `mode_tag` gravado na linha da ameaça — ameaças radiais e paredes de som coexistem na mesma pool sem que os juízes se contaminem (a varredura de MISS radial nunca toca uma parede, e o coletor de expiração nunca recolhe uma ameaça radial).
 
 ## Testes
 

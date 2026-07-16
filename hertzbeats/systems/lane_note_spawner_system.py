@@ -11,7 +11,7 @@ from ouroboros.core.world import World
 from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.rhythm.runtime.rhythm_spawner_system import RhythmSpawnerSystem
 
-from hertzbeats.components.schemas import JUDGMENT_PENDING
+from hertzbeats.components.schemas import JUDGMENT_PENDING, MODE_TAG_LANES
 
 LANE_COUNT_4K: int = 4
 """Numero fixo de colunas do modo Arcade (D/F/J/K)."""
@@ -93,6 +93,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         fall_speed = (self._judgment_line_y - self._spawn_y) / time_remaining
 
         strength = float(self._scheduled_threats["strength"][row_index])
+        threat_view["mode_tag"][threat_row] = MODE_TAG_LANES
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time

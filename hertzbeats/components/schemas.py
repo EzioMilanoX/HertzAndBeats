@@ -30,10 +30,20 @@ JUDGMENT_SURVIVED: int = 5
 """Modo Sobrevivencia: a ameaca varreu a arena e expirou sem tocar o
 jogador -- pontua e estende o combo."""
 
+MODE_TAG_DEFENDER: int = 0
+"""Ameaca radial (julgada por mira + tempo)."""
+
+MODE_TAG_SURVIVAL: int = 1
+"""Parede de som (julgada por colisao/expiracao)."""
+
+MODE_TAG_LANES: int = 2
+"""Nota de coluna (julgada por tecla + tempo)."""
+
 RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
     [
         ("lane", np.int8),
         ("threat_type", np.int16),
+        ("mode_tag", np.int8),
         ("strength", np.float32),
         ("target_hit_time_sec", np.float64),
         ("expire_time_sec", np.float64),
@@ -56,6 +66,12 @@ Campos:
         Defensor -> setor angular da borda (angulo = tau*lane/8);
         Sobrevivencia -> eixo/borda da varredura (lane % 4);
         Arcade 4K -> coluna da nota (lane % 4).
+    mode_tag: MODE_TAG_* -- QUAL juiz e dono desta ameaca. No modo
+        Hibrido, ameacas radiais e paredes coexistem na MESMA pool;
+        cada juiz filtra pelo seu tag (mascara vetorizada) e nunca toca
+        as ameacas do outro. Escrito SEMPRE pelo spawner (linhas densas
+        sao reusadas apos swap-remove -- um tag obsoleto seria lido como
+        valido).
     strength: intensidade 0..1 extraida pela IA offline (onset strength).
     target_hit_time_sec: instante EXATO (base de tempo de
         `IAudioClock.now_seconds`) do evento ritmico: toque no anel do

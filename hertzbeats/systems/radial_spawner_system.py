@@ -11,7 +11,7 @@ from ouroboros.core.world import World
 from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.rhythm.runtime.rhythm_spawner_system import RhythmSpawnerSystem
 
-from hertzbeats.components.schemas import JUDGMENT_PENDING
+from hertzbeats.components.schemas import JUDGMENT_PENDING, MODE_TAG_DEFENDER
 from hertzbeats.components.texture_ids import TEX_THREAT_BASIC
 
 _TAU = 2.0 * math.pi
@@ -131,6 +131,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         spawn_y = self._center_y + direction_y * self._spawn_radius
 
         strength = float(self._scheduled_threats["strength"][row_index])
+        threat_view["mode_tag"][threat_row] = MODE_TAG_DEFENDER
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo

@@ -16,6 +16,7 @@ from hertzbeats.components.schemas import (
     JUDGMENT_MISS,
     JUDGMENT_PENDING,
     JUDGMENT_PERFECT,
+    MODE_TAG_LANES,
 )
 from hertzbeats.game_state import GameState
 
@@ -76,6 +77,7 @@ class LaneJudgmentSystem(ISystem):
         self._abs_delta_buffer = np.zeros(capacity, dtype=np.float64)
         self._candidate_mask = np.zeros(capacity, dtype=bool)
         self._scratch_mask = np.zeros(capacity, dtype=bool)
+        self._owned_mask = np.zeros(capacity, dtype=bool)
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
 
     def update(self, world: World, delta_time: float) -> None:
@@ -93,6 +95,10 @@ class LaneJudgmentSystem(ISystem):
         threat_view = self._threat_pool.active_view()
         deltas = self._delta_buffer[:active_count]
         np.subtract(threat_view["target_hit_time_sec"], now_effective, out=deltas)
+
+        # dono apenas das NOTAS de coluna (coexistencia multi-modo)
+        owned = self._owned_mask[:active_count]
+        np.equal(threat_view["mode_tag"], MODE_TAG_LANES, out=owned)
 
         self._sweep_overdue_misses(world, threat_view, deltas, active_count)
 
@@ -116,6 +122,7 @@ class LaneJudgmentSystem(ISystem):
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(overdue, pending, out=overdue)
+        np.logical_and(overdue, self._owned_mask[:active_count], out=overdue)
 
         overdue_rows = np.flatnonzero(overdue)
         if overdue_rows.shape[0] == 0:
@@ -148,6 +155,7 @@ class LaneJudgmentSystem(ISystem):
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(candidates, pending, out=candidates)
+        np.logical_and(candidates, self._owned_mask[:active_count], out=candidates)
 
         np.equal(threat_view["lane"], lane_index, out=self._scratch_mask[:active_count])
         np.logical_and(candidates, self._scratch_mask[:active_count], out=candidates)

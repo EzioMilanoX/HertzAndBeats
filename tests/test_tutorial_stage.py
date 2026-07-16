@@ -28,7 +28,7 @@ def test_repo_stage_data_is_valid():
 
     assert stages[0].stage_id == "tutorial"
     assert len(stages[0].tutorial_steps) == 5
-    assert len(stages) == 6  # tutorial + 3 defensor + sobrevivencia + arcade
+    assert len(stages) == 7  # tutorial + 3 defensor + sobrevivencia + arcade + hibrido
 
     from hertzbeats.bootstrap.rhythm_composition_root import MODE_COMPOSERS
 

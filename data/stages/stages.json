@@ -82,6 +82,22 @@
         "game_mode": "lanes",
         "approach_seconds": 1.8
       }
+    },
+    {
+      "stage_id": "stage6_hibrido",
+      "name": "6 - HIBRIDO",
+      "subtitle": "atire nas batidas, dashe nas ondas - beatmap da fase 3",
+      "track_path": "data/tracks/stage3_sobrecarga.wav",
+      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
+      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "overrides": {
+        "game_mode": "hybrid",
+        "approach_seconds": 2.0,
+        "max_health": 4,
+        "aim_tolerance_degrees": 40.0,
+        "misfire_breaks_combo": false,
+        "mixed_section_seconds": 9.6
+      }
     }
   ]
 }

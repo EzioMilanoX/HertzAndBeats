@@ -88,7 +88,7 @@ class ComposedGame:
         "world",
         "memory_manager",
         "game_state",
-        "spawner_system",
+        "spawner_systems",
         "collision_system",
         "player_entity_index",
         "crosshair_entity_index",
@@ -99,7 +99,7 @@ class ComposedGame:
         world: World,
         memory_manager: MemoryManager,
         game_state: GameState,
-        spawner_system: RadialRhythmSpawnerSystem,
+        spawner_systems: tuple,
         collision_system: CollisionSystem,
         player_entity_index: int,
         crosshair_entity_index: int,
@@ -107,10 +107,24 @@ class ComposedGame:
         self.world = world
         self.memory_manager = memory_manager
         self.game_state = game_state
-        self.spawner_system = spawner_system
+        self.spawner_systems = spawner_systems
         self.collision_system = collision_system
         self.player_entity_index = player_entity_index
         self.crosshair_entity_index = crosshair_entity_index
+
+    @property
+    def spawner_system(self):
+        """Atalho de conveniencia: o spawner principal (modos puros tem
+        exatamente um; o Hibrido tem dois -- ver `spawner_systems`)."""
+        return self.spawner_systems[0]
+
+    @property
+    def all_spawners_finished(self) -> bool:
+        """True quando TODOS os spawners consumiram seus beatmaps."""
+        for spawner in self.spawner_systems:
+            if not spawner.is_finished:
+                return False
+        return True
 
 
 class _ModeContext:
@@ -226,7 +240,7 @@ def _compose_defender_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
         )
     )
-    return spawner_system, collision_system
+    return (spawner_system,), collision_system
 
 
 def _compose_survival_mode(ctx: _ModeContext):
@@ -290,7 +304,7 @@ def _compose_survival_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
         )
     )
-    return spawner_system, collision_system
+    return (spawner_system,), collision_system
 
 
 def _compose_lanes_mode(ctx: _ModeContext):
@@ -353,18 +367,155 @@ def _compose_lanes_mode(ctx: _ModeContext):
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
-    return spawner_system, None
+    return (spawner_system,), None
+
+
+def _compose_hybrid_mode(ctx: _ModeContext):
+    """MODO 4 -- Hibrido (Defensor + Sobrevivencia alternando por SECAO
+    da musica): o beatmap e PARTICIONADO na composicao -- eventos de
+    secoes pares viram ameacas radiais (atire na batida), os de secoes
+    impares viram paredes de som (dashe atraves). Dois spawners
+    coexistem, cada um consumindo APENAS a sua particao pre-filtrada
+    (zero decisao de modo em runtime); os juizes se ignoram mutuamente
+    via `mode_tag`. O jogador MOVE o corpo (WASD/dash, i-frames) e mira
+    a torreta do nucleo com o mouse -- 'voce e o escudo movel do
+    nucleo'. Ordem: SurvivalPlayer (corpo) -> PlayerInput (mira, sem
+    dash) -> Spawner radial -> Spawner de varreduras -> Judgment ->
+    Physics -> Collision -> CoreDamage -> SurvivalDamage."""
+    config = ctx.config
+    center_x, center_y = config.center_xy
+
+    # particao por secao musical, sobre os tempos de IMPACTO (a janela
+    # de spawn atravessa a fronteira de secao sem problema algum)
+    section_index = np.floor_divide(ctx.hit_times, config.mixed_section_seconds).astype(np.int64)
+    defender_rows = np.flatnonzero(section_index % 2 == 0)
+    survival_rows = np.flatnonzero(section_index % 2 == 1)
+    defender_scheduled = ctx.scheduled[defender_rows]
+    defender_hits = ctx.hit_times[defender_rows]
+    survival_scheduled = ctx.scheduled[survival_rows]
+    survival_hits = ctx.hit_times[survival_rows]
+
+    radial_spawner = RadialRhythmSpawnerSystem(
+        audio_clock=ctx.audio_clock,
+        memory_manager=ctx.memory_manager,
+        scheduled_spawns=defender_scheduled,
+        hit_times=defender_hits,
+        threat_archetype_name="rhythm_threat_radial",
+        center_xy=(center_x, center_y),
+        spawn_radius=config.spawn_radius,
+        core_half_extent=config.core_half_extent,
+        lane_count=config.lane_count,
+        threat_half_by_type=ctx.threat_half_by_type,
+        threat_texture_by_type=ctx.threat_texture_by_type,
+        threat_collision_layer=THREAT_COLLISION_LAYER,
+        threat_collision_mask=PLAYER_COLLISION_LAYER,
+        max_threats_per_frame=config.max_threats_per_frame,
+    )
+    wall_spawner = SurvivalSpawnerSystem(
+        audio_clock=ctx.audio_clock,
+        memory_manager=ctx.memory_manager,
+        scheduled_spawns=survival_scheduled,
+        hit_times=survival_hits,
+        threat_archetype_name="rhythm_threat_radial",
+        arena_width=float(config.window_width),
+        arena_height=float(config.window_height),
+        bar_half_by_type=np.maximum(ctx.threat_half_by_type * 0.7, 5.0),
+        threat_collision_layer=THREAT_COLLISION_LAYER,
+        threat_collision_mask=PLAYER_COLLISION_LAYER,
+        max_threats_per_frame=config.max_threats_per_frame,
+    )
+    collision_system = CollisionSystem(
+        ctx.memory_manager,
+        transform_pool_name="transform",
+        hitbox_pool_name="hitbox",
+        max_pairs=MAX_COLLISION_PAIRS,
+    )
+
+    judgment_ring_radius = config.core_half_extent + config.threat_half_extents.get(
+        "rhythm_threat_basic", 10.0
+    )
+    ctx.world.register_system(
+        SurvivalPlayerSystem(
+            input_provider=ctx.input_provider,
+            memory_manager=ctx.memory_manager,
+            player_entity_index=ctx.player_entity_index,
+            arena_width=float(config.window_width),
+            arena_height=float(config.window_height),
+            move_speed=config.survival_move_speed,
+            dash_speed=config.survival_dash_speed,
+            dash_duration_seconds=config.dash_duration_seconds,
+            dash_cooldown_seconds=config.dash_cooldown_seconds,
+        )
+    )
+    ctx.world.register_system(
+        PlayerInputSystem(
+            input_provider=ctx.input_provider,
+            memory_manager=ctx.memory_manager,
+            player_entity_index=ctx.player_entity_index,
+            crosshair_entity_index=ctx.crosshair_entity_index,
+            center_xy=(center_x, center_y),
+            crosshair_orbit_radius=judgment_ring_radius,
+            dash_duration_seconds=config.dash_duration_seconds,
+            dash_cooldown_seconds=config.dash_cooldown_seconds,
+            manage_dash=False,  # dash/i-frames/tint pertencem ao SurvivalPlayer
+        )
+    )
+    ctx.world.register_system(radial_spawner)
+    ctx.world.register_system(wall_spawner)
+    ctx.world.register_system(
+        JudgmentSystem(
+            audio_clock=ctx.audio_clock,
+            input_provider=ctx.input_provider,
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            player_entity_index=ctx.player_entity_index,
+            perfect_window_seconds=config.perfect_window_seconds,
+            good_window_seconds=config.good_window_seconds,
+            miss_window_seconds=config.miss_window_seconds,
+            aim_tolerance_rad=math.radians(config.aim_tolerance_degrees),
+            score_perfect=config.score_perfect,
+            score_good=config.score_good,
+            judgment_display_seconds=config.judgment_display_seconds,
+            misfire_breaks_combo=config.misfire_breaks_combo,
+        )
+    )
+    ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
+    ctx.world.register_system(collision_system)
+    ctx.world.register_system(
+        CoreDamageSystem(
+            collision_system=collision_system,
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            player_entity_index=ctx.player_entity_index,
+            good_window_seconds=config.good_window_seconds,
+            judgment_display_seconds=config.judgment_display_seconds,
+        )
+    )
+    ctx.world.register_system(
+        SurvivalDamageSystem(
+            collision_system=collision_system,
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            player_entity_index=ctx.player_entity_index,
+            score_survive=config.score_good,
+            judgment_display_seconds=config.judgment_display_seconds,
+        )
+    )
+    return (radial_spawner, wall_spawner), collision_system
 
 
 MODE_COMPOSERS = {
     "defender": _compose_defender_mode,
     "survival": _compose_survival_mode,
     "lanes": _compose_lanes_mode,
+    "hybrid": _compose_hybrid_mode,
 }
 """Registro de estrategias de modo: `HertzConfig.game_mode` (por fase,
 via `overrides` em stages.json) -> funcao que registra os sistemas do
-modo. O 'GameModeStrategy' da arquitetura, resolvido em tempo de
-composicao."""
+modo e retorna `(spawners, collision_system|None)`. O
+'GameModeStrategy' da arquitetura, resolvido em tempo de composicao."""
 
 
 def compose_world(
@@ -451,7 +602,7 @@ def compose_world(
         player_entity_index=player_entity_index,
         crosshair_entity_index=crosshair_entity_index,
     )
-    spawner_system, collision_system = mode_composer(context)
+    spawner_systems, collision_system = mode_composer(context)
     if tutorial_steps:
         banner_entity_index = _create_hud_sprite(
             world, memory_manager, 0, center_x, 96.0, alpha=0
@@ -486,7 +637,7 @@ def compose_world(
         world=world,
         memory_manager=memory_manager,
         game_state=game_state,
-        spawner_system=spawner_system,
+        spawner_systems=spawner_systems,
         collision_system=collision_system,
         player_entity_index=player_entity_index,
         crosshair_entity_index=crosshair_entity_index,

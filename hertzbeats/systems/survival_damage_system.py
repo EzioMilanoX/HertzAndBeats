@@ -15,6 +15,7 @@ from hertzbeats.components.schemas import (
     JUDGMENT_MISS,
     JUDGMENT_PENDING,
     JUDGMENT_SURVIVED,
+    MODE_TAG_SURVIVAL,
 )
 from hertzbeats.game_state import GameState
 
@@ -62,6 +63,7 @@ class SurvivalDamageSystem(ISystem):
         capacity = self._threat_pool.capacity
         self._expired_mask = np.zeros(capacity, dtype=bool)
         self._pending_mask = np.zeros(capacity, dtype=bool)
+        self._owned_mask = np.zeros(capacity, dtype=bool)
 
     def update(self, world: World, delta_time: float) -> None:
         """Aplica vereditos de colisao e a varredura de expiracao."""
@@ -105,6 +107,8 @@ class SurvivalDamageSystem(ISystem):
             threat_row = self._threat_pool.dense_row_of(other_index)
             if threat_row == INVALID_DENSE_ROW:
                 continue
+            if int(threat_view["mode_tag"][threat_row]) != MODE_TAG_SURVIVAL:
+                continue  # ameaca radial de outro juiz (modo Hibrido)
             if int(threat_view["judgment"][threat_row]) != JUDGMENT_PENDING:
                 continue
 
@@ -134,6 +138,11 @@ class SurvivalDamageSystem(ISystem):
         pendentes (SURVIVED)."""
         expired = self._expired_mask[:active_count]
         np.less(threat_view["expire_time_sec"], now_effective, out=expired)
+        # o coletor de expiracao so recolhe as PROPRIAS paredes -- as
+        # ameacas radiais do modo Hibrido tem seu proprio ciclo de vida
+        owned = self._owned_mask[:active_count]
+        np.equal(threat_view["mode_tag"], MODE_TAG_SURVIVAL, out=owned)
+        np.logical_and(expired, owned, out=expired)
         expired_rows = np.flatnonzero(expired)
         if expired_rows.shape[0] == 0:
             return
