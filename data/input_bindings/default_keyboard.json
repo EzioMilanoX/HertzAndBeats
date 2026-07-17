@@ -4,6 +4,8 @@
   "pause": "KEY_ESCAPE",
   "menu_up": ["KEY_UP", "KEY_W"],
   "menu_down": ["KEY_DOWN", "KEY_S"],
+  "menu_left": ["KEY_LEFT", "KEY_A"],
+  "menu_right": ["KEY_RIGHT", "KEY_D"],
   "confirm": ["KEY_RETURN", "KEY_SPACE"],
   "retry": "KEY_R",
   "to_menu": ["KEY_M", "KEY_BACKSPACE"],

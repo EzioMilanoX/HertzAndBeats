@@ -817,14 +817,24 @@ class RhythmCompositionRoot:
             saved_latency if saved_latency is not None else config.output_latency_seconds
         )
 
-        # 2-4. Fases data-driven + fluxo de partida. O HertzGameLoop ja
-        # compoe a fase 0 (via `compose_world`) para o fundo do menu.
-        # Todas as faixas sao garantidas AQUI (tela de carregamento) para
-        # nao haver hitch de sintese no primeiro start de cada fase.
+        # 2-4. Fases data-driven + musicas do jogador + fluxo de partida.
+        # O HertzGameLoop ja compoe a fase 0 (via `compose_world`) para o
+        # fundo do menu. Todas as faixas sao garantidas AQUI (tela de
+        # carregamento) para nao haver hitch no primeiro start de fase;
+        # musicas novas em `musicas/` passam pela IA agora, com aviso na
+        # janela (cacheado: proximas aberturas sao instantaneas).
+        from hertzbeats.music_library import scan_user_songs
+
         stages = load_stages(config.stages_path)
         for stage in stages:
             if stage.track_path:
                 ensure_track(stage.track_path, stage.synth)
+        user_songs = scan_user_songs(
+            on_progress=lambda name: renderer.show_loading_message(
+                f"Analisando '{name}' com a IA (so na primeira vez)..."
+            )
+        )
+        stages = stages + user_songs
         game_loop = HertzGameLoop(
             base_config=config,
             stages=stages,

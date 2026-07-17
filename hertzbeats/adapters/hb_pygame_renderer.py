@@ -42,6 +42,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_mode: Optional[str] = None
         self._overlay_selected: int = 0
         self._overlay_stage_count: int = 0
+        self._overlay_selected_mode: Optional[str] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
 
@@ -56,13 +57,22 @@ class HBPygameRenderer(PygameRenderer):
         composicao. Chaves consumidas por `_draw_overlay`."""
         self._overlay_surfaces[key] = surface
 
-    def set_overlay(self, mode: Optional[str], selected_index: int = 0, stage_count: int = 0) -> None:
+    def set_overlay(
+        self,
+        mode: Optional[str],
+        selected_index: int = 0,
+        stage_count: int = 0,
+        selected_mode: Optional[str] = None,
+    ) -> None:
         """Publica o estado de fluxo a desenhar sobre o frame: `None`
         (jogando, sem overlay), "menu", "paused", "game_over" ou
-        "results". Chamado pelo `HertzGameLoop` a cada frame."""
+        "results". `selected_mode` (fases de musica do jogador) troca a
+        dica fixa da fase pelo seletor de minigame. Chamado pelo
+        `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_selected = int(selected_index)
         self._overlay_stage_count = int(stage_count)
+        self._overlay_selected_mode = selected_mode
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -99,6 +109,21 @@ class HBPygameRenderer(PygameRenderer):
         super().initialize(width, height, title)
         self._dim_surface = pygame.Surface((width, height), pygame.SRCALPHA)
         self._dim_surface.fill((4, 2, 12, 216))
+
+    def show_loading_message(self, message: str) -> None:
+        """Tela de carregamento imediata (ex.: 'analisando musica nova').
+        Renderizacao direta com font.render -- permitido: roda na fase de
+        carregamento, nunca no loop de gameplay."""
+        if not pygame.font.get_init():
+            pygame.font.init()
+        font = pygame.font.Font(None, 40)
+        self._surface.fill((8, 6, 20))
+        text = font.render(message, True, (235, 235, 255))
+        self._surface.blit(
+            text,
+            (self._width // 2 - text.get_width() // 2, self._height // 2 - text.get_height() // 2),
+        )
+        pygame.display.flip()
 
     def set_window_icon(self, icon_path: str) -> None:
         """Define o icone da janela/barra de tarefas a partir de um PNG.
@@ -162,12 +187,30 @@ class HBPygameRenderer(PygameRenderer):
         if self._overlay_mode == "menu":
             y = int(self._height * 0.09)
             y += self._blit_centered("title", center_x, y) + 10
-            y += self._blit_centered("subtitle", center_x, y) + 34
-            for i in range(self._overlay_stage_count):
+            y += self._blit_centered("subtitle", center_x, y) + 30
+
+            # janela rolavel: com muitas musicas, mostra ate MAX_VISIBLE
+            # fases centradas na selecao, com setas de "ha mais"
+            MAX_VISIBLE = 8
+            count = self._overlay_stage_count
+            first = 0
+            if count > MAX_VISIBLE:
+                first = min(max(self._overlay_selected - MAX_VISIBLE // 2, 0), count - MAX_VISIBLE)
+            if first > 0:
+                y += self._blit_centered("scroll_up", center_x, y) + 8
+            for i in range(first, min(first + MAX_VISIBLE, count)):
                 key = f"stage_{i}_sel" if i == self._overlay_selected else f"stage_{i}"
                 y += self._blit_centered(key, center_x, y) + 16
-            # controles do MODO da fase selecionada, logo abaixo da lista
-            self._blit_centered(f"stage_{self._overlay_selected}_hint", center_x, y + 16)
+            if first + MAX_VISIBLE < count:
+                y += self._blit_centered("scroll_down", center_x, y) + 8
+
+            # fase de musica do jogador: seletor de minigame; fase curada:
+            # dica fixa de controles do modo dela
+            if self._overlay_selected_mode is not None:
+                y += self._blit_centered(f"modename_{self._overlay_selected_mode}", center_x, y + 14) + 6
+                self._blit_centered(f"modectl_{self._overlay_selected_mode}", center_x, y + 8)
+            else:
+                self._blit_centered(f"stage_{self._overlay_selected}_hint", center_x, y + 16)
             self._blit_centered("hint_menu", center_x, self._height - 54)
         elif self._overlay_mode == "paused":
             self._blit_centered("paused", center_x, int(self._height * 0.40))

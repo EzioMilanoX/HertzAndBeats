@@ -1,0 +1,15 @@
+SUAS MUSICAS AQUI
+=================
+
+Jogue arquivos .mp3, .ogg, .wav ou .flac nesta pasta e abra o jogo.
+
+- Na PRIMEIRA abertura depois de adicionar uma musica, a IA analisa a
+  faixa (alguns segundos, com aviso na tela) e extrai as batidas; o
+  resultado fica cacheado em data/beatmaps/user/ -- as proximas
+  aberturas sao instantaneas.
+- A musica aparece no fim do menu de fases. Com ela selecionada, use
+  A/D (ou setas esquerda/direita) para escolher o minigame:
+  O DEFENSOR, SOBREVIVENCIA, ARCADE 4K ou HIBRIDO. ENTER joga.
+- Substituiu o arquivo por outra versao? A analise roda de novo sozinha.
+- A analise requer librosa (pip install librosa). Sem ele, musicas ja
+  analisadas continuam jogaveis; novas sao puladas com aviso no console.

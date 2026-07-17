@@ -17,6 +17,11 @@ data/tracks/*.mp3
 # Preferencias locais do jogador (calibracao de latencia por maquina)
 data/config/user_settings.json
 
+# Musicas do jogador e beatmaps derivados delas (locais por maquina)
+musicas/*
+!musicas/LEIA-ME.txt
+data/beatmaps/user/
+
 # IDE / SO
 .vscode/
 .idea/

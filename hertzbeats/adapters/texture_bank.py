@@ -91,6 +91,14 @@ _MODE_CONTROL_HINTS = {
 }
 """Dica de controles exibida no menu para o MODO da fase selecionada."""
 
+_MODE_DISPLAY_NAMES = {
+    "defender": "O DEFENSOR",
+    "survival": "SOBREVIVENCIA",
+    "lanes": "ARCADE 4K",
+    "hybrid": "HIBRIDO",
+}
+"""Nome exibido no seletor de minigame das musicas do jogador."""
+
 
 def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> None:
     """Pre-renderiza as superficies dos overlays de meta-jogo (menu de
@@ -140,6 +148,14 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
             f"CALIBRACAO DE AUDIO: {step * 10} ms   (+ atrasa o julgamento | - adianta)",
             _PERFECT_COLOR,
         )
+
+    # seletor de minigame das musicas do jogador + indicadores de rolagem
+    mode_font = pygame.font.Font(None, 44)
+    for mode, mode_name in _MODE_DISPLAY_NAMES.items():
+        register_text(f"modename_{mode}", mode_font, f"<  MODO: {mode_name}  >", _PERFECT_COLOR)
+        register_text(f"modectl_{mode}", hint_font, _MODE_CONTROL_HINTS[mode], _GOOD_COLOR)
+    register_text("scroll_up", hint_font, "^ ^ ^", _LABEL_COLOR)
+    register_text("scroll_down", hint_font, "v v v", _LABEL_COLOR)
 
 
 def build_and_register_tutorial_textures(renderer: HBPygameRenderer, stages) -> None:

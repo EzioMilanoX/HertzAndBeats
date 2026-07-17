@@ -126,7 +126,7 @@ para isso não acontecer em condições normais.</li>
 <tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
 <tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
 <tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
-<tr><td><strong>5 - ARCADE 4K</strong><br><small>D F J K | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
+<tr><td><strong>5 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
 <tr><td><strong>6 - HIBRIDO</strong><br><small>tiro + dash | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
@@ -218,13 +218,14 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>65 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
+<p>Total: <strong>71 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
 <details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
-<details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (10 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
+<details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (11 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_user_song_mode_cycles_and_composes_chosen_mode</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
+<details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (5 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
 <details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
@@ -305,7 +306,9 @@ menu, nomes de fase, PAUSADO, GAME OVER, ...) pre-renderizada na
 composicao. Chaves consumidas por `_draw_overlay`.</pre>
 <h4><code>.set_overlay()</code></h4><pre class="doc">Publica o estado de fluxo a desenhar sobre o frame: `None`
 (jogando, sem overlay), &quot;menu&quot;, &quot;paused&quot;, &quot;game_over&quot; ou
-&quot;results&quot;. Chamado pelo `HertzGameLoop` a cada frame.</pre>
+&quot;results&quot;. `selected_mode` (fases de musica do jogador) troca a
+dica fixa da fase pelo seletor de minigame. Chamado pelo
+`HertzGameLoop` a cada frame.</pre>
 <h4><code>.set_notice()</code></h4><pre class="doc">Aviso transiente (superficie de overlay pre-registrada, ex.
 calibracao de latencia), desenhado no topo em QUALQUER estado --
 inclusive durante o gameplay. `None` oculta.</pre>
@@ -322,6 +325,9 @@ inclusive durante o gameplay. `None` oculta.</pre>
 <h4><code>.probe_display_size()</code></h4><pre class="doc">Resolucao do monitor atual, consultada ANTES de criar a
 janela (para `fit_config_to_display`). Inicializa apenas o
 subsistema de video do pygame, sem abrir janela.</pre>
+<h4><code>.show_loading_message()</code></h4><pre class="doc">Tela de carregamento imediata (ex.: &#x27;analisando musica nova&#x27;).
+Renderizacao direta com font.render -- permitido: roda na fase de
+carregamento, nunca no loop de gameplay.</pre>
 <h4><code>.set_window_icon()</code></h4><pre class="doc">Define o icone da janela/barra de tarefas a partir de um PNG.
 No-op silencioso se o arquivo nao existir (icone e opcional).</pre>
 <h4><code>._blit_centered()</code></h4><pre class="doc">Blita a superficie `key` centrada horizontalmente em
@@ -336,7 +342,7 @@ digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
 registradas no renderer UMA unica vez. Nenhum `font.render` acontece
 depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
 aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
-<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_MODE_CONTROL_HINTS</code></p>
+<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_MODE_CONTROL_HINTS</code>, <code>_MODE_DISPLAY_NAMES</code></p>
 <h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
 composicao, depois de `renderer.initialize` (precisa do display
 ativo para `convert_alpha`).</pre>
@@ -377,7 +383,7 @@ deterministicamente a partir de `synth_spec` se necessario. Sem
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
-<p class='constants'>Constantes: <code>FLOW_MENU</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code></p>
+<p class='constants'>Constantes: <code>FLOW_MENU</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>MODE_CYCLE</code></p>
 <h3>classe <code>HertzGameLoop</code></h3><pre class="doc">`GameLoop` da engine estendido com a maquina de estados da partida:
 
     MENU -&gt; (confirmar) -&gt; PLAYING &lt;-&gt; PAUSED
@@ -410,6 +416,8 @@ sem apresentacao.</pre>
 <h4><code>.composed()</code></h4><pre class="doc">Composicao da fase atualmente carregada.</pre>
 <h4><code>.selected_stage()</code></h4><pre class="doc">Indice da fase selecionada no menu.</pre>
 <h4><code>.loaded_stage()</code></h4><pre class="doc">Indice da fase atualmente composta/carregada.</pre>
+<h4><code>.chosen_mode()</code></h4><pre class="doc">Modo escolhido no menu para uma fase `selectable_mode` (as
+musicas do jogador); fases curadas usam o modo dos overrides.</pre>
 <h4><code>._compose_stage()</code></h4><pre class="doc">Recompoe o `World` inteiro para a fase `stage_index` e garante
 que a faixa exista (re-sintese deterministica se necessario).</pre>
 <h4><code>._apply_playfield()</code></h4><pre class="doc">Sincroniza a decoracao de arena do renderer com o MODO da fase
@@ -565,6 +573,34 @@ mesmo criterio dos contadores internos da engine (ex.:
 <h4><code>.register_judgment_feedback()</code></h4><pre class="doc">Atualiza o feedback visual de julgamento consumido pelo
 `UIRenderSystem` (palavra PERFECT/GOOD/MISS por alguns frames).</pre>
 </details>
+<details class="module" id="hertzbeats-music_library"><summary><code>hertzbeats/music_library.py</code> — Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`</summary>
+<pre class="doc">Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`
+vira uma fase do menu, com o MODO escolhivel na hora de jogar.
+
+Fluxo (tudo em fase de carregamento, nunca no loop de gameplay):
+    1. `scan_user_songs` varre `musicas/*.mp3|ogg|wav|flac`.
+    2. Musica nova (ou alterada desde a ultima analise) passa pela IA
+       offline da engine (librosa, importada LAZY so aqui) e ganha um
+       beatmap cacheado em `data/beatmaps/user/&lt;slug&gt;.beatmap.json` --
+       as proximas aberturas sao instantaneas.
+    3. Cada musica vira um `StageDef` com `selectable_mode=True`: no
+       menu, A/D (ou setas) alternam Defensor / Sobrevivencia /
+       Arcade 4K / Hibrido antes de comecar.
+
+Sem librosa instalado, musicas ja analisadas continuam jogaveis; novas
+sao puladas com aviso no console.</pre>
+<p class='constants'>Constantes: <code>AUDIO_EXTENSIONS</code>, <code>USER_MUSIC_DIR</code>, <code>USER_BEATMAP_DIR</code>, <code>MAX_DISPLAY_NAME</code></p>
+<h4><code>song_slug()</code></h4><pre class="doc">Identificador estavel derivado do nome do arquivo (minusculas,
+alfanumerico e &#x27;_&#x27;).</pre>
+<h4><code>display_name()</code></h4><pre class="doc">Nome exibido no menu: limpo, maiusculo e truncado.</pre>
+<h4><code>needs_analysis()</code></h4><pre class="doc">True se o beatmap cacheado nao existe ou esta mais velho que o
+arquivo de audio (musica substituida/alterada).</pre>
+<h4><code>analyze_song()</code></h4><pre class="doc">Roda a IA offline sobre a musica (import LAZY: librosa so entra
+na memoria se houver musica nova para analisar).</pre>
+<h4><code>scan_user_songs()</code></h4><pre class="doc">Varre a pasta de musicas do jogador e retorna as fases prontas
+(analisando as novas). `on_progress(nome)` e chamado antes de cada
+analise (tela de carregamento); `analyzer` e injetavel para testes.</pre>
+</details>
 <details class="module" id="hertzbeats-offline-beatmap_pipeline"><summary><code>hertzbeats/offline/beatmap_pipeline.py</code> — Gera beatmaps do Hertz &amp; Beats com a IA offline da engine: os extratores</summary>
 <pre class="doc">Gera beatmaps do Hertz &amp; Beats com a IA offline da engine: os extratores
 de BPM/onset (librosa) fazem a analise; este modulo aplica apenas o
@@ -636,7 +672,11 @@ Atributos:
     tutorial_steps: passos de instrucao exibidos durante o gameplay
         (`{&quot;until_seconds&quot;, &quot;text&quot;}`, ordenados). Nao-vazio marca a
         fase como tutorial: o beatmap e AUTORAL (didatico) e
-        `tools/generate_stage_assets.py` nao o sobrescreve com IA.</pre>
+        `tools/generate_stage_assets.py` nao o sobrescreve com IA.
+    selectable_mode: True nas musicas do jogador -- o MODO de jogo e
+        escolhido no menu (A/D alternam) em vez de fixado por
+        `overrides`; fases construidas do repositorio mantem a
+        afinacao curada por modo.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-core_damage_system"><summary><code>hertzbeats/systems/core_damage_system.py</code> — Consome os pares do CollisionSystem: pune o jogador quando uma ameaca vencida atinge o nucleo.</summary>
 <pre class="doc">Consome os pares do CollisionSystem: pune o jogador quando uma ameaca vencida atinge o nucleo.</pre>

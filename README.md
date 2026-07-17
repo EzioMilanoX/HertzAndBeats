@@ -87,17 +87,20 @@ As faixas das fases são **re-sintetizadas deterministicamente** (numpy puro) qu
 
 Se o áudio parecer adiantado/atrasado, calibre a latência de saída: `python -m hertzbeats --latency 0.10`.
 
-## Use a sua própria música
+## Use a sua própria música (arraste e jogue)
 
-O pipeline offline de IA da engine (BPM + onsets via librosa) gera o beatmap de qualquer faixa:
+**Jogue qualquer `.mp3`, `.ogg`, `.wav` ou `.flac` na pasta [`musicas/`](musicas/) e abra o jogo.** Na primeira abertura a IA analisa a faixa (alguns segundos, com aviso na tela) e ela aparece no fim do menu; o beatmap fica cacheado em `data/beatmaps/user/` — as próximas aberturas são instantâneas. Substituiu o arquivo? A análise refaz sozinha.
+
+Com a música selecionada no menu, **A/D (ou ←/→) escolhem o minigame** — O Defensor, Sobrevivência, Arcade 4K ou Híbrido — e ENTER joga. O mesmo beatmap serve aos quatro modos.
+
+A análise requer `librosa` (`pip install librosa`); sem ele, músicas já analisadas continuam jogáveis e as novas são puladas com aviso no console. Para controle fino (densidade, espaçamento, lanes), o CLI continua disponível:
 
 ```bash
-pip install librosa  # só para a etapa offline, nunca no jogo
 python tools/make_beatmap.py --audio minha_musica.mp3 \
     --output data/beatmaps/minha.beatmap.json --track-id minha
 ```
 
-Depois adicione uma entrada em `data/stages/stages.json` apontando `track_path`/`beatmap_path` para os novos arquivos (sem o bloco `synth` — a faixa é sua) e ela aparece no menu de fases. A curadoria pós-IA do jogo descarta onsets a menos de 200 ms do anterior (janelas de julgamento nunca se sobrepõem) e converte picos de energia (strength ≥ 0.8) em **ameaças pesadas**.
+com o resultado apontável por uma entrada manual em `data/stages/stages.json` (aí com `overrides` de dificuldade próprios). A curadoria pós-IA seleciona os onsets **mais fortes** até a densidade-alvo, com espaçamento mínimo e margem de fim de faixa; picos de energia (strength ≥ 0.8) viram **ameaças pesadas**.
 
 ## Arquitetura
 

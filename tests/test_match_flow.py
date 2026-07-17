@@ -234,6 +234,44 @@ def test_live_latency_calibration_with_plus_minus(flow_game, null_input):
     assert loop._notice_timer <= 0.0
 
 
+def test_user_song_mode_cycles_and_composes_chosen_mode(tmp_path, null_input):
+    """Musica do jogador: A/D alternam o minigame no menu e a fase
+    compoe com o modo escolhido (o MESMO beatmap, outra interpretacao)."""
+    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5},
+    ])
+    song = StageDef(
+        stage_id="user_song", name="SONG", subtitle="sua musica",
+        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
+        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
+        tutorial_steps=(), selectable_mode=True,
+    )
+    audio_engine = NullAudioEngine()
+    loop = HertzGameLoop(
+        base_config=make_config(beatmap_path),
+        stages=(song,),
+        renderer=NullRenderer(),
+        input_provider=null_input,
+        audio_engine=audio_engine,
+        audio_clock=audio_engine.get_clock(),
+    )
+
+    assert loop.chosen_mode(0) == "defender"
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_mode(0) == "survival"
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_mode(0) == "lanes"
+    _press(loop, null_input, "menu_left")
+    assert loop.chosen_mode(0) == "survival"
+
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_PLAYING
+    assert loop._stage_config.game_mode == "survival"
+    # e realmente o modo Sobrevivencia: sem sistema de julgamento radial
+    from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
+    assert any(isinstance(s, SurvivalPlayerSystem) for s in loop.composed.world._systems)
+
+
 def test_saved_latency_roundtrip(tmp_path):
     from hertzbeats.user_settings import load_user_latency, save_user_latency
 

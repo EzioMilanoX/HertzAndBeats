@@ -35,6 +35,10 @@ class StageDef:
             (`{"until_seconds", "text"}`, ordenados). Nao-vazio marca a
             fase como tutorial: o beatmap e AUTORAL (didatico) e
             `tools/generate_stage_assets.py` nao o sobrescreve com IA.
+        selectable_mode: True nas musicas do jogador -- o MODO de jogo e
+            escolhido no menu (A/D alternam) em vez de fixado por
+            `overrides`; fases construidas do repositorio mantem a
+            afinacao curada por modo.
     """
 
     stage_id: str
@@ -46,6 +50,7 @@ class StageDef:
     beatmap_params: Dict
     overrides: Dict
     tutorial_steps: Tuple[Dict, ...] = ()
+    selectable_mode: bool = False
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:

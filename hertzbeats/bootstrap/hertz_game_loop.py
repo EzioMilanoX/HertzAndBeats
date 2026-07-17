@@ -1,6 +1,7 @@
 """GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados."""
 from __future__ import annotations
 
+import dataclasses
 import time
 from typing import Optional, Tuple
 
@@ -31,6 +32,9 @@ _RESULTS_GRACE_SECONDS = 1.0
 _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
+
+MODE_CYCLE = ("defender", "survival", "lanes", "hybrid")
+"""Ordem em que A/D alternam o modo nas musicas do jogador."""
 
 
 class HertzGameLoop(GameLoop):
@@ -86,6 +90,7 @@ class HertzGameLoop(GameLoop):
         self._results_grace = 0.0
         self._notice_key: Optional[str] = None
         self._notice_timer = 0.0
+        self._chosen_mode_index = {}  # fase selectable_mode -> indice em MODE_CYCLE
         self._composed: Optional[ComposedGame] = None
 
         composed = self._compose_stage(0)
@@ -120,11 +125,18 @@ class HertzGameLoop(GameLoop):
 
     # -- carga/troca de fase (fase de carregamento: alocacao permitida) --
 
+    def chosen_mode(self, stage_index: int) -> str:
+        """Modo escolhido no menu para uma fase `selectable_mode` (as
+        musicas do jogador); fases curadas usam o modo dos overrides."""
+        return MODE_CYCLE[self._chosen_mode_index.get(stage_index, 0) % len(MODE_CYCLE)]
+
     def _compose_stage(self, stage_index: int) -> ComposedGame:
         """Recompoe o `World` inteiro para a fase `stage_index` e garante
         que a faixa exista (re-sintese deterministica se necessario)."""
         stage = self._stages[stage_index]
         stage_config = resolve_stage_config(self._base_config, stage)
+        if stage.selectable_mode:
+            stage_config = dataclasses.replace(stage_config, game_mode=self.chosen_mode(stage_index))
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
         composed = compose_world(
@@ -251,6 +263,18 @@ class HertzGameLoop(GameLoop):
             self._selected_stage = (self._selected_stage + 1) % stage_count
         if inp.is_action_pressed("menu_up"):
             self._selected_stage = (self._selected_stage - 1) % stage_count
+
+        # musicas do jogador: A/D (ou setas) alternam o minigame
+        if self._stages[self._selected_stage].selectable_mode:
+            direction = 0
+            if inp.is_action_pressed("menu_right"):
+                direction = 1
+            if inp.is_action_pressed("menu_left"):
+                direction = -1
+            if direction != 0:
+                current = self._chosen_mode_index.get(self._selected_stage, 0)
+                self._chosen_mode_index[self._selected_stage] = (current + direction) % len(MODE_CYCLE)
+
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
             self._start_stage(self._selected_stage)
         elif inp.is_action_pressed("pause"):
@@ -321,7 +345,14 @@ class HertzGameLoop(GameLoop):
         renderer sem suporte a overlay, ex. NullRenderer)."""
         if hasattr(self._renderer, "set_overlay"):
             overlay_mode = None if self._flow == FLOW_PLAYING else self._flow
-            self._renderer.set_overlay(overlay_mode, self._selected_stage, len(self._stages))
+            selected_mode = (
+                self.chosen_mode(self._selected_stage)
+                if self._stages[self._selected_stage].selectable_mode
+                else None
+            )
+            self._renderer.set_overlay(
+                overlay_mode, self._selected_stage, len(self._stages), selected_mode=selected_mode
+            )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)
 
