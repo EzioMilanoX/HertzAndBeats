@@ -122,12 +122,12 @@ para isso não acontecer em condições normais.</li>
 <table>
 <tr><th>Fase</th><th>Faixa (síntese)</th><th>Ameaças</th><th>Densidade</th><th>Gap mín.</th><th>Overrides</th><th>Tutorial</th></tr>
 <tr><td><strong>TUTORIAL</strong><br><small>80 BPM - aprenda o basico</small></td><td>80 BPM · 21 compassos · calm</td><td>19 (1 pesadas)</td><td>0.40/s</td><td>1.50s</td><td>approach_seconds=2.8, max_health=6, aim_tolerance_degrees=40.0, misfire_breaks_combo=False</td><td>5 passos</td></tr>
-<tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
+<tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>29 (0 pesadas)</td><td>0.87/s</td><td>0.91s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
 <tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
-<tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
-<tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>31 (1 pesadas)</td><td>0.92/s</td><td>0.77s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
+<tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>55 (2 pesadas)</td><td>1.35/s</td><td>0.39s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
+<tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>29 (0 pesadas)</td><td>0.87/s</td><td>0.91s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
 <tr><td><strong>5 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
-<tr><td><strong>6 - HIBRIDO</strong><br><small>tiro + dash | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (3 pesadas)</td><td>2.23/s</td><td>0.37s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
+<tr><td><strong>6 - HIBRIDO</strong><br><small>tiro + dash | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>55 (2 pesadas)</td><td>1.35/s</td><td>0.39s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
 os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
@@ -218,14 +218,15 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>71 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
+<p>Total: <strong>79 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
 <details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
 <details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (11 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_user_song_mode_cycles_and_composes_chosen_mode</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
-<details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (5 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
+<details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (6 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_old_mapper_version_triggers_reanalysis</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
 <details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
@@ -573,6 +574,13 @@ mesmo criterio dos contadores internos da engine (ex.:
 <h4><code>.register_judgment_feedback()</code></h4><pre class="doc">Atualiza o feedback visual de julgamento consumido pelo
 `UIRenderSystem` (palavra PERFECT/GOOD/MISS por alguns frames).</pre>
 </details>
+<details class="module" id="hertzbeats-mapper_version"><summary><code>hertzbeats/mapper_version.py</code> — Versao do MAPEADOR de beatmaps (modulo minusculo e livre de librosa).</summary>
+<pre class="doc">Versao do MAPEADOR de beatmaps (modulo minusculo e livre de librosa).
+
+Incrementada a cada mudanca na forma de gerar notas a partir do audio;
+`music_library.needs_analysis` re-analisa automaticamente musicas cujo
+beatmap cacheado veio de um mapeador mais antigo.</pre>
+</details>
 <details class="module" id="hertzbeats-music_library"><summary><code>hertzbeats/music_library.py</code> — Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`</summary>
 <pre class="doc">Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`
 vira uma fase do menu, com o MODO escolhivel na hora de jogar.
@@ -593,55 +601,69 @@ sao puladas com aviso no console.</pre>
 <h4><code>song_slug()</code></h4><pre class="doc">Identificador estavel derivado do nome do arquivo (minusculas,
 alfanumerico e &#x27;_&#x27;).</pre>
 <h4><code>display_name()</code></h4><pre class="doc">Nome exibido no menu: limpo, maiusculo e truncado.</pre>
-<h4><code>needs_analysis()</code></h4><pre class="doc">True se o beatmap cacheado nao existe ou esta mais velho que o
-arquivo de audio (musica substituida/alterada).</pre>
+<h4><code>needs_analysis()</code></h4><pre class="doc">True se o beatmap cacheado nao existe, esta mais velho que o
+arquivo de audio (musica substituida/alterada) ou foi gerado por um
+MAPEADOR antigo (melhorias de geracao re-analisam a biblioteca
+automaticamente).</pre>
 <h4><code>analyze_song()</code></h4><pre class="doc">Roda a IA offline sobre a musica (import LAZY: librosa so entra
 na memoria se houver musica nova para analisar).</pre>
 <h4><code>scan_user_songs()</code></h4><pre class="doc">Varre a pasta de musicas do jogador e retorna as fases prontas
 (analisando as novas). `on_progress(nome)` e chamado antes de cada
 analise (tela de carregamento); `analyzer` e injetavel para testes.</pre>
 </details>
-<details class="module" id="hertzbeats-offline-beatmap_pipeline"><summary><code>hertzbeats/offline/beatmap_pipeline.py</code> — Gera beatmaps do Hertz &amp; Beats com a IA offline da engine: os extratores</summary>
-<pre class="doc">Gera beatmaps do Hertz &amp; Beats com a IA offline da engine: os extratores
-de BPM/onset (librosa) fazem a analise; este modulo aplica apenas o
-MAPEAMENTO especifico do jogo radial (curadoria de espacamento, lane em
-setor angular, ameacas pesadas nos picos) antes da escrita atomica.</pre>
-<p class='constants'>Constantes: <code>THREAT_TYPE_BASIC</code>, <code>THREAT_TYPE_HEAVY</code></p>
-<h4><code>select_onsets()</code></h4><pre class="doc">Seleciona os indices dos onsets que viram ameacas: os MAIS FORTES
-da faixa, ate a densidade-alvo, respeitando o espacamento minimo.
+<details class="module" id="hertzbeats-offline-beatmap_pipeline"><summary><code>hertzbeats/offline/beatmap_pipeline.py</code> — Gera beatmaps do Hertz &amp; Beats com a IA offline da engine -- MAPEADOR v2.</summary>
+<pre class="doc">Gera beatmaps do Hertz &amp; Beats com a IA offline da engine -- MAPEADOR v2.
 
-Algoritmo (guloso por forca, nao por ordem temporal): percorre os
-onsets em ordem DECRESCENTE de strength e aceita cada um que (a)
-caiba na janela temporal jogavel e (b) nao fique a menos de
-`min_gap_seconds` de um onset ja aceito; para ao atingir
-`target_density * duracao_jogavel` aceitos. Isso e o que faz a
-dificuldade ser ESTAVEL entre musicas: um limiar absoluto de
-strength nao transfere (a distribuicao muda por faixa/mixagem) -- ou
-corta quase tudo, ou nao corta nada; ja &quot;as N batidas mais fortes,
-espacadas&quot; produz sempre um mapa na cadencia desejada, ancorado nos
-picos reais da musica (bumbo/caixa/drops), nunca no ruido continuo
-de baixo/chimbal.
+Por que v2: o mapeador original escolhia os ONSETS crus mais fortes.
+Onsets marcam qualquer ataque (voz, chimbal, ruido) e o extrator ainda
+os backtrackeia para o vale de energia ANTES do ataque -- notas caiam
+sistematicamente adiantadas e fora da pulsacao, e o jogo &quot;parecia
+dessincronizado&quot; mesmo com o relogio perfeito. O v2 faz o que os jogos
+de ritmo reais fazem:
 
-Retorna os indices aceitos em ordem TEMPORAL.</pre>
+    1. GRADE: o beat-tracker da engine fornece os instantes das batidas;
+       subdividimos em colcheias (`subdivisions=2`). TODA nota nasce em
+       um ponto da grade -- nunca no timestamp cru do onset.
+    2. ENERGIA: cada ponto da grade recebe a forca do onset mais forte a
+       ate `snap_tolerance` dele; pontos sem evento musical ficam vazios.
+    3. SELECAO: os melhores pontos (forca + bonus por cair NA batida)
+       ate a densidade-alvo, com espacamento minimo e janela jogavel.
+    4. LANE PELO TIMBRE: o centroide espectral no instante da nota
+       escolhe a coluna/direcao (grave -&gt; esquerda/baixo, agudo -&gt;
+       direita/cima) por quantis da propria musica: o mesmo som repete a
+       mesma lane (padroes musicais viram padroes de jogo), com
+       anti-jack para nao exigir repeticoes impossiveis.
+
+As etapas 1-4 sao FUNCOES PURAS sobre arrays (testaveis sem librosa);
+librosa entra apenas via os extratores da engine e no centroide.</pre>
+<p class='constants'>Constantes: <code>THREAT_TYPE_BASIC</code>, <code>THREAT_TYPE_HEAVY</code>, <code>ON_BEAT_SCORE_BONUS</code></p>
+<h4><code>build_beat_grid()</code></h4><pre class="doc">Constroi a grade ritmica a partir dos instantes de batida do
+beat-tracker: cada intervalo entre batidas consecutivas e dividido em
+`subdivisions` partes iguais. Retorna `(grid_times, on_beat)` --
+`on_beat[i]` True quando o ponto e uma batida inteira.</pre>
+<h4><code>snap_onsets_to_grid()</code></h4><pre class="doc">Para cada ponto da grade: `(forca, tem_evento)`. `tem_evento` e
+um booleano proprio -- a normalizacao de strength da engine colapsa
+a maioria dos onsets em ~0.0, entao &quot;forca zero&quot; NAO significa &quot;nada
+aconteceu ali&quot;. O TEMPO da nota sera o da GRADE; o onset so vota em
+quais pontos importam -- e assim que o vies de backtracking dos
+onsets deixa de dessincronizar as notas.</pre>
+<h4><code>select_slots()</code></h4><pre class="doc">Escolhe os pontos da grade que viram notas: guloso por
+`forca + bonus_na_batida`, respeitando janela jogavel, espacamento
+minimo e densidade-alvo. So pontos COM evento musical
+(`slot_has_event`) sao elegiveis. Retorna indices em ordem temporal.</pre>
+<h4><code>assign_lanes()</code></h4><pre class="doc">Lane pelo TIMBRE: os centroides espectrais da propria musica sao
+divididos em `lane_count` quantis -- som grave vira lane baixa, som
+agudo vira lane alta, e o MESMO som repete a MESMA lane (padrao
+musical = padrao de jogo). Anti-jack: nota na mesma lane da anterior
+com gap menor que `anti_jack_gap_seconds` desloca para a vizinha.</pre>
+<h4><code>_spectral_centroids_at()</code></h4><pre class="doc">Centroide espectral (Hz) da musica no instante de cada nota.</pre>
 <h4><code>generate_beatmap()</code></h4><pre class="doc">Roda a IA da engine sobre `audio_path` e grava um beatmap.json
-jogavel para a arena radial.
+QUANTIZADO na grade de batidas (ver docstring do modulo). Se o
+beat-tracker nao encontrar pulsacao suficiente (&lt; 8 batidas), cai no
+plano B por onsets (sem quantizacao, melhor que nada).
 
-Curadoria pos-IA (o que difere do mapeador default da engine):
-    - Janela temporal jogavel: nada antes de `min_start_seconds` (a
-      primeira ameaca precisa de pista completa) nem depois de
-      `duracao - end_margin_seconds` -- toda ameaca precisa ser
-      resolvivel (janela de miss + punicao) ANTES da musica acabar,
-      pois o relogio de audio congela no fim da faixa.
-    - Selecao adaptativa (ver `select_onsets`): os onsets MAIS
-      FORTES ate `target_density_per_second`, espacados por
-      `min_gap_seconds` -- densidade estavel entre musicas, ancorada
-      nas batidas reais.
-    - Onsets com strength &gt;= `heavy_strength_threshold` (drops/picos
-      de energia) viram `rhythm_threat_heavy`.
-    - `lane = indice_aceito % lane_count` distribui as ameacas em
-      setores angulares alternados da borda.
-
-Retorna um resumo primitivo (bpm, contagens) para logging da CLI.</pre>
+Retorna um resumo primitivo (bpm, contagens, fracao na batida) para
+logging da CLI.</pre>
 </details>
 <details class="module" id="hertzbeats-stages"><summary><code>hertzbeats/stages.py</code> — Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</summary>
 <pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>

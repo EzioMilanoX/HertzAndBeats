@@ -17,10 +17,12 @@ sao puladas com aviso no console.
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
+from hertzbeats.mapper_version import MAPPER_VERSION
 from hertzbeats.stages import StageDef
 
 AUDIO_EXTENSIONS = (".mp3", ".ogg", ".wav", ".flac")
@@ -45,11 +47,20 @@ def display_name(stem: str) -> str:
 
 
 def needs_analysis(audio_path: Path, beatmap_path: Path) -> bool:
-    """True se o beatmap cacheado nao existe ou esta mais velho que o
-    arquivo de audio (musica substituida/alterada)."""
+    """True se o beatmap cacheado nao existe, esta mais velho que o
+    arquivo de audio (musica substituida/alterada) ou foi gerado por um
+    MAPEADOR antigo (melhorias de geracao re-analisam a biblioteca
+    automaticamente)."""
     if not beatmap_path.exists():
         return True
-    return beatmap_path.stat().st_mtime < audio_path.stat().st_mtime
+    if beatmap_path.stat().st_mtime < audio_path.stat().st_mtime:
+        return True
+    try:
+        with open(beatmap_path, "r", encoding="utf-8") as f:
+            cached_version = json.load(f).get("mapper_version", 0)
+    except (OSError, json.JSONDecodeError):
+        return True
+    return cached_version != MAPPER_VERSION
 
 
 def analyze_song(audio_path: Path, beatmap_path: Path, track_id: str) -> None:

@@ -16,11 +16,13 @@ def _fake_audio(path: Path) -> Path:
 
 
 def _fake_analyzer_writing_beatmap(calls):
+    from hertzbeats.mapper_version import MAPPER_VERSION
+
     def _analyze(audio_path, beatmap_path, track_id):
         calls.append(audio_path.name)
         write_beatmap(Path(beatmap_path), [
             {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5},
-        ])
+        ], mapper_version=MAPPER_VERSION)
     return _analyze
 
 
@@ -85,6 +87,27 @@ def test_failed_analysis_skips_song_without_crashing(tmp_path):
 
     stages = scan_user_songs(music_dir=str(music_dir), beatmap_dir=str(beatmap_dir), analyzer=_broken)
     assert stages == ()
+
+
+def test_old_mapper_version_triggers_reanalysis(tmp_path):
+    """Melhoria no mapeador (MAPPER_VERSION novo) re-analisa a biblioteca
+    inteira automaticamente -- sem isso, musicas ficariam presas ao mapa
+    dessincronizado antigo."""
+    music_dir = tmp_path / "musicas"
+    beatmap_dir = tmp_path / "user_beatmaps"
+    audio = _fake_audio(music_dir / "antiga.mp3")
+    old_beatmap = Path(beatmap_dir) / "antiga.beatmap.json"
+    write_beatmap(old_beatmap, [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5},
+    ], mapper_version=1)  # mapeador antigo
+    future = time.time() + 60
+    os.utime(old_beatmap, (future, future))  # cache mais NOVO que o audio
+
+    assert needs_analysis(audio, old_beatmap)  # mesmo assim: versao velha
+    calls = []
+    scan_user_songs(music_dir=str(music_dir), beatmap_dir=str(beatmap_dir),
+                    analyzer=_fake_analyzer_writing_beatmap(calls))
+    assert calls == ["antiga.mp3"]
 
 
 def test_non_audio_files_and_missing_dir_are_ignored(tmp_path):

@@ -100,7 +100,9 @@ python tools/make_beatmap.py --audio minha_musica.mp3 \
     --output data/beatmaps/minha.beatmap.json --track-id minha
 ```
 
-com o resultado apontável por uma entrada manual em `data/stages/stages.json` (aí com `overrides` de dificuldade próprios). A curadoria pós-IA seleciona os onsets **mais fortes** até a densidade-alvo, com espaçamento mínimo e margem de fim de faixa; picos de energia (strength ≥ 0.8) viram **ameaças pesadas**.
+com o resultado apontável por uma entrada manual em `data/stages/stages.json` (aí com `overrides` de dificuldade próprios).
+
+**Como o mapeador funciona (v2)**: toda nota é **quantizada na grade de batidas** do beat-tracker (batidas + colcheias) — os onsets crus apenas *votam* em quais pontos da grade importam (onsets são adiantados por natureza; usar o timestamp deles dessincroniza o mapa). A seleção prefere pontos **na batida**, respeita densidade-alvo/espaçamento/margem de fim, e a **lane vem do timbre**: o centroide espectral no instante da nota escolhe a coluna/direção (grave → esquerda, agudo → direita), então o mesmo som repete a mesma lane e padrões musicais viram padrões de jogo (com anti-jack). Picos de energia (strength ≥ 0.8) viram **ameaças pesadas**. Melhorias no mapeador re-analisam sua biblioteca automaticamente (`mapper_version`).
 
 ## Arquitetura
 

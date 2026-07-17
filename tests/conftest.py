@@ -18,15 +18,18 @@ from hertzbeats.bootstrap.rhythm_composition_root import compose_world
 from hertzbeats.config import HertzConfig
 
 
-def write_beatmap(path: Path, threats: list) -> Path:
+def write_beatmap(path: Path, threats: list, mapper_version: int = None) -> Path:
     """Grava um beatmap.json valido (schema v1 da engine) com a lista de
-    ameacas fornecida (dicts com timestamp_seconds/threat_type/lane/strength)."""
+    ameacas fornecida (dicts com timestamp_seconds/threat_type/lane/strength).
+    `mapper_version` opcional simula beatmaps cacheados da biblioteca."""
     document = {
         "version": 1,
         "track_id": "test_track",
         "bpm": 120.0,
         "threats": sorted(threats, key=lambda t: t["timestamp_seconds"]),
     }
+    if mapper_version is not None:
+        document["mapper_version"] = mapper_version
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(document, f)
