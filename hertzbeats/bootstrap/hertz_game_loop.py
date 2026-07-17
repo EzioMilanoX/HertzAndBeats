@@ -93,6 +93,7 @@ class HertzGameLoop(GameLoop):
         self._notice_timer = 0.0
         self._chosen_mode_index = {}  # fase selectable_mode -> indice em MODE_CYCLE
         self._composed: Optional[ComposedGame] = None
+        self._was_in_flow = False
 
         composed = self._compose_stage(0)
         super().__init__(
@@ -189,6 +190,12 @@ class HertzGameLoop(GameLoop):
         else:
             renderer.set_playfield(None)
 
+    def _flow_base_volume(self) -> float:
+        """Volume 'normal' da faixa fora do Flow State: um pouco abaixo
+        do maximo, para que a entrada no Flow tenha um SWELL real ate
+        1.0 (ver `HBPygameAudioEngine.set_track_volume`)."""
+        return max(0.0, 1.0 - self._stage_config.flow_volume_boost)
+
     def _start_stage(self, stage_index: int) -> None:
         """Recompoe a fase e inicia a musica do zero -> PLAYING."""
         self._compose_stage(stage_index)
@@ -197,6 +204,11 @@ class HertzGameLoop(GameLoop):
         if stage.track_path:
             self._audio_engine.load_track(stage.stage_id, stage.track_path)
             self._audio_engine.play_track(stage.stage_id)
+        self._was_in_flow = False
+        if hasattr(self._audio_engine, "set_track_volume"):
+            self._audio_engine.set_track_volume(self._flow_base_volume())
+        if hasattr(self._renderer, "set_flow_mode"):
+            self._renderer.set_flow_mode(False)
         self._flow = FLOW_PLAYING
         self._results_grace = 0.0
 
@@ -292,6 +304,7 @@ class HertzGameLoop(GameLoop):
         self._world.step(delta_time)
 
         state = self._composed.game_state
+        self._advance_flow_state(state)
         if state.health <= 0:
             self._flow = FLOW_GAME_OVER
             self._stop_music()
@@ -312,6 +325,29 @@ class HertzGameLoop(GameLoop):
                 self._flow = FLOW_RESULTS
         else:
             self._results_grace = 0.0
+
+    def _advance_flow_state(self, state) -> None:
+        """Flow State ("vidro quebrado", Arcade 4K): detecta a
+        TRANSICAO de combo cruzando `flow_combo_threshold` (o
+        `UIRenderSystem` ja decide isso por conta propria a cada frame
+        para o HUD -- aqui so replicamos a mesma condicao para acionar os
+        efeitos que vivem FORA do ECS: swell/restauracao de volume da
+        faixa e escurecimento de fundo do renderer; a saida (um Miss
+        zera o combo) dispara o aviso de "vidro quebrado"."""
+        config = self._stage_config
+        if config.game_mode != "lanes":
+            return
+        in_flow_now = state.combo_count >= config.flow_combo_threshold
+        if in_flow_now == self._was_in_flow:
+            return
+        if hasattr(self._audio_engine, "set_track_volume"):
+            self._audio_engine.set_track_volume(1.0 if in_flow_now else self._flow_base_volume())
+        if hasattr(self._renderer, "set_flow_mode"):
+            self._renderer.set_flow_mode(in_flow_now)
+        if not in_flow_now:
+            self._notice_key = "flow_shatter"
+            self._notice_timer = config.flow_shatter_seconds
+        self._was_in_flow = in_flow_now
 
     def _advance_paused(self) -> None:
         inp = self._input_provider

@@ -45,6 +45,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_selected_mode: Optional[str] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
+        self._flow_mode_active: bool = False
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
         """Registra `surface` (ja convertida com alpha) para `texture_id`.
@@ -79,6 +80,13 @@ class HBPygameRenderer(PygameRenderer):
         calibracao de latencia), desenhado no topo em QUALQUER estado --
         inclusive durante o gameplay. `None` oculta."""
         self._notice_key = key
+
+    def set_flow_mode(self, active: bool) -> None:
+        """Flow State (Arcade 4K): escurece o fundo da arena enquanto o
+        combo se mantiver acima do limiar -- a "imersao total" que resta
+        no lado puramente visual depois que o `UIRenderSystem` ja apagou
+        todo o HUD. Chamado pelo `HertzGameLoop` na transicao de combo."""
+        self._flow_mode_active = bool(active)
 
     def set_playfield(self, kind: Optional[str], **params) -> None:
         """Define a decoracao de arena do MODO ativo, desenhada a cada
@@ -134,7 +142,7 @@ class HBPygameRenderer(PygameRenderer):
             pass
 
     def begin_frame(self) -> None:
-        self._surface.fill((8, 6, 20))
+        self._surface.fill((2, 1, 6) if self._flow_mode_active else (8, 6, 20))
         kind = self._playfield_kind
         if kind is None:
             return

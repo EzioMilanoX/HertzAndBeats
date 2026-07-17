@@ -56,9 +56,19 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         lane_tints_rgb: np.ndarray,
         max_threats_per_frame: int,
         min_travel_seconds: float = 0.05,
+        is_hold_by_row: np.ndarray = None,
+        hold_end_by_row: np.ndarray = None,
     ) -> None:
         """`lane_center_xs` (float64, len 4) e `lane_tints_rgb`
-        (uint8, shape (4,3)) sao pre-computados na composicao."""
+        (uint8, shape (4,3)) sao pre-computados na composicao.
+
+        `is_hold_by_row`/`hold_end_by_row` (opcionais, paralelos a
+        `scheduled_spawns`/`hit_times`): marcam quais linhas sao notas
+        de SCRATCH (clusters de pesadas fundidos por
+        `lane_scratch_clustering`) e o instante em que o hold termina.
+        Vivem FORA do `SCHEDULED_THREAT_DTYPE` da engine -- schema
+        neutro, so este produto sabe o que e um "hold".
+        """
         super().__init__(
             audio_clock=audio_clock,
             scheduled_threats=scheduled_spawns,
@@ -80,6 +90,8 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         self._note_half_by_type = note_half_by_type
         self._lane_tints_rgb = lane_tints_rgb
         self._min_travel_seconds = float(min_travel_seconds)
+        self._is_hold_by_row = is_hold_by_row
+        self._hold_end_by_row = hold_end_by_row
         # roteamento kick/vocal so faz sentido em beatmaps MULTI-camada;
         # num mapa de camada unica ele colapsaria tudo em 2 colunas
         self._route_by_layer = bool(np.any(scheduled_spawns["layer"] != 0)) if scheduled_spawns.shape[0] else False
@@ -110,13 +122,17 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
             time_remaining = self._min_travel_seconds
         fall_speed = (self._judgment_line_y - self._spawn_y) / time_remaining
 
+        is_hold = bool(self._is_hold_by_row[row_index]) if self._is_hold_by_row is not None else False
+        hold_end = float(self._hold_end_by_row[row_index]) if is_hold else hit_time
+
         strength = float(self._scheduled_threats["strength"][row_index])
         threat_view["mode_tag"][threat_row] = MODE_TAG_LANES
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
-        threat_view["expire_time_sec"][threat_row] = hit_time
+        threat_view["expire_time_sec"][threat_row] = hold_end
         threat_view["spawn_angle_rad"][threat_row] = math.pi / 2.0  # caindo (tela, y para baixo)
         threat_view["is_hit"][threat_row] = False
+        threat_view["is_hold"][threat_row] = is_hold
         threat_view["judgment"][threat_row] = JUDGMENT_PENDING
         threat_view["packed_handle"][threat_row] = packed
 
@@ -126,9 +142,18 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         transform_view["position_x"][transform_row] = float(self._lane_center_xs[lane])
         transform_view["position_y"][transform_row] = self._spawn_y
         # notas 1.7x maiores que o meio-tamanho logico: legibilidade da
-        # queda importa mais que o volume exato (nao ha colisao no 4K)
-        transform_view["scale_x"][transform_row] = note_half * 1.7 / 8.0
-        transform_view["scale_y"][transform_row] = note_half * 1.7 / 8.0
+        # queda importa mais que o volume exato (nao ha colisao no 4K).
+        # Scratch (hold): a barra e esticada ao longo de Y pela duracao
+        # do hold * velocidade de queda -- aproximacao ESTATICA (nao
+        # encolhe conforme cai), suficiente para o efeito visual de
+        # "nota longa" sem complicar a cinematica.
+        if is_hold:
+            hold_span_px = (hold_end - hit_time) * fall_speed
+            transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
+            transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
+        else:
+            transform_view["scale_x"][transform_row] = note_half * 1.7 / 8.0
+            transform_view["scale_y"][transform_row] = note_half * 1.7 / 8.0
 
         velocity_row = self._velocity_pool.dense_row_of(entity_index)
         velocity_view = self._velocity_pool.active_view()
@@ -146,10 +171,17 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
 
         sprite_row = self._sprite_pool.dense_row_of(entity_index)
         sprite_view = self._sprite_pool.active_view()
-        sprite_view["texture_id"][sprite_row] = 0  # circulo procedural na cor da coluna
-        sprite_view["tint_r"][sprite_row] = self._lane_tints_rgb[lane, 0]
-        sprite_view["tint_g"][sprite_row] = self._lane_tints_rgb[lane, 1]
-        sprite_view["tint_b"][sprite_row] = self._lane_tints_rgb[lane, 2]
+        sprite_view["texture_id"][sprite_row] = 0  # circulo/barra procedural
+        if is_hold:
+            # branco/dourado vibrante: destaca a nota de scratch das
+            # demais (a "mesa do DJ")
+            sprite_view["tint_r"][sprite_row] = 255
+            sprite_view["tint_g"][sprite_row] = 240
+            sprite_view["tint_b"][sprite_row] = 180
+        else:
+            sprite_view["tint_r"][sprite_row] = self._lane_tints_rgb[lane, 0]
+            sprite_view["tint_g"][sprite_row] = self._lane_tints_rgb[lane, 1]
+            sprite_view["tint_b"][sprite_row] = self._lane_tints_rgb[lane, 2]
         sprite_view["tint_a"][sprite_row] = 255
         sprite_view["layer_z"][sprite_row] = 20
 

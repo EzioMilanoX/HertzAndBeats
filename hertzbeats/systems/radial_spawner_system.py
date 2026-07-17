@@ -15,6 +15,8 @@ from hertzbeats.components.schemas import (
     JUDGMENT_PENDING,
     MODE_TAG_DEFENDER,
     PHASE_LETHAL,
+    POLARITY_BLUE,
+    POLARITY_PINK,
 )
 from hertzbeats.components.texture_ids import TEX_CONVERGENCE_RING, TEX_THREAT_BASIC
 
@@ -143,6 +145,14 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         threat_view["mode_tag"][threat_row] = MODE_TAG_DEFENDER
         threat_view["phase"][threat_row] = PHASE_LETHAL
         threat_view["strength"][threat_row] = strength
+        # Polaridade: reusa o BUCKET DE TIMBRE que a IA ja atribuiu a
+        # `lane` (assign_lanes no mapeador -- grave -> bucket baixo,
+        # agudo -> bucket alto) -- zero analise extra. Metade inferior
+        # dos buckets = grave = ROSA; metade superior = agudo = AZUL.
+        threat_view["polarity_id"][threat_row] = (
+            POLARITY_PINK if (lane % self._lane_count) < self._lane_count / 2.0 else POLARITY_BLUE
+        )
+        threat_view["is_reflected"][threat_row] = False
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
         threat_view["spawn_angle_rad"][threat_row] = angle

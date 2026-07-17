@@ -31,6 +31,10 @@ class GameState:
         "health",
         "last_judgment",
         "judgment_display_seconds_left",
+        "graze_score",
+        "fever_meter",
+        "parry_count",
+        "deflect_count",
     )
 
     def __init__(self, max_health: int) -> None:
@@ -46,6 +50,25 @@ class GameState:
         self.health: int = max_health
         self.last_judgment: int = JUDGMENT_PENDING
         self.judgment_display_seconds_left: float = 0.0
+        self.graze_score: int = 0
+        """Modo Sobrevivencia: pontos de "raspar" perto de uma parede
+        letal sem tocar -- estilo Touhou. Alimenta `fever_meter`."""
+        self.fever_meter: float = 0.0
+        """0..1: enche com Graze, decai com o tempo (ver
+        `GrazeSystem`/`survival_fever_decay_per_second`). Em 1.0, a
+        pontuacao de Graze e de sobrevivencia dobra (`in_fever`)."""
+        self.parry_count: int = 0
+        """Defensor (Polaridade): ameacas pesadas refletidas com sucesso
+        no PERFECT."""
+        self.deflect_count: int = 0
+        """Defensor (Polaridade): tiros no tempo certo mas na cor
+        errada -- nao pune, so nao acerta."""
+
+    @property
+    def in_fever(self) -> bool:
+        """True quando `fever_meter` esta cheio -- dobra a pontuacao de
+        Graze/sobrevivencia enquanto durar."""
+        return self.fever_meter >= 1.0
 
     def register_judgment_feedback(self, judgment: int, display_seconds: float) -> None:
         """Atualiza o feedback visual de julgamento consumido pelo

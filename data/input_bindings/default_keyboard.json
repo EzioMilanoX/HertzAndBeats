@@ -1,5 +1,6 @@
 {
   "fire": "MOUSE_LEFT",
+  "fire_alt": "MOUSE_RIGHT",
   "dash": "KEY_SPACE",
   "pause": "KEY_ESCAPE",
   "menu_up": ["KEY_UP", "KEY_W"],

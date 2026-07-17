@@ -213,7 +213,8 @@ small, .muted {{ color:var(--muted); }}
 <body>
 <nav>
   <a href="#visao">Visão geral</a><a href="#rodar">Rodar</a><a href="#jogar">Como jogar</a>
-  <a href="#fluxo">Fluxo</a><a href="#fases">Fases</a><a href="#arquitetura">Arquitetura</a>
+  <a href="#fluxo">Fluxo</a><a href="#fases">Fases</a><a href="#mecanicas">Mecânicas novas</a>
+  <a href="#arquitetura">Arquitetura</a>
   <a href="#config">Config</a><a href="#ferramentas">Ferramentas</a><a href="#testes">Testes</a><a href="#api">API</a>
 </nav>
 <main>
@@ -260,8 +261,9 @@ cravados na batida em qualquer escala.</li>
 <table>
 <tr><th>Ação</th><th>Controle</th></tr>
 <tr><td>Mira 360°</td><td>Mouse (direção a partir do núcleo; o marcador orbita <em>sobre</em> o anel de julgamento)</td></tr>
-<tr><td>Atirar / Parry</td><td>Botão esquerdo do mouse</td></tr>
-<tr><td>Dash (i-frames)</td><td>Espaço</td></tr>
+<tr><td>Atirar Azul / Parry</td><td>Botão esquerdo do mouse</td></tr>
+<tr><td>Atirar Rosa (fase Polaridade)</td><td>Botão direito do mouse</td></tr>
+<tr><td>Dash (i-frames / Pulso de Impacto)</td><td>Espaço</td></tr>
 <tr><td>Menu: escolher fase</td><td>Setas ↑/↓ · ENTER ou clique para jogar · ESC sai</td></tr>
 <tr><td>Pausar / retomar</td><td>ESC</td></tr>
 <tr><td>Derrota / vitória</td><td>R repete · ENTER próxima fase · M menu</td></tr>
@@ -311,6 +313,42 @@ janela temporal jogável (nada antes da pista completa de aproximação, nada de
 <pre>pip install librosa
 python tools/make_beatmap.py --audio minha.mp3 --output data/beatmaps/minha.beatmap.json --track-id minha</pre>
 <p>Depois adicione uma entrada em <code>stages.json</code> (sem o bloco <code>synth</code>) e ela aparece no menu.</p>
+
+<h2 id="mecanicas">Mecânicas novas (7 mecânicas, 3 modos)</h2>
+<p>Todas seguem a mesma disciplina Zero-GC do resto do jogo: campos extras no
+<code>RHYTHM_THREAT_DTYPE</code> compartilhado, mascaramento vetorizado por <code>mode_tag</code>/flag
+booleano, e sistemas dedicados que só tocam as linhas que lhes pertencem.</p>
+<h3>Defensor — Polaridade + Parry Perfeito</h3>
+<p>Opt-in via <code>polarity_enabled</code> (fase <span class="gold">Polaridade</span>): dois gatilhos
+com cor fixa (Azul = clique esquerdo, Rosa = clique direito, estilo <em>Ikaruga</em>). A cor de uma
+ameaça comum vem de graça do <strong>bucket de timbre</strong> que a IA já atribui à <code>lane</code>
+(metade grave = Rosa, metade aguda = Azul — zero análise extra). Cor errada no tempo/mira certos é um
+<strong>Deflect</strong> (não pune, só não acerta). Ameaças <strong>pesadas</strong> só entram como
+candidatas dentro da janela PERFECT (mais estreita); um acerto nesse instante as <strong>reflete</strong>
+em vez de destruir — <code>JudgmentSystem</code> inverte a velocidade e troca a camada de colisão para
+<code>REFLECTED_COLLISION_LAYER</code>, e o <code>ParryImpactSystem</code> consome os pares que o
+<code>CollisionSystem</code> genérico passa a gerar entre o projétil e as demais ameaças no caminho de
+volta, destruindo a mais fraca em cadeia. O refletido permanece <code>JUDGMENT_PENDING</code> de
+propósito — agora é uma arma, não mais uma vítima — e a varredura de MISS o ignora.</p>
+<h3>Sobrevivência — Graze + Fever, Pulso de Impacto</h3>
+<p>Um segundo raio de detecção (AABB vetorizado, paralelo ao <code>CollisionSystem</code>) mede a
+distância a cada parede letal; cruzar a faixa estendida (<code>hitbox + graze_margin</code>) sem tocar
+a hitbox real concede <strong>Graze</strong> e carrega o medidor de <strong>Fever</strong> (decai com o
+tempo; cheio, dobra a pontuação). Um dash perfeito ativa uma de 5 entidades de onda de choque
+<strong>pré-alocadas</strong> (nunca criadas/destruídas — round-robin), cujo raio cresce
+exponencialmente por 0.2s e varre paredes fracas; pesadas resistem, como no Parry.</p>
+<h3>Arcade 4K — Pistas Dinâmicas, Scratch, Flow State</h3>
+<p>Clusters de 3+ picos consecutivos são fundidos <strong>puramente do lado do jogo</strong>
+(<code>lane_scratch_clustering</code>, sem tocar o beatmap.json) numa nota de <strong>Scratch</strong> —
+mova o mouse continuamente (eixo <code>scratch_energy</code>) do início ao fim do hold ou é MISS
+imediato. Os mesmos instantes de início de cluster disparam <strong>Pistas Dinâmicas</strong>: as 4
+colunas balançam em direções opostas via uma senoide amortecida <em>causal</em>
+(<code>compute_lane_sway</code>) — reação ao impacto, nunca antecipação. 50 PERFECTs seguidos entram em
+<strong>Flow State</strong>: o <code>UIRenderSystem</code> apaga todo o HUD; um Miss "quebra o vidro" e
+restaura a interface. Aproximação honesta: <code>pygame.mixer</code> não tem EQ em tempo real, então o
+"bass boost" é um <strong>swell de volume real</strong> (a faixa sobe para 1.0 exatamente na entrada do
+Flow via <code>HBPygameAudioEngine.set_track_volume</code>) — sem fingir um grave que o backend não pode
+produzir.</p>
 
 <h2 id="arquitetura">Arquitetura</h2>
 <p>Ordem <strong>exata</strong> de execução por frame, registrada em

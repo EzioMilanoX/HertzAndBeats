@@ -17,6 +17,8 @@ from hertzbeats.components.schemas import (
     JUDGMENT_PENDING,
     JUDGMENT_PERFECT,
     MODE_TAG_DEFENDER,
+    POLARITY_BLUE,
+    POLARITY_PINK,
 )
 from hertzbeats.game_state import GameState
 
@@ -75,15 +77,38 @@ class JudgmentSystem(ISystem):
         shot_sound_id: str = None,
         jam_sound_id: str = None,
         fire_action_name: str = "fire",
+        polarity_enabled: bool = False,
+        fire_alt_action_name: str = "fire_alt",
+        heavy_threat_type_id: int = None,
+        deflect_sound_id: str = None,
+        parry_sound_id: str = None,
+        reflected_collision_layer: int = None,
+        reflected_collision_mask: int = None,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
         update nunca aloca arrays novos.
+
+        POLARIDADE (opt-in, `polarity_enabled=True`): duas acoes de
+        disparo, cada uma com uma cor fixa (`fire_action_name` = azul,
+        `fire_alt_action_name` = rosa, estilo Ikaruga). Uma ameaca so e
+        destruida pela cor que combina com `polarity_id`; apertar a cor
+        ERRADA dentro da janela de tempo+mira e um DEFLECT -- nao pune
+        (o timing estava certo), mas tambem nao acerta.
+
+        PARRY PERFEITO (ativo quando `heavy_threat_type_id` e
+        fornecido): ameacas pesadas so entram como candidatas dentro da
+        janela PERFECT (mais estreita que a Good usada pelas demais) --
+        ao serem selecionadas, sao REFLETIDAS (velocidade invertida,
+        camada de colisao trocada) em vez de destruidas; o
+        `ParryImpactSystem` cuida do resto do voo/impacto.
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
         self._player_pool = memory_manager.get_pool("player_state")
+        self._velocity_pool = memory_manager.get_pool("velocity")
+        self._hitbox_pool = memory_manager.get_pool("hitbox")
         self._game_state = game_state
         self._player_entity_index = int(player_entity_index)
 
@@ -100,14 +125,25 @@ class JudgmentSystem(ISystem):
         self._shot_sound_id = shot_sound_id
         self._jam_sound_id = jam_sound_id
         self._fire_action_name = fire_action_name
+        self._polarity_enabled = bool(polarity_enabled)
+        self._fire_alt_action_name = fire_alt_action_name
+        self._heavy_threat_type_id = heavy_threat_type_id
+        self._deflect_sound_id = deflect_sound_id
+        self._parry_sound_id = parry_sound_id
+        self._reflected_collision_layer = reflected_collision_layer
+        self._reflected_collision_mask = reflected_collision_mask
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
         self._abs_delta_buffer = np.zeros(capacity, dtype=np.float64)
         self._angle_buffer = np.zeros(capacity, dtype=np.float64)
         self._candidate_mask = np.zeros(capacity, dtype=bool)
+        self._pre_polarity_mask = np.zeros(capacity, dtype=bool)
+        self._heavy_mask = np.zeros(capacity, dtype=bool)
+        self._color_mask = np.zeros(capacity, dtype=bool)
         self._scratch_mask = np.zeros(capacity, dtype=bool)
         self._owned_mask = np.zeros(capacity, dtype=bool)
+        self._window_buffer = np.zeros(capacity, dtype=np.float64)
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
 
     def update(self, world: World, delta_time: float) -> None:
@@ -118,17 +154,27 @@ class JudgmentSystem(ISystem):
         """
         del delta_time
 
-        fire_pressed = self._input_provider.is_action_pressed(self._fire_action_name)
-        if fire_pressed:
-            # arma emperrada (misfire anterior): o gatilho so faz "tec"
-            player_row = self._player_pool.dense_row_of(self._player_entity_index)
-            if float(self._player_pool.active_view()["gun_jam_sec"][player_row]) > 0.0:
-                self._play(self._jam_sound_id, 0.4)
-                fire_pressed = False
+        player_row = self._player_pool.dense_row_of(self._player_entity_index)
+        gun_jammed = float(self._player_pool.active_view()["gun_jam_sec"][player_row]) > 0.0
+
+        # Sem Polaridade: um unico gatilho, sem cor. Com Polaridade: os
+        # dois botoes (azul/rosa) sao checados nesta ordem fixa a cada
+        # frame -- cada um e um disparo INDEPENDENTE contra a pool.
+        fire_events = [(self._fire_action_name, POLARITY_BLUE)]
+        if self._polarity_enabled:
+            fire_events.append((self._fire_alt_action_name, POLARITY_PINK))
+
+        triggered_polarities = []
+        for action_name, polarity in fire_events:
+            if self._input_provider.is_action_pressed(action_name):
+                if gun_jammed:
+                    self._play(self._jam_sound_id, 0.4)
+                else:
+                    triggered_polarities.append(polarity)
 
         active_count = self._threat_pool.count
         if active_count == 0:
-            if fire_pressed:
+            for _ in triggered_polarities:
                 self._register_misfire()  # tiro com a arena vazia tambem e fora do tempo
             return
 
@@ -149,11 +195,19 @@ class JudgmentSystem(ISystem):
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(pending, owned, out=pending)
+        if self._heavy_threat_type_id is not None:
+            # projeteis refletidos (Parry) continuam PENDING de proposito
+            # -- sao "armas" agora, nao vitimas; a varredura de miss NAO
+            # pode destruir um refletido so porque o `target_hit_time_sec`
+            # original (do momento em que era vitima) ja passou.
+            reflected = self._heavy_mask[:active_count]
+            np.logical_not(threat_view["is_reflected"], out=reflected)
+            np.logical_and(pending, reflected, out=pending)
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
 
-        if fire_pressed:
-            self._try_player_hit(world, threat_view, deltas, active_count)
+        for polarity in triggered_polarities:
+            self._try_player_hit(world, threat_view, deltas, active_count, polarity)
 
     def _sweep_overdue_misses(
         self,
@@ -215,10 +269,16 @@ class JudgmentSystem(ISystem):
         threat_view: np.ndarray,
         deltas: np.ndarray,
         active_count: int,
+        fired_polarity: int,
     ) -> None:
         """Seleciona a melhor candidata (menor |delta|) dentro da janela
-        Good E do cone de mira, e converte em PERFECT/GOOD. Disparo sem
-        candidata alguma e um MISFIRE (ver `_register_misfire`).
+        de tempo (Good, ou PERFECT-apenas para ameacas pesadas -- ver
+        `heavy_threat_type_id`) E do cone de mira, e converte em
+        PERFECT/GOOD (ou PARRY, se pesada). Disparo sem candidata
+        alguma NA JANELA DE TEMPO+MIRA e um MISFIRE; disparo com
+        candidata de tempo+mira mas de COR ERRADA e um DEFLECT (nao
+        pune, so nao acerta) -- so existe essa distincao com
+        `polarity_enabled`.
         """
         player_row = self._player_pool.dense_row_of(self._player_entity_index)
         aim_angle = float(self._player_pool.active_view()["aim_angle_rad"][player_row])
@@ -226,8 +286,24 @@ class JudgmentSystem(ISystem):
         abs_deltas = self._abs_delta_buffer[:active_count]
         np.abs(deltas, out=abs_deltas)
 
+        # janela por linha: PERFECT-apenas para pesadas (parry), Good
+        # para as demais -- assim uma pesada so vira candidata quando o
+        # timing ja garante PERFECT, sem branch extra depois.
+        if self._heavy_threat_type_id is not None:
+            # `np.where` nao aceita `out=` -- preenche com a janela Good
+            # e sobrescreve so as linhas pesadas com a Perfect (mesmo
+            # idioma de mascara booleana ja usado em `_selection_buffer`
+            # logo abaixo).
+            window = self._window_buffer[:active_count]
+            is_heavy = self._scratch_mask[:active_count]
+            np.equal(threat_view["threat_type"], self._heavy_threat_type_id, out=is_heavy)
+            window.fill(self._good_window)
+            window[is_heavy] = self._perfect_window
+        else:
+            window = self._good_window
+
         candidates = self._candidate_mask[:active_count]
-        np.less_equal(abs_deltas, self._good_window, out=candidates)
+        np.less_equal(abs_deltas, window, out=candidates)
 
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
@@ -250,12 +326,51 @@ class JudgmentSystem(ISystem):
             self._register_misfire()
             return
 
+        # Polaridade: pesadas aceitam QUALQUER cor (o parry e a defesa
+        # universal); basicas exigem `polarity_id == fired_polarity`.
+        # Se sobrar candidata SO por causa da cor (pre-polaridade
+        # nao-vazio, pos-polaridade vazio) e um DEFLECT -- timing certo,
+        # cor errada, sem punicao.
+        if self._polarity_enabled:
+            pre_polarity = self._pre_polarity_mask[:active_count]
+            np.copyto(pre_polarity, candidates)
+
+            color_match = self._color_mask[:active_count]
+            np.equal(threat_view["polarity_id"], fired_polarity, out=color_match)
+
+            if self._heavy_threat_type_id is not None:
+                # heavy sempre passa (o parry e a defesa universal);
+                # basica exige a cor certa -- OR sobre buffers distintos
+                is_heavy = self._heavy_mask[:active_count]
+                np.equal(threat_view["threat_type"], self._heavy_threat_type_id, out=is_heavy)
+                allow = self._scratch_mask[:active_count]
+                np.logical_or(is_heavy, color_match, out=allow)
+            else:
+                allow = color_match
+            np.logical_and(candidates, allow, out=candidates)
+
+            if not np.any(candidates) and np.any(pre_polarity):
+                self._register_deflect()
+                return
+
+        if not np.any(candidates):
+            self._register_misfire()
+            return
+
         selection = self._selection_buffer[:active_count]
         np.copyto(selection, abs_deltas)
         rejected = self._scratch_mask[:active_count]
         np.logical_not(candidates, out=rejected)
         selection[rejected] = np.inf
         best_row = int(np.argmin(selection))
+
+        is_parry = (
+            self._heavy_threat_type_id is not None
+            and int(threat_view["threat_type"][best_row]) == self._heavy_threat_type_id
+        )
+        if is_parry:
+            self._register_parry(world, threat_view, best_row)
+            return
 
         best_abs_delta = float(abs_deltas[best_row])
         judgment = JUDGMENT_PERFECT if best_abs_delta <= self._perfect_window else JUDGMENT_GOOD
@@ -278,3 +393,46 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+
+    def _register_deflect(self) -> None:
+        """DEFLECT (Polaridade): timing e mira certos, cor errada -- a
+        "bala reflete" sem efeito algum: nao pune (combo/vida intactos),
+        nao pontua, so um som/feedback sutil. A ameaca segue pendente e
+        pode ainda ser acertada pela cor certa antes de vencer."""
+        self._game_state.deflect_count += 1
+        self._play(self._deflect_sound_id, 0.5)
+
+    def _register_parry(self, world: World, threat_view: np.ndarray, best_row: int) -> None:
+        """PARRY PERFEITO: em vez de destruir a ameaca pesada, inverte
+        sua velocidade (via `velocity_pool`, resolvido sob demanda --
+        raro, 0-1x por partida), marca `is_reflected` E troca sua
+        camada/mascara de colisao para `REFLECTED_COLLISION_LAYER` (bate
+        em ameacas, nunca no nucleo) -- sem essa troca o projetil
+        continuaria com a camada/mascara ORIGINAL (ameaca x nucleo) e o
+        `CollisionSystem` jamais geraria um par entre ele e outra ameaca
+        pendente. O `ParryImpactSystem` cuida do resto: colisao com
+        outras ameacas e expiracao ao sair da arena."""
+        entity_index = int(self._threat_pool.active_entity_indices()[best_row])
+        velocity_pool = self._velocity_pool
+        v_row = velocity_pool.dense_row_of(entity_index)
+        v_view = velocity_pool.active_view()
+        v_view["linear_x"][v_row] *= -1.0
+        v_view["linear_y"][v_row] *= -1.0
+
+        if self._reflected_collision_layer is not None:
+            hb_row = self._hitbox_pool.dense_row_of(entity_index)
+            hb_view = self._hitbox_pool.active_view()
+            hb_view["collision_layer"][hb_row] = self._reflected_collision_layer
+            hb_view["collision_mask"][hb_row] = self._reflected_collision_mask
+
+        threat_view["is_reflected"][best_row] = True
+        threat_view["judgment"][best_row] = JUDGMENT_PENDING  # segue viva, agora como arma
+
+        self._play(self._parry_sound_id, 1.0)
+
+        state = self._game_state
+        state.parry_count += 1
+        state.combo_count += 1
+        if state.combo_count > state.max_combo:
+            state.max_combo = state.combo_count
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)

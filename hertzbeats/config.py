@@ -67,6 +67,38 @@ class HertzConfig:
     dash_beat_window_seconds: float = 0.15
     survival_strike_seconds: float = 0.30
 
+    # -- Polaridade + Parry Perfeito (Defensor, opt-in por fase) --
+    polarity_enabled: bool = False
+    fire_alt_action_name: str = "fire_alt"
+
+    # -- Graze + Fever (Sobrevivencia, sempre ativo no modo) --
+    graze_margin: float = 15.0
+    fever_gain_per_graze: float = 0.12
+    fever_decay_per_second: float = 0.05
+    fever_score_multiplier: float = 2.0
+    graze_score_per_hit: int = 50
+
+    # -- Pulso de Impacto / Shockwave (Sobrevivencia, sempre ativo) --
+    shockwave_pool_size: int = 5
+    shockwave_duration_seconds: float = 0.2
+    shockwave_max_radius: float = 260.0
+    shockwave_min_radius: float = 20.0
+
+    # -- Pistas Dinamicas (Arcade 4K, sempre ativo) --
+    lane_sway_amplitude_px: float = 34.0
+    lane_sway_decay_per_second: float = 2.2
+
+    # -- Notas de Scratch (Arcade 4K, sempre ativo) --
+    scratch_cluster_gap_seconds: float = 0.6
+    scratch_min_cluster_size: int = 3
+    scratch_hold_tail_seconds: float = 0.35
+    scratch_min_energy: float = 0.12
+
+    # -- Flow State (Arcade 4K, sempre ativo) --
+    flow_combo_threshold: int = 50
+    flow_volume_boost: float = 0.15
+    flow_shatter_seconds: float = 0.35
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -116,6 +148,26 @@ class HertzConfig:
             misfire_jam_seconds=raw.get("misfire_jam_seconds", 0.5),
             dash_beat_window_seconds=raw.get("dash_beat_window_seconds", 0.15),
             survival_strike_seconds=raw.get("survival_strike_seconds", 0.30),
+            polarity_enabled=raw.get("polarity_enabled", False),
+            fire_alt_action_name=raw.get("fire_alt_action_name", "fire_alt"),
+            graze_margin=raw.get("graze_margin", 15.0),
+            fever_gain_per_graze=raw.get("fever_gain_per_graze", 0.12),
+            fever_decay_per_second=raw.get("fever_decay_per_second", 0.05),
+            fever_score_multiplier=raw.get("fever_score_multiplier", 2.0),
+            graze_score_per_hit=raw.get("graze_score_per_hit", 50),
+            shockwave_pool_size=raw.get("shockwave_pool_size", 5),
+            shockwave_duration_seconds=raw.get("shockwave_duration_seconds", 0.2),
+            shockwave_max_radius=raw.get("shockwave_max_radius", 260.0),
+            shockwave_min_radius=raw.get("shockwave_min_radius", 20.0),
+            lane_sway_amplitude_px=raw.get("lane_sway_amplitude_px", 34.0),
+            lane_sway_decay_per_second=raw.get("lane_sway_decay_per_second", 2.2),
+            scratch_cluster_gap_seconds=raw.get("scratch_cluster_gap_seconds", 0.6),
+            scratch_min_cluster_size=raw.get("scratch_min_cluster_size", 3),
+            scratch_hold_tail_seconds=raw.get("scratch_hold_tail_seconds", 0.35),
+            scratch_min_energy=raw.get("scratch_min_energy", 0.12),
+            flow_combo_threshold=raw.get("flow_combo_threshold", 50),
+            flow_volume_boost=raw.get("flow_volume_boost", 0.15),
+            flow_shatter_seconds=raw.get("flow_shatter_seconds", 0.35),
         )
 
 

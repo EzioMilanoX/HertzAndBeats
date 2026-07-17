@@ -32,3 +32,13 @@ class HBPygameAudioEngine(PygameAudioEngine):
     def resume_track(self) -> None:
         """Retoma a faixa pausada do ponto exato em que congelou."""
         pygame.mixer.music.unpause()
+
+    def set_track_volume(self, volume: float) -> None:
+        """Volume 0.0..1.0 da faixa em reproducao -- usado pelo Flow
+        State (Arcade 4K) como aproximacao HONESTA de "bass boost":
+        `pygame.mixer` nao expoe nenhum filtro de EQ em tempo real, entao
+        o jogo toca a faixa normalmente um pouco ABAIXO do volume maximo
+        (`1.0 - flow_volume_boost`) e faz um SWELL ate 1.0 exatamente
+        quando o Flow comeca -- um efeito real e audivel, sem fingir um
+        grave que o backend nao pode produzir."""
+        pygame.mixer.music.set_volume(max(0.0, min(1.0, volume)))

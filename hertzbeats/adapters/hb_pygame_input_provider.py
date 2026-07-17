@@ -8,6 +8,11 @@ import pygame
 
 from ouroboros.adapters.pygame_backend.pygame_input_provider import PygameInputProvider
 
+_SCRATCH_ENERGY_DIVISOR = 40.0
+"""Pixels de movimento de mouse por frame que já saturam o eixo
+`scratch_energy` em 1.0 -- referencia empirica para "raspar" a mesa do
+DJ sem exigir um sensor fisico calibrado."""
+
 
 class HBPygameInputProvider(PygameInputProvider):
     """
@@ -21,6 +26,11 @@ class HBPygameInputProvider(PygameInputProvider):
       ativa se QUALQUER tecla estiver pressionada. Praticidade de input
       (setas OU WASD no menu, ENTER OU ESPACO para confirmar) sem tocar
       o contrato da engine, que segue um-codigo-por-acao.
+    - Eixo `scratch_energy` (Notas de Scratch do Arcade 4K): magnitude do
+      movimento RELATIVO do mouse no frame (`pygame.mouse.get_rel()`),
+      normalizada por `_SCRATCH_ENERGY_DIVISOR` e limitada a 1.0 -- o
+      `ScratchJudgmentSystem` exige que fique acima de um minimo durante
+      todo o hold.
     """
 
     def __init__(self) -> None:
@@ -80,3 +90,6 @@ class HBPygameInputProvider(PygameInputProvider):
         if length > 1e-6:
             self._axes["aim_x"] = delta_x / length
             self._axes["aim_y"] = delta_y / length
+
+        rel_x, rel_y = pygame.mouse.get_rel()
+        self._axes["scratch_energy"] = min(1.0, math.hypot(rel_x, rel_y) / _SCRATCH_ENERGY_DIVISOR)

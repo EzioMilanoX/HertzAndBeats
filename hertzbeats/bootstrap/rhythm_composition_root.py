@@ -41,12 +41,25 @@ from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 
-from hertzbeats.audio.sfx_synth import SFX_CANNON, SFX_CLICK, SFX_TAP
+from hertzbeats.audio.sfx_synth import (
+    SFX_CANNON,
+    SFX_CLICK,
+    SFX_DEFLECT,
+    SFX_GRAZE,
+    SFX_PARRY,
+    SFX_TAP,
+)
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
+from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
 from hertzbeats.systems.convergence_ring_system import (
     CONVERGENCE_RING_DTYPE,
     ConvergenceRingSystem,
 )
+from hertzbeats.systems.graze_system import GrazeSystem
+from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
+from hertzbeats.systems.parry_impact_system import REFLECTED_COLLISION_LAYER, ParryImpactSystem
+from hertzbeats.systems.scratch_judgment_system import ScratchJudgmentSystem
+from hertzbeats.systems.shockwave_system import SHOCKWAVE_DTYPE, ShockwaveSystem
 from hertzbeats.systems.wall_phase_system import WallPhaseSystem
 from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
@@ -226,6 +239,14 @@ def _compose_defender_mode(ctx: _ModeContext):
             judgment_ring_radius=judgment_ring_radius,
         )
     )
+    # Polaridade + Parry Perfeito (opt-in por fase, `polarity_enabled`):
+    # um UNICO flag liga as duas mecanicas -- reflete a decisao de design
+    # de que sao inseparaveis no enunciado (o Parry E a defesa universal
+    # contra pesadas justamente porque a Polaridade torna as basicas
+    # sensiveis a cor).
+    heavy_threat_type_id = (
+        config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
+    )
     ctx.world.register_system(
         JudgmentSystem(
             audio_clock=ctx.audio_clock,
@@ -245,10 +266,29 @@ def _compose_defender_mode(ctx: _ModeContext):
             audio_engine=ctx.audio_engine,
             shot_sound_id=SFX_CANNON,
             jam_sound_id=SFX_CLICK,
+            polarity_enabled=config.polarity_enabled,
+            fire_alt_action_name=config.fire_alt_action_name,
+            heavy_threat_type_id=heavy_threat_type_id,
+            deflect_sound_id=SFX_DEFLECT,
+            parry_sound_id=SFX_PARRY,
+            reflected_collision_layer=REFLECTED_COLLISION_LAYER if config.polarity_enabled else None,
+            reflected_collision_mask=THREAT_COLLISION_LAYER if config.polarity_enabled else None,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     ctx.world.register_system(collision_system)
+    if config.polarity_enabled:
+        ctx.world.register_system(
+            ParryImpactSystem(
+                collision_system=collision_system,
+                memory_manager=ctx.memory_manager,
+                game_state=ctx.game_state,
+                player_entity_index=ctx.player_entity_index,
+                center_xy=(center_x, center_y),
+                spawn_radius=config.spawn_radius,
+                score_per_kill=config.score_good,
+            )
+        )
     ctx.world.register_system(
         CoreDamageSystem(
             collision_system=collision_system,
@@ -261,6 +301,20 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
     )
     return (spawner_system,), collision_system
+
+
+def _create_shockwave_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
+    """Pre-cria `pool_size` entidades de onda de choque (Pulso de
+    Impacto), inicialmente INATIVAS (hitbox/sprite zerados pelo proprio
+    `MemoryManager` -- camada/mascara 0 e alfa 0 sao o "invisivel/sem
+    colisao" default de uma linha nova). Disciplina Zero-GC MAIS
+    ESTRITA que o resto do jogo: este pool fixo e reaproveitado para
+    sempre em round-robin pelo `ShockwaveSystem`, nunca criado/destruido
+    durante a partida."""
+    indices = np.zeros(pool_size, dtype=np.int64)
+    for i in range(pool_size):
+        indices[i] = unpack_index(world.create_entity("shockwave"))
+    return indices
 
 
 def _compose_survival_mode(ctx: _ModeContext):
@@ -298,23 +352,22 @@ def _compose_survival_mode(ctx: _ModeContext):
 
     _hide_sprite(ctx.memory_manager, ctx.crosshair_entity_index)  # sem mira neste modo
 
-    ctx.world.register_system(
-        SurvivalPlayerSystem(
-            input_provider=ctx.input_provider,
-            memory_manager=ctx.memory_manager,
-            player_entity_index=ctx.player_entity_index,
-            arena_width=float(config.window_width),
-            arena_height=float(config.window_height),
-            move_speed=config.survival_move_speed,
-            dash_speed=config.survival_dash_speed,
-            dash_duration_seconds=config.dash_duration_seconds,
-            dash_cooldown_seconds=config.dash_cooldown_seconds,
-            audio_clock=ctx.audio_clock,
-            on_beat_window_seconds=config.dash_beat_window_seconds,
-            audio_engine=ctx.audio_engine,
-            offbeat_sound_id=SFX_CLICK,
-        )
+    survival_player_system = SurvivalPlayerSystem(
+        input_provider=ctx.input_provider,
+        memory_manager=ctx.memory_manager,
+        player_entity_index=ctx.player_entity_index,
+        arena_width=float(config.window_width),
+        arena_height=float(config.window_height),
+        move_speed=config.survival_move_speed,
+        dash_speed=config.survival_dash_speed,
+        dash_duration_seconds=config.dash_duration_seconds,
+        dash_cooldown_seconds=config.dash_cooldown_seconds,
+        audio_clock=ctx.audio_clock,
+        on_beat_window_seconds=config.dash_beat_window_seconds,
+        audio_engine=ctx.audio_engine,
+        offbeat_sound_id=SFX_CLICK,
     )
+    ctx.world.register_system(survival_player_system)
     ctx.world.register_system(spawner_system)
     ctx.world.register_system(
         WallPhaseSystem(  # ANTES da colisao: a virada aviso->letal vale no frame do onset
@@ -326,6 +379,38 @@ def _compose_survival_mode(ctx: _ModeContext):
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     ctx.world.register_system(collision_system)
+    ctx.world.register_system(
+        GrazeSystem(
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            player_entity_index=ctx.player_entity_index,
+            graze_margin=config.graze_margin,
+            fever_gain_per_graze=config.fever_gain_per_graze,
+            fever_decay_per_second=config.fever_decay_per_second,
+            fever_score_multiplier=config.fever_score_multiplier,
+            graze_score_per_hit=config.graze_score_per_hit,
+            audio_engine=ctx.audio_engine,
+            graze_sound_id=SFX_GRAZE,
+        )
+    )
+    shockwave_entity_indices = _create_shockwave_pool(
+        ctx.world, ctx.memory_manager, config.shockwave_pool_size
+    )
+    ctx.world.register_system(
+        ShockwaveSystem(
+            collision_system=collision_system,
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            survival_player_system=survival_player_system,
+            player_entity_index=ctx.player_entity_index,
+            shockwave_entity_indices=shockwave_entity_indices,
+            min_radius=config.shockwave_min_radius,
+            max_radius=config.shockwave_max_radius,
+            duration_seconds=config.shockwave_duration_seconds,
+            heavy_threat_type_id=config.threat_type_ids.get("rhythm_threat_heavy", -1),
+            score_per_kill=config.score_good,
+        )
+    )
     ctx.world.register_system(
         SurvivalDamageSystem(
             collision_system=collision_system,
@@ -365,11 +450,25 @@ def _compose_lanes_mode(ctx: _ModeContext):
         [[255, 214, 64], [64, 255, 214], [167, 139, 250], [255, 80, 96]], dtype=np.uint8
     )
 
+    # Notas de Scratch ("mesa do DJ"): funde clusters de pesadas
+    # consecutivas (os "solos insanos" que a IA ja concentra num trecho
+    # curto) numa UNICA nota longa -- pura interpretacao GAME-side, o
+    # beatmap.json e o mapeador nao mudam nada.
+    heavy_type_id = config.threat_type_ids.get("rhythm_threat_heavy", -1)
+    scheduled_out, hit_times_out, is_hold_out, hold_end_out = build_lane_schedule_with_scratches(
+        ctx.scheduled,
+        ctx.hit_times,
+        heavy_type_id,
+        config.scratch_cluster_gap_seconds,
+        config.scratch_min_cluster_size,
+        config.scratch_hold_tail_seconds,
+    )
+
     spawner_system = LaneNoteSpawnerSystem(
         audio_clock=ctx.audio_clock,
         memory_manager=ctx.memory_manager,
-        scheduled_spawns=ctx.scheduled,
-        hit_times=ctx.hit_times,
+        scheduled_spawns=scheduled_out,
+        hit_times=hit_times_out,
         threat_archetype_name="rhythm_threat_radial",
         lane_center_xs=lane_center_xs,
         spawn_y=-24.0,
@@ -377,18 +476,24 @@ def _compose_lanes_mode(ctx: _ModeContext):
         note_half_by_type=ctx.threat_half_by_type,
         lane_tints_rgb=lane_tints_rgb,
         max_threats_per_frame=config.max_threats_per_frame,
+        is_hold_by_row=is_hold_out,
+        hold_end_by_row=hold_end_out,
     )
 
     # nucleo e mira nao participam deste modo; receptores + rotulos de
-    # tecla marcam a linha de julgamento (entidades de HUD comuns)
+    # tecla marcam a linha de julgamento (entidades de HUD comuns) --
+    # os indices sao guardados para as "Pistas Dinamicas" reposicionarem
+    # a linha inteira junto com as colunas.
     _hide_sprite(ctx.memory_manager, ctx.player_entity_index)
     _hide_sprite(ctx.memory_manager, ctx.crosshair_entity_index)
+    receptor_entity_indices = np.zeros(LANE_COUNT_4K, dtype=np.int64)
+    key_label_entity_indices = np.zeros(LANE_COUNT_4K, dtype=np.int64)
     for lane in range(LANE_COUNT_4K):
-        _create_hud_sprite(
+        receptor_entity_indices[lane] = _create_hud_sprite(
             ctx.world, ctx.memory_manager, TEX_LANE_RECEPTOR,
             float(lane_center_xs[lane]), judgment_line_y, layer_z=HUD_LAYER_Z - 1,
         )
-        _create_hud_sprite(
+        key_label_entity_indices[lane] = _create_hud_sprite(
             ctx.world, ctx.memory_manager, TEX_KEY_LABEL_BASE + lane,
             float(lane_center_xs[lane]), judgment_line_y + 46.0, layer_z=HUD_LAYER_Z - 1,
         )
@@ -408,6 +513,34 @@ def _compose_lanes_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
             audio_engine=ctx.audio_engine,
             ghost_tap_sound_id=SFX_TAP,
+        )
+    )
+    ctx.world.register_system(
+        ScratchJudgmentSystem(
+            audio_clock=ctx.audio_clock,
+            input_provider=ctx.input_provider,
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            min_energy=config.scratch_min_energy,
+            judgment_display_seconds=config.judgment_display_seconds,
+            score_perfect=config.score_perfect,
+        )
+    )
+    # Pistas Dinamicas: o balanco reage aos MESMOS instantes que abrem
+    # uma nota de Scratch (o "solo/glitch" do enunciado) -- nenhum campo
+    # novo de beatmap, so reaproveita `hit_times_out` filtrado por
+    # `is_hold_out`.
+    trigger_times = hit_times_out[is_hold_out]
+    ctx.world.register_system(
+        LaneChoreographySystem(
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            lane_center_xs=lane_center_xs,
+            trigger_times=trigger_times,
+            amplitude_px=config.lane_sway_amplitude_px,
+            decay_per_second=config.lane_sway_decay_per_second,
+            receptor_entity_indices=receptor_entity_indices,
+            key_label_entity_indices=key_label_entity_indices,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
@@ -480,23 +613,22 @@ def _compose_hybrid_mode(ctx: _ModeContext):
     judgment_ring_radius = config.core_half_extent + config.threat_half_extents.get(
         "rhythm_threat_basic", 10.0
     )
-    ctx.world.register_system(
-        SurvivalPlayerSystem(
-            input_provider=ctx.input_provider,
-            memory_manager=ctx.memory_manager,
-            player_entity_index=ctx.player_entity_index,
-            arena_width=float(config.window_width),
-            arena_height=float(config.window_height),
-            move_speed=config.survival_move_speed,
-            dash_speed=config.survival_dash_speed,
-            dash_duration_seconds=config.dash_duration_seconds,
-            dash_cooldown_seconds=config.dash_cooldown_seconds,
-            audio_clock=ctx.audio_clock,
-            on_beat_window_seconds=config.dash_beat_window_seconds,
-            audio_engine=ctx.audio_engine,
-            offbeat_sound_id=SFX_CLICK,
-        )
+    survival_player_system = SurvivalPlayerSystem(
+        input_provider=ctx.input_provider,
+        memory_manager=ctx.memory_manager,
+        player_entity_index=ctx.player_entity_index,
+        arena_width=float(config.window_width),
+        arena_height=float(config.window_height),
+        move_speed=config.survival_move_speed,
+        dash_speed=config.survival_dash_speed,
+        dash_duration_seconds=config.dash_duration_seconds,
+        dash_cooldown_seconds=config.dash_cooldown_seconds,
+        audio_clock=ctx.audio_clock,
+        on_beat_window_seconds=config.dash_beat_window_seconds,
+        audio_engine=ctx.audio_engine,
+        offbeat_sound_id=SFX_CLICK,
     )
+    ctx.world.register_system(survival_player_system)
     ctx.world.register_system(
         PlayerInputSystem(
             input_provider=ctx.input_provider,
@@ -528,6 +660,9 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             lethal_collision_mask=PLAYER_COLLISION_LAYER,
         )
     )
+    heavy_threat_type_id = (
+        config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
+    )
     ctx.world.register_system(
         JudgmentSystem(
             audio_clock=ctx.audio_clock,
@@ -547,10 +682,49 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             audio_engine=ctx.audio_engine,
             shot_sound_id=SFX_CANNON,
             jam_sound_id=SFX_CLICK,
+            polarity_enabled=config.polarity_enabled,
+            fire_alt_action_name=config.fire_alt_action_name,
+            heavy_threat_type_id=heavy_threat_type_id,
+            deflect_sound_id=SFX_DEFLECT,
+            parry_sound_id=SFX_PARRY,
+            reflected_collision_layer=REFLECTED_COLLISION_LAYER if config.polarity_enabled else None,
+            reflected_collision_mask=THREAT_COLLISION_LAYER if config.polarity_enabled else None,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     ctx.world.register_system(collision_system)
+    ctx.world.register_system(
+        GrazeSystem(
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            player_entity_index=ctx.player_entity_index,
+            graze_margin=config.graze_margin,
+            fever_gain_per_graze=config.fever_gain_per_graze,
+            fever_decay_per_second=config.fever_decay_per_second,
+            fever_score_multiplier=config.fever_score_multiplier,
+            graze_score_per_hit=config.graze_score_per_hit,
+            audio_engine=ctx.audio_engine,
+            graze_sound_id=SFX_GRAZE,
+        )
+    )
+    shockwave_entity_indices = _create_shockwave_pool(
+        ctx.world, ctx.memory_manager, config.shockwave_pool_size
+    )
+    ctx.world.register_system(
+        ShockwaveSystem(
+            collision_system=collision_system,
+            memory_manager=ctx.memory_manager,
+            game_state=ctx.game_state,
+            survival_player_system=survival_player_system,
+            player_entity_index=ctx.player_entity_index,
+            shockwave_entity_indices=shockwave_entity_indices,
+            min_radius=config.shockwave_min_radius,
+            max_radius=config.shockwave_max_radius,
+            duration_seconds=config.shockwave_duration_seconds,
+            heavy_threat_type_id=config.threat_type_ids.get("rhythm_threat_heavy", -1),
+            score_per_kill=config.score_good,
+        )
+    )
     ctx.world.register_system(
         CoreDamageSystem(
             collision_system=collision_system,
@@ -562,6 +736,18 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
         )
     )
+    if config.polarity_enabled:
+        ctx.world.register_system(
+            ParryImpactSystem(
+                collision_system=collision_system,
+                memory_manager=ctx.memory_manager,
+                game_state=ctx.game_state,
+                player_entity_index=ctx.player_entity_index,
+                center_xy=(center_x, center_y),
+                spawn_radius=config.spawn_radius,
+                score_per_kill=config.score_good,
+            )
+        )
     ctx.world.register_system(
         SurvivalDamageSystem(
             collision_system=collision_system,
@@ -616,6 +802,9 @@ def compose_world(
     memory_manager.create_pool(
         "convergence_ring", CONVERGENCE_RING_DTYPE, dense_capacity=config.max_threats
     )
+    memory_manager.create_pool(
+        "shockwave", SHOCKWAVE_DTYPE, dense_capacity=max(config.shockwave_pool_size, 1)
+    )
 
     world = World(memory_manager)
     world.register_archetype(
@@ -624,6 +813,7 @@ def compose_world(
     world.register_archetype("convergence_ring", ("transform", "sprite", "convergence_ring"))
     world.register_archetype("player_core", ("transform", "hitbox", "sprite", "player_state"))
     world.register_archetype("hud_sprite", ("transform", "sprite"))
+    world.register_archetype("shockwave", ("transform", "hitbox", "sprite", "shockwave"))
 
     # 3. Beatmap: tempos de IMPACTO do JSON viram tempos de SPAWN
     #    (deslocados por approach_seconds) para o cursor do spawner;
@@ -649,9 +839,14 @@ def compose_world(
     crosshair_entity_index = _create_hud_sprite(
         world, memory_manager, TEX_CROSSHAIR, center_x, center_y, layer_z=HUD_LAYER_Z + 1
     )
-    score_digit_indices, combo_digit_indices, judgment_word_index, health_pip_indices = _create_hud(
-        world, memory_manager, config
-    )
+    (
+        score_digit_indices,
+        combo_digit_indices,
+        judgment_word_index,
+        health_pip_indices,
+        score_label_index,
+        combo_label_index,
+    ) = _create_hud(world, memory_manager, config)
 
     # 4. Ordem EXATA de execucao dos sistemas, escolhida pela ESTRATEGIA
     #    DE MODO (`MODE_COMPOSERS`): a IA dita o tempo (mesmo beatmap);
@@ -707,6 +902,12 @@ def compose_world(
             judgment_word_entity_index=judgment_word_index,
             health_pip_entity_indices=health_pip_indices,
             show_health_pips=(config.game_mode != "lanes"),
+            # Flow State ("vidro quebrado") e exclusivo do Arcade 4K --
+            # nos demais modos o limiar fica None e o UIRenderSystem
+            # nunca entra no ramo de ocultacao total.
+            flow_combo_threshold=(config.flow_combo_threshold if config.game_mode == "lanes" else None),
+            score_label_entity_index=score_label_index,
+            combo_label_entity_index=combo_label_index,
         )
     )
 
@@ -798,7 +999,7 @@ def _create_hud(world: World, memory_manager: MemoryManager, config: HertzConfig
     center_x, center_y = config.center_xy
     digit_advance = 24.0
 
-    _create_hud_sprite(world, memory_manager, TEX_LABEL_SCORE, 64.0, 36.0)
+    score_label_index = _create_hud_sprite(world, memory_manager, TEX_LABEL_SCORE, 64.0, 36.0)
     score_digit_indices = np.zeros(SCORE_DIGITS, dtype=np.int64)
     score_right_x = 120.0 + SCORE_DIGITS * digit_advance
     for i in range(SCORE_DIGITS):
@@ -806,7 +1007,9 @@ def _create_hud(world: World, memory_manager: MemoryManager, config: HertzConfig
             world, memory_manager, 0, score_right_x - i * digit_advance, 38.0, alpha=0
         )
 
-    _create_hud_sprite(world, memory_manager, TEX_LABEL_COMBO, center_x - 76.0, center_y + 132.0)
+    combo_label_index = _create_hud_sprite(
+        world, memory_manager, TEX_LABEL_COMBO, center_x - 76.0, center_y + 132.0
+    )
     combo_digit_indices = np.zeros(COMBO_DIGITS, dtype=np.int64)
     combo_right_x = center_x + 84.0
     for i in range(COMBO_DIGITS):
@@ -824,7 +1027,14 @@ def _create_hud(world: World, memory_manager: MemoryManager, config: HertzConfig
             world, memory_manager, TEX_HEALTH_PIP, config.window_width - 44.0 - i * 26.0, 40.0
         )
 
-    return score_digit_indices, combo_digit_indices, judgment_word_index, health_pip_indices
+    return (
+        score_digit_indices,
+        combo_digit_indices,
+        judgment_word_index,
+        health_pip_indices,
+        score_label_index,
+        combo_label_index,
+    )
 
 
 class RhythmCompositionRoot:
@@ -852,7 +1062,15 @@ class RhythmCompositionRoot:
             build_and_register_tutorial_textures,
         )
         from hertzbeats.audio.demo_track_synth import ensure_track
-        from hertzbeats.audio.sfx_synth import SFX_CANNON, SFX_CLICK, SFX_TAP, ensure_sfx
+        from hertzbeats.audio.sfx_synth import (
+            SFX_CANNON,
+            SFX_CLICK,
+            SFX_DEFLECT,
+            SFX_GRAZE,
+            SFX_PARRY,
+            SFX_TAP,
+            ensure_sfx,
+        )
         from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
         from hertzbeats.config import fit_config_to_display
         from hertzbeats.stages import load_stages
@@ -890,7 +1108,7 @@ class RhythmCompositionRoot:
         # play_one_shot em jogo nao pode pagar o custo de I/O e sair fora
         # do tempo.
         ensure_sfx()
-        for sound_id in (SFX_CANNON, SFX_CLICK, SFX_TAP):
+        for sound_id in (SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE):
             audio_engine.preload_one_shot(sound_id)
 
         # 2-4. Fases data-driven + musicas do jogador + fluxo de partida.

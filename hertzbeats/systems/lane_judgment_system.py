@@ -82,6 +82,7 @@ class LaneJudgmentSystem(ISystem):
         self._candidate_mask = np.zeros(capacity, dtype=bool)
         self._scratch_mask = np.zeros(capacity, dtype=bool)
         self._owned_mask = np.zeros(capacity, dtype=bool)
+        self._not_hold_mask = np.zeros(capacity, dtype=bool)
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
 
     def update(self, world: World, delta_time: float) -> None:
@@ -127,6 +128,11 @@ class LaneJudgmentSystem(ISystem):
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(overdue, pending, out=overdue)
         np.logical_and(overdue, self._owned_mask[:active_count], out=overdue)
+        # notas de Scratch sao do `ScratchJudgmentSystem` -- nunca vencem
+        # por esta varredura de tempo (elas tem sua PROPRIA janela/regra)
+        not_hold = self._not_hold_mask[:active_count]
+        np.logical_not(threat_view["is_hold"], out=not_hold)
+        np.logical_and(overdue, not_hold, out=overdue)
 
         overdue_rows = np.flatnonzero(overdue)
         if overdue_rows.shape[0] == 0:
@@ -160,6 +166,10 @@ class LaneJudgmentSystem(ISystem):
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(candidates, pending, out=candidates)
         np.logical_and(candidates, self._owned_mask[:active_count], out=candidates)
+
+        not_hold = self._not_hold_mask[:active_count]
+        np.logical_not(threat_view["is_hold"], out=not_hold)
+        np.logical_and(candidates, not_hold, out=candidates)
 
         np.equal(threat_view["lane"], lane_index, out=self._scratch_mask[:active_count])
         np.logical_and(candidates, self._scratch_mask[:active_count], out=candidates)

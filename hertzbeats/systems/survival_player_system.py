@@ -76,6 +76,14 @@ class SurvivalPlayerSystem(ISystem):
         self._offbeat_sound_id = offbeat_sound_id
         self._delta_buffer = np.zeros(self._threat_pool.capacity, dtype=np.float64)
 
+        # Lidos pelo `ShockwaveSystem` (registrado logo depois): "houve
+        # dash ESTE frame, e foi na batida?" -- mesmo idioma de
+        # `CollisionSystem.get_collision_pairs()` (um sistema segura
+        # referencia a outro e le seu resultado do frame, sem
+        # reimplementar a deteccao).
+        self.dash_triggered_this_frame: bool = False
+        self.dash_was_on_beat_this_frame: bool = False
+
     def _dash_is_on_beat(self) -> bool:
         """True se o aperto de dash cai na janela de alguma batida viva
         (menor |target - agora_efetivo| entre as ameacas na tela)."""
@@ -113,12 +121,17 @@ class SurvivalPlayerSystem(ISystem):
         if move_x != 0.0 or move_y != 0.0:
             player_view["aim_angle_rad"][player_row] = math.atan2(move_y, move_x)
 
+        self.dash_triggered_this_frame = False
+        self.dash_was_on_beat_this_frame = False
+
         cooldown = float(player_view["dash_cooldown_sec"][player_row]) - delta_time
         iframes = float(player_view["iframe_timer_sec"][player_row]) - delta_time
         if inp.is_action_pressed("dash") and cooldown <= 0.0:
             cooldown = self._dash_cooldown_seconds
+            self.dash_triggered_this_frame = True
             if self._dash_is_on_beat():
                 iframes = self._dash_duration_seconds  # esquiva RITMICA: protegido
+                self.dash_was_on_beat_this_frame = True
             elif self._audio_engine is not None and self._offbeat_sound_id is not None:
                 # dash no desespero: emperra (cooldown gasto, clique, nada sai)
                 self._audio_engine.play_one_shot(self._offbeat_sound_id, 0.45)

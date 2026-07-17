@@ -47,6 +47,14 @@ PHASE_LETHAL: int = 1
 """Fase letal: no instante do onset a parede fica solida e a colisao
 passa a valer."""
 
+POLARITY_BLUE: int = 0
+"""Timbre AGUDO (metade superior dos buckets de timbre da IA -- ver
+`assign_lanes` no mapeador): so pode ser destruida pelo botao azul."""
+
+POLARITY_PINK: int = 1
+"""Timbre GRAVE (metade inferior dos buckets de timbre): so pode ser
+destruida pelo botao rosa."""
+
 RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
     [
         ("lane", np.int8),
@@ -60,6 +68,10 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("is_hit", np.bool_),
         ("judgment", np.int8),
         ("packed_handle", np.uint64),
+        ("polarity_id", np.uint8),
+        ("is_reflected", np.bool_),
+        ("is_hold", np.bool_),
+        ("has_grazed", np.bool_),
     ]
 )
 """Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
@@ -109,6 +121,23 @@ Campos:
         `handles.py`/`DungeonStreamingSystem`) para que qualquer sistema
         possa chamar `world.destroy_entity` sem instanciar
         `EntityHandle`.
+    polarity_id: POLARITY_BLUE/POLARITY_PINK (Defensor, opt-in via
+        `polarity_enabled`). Derivada da METADE do bucket de timbre que
+        `assign_lanes` ja atribui a `lane` -- zero custo extra de
+        analise: o mesmo dado que decide a cor no Arcade decide a
+        polaridade no Defensor.
+    is_reflected: Parry Perfeito -- True apos um acerto PERFECT numa
+        ameaca pesada refletir seu vetor de volta para fora; enquanto
+        True, a ameaca muda de "vitima" para "arma" (colide com outras
+        ameacas pendentes, destruindo-as, via `ParryImpactSystem`).
+    is_hold: nota de Scratch do Arcade 4K (cluster de pesadas fundido
+        pelo `lane_choreography`): exige energia de mouse continua entre
+        `target_hit_time_sec` (inicio) e `expire_time_sec` (fim do
+        cluster) -- julgada por `ScratchJudgmentSystem`, nao pelo
+        `LaneJudgmentSystem` comum.
+    has_grazed: Sobrevivencia -- True apos o `GrazeSystem` ja ter
+        contabilizado esta parede como "raspada" (impede pontuar Graze
+        repetidamente por quadro enquanto o jogador permanece na faixa).
 """
 
 PLAYER_STATE_DTYPE: np.dtype = np.dtype(

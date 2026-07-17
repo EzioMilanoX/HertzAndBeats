@@ -84,6 +84,19 @@
       }
     },
     {
+      "stage_id": "stage_polaridade",
+      "name": "7 - POLARIDADE",
+      "subtitle": "azul/rosa + parry | beatmap da fase 3",
+      "track_path": "data/tracks/stage3_sobrecarga.wav",
+      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
+      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "overrides": {
+        "polarity_enabled": true,
+        "approach_seconds": 1.8,
+        "aim_tolerance_degrees": 30.0
+      }
+    },
+    {
       "stage_id": "stage6_hibrido",
       "name": "6 - HIBRIDO",
       "subtitle": "tiro + dash | beatmap da fase 3",

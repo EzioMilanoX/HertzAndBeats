@@ -91,6 +91,12 @@ _MODE_CONTROL_HINTS = {
 }
 """Dica de controles exibida no menu para o MODO da fase selecionada."""
 
+_POLARITY_CONTROL_HINT = (
+    "MOUSE mira  |  CLIQUE ESQ = AZUL, CLIQUE DIR = ROSA  |  PARRY em pesadas no tempo exato"
+)
+"""Dica dedicada da fase de Polaridade -- o mesmo modo Defensor ganha um
+segundo botao de cor, entao a dica generica de "defender" nao basta."""
+
 _MODE_DISPLAY_NAMES = {
     "defender": "O DEFENSOR",
     "survival": "SOBREVIVENCIA",
@@ -125,6 +131,7 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         "SETAS ou W/S escolhem  |  ENTER, ESPACO ou CLIQUE jogam  |  ESC sai", _LABEL_COLOR,
     )
     register_text("hint_paused", hint_font, "ESC continua  |  M volta ao menu", _LABEL_COLOR)
+    register_text("flow_shatter", big_font, "VIDRO QUEBRADO!", _MISS_COLOR)
     register_text("hint_end", hint_font, "R tenta de novo  |  M volta ao menu", _LABEL_COLOR)
     register_text(
         "hint_results", hint_font,
@@ -136,10 +143,12 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         register_text(f"stage_{i}", stage_font, label, _LABEL_COLOR)
         register_text(f"stage_{i}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
         stage_mode = stage.overrides.get("game_mode", "defender")
-        register_text(
-            f"stage_{i}_hint", hint_font,
-            _MODE_CONTROL_HINTS.get(stage_mode, ""), _GOOD_COLOR,
+        hint_text = (
+            _POLARITY_CONTROL_HINT
+            if stage.overrides.get("polarity_enabled", False)
+            else _MODE_CONTROL_HINTS.get(stage_mode, "")
         )
+        register_text(f"stage_{i}_hint", hint_font, hint_text, _GOOD_COLOR)
 
     # calibracao de latencia ao vivo: um aviso por valor (passos de 10 ms)
     for step in range(MAX_LATENCY_STEPS + 1):
