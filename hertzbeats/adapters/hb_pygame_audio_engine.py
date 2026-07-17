@@ -19,6 +19,12 @@ class HBPygameAudioEngine(PygameAudioEngine):
     sem nenhum estado extra; `unpause()` retoma do exato ponto.
     """
 
+    def preload_one_shot(self, sound_id: str) -> None:
+        """Carrega um SFX para o cache ANTES do gameplay (o primeiro
+        `play_one_shot` deixaria de tocar no tempo por causa do I/O)."""
+        if sound_id not in self._sounds:
+            self._sounds[sound_id] = pygame.mixer.Sound(sound_id)
+
     def pause_track(self) -> None:
         """Pausa a faixa em reproducao (e, com ela, o `IAudioClock`)."""
         pygame.mixer.music.pause()

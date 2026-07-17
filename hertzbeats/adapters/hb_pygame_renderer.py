@@ -255,7 +255,11 @@ class HBPygameRenderer(PygameRenderer):
                 scale_x = max(float(scales_xy[i, 0]), 0.01)
                 scale_y = max(float(scales_xy[i, 1]), 0.01)
                 color = (int(tint_rgba[i, 0]), int(tint_rgba[i, 1]), int(tint_rgba[i, 2]))
-                if abs(scale_x - scale_y) > 0.01:
+                if int(texture_ids[i]) == 4:  # TEX_CONVERGENCE_RING: contorno
+                    pygame.draw.circle(
+                        self._surface, color, (int(x), int(y)), max(2, int(8.0 * scale_x)), 2
+                    )
+                elif abs(scale_x - scale_y) > 0.01:
                     # escala anisotropica = barra/laser (modo Sobrevivencia)
                     width = max(1, int(16.0 * scale_x))
                     height = max(1, int(16.0 * scale_y))

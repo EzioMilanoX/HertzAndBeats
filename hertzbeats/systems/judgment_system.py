@@ -70,6 +70,10 @@ class JudgmentSystem(ISystem):
         score_good: int,
         judgment_display_seconds: float,
         misfire_breaks_combo: bool = True,
+        misfire_jam_seconds: float = 0.0,
+        audio_engine=None,
+        shot_sound_id: str = None,
+        jam_sound_id: str = None,
         fire_action_name: str = "fire",
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
@@ -91,6 +95,10 @@ class JudgmentSystem(ISystem):
         self._score_good = int(score_good)
         self._judgment_display_seconds = float(judgment_display_seconds)
         self._misfire_breaks_combo = bool(misfire_breaks_combo)
+        self._misfire_jam_seconds = float(misfire_jam_seconds)
+        self._audio_engine = audio_engine
+        self._shot_sound_id = shot_sound_id
+        self._jam_sound_id = jam_sound_id
         self._fire_action_name = fire_action_name
 
         capacity = self._threat_pool.capacity
@@ -110,9 +118,17 @@ class JudgmentSystem(ISystem):
         """
         del delta_time
 
+        fire_pressed = self._input_provider.is_action_pressed(self._fire_action_name)
+        if fire_pressed:
+            # arma emperrada (misfire anterior): o gatilho so faz "tec"
+            player_row = self._player_pool.dense_row_of(self._player_entity_index)
+            if float(self._player_pool.active_view()["gun_jam_sec"][player_row]) > 0.0:
+                self._play(self._jam_sound_id, 0.4)
+                fire_pressed = False
+
         active_count = self._threat_pool.count
         if active_count == 0:
-            if self._input_provider.is_action_pressed(self._fire_action_name):
+            if fire_pressed:
                 self._register_misfire()  # tiro com a arena vazia tambem e fora do tempo
             return
 
@@ -136,7 +152,7 @@ class JudgmentSystem(ISystem):
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
 
-        if self._input_provider.is_action_pressed(self._fire_action_name):
+        if fire_pressed:
             self._try_player_hit(world, threat_view, deltas, active_count)
 
     def _sweep_overdue_misses(
@@ -170,17 +186,28 @@ class JudgmentSystem(ISystem):
         self._game_state.combo_count = 0
         self._game_state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
 
+    def _play(self, sound_id, volume: float) -> None:
+        """Dispara um SFX se houver backend e som configurados (testes
+        headless injetam NullAudioEngine ou nada)."""
+        if self._audio_engine is not None and sound_id is not None:
+            self._audio_engine.play_one_shot(sound_id, volume)
+
     def _register_misfire(self) -> None:
-        """MISFIRE (estilo BPM/Hellsinger): disparo SEM candidata na
-        janela de tempo + cone de mira. Falha de ritmo: zera o combo e
-        exibe feedback de MISS -- e a disciplina que forca o jogador a
-        atirar NA batida, nao a metralhar. Desligavel por fase
-        (`misfire_breaks_combo: false`, ex.: tutorial)."""
+        """MISFIRE punitivo (estilo BPM/Hellsinger): disparo SEM candidata
+        na janela de tempo + cone de mira. A arma EMPERRA por
+        `misfire_jam_seconds` (clique seco; o gatilho nao responde), o
+        combo zera e o feedback de MISS aparece -- a disciplina que forca
+        o jogador a atirar NA batida, nao a metralhar. Desligavel por
+        fase (`misfire_breaks_combo: false`, ex.: tutorial)."""
         state = self._game_state
         state.misfire_count += 1
+        self._play(self._jam_sound_id, 0.55)
         if self._misfire_breaks_combo:
             state.combo_count = 0
             state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+            if self._misfire_jam_seconds > 0.0:
+                player_row = self._player_pool.dense_row_of(self._player_entity_index)
+                self._player_pool.active_view()["gun_jam_sec"][player_row] = self._misfire_jam_seconds
 
     def _try_player_hit(
         self,
@@ -236,6 +263,9 @@ class JudgmentSystem(ISystem):
         threat_view["is_hit"][best_row] = True
         threat_view["judgment"][best_row] = judgment
         world.destroy_entity(int(threat_view["packed_handle"][best_row]))
+
+        # Gun Sync: o canhao do tiro certeiro E percussao da trilha
+        self._play(self._shot_sound_id, 0.9)
 
         state = self._game_state
         if judgment == JUDGMENT_PERFECT:

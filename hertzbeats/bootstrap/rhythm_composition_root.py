@@ -41,7 +41,13 @@ from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 
+from hertzbeats.audio.sfx_synth import SFX_CANNON, SFX_CLICK, SFX_TAP
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
+from hertzbeats.systems.convergence_ring_system import (
+    CONVERGENCE_RING_DTYPE,
+    ConvergenceRingSystem,
+)
+from hertzbeats.systems.wall_phase_system import WallPhaseSystem
 from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
@@ -138,6 +144,7 @@ class _ModeContext:
         "memory_manager",
         "input_provider",
         "audio_clock",
+        "audio_engine",
         "game_state",
         "scheduled",
         "hit_times",
@@ -183,6 +190,7 @@ def _compose_defender_mode(ctx: _ModeContext):
         threat_collision_layer=THREAT_COLLISION_LAYER,
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
+        ring_archetype_name="convergence_ring",
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -211,6 +219,14 @@ def _compose_defender_mode(ctx: _ModeContext):
     )
     ctx.world.register_system(spawner_system)
     ctx.world.register_system(
+        ConvergenceRingSystem(
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            spawn_radius=config.spawn_radius,
+            judgment_ring_radius=judgment_ring_radius,
+        )
+    )
+    ctx.world.register_system(
         JudgmentSystem(
             audio_clock=ctx.audio_clock,
             input_provider=ctx.input_provider,
@@ -225,6 +241,10 @@ def _compose_defender_mode(ctx: _ModeContext):
             score_good=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
             misfire_breaks_combo=config.misfire_breaks_combo,
+            misfire_jam_seconds=config.misfire_jam_seconds,
+            audio_engine=ctx.audio_engine,
+            shot_sound_id=SFX_CANNON,
+            jam_sound_id=SFX_CLICK,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
@@ -267,6 +287,7 @@ def _compose_survival_mode(ctx: _ModeContext):
         threat_collision_layer=THREAT_COLLISION_LAYER,
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
+        strike_seconds=config.survival_strike_seconds,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -288,9 +309,21 @@ def _compose_survival_mode(ctx: _ModeContext):
             dash_speed=config.survival_dash_speed,
             dash_duration_seconds=config.dash_duration_seconds,
             dash_cooldown_seconds=config.dash_cooldown_seconds,
+            audio_clock=ctx.audio_clock,
+            on_beat_window_seconds=config.dash_beat_window_seconds,
+            audio_engine=ctx.audio_engine,
+            offbeat_sound_id=SFX_CLICK,
         )
     )
     ctx.world.register_system(spawner_system)
+    ctx.world.register_system(
+        WallPhaseSystem(  # ANTES da colisao: a virada aviso->letal vale no frame do onset
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            lethal_collision_layer=THREAT_COLLISION_LAYER,
+            lethal_collision_mask=PLAYER_COLLISION_LAYER,
+        )
+    )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     ctx.world.register_system(collision_system)
     ctx.world.register_system(
@@ -373,6 +406,8 @@ def _compose_lanes_mode(ctx: _ModeContext):
             score_perfect=config.score_perfect,
             score_good=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
+            audio_engine=ctx.audio_engine,
+            ghost_tap_sound_id=SFX_TAP,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
@@ -419,6 +454,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
         threat_collision_layer=THREAT_COLLISION_LAYER,
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
+        ring_archetype_name="convergence_ring",
     )
     wall_spawner = SurvivalSpawnerSystem(
         audio_clock=ctx.audio_clock,
@@ -432,6 +468,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
         threat_collision_layer=THREAT_COLLISION_LAYER,
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
+        strike_seconds=config.survival_strike_seconds,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -454,6 +491,10 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             dash_speed=config.survival_dash_speed,
             dash_duration_seconds=config.dash_duration_seconds,
             dash_cooldown_seconds=config.dash_cooldown_seconds,
+            audio_clock=ctx.audio_clock,
+            on_beat_window_seconds=config.dash_beat_window_seconds,
+            audio_engine=ctx.audio_engine,
+            offbeat_sound_id=SFX_CLICK,
         )
     )
     ctx.world.register_system(
@@ -472,6 +513,22 @@ def _compose_hybrid_mode(ctx: _ModeContext):
     ctx.world.register_system(radial_spawner)
     ctx.world.register_system(wall_spawner)
     ctx.world.register_system(
+        ConvergenceRingSystem(
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            spawn_radius=config.spawn_radius,
+            judgment_ring_radius=judgment_ring_radius,
+        )
+    )
+    ctx.world.register_system(
+        WallPhaseSystem(  # ANTES da colisao: virada aviso->letal vale no frame do onset
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            lethal_collision_layer=THREAT_COLLISION_LAYER,
+            lethal_collision_mask=PLAYER_COLLISION_LAYER,
+        )
+    )
+    ctx.world.register_system(
         JudgmentSystem(
             audio_clock=ctx.audio_clock,
             input_provider=ctx.input_provider,
@@ -486,6 +543,10 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             score_good=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
             misfire_breaks_combo=config.misfire_breaks_combo,
+            misfire_jam_seconds=config.misfire_jam_seconds,
+            audio_engine=ctx.audio_engine,
+            shot_sound_id=SFX_CANNON,
+            jam_sound_id=SFX_CLICK,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
@@ -533,6 +594,7 @@ def compose_world(
     audio_clock: IAudioClock,
     tutorial_steps: tuple = (),
     stage_ordinal: int = 0,
+    audio_engine=None,
 ) -> ComposedGame:
     """Composicao PURA (sem pygame): pools, arquetipos, entidades
     persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
@@ -551,11 +613,15 @@ def compose_world(
         memory_manager.create_pool(pool_name, dtype)
     memory_manager.create_pool("rhythm_threat", RHYTHM_THREAT_DTYPE, dense_capacity=config.max_threats)
     memory_manager.create_pool("player_state", PLAYER_STATE_DTYPE, dense_capacity=4)
+    memory_manager.create_pool(
+        "convergence_ring", CONVERGENCE_RING_DTYPE, dense_capacity=config.max_threats
+    )
 
     world = World(memory_manager)
     world.register_archetype(
         "rhythm_threat_radial", ("transform", "velocity", "hitbox", "sprite", "rhythm_threat")
     )
+    world.register_archetype("convergence_ring", ("transform", "sprite", "convergence_ring"))
     world.register_archetype("player_core", ("transform", "hitbox", "sprite", "player_state"))
     world.register_archetype("hud_sprite", ("transform", "sprite"))
 
@@ -603,6 +669,7 @@ def compose_world(
         memory_manager=memory_manager,
         input_provider=input_provider,
         audio_clock=audio_clock,
+        audio_engine=audio_engine,
         game_state=game_state,
         scheduled=scheduled,
         hit_times=hit_times,
@@ -785,6 +852,7 @@ class RhythmCompositionRoot:
             build_and_register_tutorial_textures,
         )
         from hertzbeats.audio.demo_track_synth import ensure_track
+        from hertzbeats.audio.sfx_synth import SFX_CANNON, SFX_CLICK, SFX_TAP, ensure_sfx
         from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
         from hertzbeats.config import fit_config_to_display
         from hertzbeats.stages import load_stages
@@ -816,6 +884,14 @@ class RhythmCompositionRoot:
         audio_clock.calibrate_latency(
             saved_latency if saved_latency is not None else config.output_latency_seconds
         )
+
+        # SFX sintetizados deterministicamente (Gun Sync, misfire, ghost
+        # tap): garantidos e PRE-CARREGADOS aqui -- o primeiro
+        # play_one_shot em jogo nao pode pagar o custo de I/O e sair fora
+        # do tempo.
+        ensure_sfx()
+        for sound_id in (SFX_CANNON, SFX_CLICK, SFX_TAP):
+            audio_engine.preload_one_shot(sound_id)
 
         # 2-4. Fases data-driven + musicas do jogador + fluxo de partida.
         # O HertzGameLoop ja compoe a fase 0 (via `compose_world`) para o

@@ -57,6 +57,8 @@ class LaneJudgmentSystem(ISystem):
         score_good: int,
         judgment_display_seconds: float,
         lane_action_names: Tuple[str, ...] = DEFAULT_LANE_ACTIONS,
+        audio_engine=None,
+        ghost_tap_sound_id: str = None,
     ) -> None:
         """Buffers pre-alocados pela capacidade da pool (o update nunca
         aloca arrays)."""
@@ -71,6 +73,8 @@ class LaneJudgmentSystem(ISystem):
         self._score_good = int(score_good)
         self._judgment_display_seconds = float(judgment_display_seconds)
         self._lane_action_names = tuple(lane_action_names)
+        self._audio_engine = audio_engine
+        self._ghost_tap_sound_id = ghost_tap_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -161,7 +165,11 @@ class LaneJudgmentSystem(ISystem):
         np.logical_and(candidates, self._scratch_mask[:active_count], out=candidates)
 
         if not np.any(candidates):
-            return  # ghost tap: sem nota na janela desta coluna
+            # GHOST TAPPING (FNF moderno): batucar livre sem nota na
+            # janela NAO pune -- so um tick discreto para manter o balanco
+            if self._audio_engine is not None and self._ghost_tap_sound_id is not None:
+                self._audio_engine.play_one_shot(self._ghost_tap_sound_id, 0.3)
+            return
 
         selection = self._selection_buffer[:active_count]
         np.copyto(selection, abs_deltas)

@@ -11,8 +11,12 @@ from ouroboros.core.world import World
 from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.rhythm.runtime.rhythm_spawner_system import RhythmSpawnerSystem
 
-from hertzbeats.components.schemas import JUDGMENT_PENDING, MODE_TAG_DEFENDER
-from hertzbeats.components.texture_ids import TEX_THREAT_BASIC
+from hertzbeats.components.schemas import (
+    JUDGMENT_PENDING,
+    MODE_TAG_DEFENDER,
+    PHASE_LETHAL,
+)
+from hertzbeats.components.texture_ids import TEX_CONVERGENCE_RING, TEX_THREAT_BASIC
 
 _TAU = 2.0 * math.pi
 
@@ -65,6 +69,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         threat_collision_mask: int,
         max_threats_per_frame: int,
         min_travel_seconds: float = 0.05,
+        ring_archetype_name: str = None,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -98,6 +103,10 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._threat_collision_layer = int(threat_collision_layer)
         self._threat_collision_mask = int(threat_collision_mask)
         self._min_travel_seconds = float(min_travel_seconds)
+        self._ring_archetype_name = ring_archetype_name
+        self._ring_pool = (
+            memory_manager.get_pool("convergence_ring") if ring_archetype_name else None
+        )
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -132,6 +141,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
 
         strength = float(self._scheduled_threats["strength"][row_index])
         threat_view["mode_tag"][threat_row] = MODE_TAG_DEFENDER
+        threat_view["phase"][threat_row] = PHASE_LETHAL
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
@@ -174,4 +184,39 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         sprite_view["tint_a"][sprite_row] = 255
         sprite_view["layer_z"][sprite_row] = 20
 
+        if self._ring_archetype_name is not None:
+            self._spawn_convergence_ring(world, hit_time, time_remaining, sprite_view, sprite_row)
+
         return packed
+
+    def _spawn_convergence_ring(
+        self, world: World, hit_time: float, travel_seconds: float,
+        threat_sprite_view, threat_sprite_row: int,
+    ) -> None:
+        """Anel-aviso centrado no nucleo, na COR da ameaca: o
+        `ConvergenceRingSystem` encolhe seu raio ate o anel de julgamento
+        exatamente em `hit_time` (mesma base de tempo do julgamento)."""
+        ring_packed = world.create_entity(self._ring_archetype_name)
+        ring_index = unpack_index(ring_packed)
+
+        ring_row = self._ring_pool.dense_row_of(ring_index)
+        ring_view = self._ring_pool.active_view()
+        ring_view["target_hit_time_sec"][ring_row] = hit_time
+        ring_view["travel_seconds"][ring_row] = travel_seconds
+        ring_view["packed_handle"][ring_row] = ring_packed
+
+        transform_row = self._transform_pool.dense_row_of(ring_index)
+        transform_view = self._transform_pool.active_view()
+        transform_view["position_x"][transform_row] = self._center_x
+        transform_view["position_y"][transform_row] = self._center_y
+        transform_view["scale_x"][transform_row] = self._spawn_radius / 8.0
+        transform_view["scale_y"][transform_row] = self._spawn_radius / 8.0
+
+        sprite_row = self._sprite_pool.dense_row_of(ring_index)
+        sprite_view = self._sprite_pool.active_view()
+        sprite_view["texture_id"][sprite_row] = TEX_CONVERGENCE_RING
+        sprite_view["tint_r"][sprite_row] = threat_sprite_view["tint_r"][threat_sprite_row]
+        sprite_view["tint_g"][sprite_row] = threat_sprite_view["tint_g"][threat_sprite_row]
+        sprite_view["tint_b"][sprite_row] = threat_sprite_view["tint_b"][threat_sprite_row]
+        sprite_view["tint_a"][sprite_row] = 88
+        sprite_view["layer_z"][sprite_row] = 6  # atras das ameacas e do nucleo

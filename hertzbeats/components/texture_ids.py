@@ -16,6 +16,10 @@ TEX_CROSSHAIR: int = 2
 TEX_LANE_RECEPTOR: int = 3
 """Receptor (anel) de uma coluna na linha de julgamento do modo Arcade 4K."""
 
+TEX_CONVERGENCE_RING: int = 4
+"""Anel de convergencia do Defensor (contorno procedural; raio = 8*escala),
+encolhendo ate o anel de julgamento no instante do hit."""
+
 TEX_KEY_LABEL_BASE: int = 140
 """Rotulo da tecla da coluna `k` do Arcade 4K = `TEX_KEY_LABEL_BASE + k`."""
 

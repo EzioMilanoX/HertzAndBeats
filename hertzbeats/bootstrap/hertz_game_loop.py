@@ -84,6 +84,7 @@ class HertzGameLoop(GameLoop):
         self._stages = stages
         self._audio_clock = audio_clock
         self._input_provider = input_provider  # tambem setado por GameLoop.__init__
+        self._audio_engine = audio_engine  # idem -- precisa existir ANTES de _compose_stage(0) abaixo
         self._selected_stage = 0
         self._loaded_stage = 0
         self._flow = FLOW_MENU
@@ -145,6 +146,7 @@ class HertzGameLoop(GameLoop):
             self._audio_clock,
             tutorial_steps=stage.tutorial_steps,
             stage_ordinal=stage_index,
+            audio_engine=self._audio_engine,
         )
         self._composed = composed
         self._stage_config = stage_config

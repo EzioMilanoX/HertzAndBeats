@@ -85,6 +85,10 @@ class PlayerInputSystem(ISystem):
             player_view["dash_cooldown_sec"][player_row] = cooldown if cooldown > 0.0 else 0.0
             player_view["iframe_timer_sec"][player_row] = iframes if iframes > 0.0 else 0.0
 
+        # arma emperrada (misfire): decrementa aqui, o dono dos timers
+        gun_jam = float(player_view["gun_jam_sec"][player_row]) - delta_time
+        player_view["gun_jam_sec"][player_row] = gun_jam if gun_jam > 0.0 else 0.0
+
         crosshair_row = self._transform_pool.dense_row_of(self._crosshair_entity_index)
         transform_view = self._transform_pool.active_view()
         transform_view["position_x"][crosshair_row] = (
@@ -94,6 +98,11 @@ class PlayerInputSystem(ISystem):
             self._center_y + math.sin(aim_angle) * self._crosshair_orbit_radius
         )
         transform_view["rotation_rad"][crosshair_row] = aim_angle
+
+        # feedback do jam: a mira apaga enquanto a arma nao responde
+        crosshair_sprite_row = self._sprite_pool.dense_row_of(self._crosshair_entity_index)
+        sprite_view = self._sprite_pool.active_view()
+        sprite_view["tint_a"][crosshair_sprite_row] = 80 if gun_jam > 0.0 else 255
 
         if self._manage_dash:
             player_sprite_row = self._sprite_pool.dense_row_of(self._player_entity_index)

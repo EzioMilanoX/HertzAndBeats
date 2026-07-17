@@ -63,6 +63,9 @@ class HertzConfig:
     lane_spacing: float = 110.0
     judgment_line_offset: float = 170.0
     mixed_section_seconds: float = 12.0
+    misfire_jam_seconds: float = 0.5
+    dash_beat_window_seconds: float = 0.15
+    survival_strike_seconds: float = 0.30
 
     @property
     def center_xy(self) -> Tuple[float, float]:
@@ -110,6 +113,9 @@ class HertzConfig:
             lane_spacing=raw.get("lane_spacing", 110.0),
             judgment_line_offset=raw.get("judgment_line_offset", 170.0),
             mixed_section_seconds=raw.get("mixed_section_seconds", 12.0),
+            misfire_jam_seconds=raw.get("misfire_jam_seconds", 0.5),
+            dash_beat_window_seconds=raw.get("dash_beat_window_seconds", 0.15),
+            survival_strike_seconds=raw.get("survival_strike_seconds", 0.30),
         )
 
 

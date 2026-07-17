@@ -12,10 +12,10 @@ A IA dita o **tempo** (o mesmo `beatmap.json`); o modo dita a **interpretação 
 
 | Modo | Estilo | Como se joga |
 | --- | --- | --- |
-| **Defensor** | BPM / Metal: Hellsinger | Núcleo fixo, ameaças radiais 360º; mire com o mouse e atire quando a ameaça tocar sua mira. Atirar **fora do tempo é misfire** e zera o combo. |
-| **Sobrevivência** | Just Shapes & Beats | Mova-se livre (WASD); paredes de som varrem a arena cruzando o centro na batida. **Não há ataque**: o Dash (Espaço, i-frames) atravessa as paredes no ritmo — atravessar ou esquivar pontua. |
-| **Arcade 4K** | FNF / VSRG | 4 colunas fixas; notas caem até a linha de julgamento. Aperte **D F J K** na coluna certa, na janela certa. Ghost taps não punem. |
-| **Híbrido** | Defensor + Sobrevivência | As **seções da música alternam** os modos: atire nas batidas das seções pares, dashe pelas ondas das ímpares. Você move o corpo (WASD) e mira a torreta do núcleo com o mouse — o escudo móvel do núcleo. |
+| **Defensor** | BPM / Metal: Hellsinger | Núcleo fixo, ameaças radiais 360º. Cada ameaça vem com um **anel de convergência** — um anel neon que encolhe matematicamente até coincidir com a sua mira exatamente no milissegundo do hit: atire quando os círculos se beijarem. Acerto no tempo dispara um **canhão pesado que vira percussão da trilha** (Gun Sync); atirar fora do tempo é **misfire** — clique seco, arma emperra por 0.5s e o combo zera. |
+| **Sobrevivência** | Just Shapes & Beats | Mova-se livre (WASD). Toda parede de som é **telegrafada**: nasce como linha-guia translúcida piscando no lugar exato, uma aproximação inteira antes — e só fica sólida e letal no instante do onset. **Não há ataque**: o Dash (Espaço) só concede i-frames se apertado **na batida** (esquiva rítmica); fora do tempo ele emperra e a parede pune. |
+| **Arcade 4K** | FNF / VSRG | 4 colunas fixas (**A S W D**); notas caem até a linha de julgamento. Em beatmaps `hybrid`, a coreografia é automática: **kicks nas bordas** (A/D), **vocais no centro** (S/W) — o groove numa mão, a melodia na outra. **Ghost tapping**: batucar livre sem nota na janela não pune, só um tique suave para manter o balanço. |
+| **Híbrido** | Defensor + Sobrevivência | As **seções da música alternam** os modos: atire nas batidas das seções pares, dashe pelas ondas telegrafadas das ímpares. Você move o corpo (WASD) e mira a torreta do núcleo com o mouse — o escudo móvel do núcleo. |
 
 ## Como jogar
 
@@ -128,6 +128,8 @@ O HUD é desenhado pela mesma pipeline `IRenderer.draw_batch()` ultra-rápida do
 A única fonte de verdade temporal é o `IAudioClock` (posição real de reprodução, compensada de latência) — nunca delta-time acumulado, então áudio e gameplay não sofrem drift.
 
 O **fluxo de partida** (menu/pausa/derrota/resultados) vive no `HertzGameLoop` — não em um `ISystem`: sistemas julgam uma fase em andamento; trocar ou reiniciar fase é *recomposição* (`compose_world` de novo: pools novas, placar zerado, cursor do spawner em 0, música do zero), na fase de carregamento, onde alocar é permitido. Os overlays (menu, PAUSADO, GAME OVER, FASE CONCLUÍDA) usam superfícies pré-renderizadas na composição — nenhum `font.render` por frame.
+
+**Feedback sonoro é percussão real**: os três SFX (canhão do Gun Sync, clique do misfire/dash-fora-do-tempo, tique do ghost tap) são sintetizados deterministicamente (como as faixas) em `data/sfx/` e pré-carregados no build — nenhum atraso de I/O na primeira vez que tocam.
 
 Os **modos de jogo** são o `GameModeStrategy` da arquitetura, resolvido em tempo de composição: `MODE_COMPOSERS` mapeia `game_mode` → função que registra os sistemas do modo (`defender`: spawner radial + JudgmentSystem com misfire; `survival`: jogador móvel + spawner de varreduras + julgamento 100% por colisão; `lanes`: spawner de notas + julgamento por tecla/coluna; `hybrid`: os dois primeiros coexistindo). Todos os spawners **são** o `RhythmSpawnerSystem` da engine (cursor monotônico e compensação de latência intactos) e todos consomem o mesmo `RHYTHM_THREAT_DTYPE` — o modo só muda a interpretação espacial dos campos (`lane` = setor angular, eixo de varredura ou coluna). Zero branch por evento no hot-path.
 

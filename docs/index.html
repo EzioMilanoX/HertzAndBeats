@@ -218,10 +218,12 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>90 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>102 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
+<details><summary><code>test_convergence_rings.py</code> — Aneis de Convergencia do Defensor: encolhem matematicamente ate o anel de julgamento no ms do hit. (4 testes)</summary><ul><li><code>test_ring_spawns_alongside_threat_at_spawn_radius</code></li><li><code>test_ring_radius_shrinks_linearly_to_the_judgment_ring</code></li><li><code>test_ring_self_destructs_at_the_hit_instant</code></li><li><code>test_ring_tint_matches_the_threat_it_warns_about</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
+<details><summary><code>test_gun_sync_and_ghost_tap.py</code> — Gun Sync (canhao no acerto, clique no misfire) e Ghost Tapping (tap livre sem punicao) no Arcade. (4 testes)</summary><ul><li><code>test_hit_on_time_plays_the_cannon</code></li><li><code>test_misfire_plays_click_and_jams_the_gun</code></li><li><code>test_jammed_gun_ignores_trigger_until_it_clears</code></li><li><code>test_ghost_tap_plays_soft_tick_without_penalty</code></li></ul></details>
 <details><summary><code>test_hybrid_layers.py</code> — Perfil hybrid no jogo: fusao kick+vocal com prioridade do kick e roteamento por camada no Arcade. (5 testes)</summary><ul><li><code>test_merge_gives_kick_priority_and_keeps_order</code></li><li><code>test_merge_with_empty_layers</code></li><li><code>test_unquantized_selection_respects_gap_budget_and_window</code></li><li><code>test_lanes_mode_routes_kick_to_edges_and_vocal_to_center</code></li><li><code>test_single_layer_beatmap_keeps_timbre_lanes</code></li></ul></details>
 <details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
@@ -233,7 +235,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
 <details><summary><code>test_render_visuals.py</code> — Regressao VISUAL do renderer (pygame headless): textos blitam como glifos, nunca blocos solidos. (4 testes)</summary><ul><li><code>test_word_texture_has_glyph_holes</code></li><li><code>test_word_texture_survives_alpha_roundtrip</code></li><li><code>test_digit_texture_has_glyph_holes</code></li><li><code>test_hidden_sprite_paints_nothing</code></li></ul></details>
-<details><summary><code>test_survival_mode.py</code> — Modo Sobrevivencia: paredes cruzam o centro na batida; dano por toque, DODGED no dash, SURVIVED na expiracao. (4 testes)</summary><ul><li><code>test_wall_crosses_arena_center_exactly_on_beat</code></li><li><code>test_touching_wall_damages_and_breaks_combo</code></li><li><code>test_dash_through_wall_scores_dodge_and_keeps_combo</code></li><li><code>test_expired_wall_scores_survival</code></li></ul></details>
+<details><summary><code>test_survival_mode.py</code> — Modo Sobrevivencia: paredes TELEGRAFADAS (aviso-&gt;letal no onset); dano so no toque letal; dash so protege NA BATIDA. (8 testes)</summary><ul><li><code>test_wall_spawns_in_warning_phase_with_collision_disarmed</code></li><li><code>test_wall_becomes_lethal_exactly_on_the_onset</code></li><li><code>test_touch_during_warning_phase_is_ignored</code></li><li><code>test_touching_lethal_wall_damages_and_breaks_combo</code></li><li><code>test_dash_on_beat_grants_iframes_and_survives_the_strike</code></li><li><code>test_dash_off_beat_grants_no_protection_and_still_costs_cooldown</code></li><li><code>test_expired_wall_scores_survival</code></li><li><code>test_heavy_threat_wall_is_centered_normal_wall_is_offset</code></li></ul></details>
 <details><summary><code>test_tutorial_stage.py</code> — Tutorial: banner sincronizado ao relogio de audio e validade dos dados versionados das fases. (4 testes)</summary><ul><li><code>test_repo_stage_data_is_valid</code></li><li><code>test_tutorial_banner_follows_music_clock</code></li><li><code>test_stage_without_tutorial_steps_has_no_tutorial_system</code></li><li><code>test_simultaneous_tutorial_wave_all_dodged_with_one_dash</code></li></ul></details>
 <details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
 <p>Rodar: <code>python -m pytest</code> (na raiz). A suíte inclui <strong>invariantes de jogabilidade</strong>
@@ -257,6 +259,8 @@ efetivamente consumido). Como o `PygameAudioClock` deriva
 `now_seconds()` de `get_pos()`, pausar a musica congela o relogio, e
 TODO o gameplay ritmico (spawner/julgamento) congela em sincronia
 sem nenhum estado extra; `unpause()` retoma do exato ponto.</pre>
+<h4><code>.preload_one_shot()</code></h4><pre class="doc">Carrega um SFX para o cache ANTES do gameplay (o primeiro
+`play_one_shot` deixaria de tocar no tempo por causa do I/O).</pre>
 <h4><code>.pause_track()</code></h4><pre class="doc">Pausa a faixa em reproducao (e, com ela, o `IAudioClock`).</pre>
 <h4><code>.resume_track()</code></h4><pre class="doc">Retoma a faixa pausada do ponto exato em que congelou.</pre>
 </details>
@@ -383,6 +387,22 @@ deterministicamente a partir de `synth_spec` se necessario. Sem
 `synth_spec` (faixa do usuario), o arquivo precisa existir.</pre>
 <h4><code>synthesize_demo_track()</code></h4><pre class="doc">Compat: a faixa demo original e o estilo `standard` em 128 BPM.</pre>
 <h4><code>ensure_demo_track()</code></h4><pre class="doc">Compat: garante a faixa demo (estilo `standard`, 128 BPM, 24 compassos).</pre>
+</details>
+<details class="module" id="hertzbeats-audio-sfx_synth"><summary><code>hertzbeats/audio/sfx_synth.py</code> — Efeitos sonoros sintetizados deterministicamente (numpy + stdlib wave),</summary>
+<pre class="doc">Efeitos sonoros sintetizados deterministicamente (numpy + stdlib wave),
+como as faixas: nenhum .wav de SFX e versionado -- qualquer maquina
+reconstroi os mesmos sons no primeiro build.
+
+Gun Sync: o canhao do tiro certeiro E percussao (bumbo pesado + estalo),
+desenhado para se fundir a trilha; o clique seco do misfire e o &quot;tec&quot; de
+arma emperrada; o tap fantasma e um tick discreto de batucada livre.</pre>
+<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code></p>
+<h4><code>_cannon()</code></h4><pre class="doc">Tiro no tempo: bumbo profundo (sweep 160-&gt;40 Hz) + estalo curto --
+percussao que se soma a musica.</pre>
+<h4><code>_click()</code></h4><pre class="doc">Misfire: &#x27;tec&#x27; seco e metalico de gatilho emperrado.</pre>
+<h4><code>_tap()</code></h4><pre class="doc">Ghost tap: tick suave e abafado (batucada livre sem punicao).</pre>
+<h4><code>ensure_sfx()</code></h4><pre class="doc">Garante os tres SFX em data/sfx/ (sintese deterministica, so na
+primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
@@ -722,6 +742,26 @@ Atributos:
         `overrides`; fases construidas do repositorio mantem a
         afinacao curada por modo.</pre>
 </details>
+<details class="module" id="hertzbeats-systems-convergence_ring_system"><summary><code>hertzbeats/systems/convergence_ring_system.py</code> — Aneis de Convergencia do Defensor: o aviso visual que encolhe ate o anel de julgamento no ms do hit.</summary>
+<pre class="doc">Aneis de Convergencia do Defensor: o aviso visual que encolhe ate o anel de julgamento no ms do hit.</pre>
+<h3>classe <code>ConvergenceRingSystem</code></h3><pre class="doc">Anima os aneis-aviso do Defensor: para cada ameaca radial que nasce
+na borda, o spawner cria tambem um ANEL centrado no nucleo, e este
+sistema encolhe o raio dele MATEMATICAMENTE para alinhar com o anel
+de julgamento exatamente no milissegundo do hit::
+
+    fracao = (target_hit_time - agora_efetivo) / travel_seconds
+    raio   = anel_julgamento + (raio_spawn - anel_julgamento) * fracao
+
+Como `agora_efetivo` e o MESMO relogio compensado do julgamento, o
+anel tocando o anel de julgamento E a janela PERFECT -- o jogador
+atira quando os circulos se beijam, sem precisar estimar velocidade.
+
+Zero-GC: interpolacao vetorizada em buffers pre-alocados sobre a
+pool `convergence_ring`; escrita de escala via linhas densas
+re-resolvidas (`dense_rows_of`); aneis vencidos sao destruidos pelo
+`packed_handle` gravado na propria linha (destruicao diferida).</pre>
+<h4><code>.update()</code></h4><pre class="doc">Interpola os raios do frame e destroi aneis que ja convergiram.</pre>
+</details>
 <details class="module" id="hertzbeats-systems-core_damage_system"><summary><code>hertzbeats/systems/core_damage_system.py</code> — Consome os pares do CollisionSystem: pune o jogador quando uma ameaca vencida atinge o nucleo.</summary>
 <pre class="doc">Consome os pares do CollisionSystem: pune o jogador quando uma ameaca vencida atinge o nucleo.</pre>
 <h3>classe <code>CoreDamageSystem</code></h3><pre class="doc">Metade &quot;punitiva&quot; do passo de colisao da composicao: o
@@ -791,11 +831,14 @@ decisoes ritmicas -- a fonte de verdade e o `IAudioClock`.</pre>
 pendente cujo tempo ja passou alem da janela de miss
 (`delta &lt; -miss_window`). Quebra o combo UMA vez por frame,
 independente de quantas ameacas vencerem juntas.</pre>
-<h4><code>._register_misfire()</code></h4><pre class="doc">MISFIRE (estilo BPM/Hellsinger): disparo SEM candidata na
-janela de tempo + cone de mira. Falha de ritmo: zera o combo e
-exibe feedback de MISS -- e a disciplina que forca o jogador a
-atirar NA batida, nao a metralhar. Desligavel por fase
-(`misfire_breaks_combo: false`, ex.: tutorial).</pre>
+<h4><code>._play()</code></h4><pre class="doc">Dispara um SFX se houver backend e som configurados (testes
+headless injetam NullAudioEngine ou nada).</pre>
+<h4><code>._register_misfire()</code></h4><pre class="doc">MISFIRE punitivo (estilo BPM/Hellsinger): disparo SEM candidata
+na janela de tempo + cone de mira. A arma EMPERRA por
+`misfire_jam_seconds` (clique seco; o gatilho nao responde), o
+combo zera e o feedback de MISS aparece -- a disciplina que forca
+o jogador a atirar NA batida, nao a metralhar. Desligavel por
+fase (`misfire_breaks_combo: false`, ex.: tutorial).</pre>
 <h4><code>._try_player_hit()</code></h4><pre class="doc">Seleciona a melhor candidata (menor |delta|) dentro da janela
 Good E do cone de mira, e converte em PERFECT/GOOD. Disparo sem
 candidata alguma e um MISFIRE (ver `_register_misfire`).</pre>
@@ -910,6 +953,9 @@ componentes radiais: posicao na borda, velocidade em direcao ao
 nucleo, hitbox/sprite por tipo, e os campos ritmicos
 (`target_hit_time_sec`, `spawn_angle_rad`, `packed_handle`)
 consumidos por `JudgmentSystem`/`CoreDamageSystem`.</pre>
+<h4><code>._spawn_convergence_ring()</code></h4><pre class="doc">Anel-aviso centrado no nucleo, na COR da ameaca: o
+`ConvergenceRingSystem` encolhe seu raio ate o anel de julgamento
+exatamente em `hit_time` (mesma base de tempo do julgamento).</pre>
 </details>
 <details class="module" id="hertzbeats-systems-survival_damage_system"><summary><code>hertzbeats/systems/survival_damage_system.py</code> — Modo Sobrevivencia: julgamento 100% via CollisionSystem -- tocar a parede pune, atravessar no Dash pontua.</summary>
 <pre class="doc">Modo Sobrevivencia: julgamento 100% via CollisionSystem -- tocar a parede pune, atravessar no Dash pontua.</pre>
@@ -934,8 +980,8 @@ terminaria.</pre>
 <h4><code>._sweep_expired()</code></h4><pre class="doc">Destroi TODA parede vencida; pontua as que expiraram ainda
 pendentes (SURVIVED).</pre>
 </details>
-<details class="module" id="hertzbeats-systems-survival_player_system"><summary><code>hertzbeats/systems/survival_player_system.py</code> — Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames (estilo Just Shapes &amp; Beats).</summary>
-<pre class="doc">Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames (estilo Just Shapes &amp; Beats).</pre>
+<details class="module" id="hertzbeats-systems-survival_player_system"><summary><code>hertzbeats/systems/survival_player_system.py</code> — Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames NA BATIDA.</summary>
+<pre class="doc">Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames NA BATIDA.</pre>
 <p class='constants'>Constantes: <code>_DIAGONAL_NORMALIZER</code></p>
 <h3>classe <code>SurvivalPlayerSystem</code></h3><pre class="doc">O &quot;InputSystem&quot; do modo Sobrevivencia: em vez de mira 360 fixa no
 centro, o jogador MOVE o nucleo livremente pela arena (WASD) e usa o
@@ -945,45 +991,50 @@ as paredes de som no tempo certo E o gameplay.
 - Movimento: eixos derivados das acoes seguradas (`move_*`),
   diagonal normalizada, posicao integrada com `delta_time` de frame
   (game feel, nao evento ritmico) e CLAMPED a arena.
-- Dash: na borda de `dash` fora de cooldown, arma i-frames
-  (`iframe_timer_sec`, respeitados pelo `SurvivalDamageSystem`) e um
-  impulso de velocidade na direcao atual de movimento
-  (`survival_dash_speed` durante os i-frames). A direcao fica
-  gravada em `player_state.aim_angle_rad` (reinterpretada pelo modo
-  como &quot;direcao de deslocamento&quot;).
+- Dash com ESQUIVA RITMICA: o dash so FUNCIONA (impulso + i-frames,
+  respeitados pelo `SurvivalDamageSystem`) se o aperto cair a ate
+  `on_beat_window_seconds` de algum evento musical vivo na tela
+  (`target_hit_time_sec` das ameacas -- os onsets que o jogador esta
+  OUVINDO). Dash no desespero, fora do tempo, EMPERRA: consome o
+  cooldown, toca o clique seco e nada protege -- o contato com a
+  parede pune. `on_beat_window &lt;= 0` desliga a exigencia (modo
+  classico do tutorial/Defensor).
 - Feedback: tint ciano no nucleo durante os i-frames.
 
-Zero-GC: leituras de acao escalares + escritas escalares em linhas
-densas re-resolvidas por frame.</pre>
+Zero-GC: leituras de acao escalares, checagem de batida vetorizada
+em buffer pre-alocado, escritas escalares em linhas densas
+re-resolvidas por frame.</pre>
+<h4><code>._dash_is_on_beat()</code></h4><pre class="doc">True se o aperto de dash cai na janela de alguma batida viva
+(menor |target - agora_efetivo| entre as ameacas na tela).</pre>
 <h4><code>.update()</code></h4><pre class="doc">Integra movimento/dash do frame e escreve o estado do jogador.</pre>
 </details>
-<details class="module" id="hertzbeats-systems-survival_spawner_system"><summary><code>hertzbeats/systems/survival_spawner_system.py</code> — Modo Sobrevivencia: paredes de som varrem a arena e cruzam o CENTRO exatamente na batida.</summary>
-<pre class="doc">Modo Sobrevivencia: paredes de som varrem a arena e cruzam o CENTRO exatamente na batida.</pre>
+<details class="module" id="hertzbeats-systems-survival_spawner_system"><summary><code>hertzbeats/systems/survival_spawner_system.py</code> — Modo Sobrevivencia: paredes de som TELEGRAFADAS -- linha-guia 1 aproximacao antes, letal no onset.</summary>
+<pre class="doc">Modo Sobrevivencia: paredes de som TELEGRAFADAS -- linha-guia 1 aproximacao antes, letal no onset.</pre>
 <p class='constants'>Constantes: <code>_HALF_PI</code></p>
 <h3>classe <code>SurvivalSpawnerSystem</code></h3><pre class="doc">Estrategia de spawn do modo Sobrevivencia sobre o MESMO
-`beatmap.json`: e o `RhythmSpawnerSystem` da engine (cursor
-monotonico + compensacao de latencia intactos) materializando cada
-evento como uma PAREDE DE SOM -- uma barra laser que atravessa a
-arena inteira e cruza o centro exatamente em `target_hit_time_sec`.
+`beatmap.json`, com TELEGRAPHING: nada mata ao aparecer.
 
-Interpretacao espacial dos campos do beatmap:
-    - `lane % 4` escolhe a borda/eixo da varredura:
-      0 = horizontal descendo (nasce no topo), 1 = vertical indo a
-      direita (nasce a esquerda), 2 = horizontal subindo,
-      3 = vertical indo a esquerda.
-    - `threat_type` dita a espessura (pesadas sao mais grossas --
-      mas sempre atravessaveis com um Dash bem cronometrado).
-    - `strength` clareia o tint (picos de energia brilham mais).
+Ciclo de vida de cada parede de som:
+    1. AVISO (`PHASE_WARNING`), do spawn (hit - approach) ate o hit:
+       linha-guia translucida piscando NO LUGAR EXATO onde a parede
+       vai cair. A colisao a ignora por construcao: a hitbox nasce
+       com layer/mask 0 -- o CollisionSystem nem gera pares.
+    2. LETAL (`PHASE_LETHAL`), exatamente no onset (target_hit_time,
+       virada feita pelo `WallPhaseSystem` no MESMO relogio do
+       julgamento): cor vibrante, solida, hitbox armada.
+    3. EXPIRA em `hit + strike_seconds`: destruida pelo coletor do
+       `SurvivalDamageSystem` (SURVIVED se nao tocou ninguem).
 
-Cinematica (mesma compensacao do modo radial):
-    velocidade = (metade_da_arena + espessura + margem) / tempo_restante
-    posicao    = centro - direcao * distancia_total
-    expire     = batida + tempo_restante  (saiu da arena do outro lado)
-
-Nao ha botao de ataque: o julgamento e 100% via CollisionSystem
-(`SurvivalDamageSystem`), e o Dash com i-frames e a unica defesa.</pre>
-<h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a parede de som do evento `row_index` (ver
-docstring da classe para a cinematica).</pre>
+Interpretacao espacial dos campos do beatmap (deterministica e
+MUSICAL -- o mesmo som cai sempre no mesmo lugar):
+    - `lane % 2` escolhe o eixo (0 = parede horizontal, 1 = vertical);
+    - `lane // 2` escolhe a POSICAO (4 faixas por eixo, frac 1/8,
+      3/8, 5/8, 7/8 da arena) -- como a lane vem do TIMBRE, a
+      &quot;geografia&quot; da fase repete com a musica;
+    - `threat_type` dita a espessura (pesadas mais grossas).</pre>
+<h4><code>.collision_layer()</code></h4><pre class="doc">Layer real da hitbox, armada pelo `WallPhaseSystem` na virada.</pre>
+<h4><code>.collision_mask()</code></h4><pre class="doc">Mask real da hitbox, armada pelo `WallPhaseSystem` na virada.</pre>
+<h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a parede em fase de AVISO no lugar exato do strike.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-tutorial_system"><summary><code>hertzbeats/systems/tutorial_system.py</code> — Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</summary>
 <pre class="doc">Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</pre>
@@ -1034,6 +1085,25 @@ O timer da palavra de veredito decrementa com `delta_time` de frame
 `out=`) e grava textura/alfa nos sprites correspondentes; digitos
 alem do mais significativo ficam com alfa 0 (ocultos), exceto o
 das unidades, sempre visivel (mostra o proprio 0).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-wall_phase_system"><summary><code>hertzbeats/systems/wall_phase_system.py</code> — Vira as paredes de som de AVISO para LETAL exatamente no onset (e anima o piscar do telegraph).</summary>
+<pre class="doc">Vira as paredes de som de AVISO para LETAL exatamente no onset (e anima o piscar do telegraph).</pre>
+<p class='constants'>Constantes: <code>_BLINK_HZ</code></p>
+<h3>classe <code>WallPhaseSystem</code></h3><pre class="doc">O coracao do telegraphing: registrado ANTES do `CollisionSystem`,
+para que a virada AVISO -&gt; LETAL valha no mesmo frame do onset.
+
+- AVISO: a linha-guia pisca (alfa oscilando; pulso acelera perto do
+  strike) e a colisao esta desarmada (layer/mask 0, decidido no
+  spawn -- este sistema nao precisa &quot;proteger&quot; nada, o
+  CollisionSystem nem gera pares).
+- VIRADA: quando `agora_efetivo &gt;= target_hit_time_sec` (o MESMO
+  relogio compensado do julgamento), a parede fica solida (alfa 255,
+  camada visual acima) e a hitbox e ARMADA com as camadas reais.
+
+Zero-GC: mascaras vetorizadas em buffers pre-alocados selecionam as
+paredes em aviso e as que viram neste frame; o pisca-pisca e uma
+unica expressao vetorizada; a virada escreve escalarmente nas 0-2
+linhas do frame.</pre>
 </details>
 <details class="module" id="hertzbeats-user_settings"><summary><code>hertzbeats/user_settings.py</code> — Preferencias locais do jogador (nao versionadas): hoje, a latencia de audio calibrada.</summary>
 <pre class="doc">Preferencias locais do jogador (nao versionadas): hoje, a latencia de audio calibrada.</pre>

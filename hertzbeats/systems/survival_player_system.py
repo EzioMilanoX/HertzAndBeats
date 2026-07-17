@@ -1,11 +1,14 @@
-"""Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames (estilo Just Shapes & Beats)."""
+"""Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames NA BATIDA."""
 from __future__ import annotations
 
 import math
 
+import numpy as np
+
 from ouroboros.core.memory.memory_manager import MemoryManager
 from ouroboros.core.systems.base_system import ISystem
 from ouroboros.core.world import World
+from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.input_provider import IInputProvider
 
 _DIAGONAL_NORMALIZER = 1.0 / math.sqrt(2.0)
@@ -21,16 +24,19 @@ class SurvivalPlayerSystem(ISystem):
     - Movimento: eixos derivados das acoes seguradas (`move_*`),
       diagonal normalizada, posicao integrada com `delta_time` de frame
       (game feel, nao evento ritmico) e CLAMPED a arena.
-    - Dash: na borda de `dash` fora de cooldown, arma i-frames
-      (`iframe_timer_sec`, respeitados pelo `SurvivalDamageSystem`) e um
-      impulso de velocidade na direcao atual de movimento
-      (`survival_dash_speed` durante os i-frames). A direcao fica
-      gravada em `player_state.aim_angle_rad` (reinterpretada pelo modo
-      como "direcao de deslocamento").
+    - Dash com ESQUIVA RITMICA: o dash so FUNCIONA (impulso + i-frames,
+      respeitados pelo `SurvivalDamageSystem`) se o aperto cair a ate
+      `on_beat_window_seconds` de algum evento musical vivo na tela
+      (`target_hit_time_sec` das ameacas -- os onsets que o jogador esta
+      OUVINDO). Dash no desespero, fora do tempo, EMPERRA: consome o
+      cooldown, toca o clique seco e nada protege -- o contato com a
+      parede pune. `on_beat_window <= 0` desliga a exigencia (modo
+      classico do tutorial/Defensor).
     - Feedback: tint ciano no nucleo durante os i-frames.
 
-    Zero-GC: leituras de acao escalares + escritas escalares em linhas
-    densas re-resolvidas por frame.
+    Zero-GC: leituras de acao escalares, checagem de batida vetorizada
+    em buffer pre-alocado, escritas escalares em linhas densas
+    re-resolvidas por frame.
     """
 
     def __init__(
@@ -45,12 +51,17 @@ class SurvivalPlayerSystem(ISystem):
         dash_duration_seconds: float,
         dash_cooldown_seconds: float,
         arena_margin: float = 24.0,
+        audio_clock: IAudioClock = None,
+        on_beat_window_seconds: float = 0.0,
+        audio_engine=None,
+        offbeat_sound_id: str = None,
     ) -> None:
         """Resolve pools uma unica vez; guarda afinacao primitiva."""
         self._input_provider = input_provider
         self._player_pool = memory_manager.get_pool("player_state")
         self._transform_pool = memory_manager.get_pool("transform")
         self._sprite_pool = memory_manager.get_pool("sprite")
+        self._threat_pool = memory_manager.get_pool("rhythm_threat")
         self._player_entity_index = int(player_entity_index)
         self._arena_width = float(arena_width)
         self._arena_height = float(arena_height)
@@ -59,6 +70,30 @@ class SurvivalPlayerSystem(ISystem):
         self._dash_duration_seconds = float(dash_duration_seconds)
         self._dash_cooldown_seconds = float(dash_cooldown_seconds)
         self._arena_margin = float(arena_margin)
+        self._audio_clock = audio_clock
+        self._on_beat_window_seconds = float(on_beat_window_seconds)
+        self._audio_engine = audio_engine
+        self._offbeat_sound_id = offbeat_sound_id
+        self._delta_buffer = np.zeros(self._threat_pool.capacity, dtype=np.float64)
+
+    def _dash_is_on_beat(self) -> bool:
+        """True se o aperto de dash cai na janela de alguma batida viva
+        (menor |target - agora_efetivo| entre as ameacas na tela)."""
+        if self._on_beat_window_seconds <= 0.0 or self._audio_clock is None:
+            return True
+        active_count = self._threat_pool.count
+        if active_count == 0:
+            return False  # silencio: nao ha batida para acertar
+        now_effective = max(
+            0.0,
+            self._audio_clock.now_seconds() - self._audio_clock.get_output_latency_seconds(),
+        )
+        deltas = self._delta_buffer[:active_count]
+        np.subtract(
+            self._threat_pool.active_view()["target_hit_time_sec"], now_effective, out=deltas
+        )
+        np.abs(deltas, out=deltas)
+        return bool(deltas.min() <= self._on_beat_window_seconds)
 
     def update(self, world: World, delta_time: float) -> None:
         """Integra movimento/dash do frame e escreve o estado do jogador."""
@@ -81,8 +116,12 @@ class SurvivalPlayerSystem(ISystem):
         cooldown = float(player_view["dash_cooldown_sec"][player_row]) - delta_time
         iframes = float(player_view["iframe_timer_sec"][player_row]) - delta_time
         if inp.is_action_pressed("dash") and cooldown <= 0.0:
-            iframes = self._dash_duration_seconds
             cooldown = self._dash_cooldown_seconds
+            if self._dash_is_on_beat():
+                iframes = self._dash_duration_seconds  # esquiva RITMICA: protegido
+            elif self._audio_engine is not None and self._offbeat_sound_id is not None:
+                # dash no desespero: emperra (cooldown gasto, clique, nada sai)
+                self._audio_engine.play_one_shot(self._offbeat_sound_id, 0.45)
         player_view["dash_cooldown_sec"][player_row] = cooldown if cooldown > 0.0 else 0.0
         player_view["iframe_timer_sec"][player_row] = iframes if iframes > 0.0 else 0.0
 

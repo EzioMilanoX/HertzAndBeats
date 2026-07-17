@@ -39,11 +39,20 @@ MODE_TAG_SURVIVAL: int = 1
 MODE_TAG_LANES: int = 2
 """Nota de coluna (julgada por tecla + tempo)."""
 
+PHASE_WARNING: int = 0
+"""Fase de TELEGRAPH de uma parede de som: linha-guia translucida
+piscando, IGNORADA pela colisao (hitbox com layer/mask 0)."""
+
+PHASE_LETHAL: int = 1
+"""Fase letal: no instante do onset a parede fica solida e a colisao
+passa a valer."""
+
 RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
     [
         ("lane", np.int8),
         ("threat_type", np.int16),
         ("mode_tag", np.int8),
+        ("phase", np.int8),
         ("strength", np.float32),
         ("target_hit_time_sec", np.float64),
         ("expire_time_sec", np.float64),
@@ -85,6 +94,10 @@ Campos:
     spawn_angle_rad: Defensor: angulo (tela, y para baixo) da borda onde
         nasceu, comparado com a mira 360. Demais modos: orientacao
         visual/telemetria.
+    phase: PHASE_* -- ciclo telegraph->letal das paredes de som
+        (Sobrevivencia/Hibrido): nascem como AVISO (colisao desligada
+        via layer/mask 0) e viram letais exatamente no onset. Ameacas
+        radiais e notas nascem direto em PHASE_LETHAL.
     is_hit: marcada True quando o jogador converte a ameaca com input
         correto -- o restante do frame ignora a linha, ja com destruicao
         enfileirada para o flush.
@@ -103,6 +116,7 @@ PLAYER_STATE_DTYPE: np.dtype = np.dtype(
         ("aim_angle_rad", np.float32),
         ("dash_cooldown_sec", np.float32),
         ("iframe_timer_sec", np.float32),
+        ("gun_jam_sec", np.float32),
     ]
 )
 """Estado do nucleo/jogador (uma unica linha anexada a entidade do
@@ -113,4 +127,6 @@ Campos:
     aim_angle_rad: mira 360 atual (coordenadas de tela, y para baixo).
     dash_cooldown_sec: tempo restante ate poder dar Dash de novo.
     iframe_timer_sec: janela de invencibilidade restante do Dash atual.
+    gun_jam_sec: arma EMPERRADA (misfire punitivo do Defensor): enquanto
+        > 0, o gatilho so produz o clique seco -- nenhum tiro sai.
 """
