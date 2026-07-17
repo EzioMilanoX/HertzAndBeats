@@ -39,6 +39,7 @@ from ouroboros.rhythm.offline.bpm_extractor import BpmExtractor
 from ouroboros.rhythm.offline.onset_extractor import OnsetExtractor
 
 from hertzbeats.mapper_version import MAPPER_VERSION
+from hertzbeats.offline.percussive_extraction import PercussiveOnsetExtractor
 
 THREAT_TYPE_BASIC = "rhythm_threat_basic"
 THREAT_TYPE_HEAVY = "rhythm_threat_heavy"
@@ -197,7 +198,7 @@ def generate_beatmap(
     min_start_seconds: float = 2.5,
     target_density_per_second: float = 1.4,
     end_margin_seconds: float = 1.2,
-    heavy_strength_threshold: float = 0.80,
+    heavy_quantile: float = 0.92,
     subdivisions: int = 2,
     snap_tolerance_seconds: float = 0.08,
 ) -> dict:
@@ -209,19 +210,38 @@ def generate_beatmap(
     Retorna um resumo primitivo (bpm, contagens, fracao na batida) para
     logging da CLI."""
     audio = AudioLoader().load(Path(audio_path))
-    bpm_result = BpmExtractor().extract(audio)
-    onset_result = OnsetExtractor().extract(audio)
+
+    # Estagio DSP (HPSS -> mel grave -> PLP -> threshold): a grade vem
+    # dos PULSOS dominantes e os votos do envelope PERCUSSIVO -- imune a
+    # mascaramento por pads/vocais. Fallback: extratores genericos da
+    # engine (audio exotico nunca derruba a analise).
+    try:
+        extraction = PercussiveOnsetExtractor().extract(audio)
+        beat_times = extraction.pulse_timestamps_seconds
+        vote_times = extraction.onset_timestamps_seconds
+        vote_strengths = extraction.onset_strengths
+        detected_bpm = extraction.tempo_bpm_estimate
+        dsp_stage = "percussive-plp"
+    except Exception as exc:
+        print(f"[mapper] extracao percussiva falhou ({exc}); usando extratores genericos")
+        bpm_result = BpmExtractor().extract(audio)
+        onset_result = OnsetExtractor().extract(audio)
+        beat_times = np.asarray(bpm_result.beat_timestamps_seconds, dtype=np.float64)
+        vote_times = onset_result.onset_timestamps_seconds
+        vote_strengths = onset_result.onset_strengths
+        detected_bpm = float(bpm_result.bpm)
+        dsp_stage = "generic-fallback"
 
     track_duration = audio.samples.shape[0] / float(audio.sample_rate)
     max_end_seconds = track_duration - end_margin_seconds
-    beat_times = np.asarray(bpm_result.beat_timestamps_seconds, dtype=np.float64)
+    beat_times = np.asarray(beat_times, dtype=np.float64)
 
     if beat_times.shape[0] >= 8:
         grid_times, on_beat = build_beat_grid(beat_times, subdivisions=subdivisions)
         slot_strengths, slot_has_event = snap_onsets_to_grid(
             grid_times,
-            onset_result.onset_timestamps_seconds,
-            onset_result.onset_strengths,
+            vote_times,
+            vote_strengths,
             snap_tolerance=snap_tolerance_seconds,
         )
         chosen = select_slots(
@@ -236,11 +256,13 @@ def generate_beatmap(
         on_beat_count = int(np.count_nonzero(on_beat[chosen]))
         quantized = True
     else:
-        # plano B: sem pulsacao confiavel, usa os onsets diretamente
-        order = np.argsort(-onset_result.onset_strengths)
+        # plano B: sem pulsacao confiavel, usa os votos diretamente
+        vote_times = np.asarray(vote_times, dtype=np.float64)
+        vote_strengths = np.asarray(vote_strengths, dtype=np.float64)
+        order = np.argsort(-vote_strengths)
         note_times_list: List[float] = []
         for onset_index in order:
-            t = float(onset_result.onset_timestamps_seconds[onset_index])
+            t = float(vote_times[onset_index])
             if t < min_start_seconds or t > max_end_seconds:
                 continue
             pos = bisect.bisect_left(note_times_list, t)
@@ -252,10 +274,11 @@ def generate_beatmap(
             if len(note_times_list) >= int(target_density_per_second * (max_end_seconds - min_start_seconds)):
                 break
         note_times = np.asarray(note_times_list, dtype=np.float64)
-        strengths_sorted = np.interp(
-            note_times, onset_result.onset_timestamps_seconds, onset_result.onset_strengths
+        note_strengths = (
+            np.interp(note_times, vote_times, vote_strengths)
+            if vote_times.shape[0]
+            else np.zeros(note_times.shape[0])
         )
-        note_strengths = strengths_sorted
         on_beat_count = 0
         quantized = False
 
@@ -264,11 +287,24 @@ def generate_beatmap(
     )
     lanes = assign_lanes(note_times, centroids, lane_count=lane_count)
 
+    # Pesadas por QUANTIL, nunca por limiar absoluto: cada estagio de
+    # extracao normaliza forcas numa escala propria (o generico colapsa
+    # em ~0, o percussivo satura em ~1) -- um corte fixo ou marca tudo
+    # ou nada. Os acentos reais sao o topo da distribuicao DA PROPRIA
+    # musica, com guarda para distribuicoes achatadas (sem acento claro
+    # -> sem pesadas).
+    if note_times.shape[0]:
+        heavy_cutoff = float(np.quantile(note_strengths, heavy_quantile))
+        strength_median = float(np.median(note_strengths))
+    else:
+        heavy_cutoff = np.inf
+        strength_median = 0.0
+
     threats: List[ScheduledThreatDefinition] = []
     heavy_count = 0
     for i in range(note_times.shape[0]):
         strength = float(min(max(note_strengths[i], 0.0), 1.0))
-        is_heavy = strength >= heavy_strength_threshold
+        is_heavy = strength >= heavy_cutoff and strength > strength_median + 1e-6
         heavy_count += int(is_heavy)
         threats.append(
             ScheduledThreatDefinition(
@@ -282,7 +318,7 @@ def generate_beatmap(
     validator = BeatmapValidator()
     beatmap_dict = validator.build_beatmap_dict(
         track_id=track_id,
-        bpm=bpm_result.bpm,
+        bpm=float(detected_bpm),
         threats=tuple(threats),
     )
     beatmap_dict["mapper_version"] = MAPPER_VERSION
@@ -291,11 +327,12 @@ def generate_beatmap(
     BeatmapWriter(validator).write(beatmap_dict, output_path)
 
     return {
-        "bpm": float(bpm_result.bpm),
-        "onset_count": int(onset_result.onset_timestamps_seconds.shape[0]),
+        "bpm": float(detected_bpm),
+        "onset_count": int(np.asarray(vote_times).shape[0]),
         "threat_count": len(threats),
         "heavy_count": heavy_count,
         "on_beat_count": on_beat_count,
         "quantized": quantized,
+        "dsp_stage": dsp_stage,
         "output_path": str(output_path),
     }

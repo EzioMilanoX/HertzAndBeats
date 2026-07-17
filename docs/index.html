@@ -122,12 +122,12 @@ para isso não acontecer em condições normais.</li>
 <table>
 <tr><th>Fase</th><th>Faixa (síntese)</th><th>Ameaças</th><th>Densidade</th><th>Gap mín.</th><th>Overrides</th><th>Tutorial</th></tr>
 <tr><td><strong>TUTORIAL</strong><br><small>80 BPM - aprenda o basico</small></td><td>80 BPM · 21 compassos · calm</td><td>19 (1 pesadas)</td><td>0.40/s</td><td>1.50s</td><td>approach_seconds=2.8, max_health=6, aim_tolerance_degrees=40.0, misfire_breaks_combo=False</td><td>5 passos</td></tr>
-<tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>29 (0 pesadas)</td><td>0.87/s</td><td>0.91s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
-<tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
-<tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>55 (2 pesadas)</td><td>1.35/s</td><td>0.39s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
-<tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>29 (0 pesadas)</td><td>0.87/s</td><td>0.91s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
-<tr><td><strong>5 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (2 pesadas)</td><td>1.75/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
-<tr><td><strong>6 - HIBRIDO</strong><br><small>tiro + dash | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>55 (2 pesadas)</td><td>1.35/s</td><td>0.39s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
+<tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
+<tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
+<tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
+<tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
+<tr><td><strong>5 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
+<tr><td><strong>6 - HIBRIDO</strong><br><small>tiro + dash | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
 os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
@@ -218,7 +218,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>79 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>85 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
@@ -227,6 +227,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
 <details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (11 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_user_song_mode_cycles_and_composes_chosen_mode</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
 <details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (6 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_old_mapper_version_triggers_reanalysis</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
+<details><summary><code>test_percussive_extraction.py</code> — Estagio DSP anti-mascaramento: threshold puro, e HPSS+mel+PLP sobre audio sintetico REAL. (6 testes)</summary><ul><li><code>test_peak_selection_enforces_interval_and_amplitude</code></li><li><code>test_peak_selection_min_interval_merges_double_hits</code></li><li><code>test_bpm_from_pulses_is_median_robust</code></li><li><code>test_bpm_octave_ambiguity_is_folded_into_musical_range</code></li><li><code>test_pulse_grid_locks_to_kick_despite_loud_pad</code></li><li><code>test_extraction_feeds_quantized_beatmap_end_to_end</code></li></ul></details>
 <details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
@@ -664,6 +665,63 @@ plano B por onsets (sem quantizacao, melhor que nada).
 
 Retorna um resumo primitivo (bpm, contagens, fracao na batida) para
 logging da CLI.</pre>
+</details>
+<details class="module" id="hertzbeats-offline-percussive_extraction"><summary><code>hertzbeats/offline/percussive_extraction.py</code> — Extracao percussiva com separacao de fontes -- o estagio DSP do mapeador.</summary>
+<pre class="doc">Extracao percussiva com separacao de fontes -- o estagio DSP do mapeador.
+
+Problema que resolve (&quot;frequency masking&quot;): em Lo-Fi e faixas densas,
+pads/sintetizadores altos e vocais mascaram bumbo/caixa no envelope de
+onset de banda cheia -- o extrator generico devolve falsos positivos
+harmonicos e o beatmap sai poluido e fora do ritmo.
+
+Pipeline sequencial (offline; qualidade &gt; custo):
+
+    1. HPSS (Harmonic-Percussive Source Separation):
+       `librosa.effects.hpss(y)` separa o sinal; SOMENTE `y_percussive`
+       segue adiante -- vocais, pads e sustains harmonicos morrem aqui.
+    2. Mel-espectrograma grave/medio (`fmax` ~250 Hz):
+       o envelope de onset e calculado num espectrograma focado em
+       bumbo (40-100 Hz) e corpo de caixa (150-250 Hz), ignorando
+       chimbais ruidosos de banda alta.
+    3. PLP (Predominant Local Pulse):
+       `librosa.beat.plp(onset_envelope=...)` transforma o envelope em
+       uma curva de pulso dominante LOCAL -- resiliente a acelerandos e
+       sincopas que quebram um beat-tracker global.
+    4. Threshold inteligente sobre os picos
+       (`scipy.signal.find_peaks`): intervalo minimo entre picos
+       (`minimum_interval_sec`) E altura minima relativa ao pico maximo
+       da curva -- pulsos residuais fracos (ruido) sao descartados.
+
+A GRADE do mapeador passa a vir dos picos do PLP; os &quot;votos&quot; de energia
+vem dos picos do envelope percussivo grave. As funcoes de pico/tempo sao
+PURAS (testaveis sem librosa); librosa e importado lazy dentro de
+`extract` -- este modulo pertence ao pacote offline e nunca roda no loop
+de gameplay.</pre>
+<h4><code>select_curve_peaks()</code></h4><pre class="doc">Etapa 4 (threshold inteligente), pura: picos de `curve` com
+espacamento minimo em SEGUNDOS (convertido para frames pela taxa real
+da curva) e altura minima `min_height_ratio * max(curve)`. Retorna
+`(tempos, alturas_normalizadas)`.</pre>
+<h4><code>estimate_bpm_from_pulses()</code></h4><pre class="doc">BPM pela MEDIANA dos intervalos entre pulsos consecutivos --
+robusta a um ou outro pulso perdido (a media nao e). O valor e
+dobrado/dividido por oitavas ate a faixa musical usual [70, 180):
+o PLP pode travar no dobro/metade do tempo percebido (ambiguidade
+classica de oitava), o que nao afeta a grade (mesmos pulsos), so o
+METADADO de bpm.</pre>
+<h3>classe <code>PercussiveExtractionResult</code></h3><pre class="doc">Saida do estagio DSP, pronta para o mapeador (grade + votos).
+
+Atributos:
+    pulse_timestamps_seconds: instantes dos pulsos dominantes (picos
+        filtrados do PLP) -- a GRADE ritmica do mapa.
+    pulse_strengths: altura normalizada de cada pulso (0..1).
+    onset_timestamps_seconds: picos do envelope percussivo grave --
+        os VOTOS de energia por ponto da grade.
+    onset_strengths: altura normalizada de cada onset (0..1).
+    tempo_bpm_estimate: BPM estimado da mediana dos intervalos entre
+        pulsos (telemetria/campo `bpm` do beatmap).</pre>
+<h3>classe <code>PercussiveOnsetExtractor</code></h3><pre class="doc">Extrator DSP das 4 etapas (ver docstring do modulo). Parametros
+sao afinacao de qualidade, nao de gameplay.</pre>
+<h4><code>.extract()</code></h4><pre class="doc">Executa o pipeline 1-4 sobre um `LoadedAudio` (samples mono +
+sample_rate) e retorna grade (pulsos) + votos (onsets).</pre>
 </details>
 <details class="module" id="hertzbeats-stages"><summary><code>hertzbeats/stages.py</code> — Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</summary>
 <pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>

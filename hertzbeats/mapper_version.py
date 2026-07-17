@@ -5,7 +5,11 @@ Incrementada a cada mudanca na forma de gerar notas a partir do audio;
 beatmap cacheado veio de um mapeador mais antigo.
 """
 
-MAPPER_VERSION: int = 2
-"""v2: notas QUANTIZADAS na grade de batidas do beat-tracker (colcheias),
-com lane escolhida pelo timbre (centroide espectral) -- em vez de onsets
-crus (backtrackeados = adiantados) e lane em carrossel."""
+MAPPER_VERSION: int = 3
+"""v3: estagio DSP anti-mascaramento -- HPSS (so componente percussiva),
+envelope de onset em mel grave/medio (fmax ~250 Hz: bumbo/caixa, sem
+chimbal), grade pelos pulsos do PLP (robusto a acelerandos/sincopa) e
+threshold inteligente (intervalo + amplitude) nos picos.
+
+v2: notas QUANTIZADAS na grade de batidas (colcheias), lane por timbre
+(centroide espectral) -- em vez de onsets crus e lane em carrossel."""

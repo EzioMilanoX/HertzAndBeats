@@ -26,3 +26,6 @@ include = ["hertzbeats*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: testes de DSP real sobre audio sintetizado (segundos de librosa)",
+]
