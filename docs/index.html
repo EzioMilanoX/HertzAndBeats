@@ -218,10 +218,11 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>85 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>90 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (3 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
+<details><summary><code>test_hybrid_layers.py</code> — Perfil hybrid no jogo: fusao kick+vocal com prioridade do kick e roteamento por camada no Arcade. (5 testes)</summary><ul><li><code>test_merge_gives_kick_priority_and_keeps_order</code></li><li><code>test_merge_with_empty_layers</code></li><li><code>test_unquantized_selection_respects_gap_budget_and_window</code></li><li><code>test_lanes_mode_routes_kick_to_edges_and_vocal_to_center</code></li><li><code>test_single_layer_beatmap_keeps_timbre_lanes</code></li></ul></details>
 <details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
@@ -607,7 +608,9 @@ arquivo de audio (musica substituida/alterada) ou foi gerado por um
 MAPEADOR antigo (melhorias de geracao re-analisam a biblioteca
 automaticamente).</pre>
 <h4><code>analyze_song()</code></h4><pre class="doc">Roda a IA offline sobre a musica (import LAZY: librosa so entra
-na memoria se houver musica nova para analisar).</pre>
+na memoria se houver musica nova para analisar). Perfil &quot;hybrid&quot;:
+esqueleto de kick quantizado + melodia vocal por cima, com tags de
+camada -- o melhor padrao para musica arbitraria do jogador.</pre>
 <h4><code>scan_user_songs()</code></h4><pre class="doc">Varre a pasta de musicas do jogador e retorna as fases prontas
 (analisando as novas). `on_progress(nome)` e chamado antes de cada
 analise (tela de carregamento); `analyzer` e injetavel para testes.</pre>
@@ -652,76 +655,37 @@ onsets deixa de dessincronizar as notas.</pre>
 `forca + bonus_na_batida`, respeitando janela jogavel, espacamento
 minimo e densidade-alvo. So pontos COM evento musical
 (`slot_has_event`) sao elegiveis. Retorna indices em ordem temporal.</pre>
+<h4><code>select_strongest_unquantized()</code></h4><pre class="doc">Selecao SEM grade (camada vocal / plano B): os eventos mais
+fortes, gulosos, com espacamento minimo e janela jogavel -- abraca a
+sincopa em vez de quantizar. Retorna indices em ordem temporal.</pre>
+<h4><code>merge_note_layers()</code></h4><pre class="doc">Funde as camadas do perfil &quot;hybrid&quot; com PRIORIDADE do kick: as
+notas de groove (quantizadas) entram todas; uma nota vocal so entra
+se ficar a pelo menos `min_separation_seconds` de qualquer nota ja
+aceita (o esqueleto ritmico nunca e empurrado pela melodia).
+Retorna `(tempos, forcas, layers)` em ordem temporal.</pre>
 <h4><code>assign_lanes()</code></h4><pre class="doc">Lane pelo TIMBRE: os centroides espectrais da propria musica sao
 divididos em `lane_count` quantis -- som grave vira lane baixa, som
 agudo vira lane alta, e o MESMO som repete a MESMA lane (padrao
 musical = padrao de jogo). Anti-jack: nota na mesma lane da anterior
 com gap menor que `anti_jack_gap_seconds` desloca para a vizinha.</pre>
 <h4><code>_spectral_centroids_at()</code></h4><pre class="doc">Centroide espectral (Hz) da musica no instante de cada nota.</pre>
-<h4><code>generate_beatmap()</code></h4><pre class="doc">Roda a IA da engine sobre `audio_path` e grava um beatmap.json
-QUANTIZADO na grade de batidas (ver docstring do modulo). Se o
-beat-tracker nao encontrar pulsacao suficiente (&lt; 8 batidas), cai no
-plano B por onsets (sem quantizacao, melhor que nada).
+<h4><code>generate_beatmap()</code></h4><pre class="doc">Roda a IA da engine sobre `audio_path` com o PERFIL DE EXTRACAO
+pedido e grava um beatmap.json.
 
-Retorna um resumo primitivo (bpm, contagens, fracao na batida) para
-logging da CLI.</pre>
-</details>
-<details class="module" id="hertzbeats-offline-percussive_extraction"><summary><code>hertzbeats/offline/percussive_extraction.py</code> — Extracao percussiva com separacao de fontes -- o estagio DSP do mapeador.</summary>
-<pre class="doc">Extracao percussiva com separacao de fontes -- o estagio DSP do mapeador.
+Perfis (a matematica vive na engine, `extraction_profiles`; aqui e
+so interpretacao/curadoria):
+    &quot;groove&quot;      -- notas QUANTIZADAS na grade do PLP percussivo
+                     (faixas guiadas por bumbo), camada &quot;kick&quot;.
+    &quot;vocal_shred&quot; -- notas SEM quantizacao nos onsets da melodia
+                     (faixas guiadas por voz/synth, estilo FNF),
+                     camada &quot;vocal&quot;.
+    &quot;hybrid&quot;      -- esqueleto kick quantizado (`hybrid_kick_share`
+                     da densidade) + melodia vocal sincopada por
+                     cima, fundidas com prioridade do kick; cada
+                     nota carrega a tag `layer` para o roteamento
+                     espacial do jogo.
 
-Problema que resolve (&quot;frequency masking&quot;): em Lo-Fi e faixas densas,
-pads/sintetizadores altos e vocais mascaram bumbo/caixa no envelope de
-onset de banda cheia -- o extrator generico devolve falsos positivos
-harmonicos e o beatmap sai poluido e fora do ritmo.
-
-Pipeline sequencial (offline; qualidade &gt; custo):
-
-    1. HPSS (Harmonic-Percussive Source Separation):
-       `librosa.effects.hpss(y)` separa o sinal; SOMENTE `y_percussive`
-       segue adiante -- vocais, pads e sustains harmonicos morrem aqui.
-    2. Mel-espectrograma grave/medio (`fmax` ~250 Hz):
-       o envelope de onset e calculado num espectrograma focado em
-       bumbo (40-100 Hz) e corpo de caixa (150-250 Hz), ignorando
-       chimbais ruidosos de banda alta.
-    3. PLP (Predominant Local Pulse):
-       `librosa.beat.plp(onset_envelope=...)` transforma o envelope em
-       uma curva de pulso dominante LOCAL -- resiliente a acelerandos e
-       sincopas que quebram um beat-tracker global.
-    4. Threshold inteligente sobre os picos
-       (`scipy.signal.find_peaks`): intervalo minimo entre picos
-       (`minimum_interval_sec`) E altura minima relativa ao pico maximo
-       da curva -- pulsos residuais fracos (ruido) sao descartados.
-
-A GRADE do mapeador passa a vir dos picos do PLP; os &quot;votos&quot; de energia
-vem dos picos do envelope percussivo grave. As funcoes de pico/tempo sao
-PURAS (testaveis sem librosa); librosa e importado lazy dentro de
-`extract` -- este modulo pertence ao pacote offline e nunca roda no loop
-de gameplay.</pre>
-<h4><code>select_curve_peaks()</code></h4><pre class="doc">Etapa 4 (threshold inteligente), pura: picos de `curve` com
-espacamento minimo em SEGUNDOS (convertido para frames pela taxa real
-da curva) e altura minima `min_height_ratio * max(curve)`. Retorna
-`(tempos, alturas_normalizadas)`.</pre>
-<h4><code>estimate_bpm_from_pulses()</code></h4><pre class="doc">BPM pela MEDIANA dos intervalos entre pulsos consecutivos --
-robusta a um ou outro pulso perdido (a media nao e). O valor e
-dobrado/dividido por oitavas ate a faixa musical usual [70, 180):
-o PLP pode travar no dobro/metade do tempo percebido (ambiguidade
-classica de oitava), o que nao afeta a grade (mesmos pulsos), so o
-METADADO de bpm.</pre>
-<h3>classe <code>PercussiveExtractionResult</code></h3><pre class="doc">Saida do estagio DSP, pronta para o mapeador (grade + votos).
-
-Atributos:
-    pulse_timestamps_seconds: instantes dos pulsos dominantes (picos
-        filtrados do PLP) -- a GRADE ritmica do mapa.
-    pulse_strengths: altura normalizada de cada pulso (0..1).
-    onset_timestamps_seconds: picos do envelope percussivo grave --
-        os VOTOS de energia por ponto da grade.
-    onset_strengths: altura normalizada de cada onset (0..1).
-    tempo_bpm_estimate: BPM estimado da mediana dos intervalos entre
-        pulsos (telemetria/campo `bpm` do beatmap).</pre>
-<h3>classe <code>PercussiveOnsetExtractor</code></h3><pre class="doc">Extrator DSP das 4 etapas (ver docstring do modulo). Parametros
-sao afinacao de qualidade, nao de gameplay.</pre>
-<h4><code>.extract()</code></h4><pre class="doc">Executa o pipeline 1-4 sobre um `LoadedAudio` (samples mono +
-sample_rate) e retorna grade (pulsos) + votos (onsets).</pre>
+Retorna um resumo primitivo (bpm, contagens por camada) para a CLI.</pre>
 </details>
 <details class="module" id="hertzbeats-stages"><summary><code>hertzbeats/stages.py</code> — Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</summary>
 <pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>
@@ -869,9 +833,15 @@ exatamente em `target_hit_time_sec`.
 
 Interpretacao espacial dos campos do beatmap:
     - `lane % 4` escolhe a coluna (distribuicao deterministica dos
-      dados do JSON -- a IA ja alterna as lanes por indice). O campo
-      `lane` da pool e REESCRITO com o valor reduzido (0..3) para o
-      `LaneJudgmentSystem` comparar por igualdade vetorizada.
+      dados do JSON). O campo `lane` da pool e REESCRITO com a
+      coluna final (0..3) para o `LaneJudgmentSystem` comparar por
+      igualdade vetorizada.
+    - ROTEAMENTO POR CAMADA (beatmaps &quot;hybrid&quot; da engine): quando o
+      beatmap traz a tag `layer`, kicks vao para as EXTREMIDADES
+      (colunas 0/3 -- maos externas seguram o groove) e vocais para
+      o CENTRO (colunas 1/2 -- a melodia corre por dentro), com a
+      paridade da lane original escolhendo o lado. Beatmaps de
+      camada unica mantem a distribuicao por timbre.
     - `threat_type`/`strength` ditam o tamanho/brilho da nota.
 
 Cinematica: `velocidade_y = (linha_julgamento - y_spawn) / tempo_restante`

@@ -32,6 +32,16 @@ def main(argv=None) -> int:
         dest="min_gap",
         help="Espacamento minimo entre ameacas, em segundos (default: 0.20).",
     )
+    parser.add_argument(
+        "--profile",
+        choices=["groove", "vocal_shred", "hybrid"],
+        default="hybrid",
+        help=(
+            "Perfil de Extracao DSP: groove (bumbo/estabilidade), vocal_shred "
+            "(melodia sincopada, estilo FNF) ou hybrid (camadas kick+vocal "
+            "taggeadas; default)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     summary = generate_beatmap(
@@ -40,12 +50,13 @@ def main(argv=None) -> int:
         track_id=args.track_id,
         lane_count=args.lanes,
         min_gap_seconds=args.min_gap,
+        profile=args.profile,
     )
     print(
-        "beatmap gerado pela IA offline: "
-        f"bpm={summary['bpm']:.2f} onsets={summary['onset_count']} "
-        f"ameacas={summary['threat_count']} (pesadas={summary['heavy_count']}) "
-        f"-> {summary['output_path']}"
+        f"beatmap gerado pela IA offline ({summary['profile']}): "
+        f"bpm={summary['bpm']:.2f} ameacas={summary['threat_count']} "
+        f"(kick={summary['kick_count']} vocal={summary['vocal_count']} "
+        f"pesadas={summary['heavy_count']}) -> {summary['output_path']}"
     )
     return 0
 

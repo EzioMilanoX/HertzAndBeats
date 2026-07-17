@@ -62,11 +62,13 @@ def main(argv=None) -> int:
             min_start_seconds=stage.beatmap_params.get("min_start_seconds", 2.5),
             target_density_per_second=stage.beatmap_params.get("target_density_per_second", 1.4),
             end_margin_seconds=stage.beatmap_params.get("end_margin_seconds", 1.2),
+            profile=stage.beatmap_params.get("profile", "groove"),
         )
         print(
-            f"[{stage.stage_id}] beatmap da IA: bpm={summary['bpm']:.2f} "
-            f"onsets={summary['onset_count']} ameacas={summary['threat_count']} "
-            f"(pesadas={summary['heavy_count']}) -> {summary['output_path']}"
+            f"[{stage.stage_id}] beatmap da IA ({summary['profile']}): bpm={summary['bpm']:.2f} "
+            f"ameacas={summary['threat_count']} (kick={summary['kick_count']} "
+            f"vocal={summary['vocal_count']} pesadas={summary['heavy_count']}) "
+            f"-> {summary['output_path']}"
         )
     return 0
 

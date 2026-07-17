@@ -26,9 +26,15 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
 
     Interpretacao espacial dos campos do beatmap:
         - `lane % 4` escolhe a coluna (distribuicao deterministica dos
-          dados do JSON -- a IA ja alterna as lanes por indice). O campo
-          `lane` da pool e REESCRITO com o valor reduzido (0..3) para o
-          `LaneJudgmentSystem` comparar por igualdade vetorizada.
+          dados do JSON). O campo `lane` da pool e REESCRITO com a
+          coluna final (0..3) para o `LaneJudgmentSystem` comparar por
+          igualdade vetorizada.
+        - ROTEAMENTO POR CAMADA (beatmaps "hybrid" da engine): quando o
+          beatmap traz a tag `layer`, kicks vao para as EXTREMIDADES
+          (colunas 0/3 -- maos externas seguram o groove) e vocais para
+          o CENTRO (colunas 1/2 -- a melodia corre por dentro), com a
+          paridade da lane original escolhendo o lado. Beatmaps de
+          camada unica mantem a distribuicao por timbre.
         - `threat_type`/`strength` ditam o tamanho/brilho da nota.
 
     Cinematica: `velocidade_y = (linha_julgamento - y_spawn) / tempo_restante`
@@ -74,6 +80,9 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         self._note_half_by_type = note_half_by_type
         self._lane_tints_rgb = lane_tints_rgb
         self._min_travel_seconds = float(min_travel_seconds)
+        # roteamento kick/vocal so faz sentido em beatmaps MULTI-camada;
+        # num mapa de camada unica ele colapsaria tudo em 2 colunas
+        self._route_by_layer = bool(np.any(scheduled_spawns["layer"] != 0)) if scheduled_spawns.shape[0] else False
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Materializa a nota do evento `row_index` na sua coluna."""
@@ -83,7 +92,16 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         threat_row = self._threat_pool.dense_row_of(entity_index)
         threat_view = self._threat_pool.active_view()
         threat_type = int(threat_view["threat_type"][threat_row])
-        lane = int(threat_view["lane"][threat_row]) % LANE_COUNT_4K
+        original_lane = int(threat_view["lane"][threat_row])
+        if self._route_by_layer:
+            # kick -> extremidades (0/3), vocal -> centro (1/2); a
+            # paridade da lane de timbre escolhe o lado
+            if int(self._scheduled_threats["layer"][row_index]) == 1:  # vocal
+                lane = 1 + (original_lane % 2)
+            else:
+                lane = 3 * (original_lane % 2)
+        else:
+            lane = original_lane % LANE_COUNT_4K
         threat_view["lane"][threat_row] = lane  # coluna 0..3 para o julgamento
 
         hit_time = float(self._hit_times[row_index])

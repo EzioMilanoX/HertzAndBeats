@@ -36,10 +36,16 @@ from ouroboros.rhythm.offline.audio_loader import AudioLoader
 from ouroboros.rhythm.offline.beatmap_schema import BeatmapValidator, ScheduledThreatDefinition
 from ouroboros.rhythm.offline.beatmap_writer import BeatmapWriter
 from ouroboros.rhythm.offline.bpm_extractor import BpmExtractor
+from ouroboros.rhythm.offline.extraction_profiles import (
+    EXTRACTION_PROFILES,
+    LAYER_KICK,
+    LAYER_VOCAL,
+    estimate_bpm_from_pulses,
+    extract_with_profile,
+)
 from ouroboros.rhythm.offline.onset_extractor import OnsetExtractor
 
 from hertzbeats.mapper_version import MAPPER_VERSION
-from hertzbeats.offline.percussive_extraction import PercussiveOnsetExtractor
 
 THREAT_TYPE_BASIC = "rhythm_threat_basic"
 THREAT_TYPE_HEAVY = "rhythm_threat_heavy"
@@ -146,6 +152,72 @@ def select_slots(
     return sorted(accepted, key=lambda i: float(grid_times[i]))
 
 
+def select_strongest_unquantized(
+    times: np.ndarray,
+    strengths: np.ndarray,
+    min_start_seconds: float,
+    max_end_seconds: float,
+    min_gap_seconds: float,
+    max_notes: int,
+) -> List[int]:
+    """Selecao SEM grade (camada vocal / plano B): os eventos mais
+    fortes, gulosos, com espacamento minimo e janela jogavel -- abraca a
+    sincopa em vez de quantizar. Retorna indices em ordem temporal."""
+    if max_notes <= 0:
+        return []
+    order = sorted(range(times.shape[0]), key=lambda i: float(strengths[i]), reverse=True)
+    accepted_times: List[float] = []
+    accepted: List[int] = []
+    for index in order:
+        if len(accepted) >= max_notes:
+            break
+        t = float(times[index])
+        if t < min_start_seconds or t > max_end_seconds:
+            continue
+        pos = bisect.bisect_left(accepted_times, t)
+        if pos > 0 and t - accepted_times[pos - 1] < min_gap_seconds:
+            continue
+        if pos < len(accepted_times) and accepted_times[pos] - t < min_gap_seconds:
+            continue
+        accepted_times.insert(pos, t)
+        accepted.append(index)
+    return sorted(accepted, key=lambda i: float(times[i]))
+
+
+def merge_note_layers(
+    kick_times: np.ndarray,
+    kick_strengths: np.ndarray,
+    vocal_times: np.ndarray,
+    vocal_strengths: np.ndarray,
+    min_separation_seconds: float,
+) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    """Funde as camadas do perfil "hybrid" com PRIORIDADE do kick: as
+    notas de groove (quantizadas) entram todas; uma nota vocal so entra
+    se ficar a pelo menos `min_separation_seconds` de qualquer nota ja
+    aceita (o esqueleto ritmico nunca e empurrado pela melodia).
+    Retorna `(tempos, forcas, layers)` em ordem temporal."""
+    accepted_times: List[float] = [float(t) for t in kick_times]
+    merged = [
+        (float(kick_times[i]), float(kick_strengths[i]), LAYER_KICK)
+        for i in range(kick_times.shape[0])
+    ]
+    for i in range(vocal_times.shape[0]):
+        t = float(vocal_times[i])
+        pos = bisect.bisect_left(accepted_times, t)
+        if pos > 0 and t - accepted_times[pos - 1] < min_separation_seconds:
+            continue
+        if pos < len(accepted_times) and accepted_times[pos] - t < min_separation_seconds:
+            continue
+        accepted_times.insert(pos, t)
+        merged.append((t, float(vocal_strengths[i]), LAYER_VOCAL))
+
+    merged.sort(key=lambda item: item[0])
+    times = np.asarray([item[0] for item in merged], dtype=np.float64)
+    strengths = np.asarray([item[1] for item in merged], dtype=np.float64)
+    layers = [item[2] for item in merged]
+    return times, strengths, layers
+
+
 def assign_lanes(
     slot_times: np.ndarray,
     slot_centroids: np.ndarray,
@@ -201,47 +273,61 @@ def generate_beatmap(
     heavy_quantile: float = 0.92,
     subdivisions: int = 2,
     snap_tolerance_seconds: float = 0.08,
+    profile: str = "groove",
+    hybrid_kick_share: float = 0.60,
 ) -> dict:
-    """Roda a IA da engine sobre `audio_path` e grava um beatmap.json
-    QUANTIZADO na grade de batidas (ver docstring do modulo). Se o
-    beat-tracker nao encontrar pulsacao suficiente (< 8 batidas), cai no
-    plano B por onsets (sem quantizacao, melhor que nada).
+    """Roda a IA da engine sobre `audio_path` com o PERFIL DE EXTRACAO
+    pedido e grava um beatmap.json.
 
-    Retorna um resumo primitivo (bpm, contagens, fracao na batida) para
-    logging da CLI."""
+    Perfis (a matematica vive na engine, `extraction_profiles`; aqui e
+    so interpretacao/curadoria):
+        "groove"      -- notas QUANTIZADAS na grade do PLP percussivo
+                         (faixas guiadas por bumbo), camada "kick".
+        "vocal_shred" -- notas SEM quantizacao nos onsets da melodia
+                         (faixas guiadas por voz/synth, estilo FNF),
+                         camada "vocal".
+        "hybrid"      -- esqueleto kick quantizado (`hybrid_kick_share`
+                         da densidade) + melodia vocal sincopada por
+                         cima, fundidas com prioridade do kick; cada
+                         nota carrega a tag `layer` para o roteamento
+                         espacial do jogo.
+
+    Retorna um resumo primitivo (bpm, contagens por camada) para a CLI."""
+    if profile not in EXTRACTION_PROFILES:
+        raise ValueError(f"perfil desconhecido: {profile!r} (validos: {EXTRACTION_PROFILES})")
+
     audio = AudioLoader().load(Path(audio_path))
-
-    # Estagio DSP (HPSS -> mel grave -> PLP -> threshold): a grade vem
-    # dos PULSOS dominantes e os votos do envelope PERCUSSIVO -- imune a
-    # mascaramento por pads/vocais. Fallback: extratores genericos da
-    # engine (audio exotico nunca derruba a analise).
-    try:
-        extraction = PercussiveOnsetExtractor().extract(audio)
-        beat_times = extraction.pulse_timestamps_seconds
-        vote_times = extraction.onset_timestamps_seconds
-        vote_strengths = extraction.onset_strengths
-        detected_bpm = extraction.tempo_bpm_estimate
-        dsp_stage = "percussive-plp"
-    except Exception as exc:
-        print(f"[mapper] extracao percussiva falhou ({exc}); usando extratores genericos")
-        bpm_result = BpmExtractor().extract(audio)
-        onset_result = OnsetExtractor().extract(audio)
-        beat_times = np.asarray(bpm_result.beat_timestamps_seconds, dtype=np.float64)
-        vote_times = onset_result.onset_timestamps_seconds
-        vote_strengths = onset_result.onset_strengths
-        detected_bpm = float(bpm_result.bpm)
-        dsp_stage = "generic-fallback"
-
     track_duration = audio.samples.shape[0] / float(audio.sample_rate)
     max_end_seconds = track_duration - end_margin_seconds
-    beat_times = np.asarray(beat_times, dtype=np.float64)
+    playable_span = max(0.0, max_end_seconds - min_start_seconds)
 
-    if beat_times.shape[0] >= 8:
-        grid_times, on_beat = build_beat_grid(beat_times, subdivisions=subdivisions)
+    # Estagio DSP na ENGINE; fallback para os extratores genericos
+    # (audio exotico nunca derruba a analise).
+    try:
+        layers = {layer.layer: layer for layer in extract_with_profile(audio, profile).layers}
+        dsp_stage = f"profile:{profile}"
+    except Exception as exc:
+        print(f"[mapper] perfil '{profile}' falhou ({exc}); usando extratores genericos")
+        layers = {}
+        dsp_stage = "generic-fallback"
+
+    kick_layer = layers.get(LAYER_KICK)
+    vocal_layer = layers.get(LAYER_VOCAL)
+
+    # -- camada kick: quantizada na grade dos pulsos do PLP ------------
+    kick_times = np.zeros(0)
+    kick_strengths = np.zeros(0)
+    on_beat_count = 0
+    quantized = False
+    kick_budget = target_density_per_second * (hybrid_kick_share if vocal_layer is not None else 1.0)
+    if kick_layer is not None and kick_layer.pulse_timestamps_seconds.shape[0] >= 8:
+        grid_times, on_beat = build_beat_grid(
+            kick_layer.pulse_timestamps_seconds, subdivisions=subdivisions
+        )
         slot_strengths, slot_has_event = snap_onsets_to_grid(
             grid_times,
-            vote_times,
-            vote_strengths,
+            kick_layer.onset_timestamps_seconds,
+            kick_layer.onset_strengths,
             snap_tolerance=snap_tolerance_seconds,
         )
         chosen = select_slots(
@@ -249,38 +335,73 @@ def generate_beatmap(
             min_start_seconds=min_start_seconds,
             max_end_seconds=max_end_seconds,
             min_gap_seconds=min_gap_seconds,
-            target_density_per_second=target_density_per_second,
+            target_density_per_second=kick_budget,
         )
-        note_times = grid_times[chosen]
-        note_strengths = slot_strengths[chosen]
+        kick_times = grid_times[chosen]
+        kick_strengths = slot_strengths[chosen]
         on_beat_count = int(np.count_nonzero(on_beat[chosen]))
         quantized = True
-    else:
-        # plano B: sem pulsacao confiavel, usa os votos diretamente
-        vote_times = np.asarray(vote_times, dtype=np.float64)
-        vote_strengths = np.asarray(vote_strengths, dtype=np.float64)
-        order = np.argsort(-vote_strengths)
-        note_times_list: List[float] = []
-        for onset_index in order:
-            t = float(vote_times[onset_index])
-            if t < min_start_seconds or t > max_end_seconds:
-                continue
-            pos = bisect.bisect_left(note_times_list, t)
-            if pos > 0 and t - note_times_list[pos - 1] < min_gap_seconds:
-                continue
-            if pos < len(note_times_list) and note_times_list[pos] - t < min_gap_seconds:
-                continue
-            note_times_list.insert(pos, t)
-            if len(note_times_list) >= int(target_density_per_second * (max_end_seconds - min_start_seconds)):
-                break
-        note_times = np.asarray(note_times_list, dtype=np.float64)
-        note_strengths = (
-            np.interp(note_times, vote_times, vote_strengths)
-            if vote_times.shape[0]
-            else np.zeros(note_times.shape[0])
+
+    # -- camada vocal: sincopada, sem grade ----------------------------
+    vocal_times = np.zeros(0)
+    vocal_strengths = np.zeros(0)
+    if vocal_layer is not None:
+        vocal_share = 1.0 if kick_layer is None else (1.0 - hybrid_kick_share)
+        vocal_chosen = select_strongest_unquantized(
+            vocal_layer.onset_timestamps_seconds,
+            vocal_layer.onset_strengths,
+            min_start_seconds=min_start_seconds,
+            max_end_seconds=max_end_seconds,
+            min_gap_seconds=min_gap_seconds,
+            max_notes=int(round(target_density_per_second * vocal_share * playable_span)),
         )
-        on_beat_count = 0
-        quantized = False
+        vocal_times = vocal_layer.onset_timestamps_seconds[vocal_chosen]
+        vocal_strengths = vocal_layer.onset_strengths[vocal_chosen]
+
+    # -- fallback generico (sem camada alguma) -------------------------
+    generic_bpm = None
+    if kick_layer is None and vocal_layer is None:
+        bpm_result = BpmExtractor().extract(audio)
+        generic_bpm = float(bpm_result.bpm)
+        onset_result = OnsetExtractor().extract(audio)
+        beat_times = np.asarray(bpm_result.beat_timestamps_seconds, dtype=np.float64)
+        if beat_times.shape[0] >= 8:
+            grid_times, on_beat = build_beat_grid(beat_times, subdivisions=subdivisions)
+            slot_strengths, slot_has_event = snap_onsets_to_grid(
+                grid_times, onset_result.onset_timestamps_seconds,
+                onset_result.onset_strengths, snap_tolerance=snap_tolerance_seconds,
+            )
+            chosen = select_slots(
+                grid_times, on_beat, slot_strengths, slot_has_event,
+                min_start_seconds=min_start_seconds, max_end_seconds=max_end_seconds,
+                min_gap_seconds=min_gap_seconds,
+                target_density_per_second=target_density_per_second,
+            )
+            kick_times = grid_times[chosen]
+            kick_strengths = slot_strengths[chosen]
+            on_beat_count = int(np.count_nonzero(on_beat[chosen]))
+            quantized = True
+        else:
+            chosen = select_strongest_unquantized(
+                onset_result.onset_timestamps_seconds, onset_result.onset_strengths,
+                min_start_seconds, max_end_seconds, min_gap_seconds,
+                int(round(target_density_per_second * playable_span)),
+            )
+            kick_times = onset_result.onset_timestamps_seconds[chosen]
+            kick_strengths = onset_result.onset_strengths[chosen]
+
+    # -- fusao multi-camada com prioridade do esqueleto ritmico --------
+    note_times, note_strengths, note_layers = merge_note_layers(
+        kick_times, kick_strengths, vocal_times, vocal_strengths,
+        min_separation_seconds=0.5 * min_gap_seconds,
+    )
+
+    if kick_layer is not None and kick_layer.tempo_bpm_estimate > 0.0:
+        detected_bpm = kick_layer.tempo_bpm_estimate
+    elif generic_bpm is not None:
+        detected_bpm = generic_bpm
+    else:
+        detected_bpm = estimate_bpm_from_pulses(note_times)  # vocal_shred: so metadado
 
     centroids = (
         _spectral_centroids_at(audio, note_times) if note_times.shape[0] else np.zeros(0)
@@ -312,6 +433,7 @@ def generate_beatmap(
                 threat_type=THREAT_TYPE_HEAVY if is_heavy else THREAT_TYPE_BASIC,
                 lane=int(lanes[i]),
                 strength=strength,
+                layer=note_layers[i],
             )
         )
 
@@ -328,8 +450,10 @@ def generate_beatmap(
 
     return {
         "bpm": float(detected_bpm),
-        "onset_count": int(np.asarray(vote_times).shape[0]),
+        "profile": profile,
         "threat_count": len(threats),
+        "kick_count": sum(1 for layer_tag in note_layers if layer_tag == LAYER_KICK),
+        "vocal_count": sum(1 for layer_tag in note_layers if layer_tag == LAYER_VOCAL),
         "heavy_count": heavy_count,
         "on_beat_count": on_beat_count,
         "quantized": quantized,

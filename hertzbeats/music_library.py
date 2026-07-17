@@ -65,10 +65,14 @@ def needs_analysis(audio_path: Path, beatmap_path: Path) -> bool:
 
 def analyze_song(audio_path: Path, beatmap_path: Path, track_id: str) -> None:
     """Roda a IA offline sobre a musica (import LAZY: librosa so entra
-    na memoria se houver musica nova para analisar)."""
+    na memoria se houver musica nova para analisar). Perfil "hybrid":
+    esqueleto de kick quantizado + melodia vocal por cima, com tags de
+    camada -- o melhor padrao para musica arbitraria do jogador."""
     from hertzbeats.offline.beatmap_pipeline import generate_beatmap
 
-    generate_beatmap(audio_path=audio_path, output_path=beatmap_path, track_id=track_id)
+    generate_beatmap(
+        audio_path=audio_path, output_path=beatmap_path, track_id=track_id, profile="hybrid"
+    )
 
 
 def scan_user_songs(

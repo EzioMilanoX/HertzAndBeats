@@ -8,9 +8,9 @@ nao pode poluir a grade de pulsos.
 import numpy as np
 import pytest
 
-from hertzbeats.offline.percussive_extraction import (
-    PercussiveOnsetExtractor,
+from ouroboros.rhythm.offline.extraction_profiles import (
     estimate_bpm_from_pulses,
+    extract_groove_layer,
     select_curve_peaks,
 )
 
@@ -104,7 +104,7 @@ def test_pulse_grid_locks_to_kick_despite_loud_pad():
     pulsos extraidos ainda devem seguir o periodo do bumbo (0.6s a
     100 BPM) -- HPSS + mel grave descartam o pad antes do PLP."""
     audio = _drums_with_loud_pad(bpm=100.0)
-    result = PercussiveOnsetExtractor().extract(audio)
+    result = extract_groove_layer(audio)
 
     assert result.pulse_timestamps_seconds.shape[0] >= 8
     gaps = np.diff(result.pulse_timestamps_seconds)
@@ -141,7 +141,7 @@ def test_extraction_feeds_quantized_beatmap_end_to_end(tmp_path):
         min_start_seconds=1.0, end_margin_seconds=0.8, target_density_per_second=1.6,
         min_gap_seconds=0.4,
     )
-    assert summary["dsp_stage"] == "percussive-plp"
+    assert summary["dsp_stage"] == "profile:groove"
     assert summary["quantized"] is True
     assert summary["threat_count"] >= 8
 

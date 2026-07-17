@@ -102,7 +102,13 @@ python tools/make_beatmap.py --audio minha_musica.mp3 \
 
 com o resultado apontável por uma entrada manual em `data/stages/stages.json` (aí com `overrides` de dificuldade próprios).
 
-**Como o mapeador funciona (v2)**: toda nota é **quantizada na grade de batidas** do beat-tracker (batidas + colcheias) — os onsets crus apenas *votam* em quais pontos da grade importam (onsets são adiantados por natureza; usar o timestamp deles dessincroniza o mapa). A seleção prefere pontos **na batida**, respeita densidade-alvo/espaçamento/margem de fim, e a **lane vem do timbre**: o centroide espectral no instante da nota escolhe a coluna/direção (grave → esquerda, agudo → direita), então o mesmo som repete a mesma lane e padrões musicais viram padrões de jogo (com anti-jack). Picos de energia (strength ≥ 0.8) viram **ameaças pesadas**. Melhorias no mapeador re-analisam sua biblioteca automaticamente (`mapper_version`).
+**Como o mapeador funciona (v4)** — a matemática de áudio vive na engine ([`extraction_profiles`](https://github.com/EzioMilanoX/OuroborosEngine)); o jogo interpreta. Três **Perfis de Extração**:
+
+- **`groove`** — HPSS isola o percussivo, envelope em mel grave (fmax 250 Hz: bumbo/caixa, sem chimbal), **PLP** dá o pulso dominante e toda nota é **quantizada nessa grade** (batidas + colcheias; os onsets apenas votam). Para faixas guiadas por bateria — imune a mascaramento por pads/vocais.
+- **`vocal_shred`** — separação suave (harmônico + percussivo atenuado, preservando os ataques da melodia), envelope em mel médio/agudo (300–8000 Hz), `onset_detect` agressivo **sem** quantização — abraça síncopa e metralhadoras de notas estilo FNF.
+- **`hybrid`** *(padrão das suas músicas)* — as duas camadas fundidas com prioridade do kick, cada nota com a tag `layer`. No Arcade 4K, **kicks vão para as colunas das bordas e vocais para o centro** — o groove numa mão, a melodia na outra.
+
+A **lane vem do timbre** (centroide espectral em quantis: grave → esquerda, agudo → direita, com anti-jack), **pesadas** são o topo ~8% dos acentos da própria música, e melhorias no mapeador re-analisam sua biblioteca automaticamente (`mapper_version`). Escolha o perfil por música com `tools/make_beatmap.py --profile groove|vocal_shred|hybrid`.
 
 ## Arquitetura
 
