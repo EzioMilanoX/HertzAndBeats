@@ -45,6 +45,9 @@ def main(argv=None) -> int:
     try:
         game_loop.run()  # menu de fases -> jogo; ESC no menu encerra
     finally:
+        from hertzbeats.user_settings import save_user_latency
+
+        save_user_latency(audio_engine.get_clock().get_output_latency_seconds())
         state = game_loop.composed.game_state
         print(
             "ultima partida: "

@@ -28,6 +28,10 @@ FLOW_RESULTS = "results"
 _RESULTS_GRACE_SECONDS = 1.0
 """Pausa dramatica entre a ultima ameaca resolvida e a tela de resultados."""
 
+_LATENCY_STEP_SECONDS = 0.01
+_LATENCY_MAX_SECONDS = 0.30
+_NOTICE_SECONDS = 1.6
+
 
 class HertzGameLoop(GameLoop):
     """
@@ -80,6 +84,8 @@ class HertzGameLoop(GameLoop):
         self._loaded_stage = 0
         self._flow = FLOW_MENU
         self._results_grace = 0.0
+        self._notice_key: Optional[str] = None
+        self._notice_timer = 0.0
         self._composed: Optional[ComposedGame] = None
 
         composed = self._compose_stage(0)
@@ -201,9 +207,32 @@ class HertzGameLoop(GameLoop):
 
     # -- maquina de estados por frame ------------------------------------
 
+    def _adjust_latency(self, direction: int) -> None:
+        """Calibracao AO VIVO da latencia de audio (teclas +/-): se as
+        ameacas parecem chegar ANTES do som, aumente; DEPOIS, diminua.
+        O novo valor vale imediatamente (spawner/julgamento leem o
+        relogio compensado) e e persistido ao sair do jogo."""
+        current = self._audio_clock.get_output_latency_seconds()
+        new_value = current + direction * _LATENCY_STEP_SECONDS
+        new_value = min(max(round(new_value, 2), 0.0), _LATENCY_MAX_SECONDS)
+        self._audio_clock.calibrate_latency(new_value)
+        self._notice_key = f"latency_{int(round(new_value * 100))}"
+        self._notice_timer = _NOTICE_SECONDS
+
+    def _handle_latency_keys(self) -> None:
+        inp = self._input_provider
+        if inp.is_action_pressed("latency_up"):
+            self._adjust_latency(+1)
+        if inp.is_action_pressed("latency_down"):
+            self._adjust_latency(-1)
+
     def advance_frame(self, delta_time: float) -> None:
         """Um frame do fluxo: trata as acoes de meta-jogo do estado atual
         e, apenas em PLAYING, avanca a simulacao (`world.step`)."""
+        if self._notice_timer > 0.0:
+            self._notice_timer -= delta_time
+        if self._flow in (FLOW_PLAYING, FLOW_PAUSED):
+            self._handle_latency_keys()
         if self._flow == FLOW_MENU:
             self._advance_menu()
         elif self._flow == FLOW_PLAYING:
@@ -293,6 +322,8 @@ class HertzGameLoop(GameLoop):
         if hasattr(self._renderer, "set_overlay"):
             overlay_mode = None if self._flow == FLOW_PLAYING else self._flow
             self._renderer.set_overlay(overlay_mode, self._selected_stage, len(self._stages))
+        if hasattr(self._renderer, "set_notice"):
+            self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)
 
     def run(self) -> None:
         """Mesmo timing do `GameLoop.run` da engine (perf_counter + cap

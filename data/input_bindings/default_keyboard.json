@@ -11,8 +11,10 @@
   "move_right": "KEY_D",
   "move_up": "KEY_W",
   "move_down": "KEY_S",
-  "lane_0": "KEY_D",
-  "lane_1": "KEY_F",
-  "lane_2": "KEY_J",
-  "lane_3": "KEY_K"
+  "lane_0": "KEY_A",
+  "lane_1": "KEY_S",
+  "lane_2": "KEY_W",
+  "lane_3": "KEY_D",
+  "latency_up": "KEY_=",
+  "latency_down": "KEY_-"
 }

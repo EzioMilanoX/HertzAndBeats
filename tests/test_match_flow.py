@@ -208,6 +208,43 @@ def test_music_end_with_leftover_threats_still_reaches_results(flow_game, null_i
     assert loop.flow == FLOW_RESULTS
 
 
+def test_live_latency_calibration_with_plus_minus(flow_game, null_input):
+    """Teclas +/- ajustam a latencia em passos de 10 ms durante o jogo,
+    com clamp em [0, 0.30] -- a resposta pratica ao 'parece
+    desincronizado': o jogador calibra sentindo a musica."""
+    loop, clock = flow_game([[_basic(3.0)]])
+    _press(loop, null_input, "confirm")
+    clock.calibrate_latency(0.06)
+
+    _press(loop, null_input, "latency_up")
+    assert abs(clock.get_output_latency_seconds() - 0.07) < 1e-9
+    assert loop._notice_key == "latency_7"
+    assert loop._notice_timer > 0.0
+
+    for _ in range(9):
+        _press(loop, null_input, "latency_down")
+    assert clock.get_output_latency_seconds() == 0.0  # clamp no zero
+
+    # tambem funciona pausado; e o aviso expira sozinho
+    _press(loop, null_input, "pause")
+    _press(loop, null_input, "latency_up")
+    assert abs(clock.get_output_latency_seconds() - 0.01) < 1e-9
+    for _ in range(120):
+        loop.advance_frame(DT)
+    assert loop._notice_timer <= 0.0
+
+
+def test_saved_latency_roundtrip(tmp_path):
+    from hertzbeats.user_settings import load_user_latency, save_user_latency
+
+    path = str(tmp_path / "user_settings.json")
+    assert load_user_latency(path) is None  # sem arquivo -> default da config
+    save_user_latency(0.13, path)
+    assert load_user_latency(path) == 0.13
+    save_user_latency(9.9, path)  # valores absurdos sao clampados na leitura
+    assert load_user_latency(path) == 0.30
+
+
 def test_game_over_to_menu(flow_game, null_input):
     loop, clock = flow_game([[_basic(3.0)]], overrides_list=[{"max_health": 1}])
     _press(loop, null_input, "confirm")

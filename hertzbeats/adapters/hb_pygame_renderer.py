@@ -42,6 +42,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_mode: Optional[str] = None
         self._overlay_selected: int = 0
         self._overlay_stage_count: int = 0
+        self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
@@ -62,6 +63,12 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_mode = mode
         self._overlay_selected = int(selected_index)
         self._overlay_stage_count = int(stage_count)
+
+    def set_notice(self, key: Optional[str]) -> None:
+        """Aviso transiente (superficie de overlay pre-registrada, ex.
+        calibracao de latencia), desenhado no topo em QUALQUER estado --
+        inclusive durante o gameplay. `None` oculta."""
+        self._notice_key = key
 
     def set_playfield(self, kind: Optional[str], **params) -> None:
         """Define a decoracao de arena do MODO ativo, desenhada a cada
@@ -132,6 +139,8 @@ class HBPygameRenderer(PygameRenderer):
     def end_frame(self) -> None:
         if self._overlay_mode is not None:
             self._draw_overlay()
+        if self._notice_key is not None:
+            self._blit_centered(self._notice_key, self._width // 2, 64)
         super().end_frame()
 
     def _blit_centered(self, key: str, center_x: int, y: int) -> int:

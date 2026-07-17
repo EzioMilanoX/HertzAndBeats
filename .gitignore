@@ -14,6 +14,9 @@ data/tracks/*.wav
 data/tracks/*.ogg
 data/tracks/*.mp3
 
+# Preferencias locais do jogador (calibracao de latencia por maquina)
+data/config/user_settings.json
+
 # IDE / SO
 .vscode/
 .idea/

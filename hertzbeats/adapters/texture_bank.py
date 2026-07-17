@@ -25,9 +25,14 @@ from hertzbeats.components.texture_ids import (
     TEX_WORD_PERFECT,
 )
 
-LANE_KEY_LABELS = ("D", "F", "J", "K")
+LANE_KEY_LABELS = ("A", "S", "W", "D")
 """Rotulos exibidos sob os receptores do Arcade 4K (espelham os
-bindings padrao `lane_0..lane_3`)."""
+bindings padrao `lane_0..lane_3`). Ordem herdada do FNF: as colunas
+esquerda->direita correspondem a <- v ^ -> = A S W D."""
+
+MAX_LATENCY_STEPS = 30
+"""Passos de 10 ms da calibracao ao vivo (0..300 ms), um texto
+pre-renderizado por valor -- nenhum font.render durante o jogo."""
 
 _DIGIT_COLOR = (235, 235, 255)
 _LABEL_COLOR = (130, 125, 170)
@@ -81,7 +86,7 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
 _MODE_CONTROL_HINTS = {
     "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
     "survival": "W A S D movem  |  ESPACO dash atraves das ondas  |  sem tiro",
-    "lanes": "D F J K nas colunas, no ritmo das notas",
+    "lanes": "A S W D nas colunas, no ritmo das notas",
     "hybrid": "W A S D movem + MOUSE/CLIQUE atiram  |  ESPACO dash",
 }
 """Dica de controles exibida no menu para o MODO da fase selecionada."""
@@ -126,6 +131,14 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         register_text(
             f"stage_{i}_hint", hint_font,
             _MODE_CONTROL_HINTS.get(stage_mode, ""), _GOOD_COLOR,
+        )
+
+    # calibracao de latencia ao vivo: um aviso por valor (passos de 10 ms)
+    for step in range(MAX_LATENCY_STEPS + 1):
+        register_text(
+            f"latency_{step}", hint_font,
+            f"CALIBRACAO DE AUDIO: {step * 10} ms   (+ atrasa o julgamento | - adianta)",
+            _PERFECT_COLOR,
         )
 
 

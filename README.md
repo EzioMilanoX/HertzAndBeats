@@ -24,11 +24,14 @@ A IA dita o **tempo** (o mesmo `beatmap.json`); o modo dita a **interpretação 
 | Mira 360º (Defensor) | Mouse (direção a partir do núcleo) |
 | Atirar / Parry (Defensor) | Botão esquerdo do mouse |
 | Mover (Sobrevivência) | W A S D |
-| Colunas (Arcade 4K) | D F J K |
+| Colunas (Arcade 4K) | **A S W D** (convenção FNF: ← ↓ ↑ →) |
 | Dash (i-frames) | Espaço |
-| Menu: escolher fase | Setas ↑/↓, ENTER (ou clique) para jogar |
+| Menu: escolher fase | Setas **ou W/S** · ENTER, ESPAÇO ou clique para jogar |
 | Pausar / retomar | ESC |
-| Após derrota/vitória | R repete a fase, ENTER vai à próxima, M volta ao menu |
+| Após derrota/vitória | R repete a fase, ENTER vai à próxima, M (ou BACKSPACE) volta ao menu |
+| **Calibrar áudio** | **+ / −** durante o jogo (passos de 10 ms, salvo entre sessões) |
+
+**Sente o ritmo dessincronizado?** É a latência de áudio da sua máquina (driver + fones/caixas + monitor). Durante qualquer fase, aperte **+** se as ameaças parecem chegar *antes* do som, **−** se chegam *depois* — o valor aparece na tela, vale na hora e fica salvo em `data/config/user_settings.json` (local, por máquina).
 
 O fluxo da partida: **menu de fases → jogando ⇄ pausado → GAME OVER** (vida zerada) ou **FASE CONCLUÍDA** (todas as ameaças resolvidas). Pausar congela a música — e como todo o gameplay rítmico lê exclusivamente o relógio de áudio, o jogo inteiro congela em sincronia e retoma do ponto exato, sem drift.
 

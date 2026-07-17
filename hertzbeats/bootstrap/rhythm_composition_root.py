@@ -806,9 +806,16 @@ class RhythmCompositionRoot:
         input_provider.load_bindings(config.input_bindings_path)
         input_provider.configure_aim_origin(center_x, center_y)
 
+        from hertzbeats.user_settings import load_user_latency
+
         audio_engine = HBPygameAudioEngine()
         audio_clock = audio_engine.get_clock()
-        audio_clock.calibrate_latency(config.output_latency_seconds)
+        # calibracao local do jogador (teclas +/- em jogo, persistida)
+        # tem prioridade sobre o default da config
+        saved_latency = load_user_latency()
+        audio_clock.calibrate_latency(
+            saved_latency if saved_latency is not None else config.output_latency_seconds
+        )
 
         # 2-4. Fases data-driven + fluxo de partida. O HertzGameLoop ja
         # compoe a fase 0 (via `compose_world`) para o fundo do menu.
