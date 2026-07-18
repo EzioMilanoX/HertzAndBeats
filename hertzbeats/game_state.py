@@ -35,6 +35,7 @@ class GameState:
         "fever_meter",
         "parry_count",
         "deflect_count",
+        "shake_intensity",
     )
 
     def __init__(self, max_health: int) -> None:
@@ -63,6 +64,17 @@ class GameState:
         self.deflect_count: int = 0
         """Defensor (Polaridade): tiros no tempo certo mas na cor
         errada -- nao pune, so nao acerta."""
+        self.shake_intensity: float = 0.0
+        """Tremor de tela ATUAL, em pixels de deslocamento maximo --
+        a "variavel global de camera" que o `CameraShakeSystem` decai a
+        cada frame (`HertzConfig.shake_decay_per_second`, mesmo par
+        mutavel/tuning-estatico de `fever_meter`/`fever_decay_per_second`)
+        e que o `HertzGameLoop` le a cada frame para transformar num
+        offset aleatorio real via `IRenderer.set_camera_offset` (metodo
+        JA EXISTENTE na engine, ROADMAP M1/M2 -- nao inventamos um novo).
+        Qualquer sistema pode chamar `trigger_shake(...)`; NUNCA e
+        escrito diretamente (sempre por esse metodo, que decide o
+        criterio de sobreposicao de tremores concorrentes)."""
 
     @property
     def in_fever(self) -> bool:
@@ -76,3 +88,10 @@ class GameState:
         """
         self.last_judgment = judgment
         self.judgment_display_seconds_left = display_seconds
+
+    def trigger_shake(self, intensity_px: float) -> None:
+        """Aciona/reforca o tremor de tela. Usa `max()`, nao soma: dois
+        tremores sobrepostos (ex.: um MISS de Hold bem no instante de uma
+        parede letal) resultam no MAIOR dos dois, nao numa intensidade
+        absurda que a soma produziria -- decai normalmente dali."""
+        self.shake_intensity = max(self.shake_intensity, float(intensity_px))

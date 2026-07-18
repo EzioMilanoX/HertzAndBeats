@@ -72,6 +72,7 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("is_reflected", np.bool_),
         ("is_hold", np.bool_),
         ("has_grazed", np.bool_),
+        ("duration_sec", np.float32),
     ]
 )
 """Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
@@ -138,6 +139,22 @@ Campos:
     has_grazed: Sobrevivencia -- True apos o `GrazeSystem` ja ter
         contabilizado esta parede como "raspada" (impede pontuar Graze
         repetidamente por quadro enquanto o jogador permanece na faixa).
+    duration_sec: Notas Longas (Holds) genericas -- `> 0.0` marca a linha
+        como uma nota de HOLD cuja janela de sustentacao vai de
+        `target_hit_time_sec` (inicio, "Fase 1") ate
+        `target_hit_time_sec + duration_sec` (fim, "Fase 2"); `== 0.0`
+        (default de pool zerada) e uma nota comum. NAO existe um campo
+        `threat_type` novo para isso -- o schema ja tem um
+        (`threat_type`, int16, basic/heavy) desde a sessao anterior, e
+        REUTILIZAMOS ele: Holds do Defensor sao ameacas HEAVY spawnadas
+        com `duration_sec>0` (opt-in via `HertzConfig.holds_enabled`),
+        nao um terceiro tipo. Distinto do `is_hold` ja existente (notas
+        de Scratch do Arcade 4K: sustentacao por ENERGIA CONTINUA de
+        mouse, julgadas por `ScratchJudgmentSystem`) -- os dois campos
+        coexistem porque representam mecanicas de sustentacao DIFERENTES
+        (uma por eixo continuo, a outra por press+hold de acao/mira)
+        julgadas por sistemas diferentes; ver o `JudgmentSystem` do
+        Defensor para o ciclo Start/Sustain/Break do `duration_sec`.
 """
 
 PLAYER_STATE_DTYPE: np.dtype = np.dtype(

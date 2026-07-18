@@ -72,6 +72,8 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         max_threats_per_frame: int,
         min_travel_seconds: float = 0.05,
         ring_archetype_name: str = None,
+        hold_threat_type_id: int = None,
+        hold_duration_seconds: float = 0.0,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -79,6 +81,15 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         sao materializados pelo `BeatmapLoader` + composicao, fora do
         loop. `threat_half_by_type`/`threat_texture_by_type` sao arrays
         indexados por `threat_type` (afinacao data-driven ja resolvida).
+
+        Notas Longas (Holds, opt-in via `HertzConfig.holds_enabled`):
+        `hold_threat_type_id` (quando fornecido) marca QUAL `threat_type`
+        vira Hold -- reusa o mesmo id de "pesada" ja usado pelo Parry
+        (`config.threat_type_ids["rhythm_threat_heavy"]`), nao um
+        terceiro tipo novo. Ameacas desse tipo nascem com
+        `duration_sec = hold_duration_seconds` (> 0 marca Hold para o
+        `JudgmentSystem`); as demais nascem com `duration_sec = 0.0`
+        (default de pool zerada, nota comum).
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -109,6 +120,8 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._ring_pool = (
             memory_manager.get_pool("convergence_ring") if ring_archetype_name else None
         )
+        self._hold_threat_type_id = hold_threat_type_id
+        self._hold_duration_seconds = float(hold_duration_seconds)
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -153,6 +166,11 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
             POLARITY_PINK if (lane % self._lane_count) < self._lane_count / 2.0 else POLARITY_BLUE
         )
         threat_view["is_reflected"][threat_row] = False
+        threat_view["duration_sec"][threat_row] = (
+            self._hold_duration_seconds
+            if (self._hold_threat_type_id is not None and threat_type == self._hold_threat_type_id)
+            else 0.0
+        )
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
         threat_view["spawn_angle_rad"][threat_row] = angle

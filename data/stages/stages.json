@@ -97,6 +97,20 @@
       }
     },
     {
+      "stage_id": "stage_notas_longas",
+      "name": "8 - NOTAS LONGAS",
+      "subtitle": "segure o gatilho + a mira | beatmap da fase 1",
+      "track_path": "data/tracks/stage1_pulso_leve.wav",
+      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
+      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
+      "overrides": {
+        "holds_enabled": true,
+        "approach_seconds": 2.4,
+        "max_health": 4,
+        "aim_tolerance_degrees": 40.0
+      }
+    },
+    {
       "stage_id": "stage6_hibrido",
       "name": "6 - HIBRIDO",
       "subtitle": "tiro + dash | beatmap da fase 3",

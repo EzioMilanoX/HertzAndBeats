@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import random
 import time
 from typing import Optional, Tuple
 
@@ -394,6 +395,26 @@ class HertzGameLoop(GameLoop):
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)
 
+    def _sync_camera_shake(self) -> None:
+        """Traduz `GameState.shake_intensity` (decaido pelo
+        `CameraShakeSystem` a cada `world.step`, comum aos 3 modos) num
+        offset ALEATORIO real via `IRenderer.set_camera_offset` -- metodo
+        JA EXISTENTE na engine (ROADMAP M1/M2), so nunca tinha um
+        chamador no jogo ate agora. Mesma familia de sincronizacao
+        apresentacao<-estado de `_sync_overlay` (nunca dentro de um
+        `ISystem`); `random.uniform` aqui e puramente cosmetico -- nao
+        decide nenhum veredito de jogabilidade, entao nao esta sob a
+        disciplina Zero-GC do gameplay."""
+        if not hasattr(self._renderer, "set_camera_offset") or self._composed is None:
+            return
+        intensity = self._composed.game_state.shake_intensity
+        if intensity <= 0.0:
+            self._renderer.set_camera_offset(0.0, 0.0)
+            return
+        self._renderer.set_camera_offset(
+            random.uniform(-intensity, intensity), random.uniform(-intensity, intensity)
+        )
+
     def run(self) -> None:
         """Mesmo timing do `GameLoop.run` da engine (perf_counter + cap
         de fps), com `advance_frame` no lugar do `world.step`
@@ -412,6 +433,7 @@ class HertzGameLoop(GameLoop):
 
             self.advance_frame(delta_time)
             self._sync_overlay()
+            self._sync_camera_shake()
             self._render_frame()
 
             elapsed = time.perf_counter() - now

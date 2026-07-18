@@ -22,6 +22,8 @@ SFX_TAP = "data/sfx/tap.wav"
 SFX_DEFLECT = "data/sfx/deflect.wav"
 SFX_PARRY = "data/sfx/parry.wav"
 SFX_GRAZE = "data/sfx/graze.wav"
+SFX_HOLD_ENGAGE = "data/sfx/hold_engage.wav"
+SFX_HOLD_BREAK = "data/sfx/hold_break.wav"
 
 
 def _cannon(sample_rate: int) -> np.ndarray:
@@ -89,6 +91,27 @@ def _graze(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _hold_engage(sample_rate: int) -> np.ndarray:
+    """Notas Longas -- Fase 1 (Start) engajada: zumbido curto que
+    "trava", como um motor comecando a girar (sustentado ate a Fase 2
+    resolver)."""
+    length = int(0.12 * sample_rate)
+    t = np.arange(length) / sample_rate
+    mix = (1.0 - np.exp(-t * 40.0)) * np.sin(2 * np.pi * 220.0 * t)
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
+def _hold_break(sample_rate: int) -> np.ndarray:
+    """Notas Longas -- Fase 2 quebrada: queda abrupta de tom (o
+    "motor" solta), acompanhando o Camera Shake/Rumble do break."""
+    length = int(0.18 * sample_rate)
+    t = np.arange(length) / sample_rate
+    mix = np.exp(-t * 14.0) * np.sin(
+        2 * np.pi * np.cumsum(340.0 * np.exp(-t * 22.0) + 60.0) / sample_rate
+    )
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -99,6 +122,8 @@ def ensure_sfx() -> None:
         (SFX_DEFLECT, _deflect),
         (SFX_PARRY, _parry),
         (SFX_GRAZE, _graze),
+        (SFX_HOLD_ENGAGE, _hold_engage),
+        (SFX_HOLD_BREAK, _hold_break),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

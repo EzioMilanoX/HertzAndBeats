@@ -97,6 +97,12 @@ _POLARITY_CONTROL_HINT = (
 """Dica dedicada da fase de Polaridade -- o mesmo modo Defensor ganha um
 segundo botao de cor, entao a dica generica de "defender" nao basta."""
 
+_HOLDS_CONTROL_HINT = (
+    "SEGURE o CLIQUE e a MIRA sobre a ameaca pesada ate ela se esgotar -- soltar e MISS na hora"
+)
+"""Dica dedicada da fase de Notas Longas -- Hold exige SUSTENTAR
+gatilho+mira, bem diferente do clique instantaneo do Defensor comum."""
+
 _MODE_DISPLAY_NAMES = {
     "defender": "O DEFENSOR",
     "survival": "SOBREVIVENCIA",
@@ -143,11 +149,12 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         register_text(f"stage_{i}", stage_font, label, _LABEL_COLOR)
         register_text(f"stage_{i}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
         stage_mode = stage.overrides.get("game_mode", "defender")
-        hint_text = (
-            _POLARITY_CONTROL_HINT
-            if stage.overrides.get("polarity_enabled", False)
-            else _MODE_CONTROL_HINTS.get(stage_mode, "")
-        )
+        if stage.overrides.get("polarity_enabled", False):
+            hint_text = _POLARITY_CONTROL_HINT
+        elif stage.overrides.get("holds_enabled", False):
+            hint_text = _HOLDS_CONTROL_HINT
+        else:
+            hint_text = _MODE_CONTROL_HINTS.get(stage_mode, "")
         register_text(f"stage_{i}_hint", hint_font, hint_text, _GOOD_COLOR)
 
     # calibracao de latencia ao vivo: um aviso por valor (passos de 10 ms)

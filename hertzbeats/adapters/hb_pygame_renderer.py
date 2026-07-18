@@ -26,6 +26,18 @@ class HBPygameRenderer(PygameRenderer):
           (paredes de som da Sobrevivencia).
         - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
           esquerda e palavras expiradas).
+        - Screen Shake: `draw_batch` soma `self._cam_dx`/`self._cam_dy`
+          a CADA posicao antes de desenhar -- campos JA EXISTENTES na
+          `PygameRenderer` base (ROADMAP M1/M2, `set_camera_offset`,
+          default no-op na ABC). Nao inventamos um mecanismo novo aqui,
+          so passamos a LER o que a base ja guarda (o override completo
+          de `draw_batch` deste adapter, por causa do registro de
+          texturas, nao chamava `super().draw_batch()` e por isso
+          ignorava o offset ate agora). Quem ESCREVE o offset a cada
+          frame e o `HertzGameLoop`, lendo `GameState.shake_intensity`
+          (mesmo padrao ja usado por `set_overlay`/`set_notice`/
+          `set_flow_mode` -- sincronizacao de apresentacao vive no game
+          loop, nunca dentro de um `ISystem`).
 
     Continua respeitando o contrato `IRenderer`: uma unica chamada
     `draw_batch` por frame cruzando a fronteira core->adapter. O laco
@@ -243,12 +255,14 @@ class HBPygameRenderer(PygameRenderer):
         if count == 0:
             return
         draw_order = np.argsort(layer_z[:count], kind="stable")
+        cam_dx, cam_dy = self._cam_dx, self._cam_dy
         for i in draw_order:
             i = int(i)
             alpha = int(tint_rgba[i, 3])
             if alpha == 0:
                 continue
-            x, y = float(positions_xy[i, 0]), float(positions_xy[i, 1])
+            x = float(positions_xy[i, 0]) + cam_dx
+            y = float(positions_xy[i, 1]) + cam_dy
             texture = self._textures.get(int(texture_ids[i]))
             if texture is not None:
                 # NUNCA set_alpha(None): em pygame isso DESLIGA o alpha

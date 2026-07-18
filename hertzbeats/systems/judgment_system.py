@@ -84,6 +84,14 @@ class JudgmentSystem(ISystem):
         parry_sound_id: str = None,
         reflected_collision_layer: int = None,
         reflected_collision_mask: int = None,
+        hold_threat_type_id: int = None,
+        hold_aim_tolerance_rad: float = None,
+        hold_break_shake_px: float = 0.0,
+        rumble_low_freq: float = 0.0,
+        rumble_high_freq: float = 0.0,
+        rumble_duration_seconds: float = 0.0,
+        hold_engage_sound_id: str = None,
+        hold_break_sound_id: str = None,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -102,6 +110,20 @@ class JudgmentSystem(ISystem):
         ao serem selecionadas, sao REFLETIDAS (velocidade invertida,
         camada de colisao trocada) em vez de destruidas; o
         `ParryImpactSystem` cuida do resto do voo/impacto.
+
+        NOTAS LONGAS / HOLD (ativo quando `hold_threat_type_id` e
+        fornecido -- mutuamente exclusivo com Parry por fase, embora
+        ambos reusem o mesmo `threat_type` "pesada"): um acerto na
+        janela Good normal, Fase 1 (Start), NAO destroi a candidata --
+        ela fica "engajada" (`is_hit=True`, `judgment` permanece
+        PENDING, velocidade zerada, colisao com o nucleo desarmada) e
+        `_sweep_engaged_holds` assume o resto do ciclo de vida a cada
+        frame: Fase 2 (Sustain) exige `fire` segurado E mira dentro de
+        `hold_aim_tolerance_rad` continuamente ate
+        `target_hit_time_sec + duration_sec`; soltar OU desmirar antes
+        disso e MISS imediato (`hold_break_shake_px` de Camera Shake +
+        `set_rumble` do `IInputProvider`), sustentar ate o fim e
+        PERFECT.
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -132,6 +154,14 @@ class JudgmentSystem(ISystem):
         self._parry_sound_id = parry_sound_id
         self._reflected_collision_layer = reflected_collision_layer
         self._reflected_collision_mask = reflected_collision_mask
+        self._hold_threat_type_id = hold_threat_type_id
+        self._hold_aim_tolerance_rad = hold_aim_tolerance_rad
+        self._hold_break_shake_px = float(hold_break_shake_px)
+        self._rumble_low_freq = float(rumble_low_freq)
+        self._rumble_high_freq = float(rumble_high_freq)
+        self._rumble_duration_seconds = float(rumble_duration_seconds)
+        self._hold_engage_sound_id = hold_engage_sound_id
+        self._hold_break_sound_id = hold_break_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -145,6 +175,8 @@ class JudgmentSystem(ISystem):
         self._owned_mask = np.zeros(capacity, dtype=bool)
         self._window_buffer = np.zeros(capacity, dtype=np.float64)
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
+        self._engaged_mask = np.zeros(capacity, dtype=bool)
+        self._sustain_end_buffer = np.zeros(capacity, dtype=np.float64)
 
     def update(self, world: World, delta_time: float) -> None:
         """Executa o julgamento do frame: (1) varre MISSes vencidos,
@@ -195,6 +227,16 @@ class JudgmentSystem(ISystem):
         pending = self._scratch_mask[:active_count]
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(pending, owned, out=pending)
+
+        # Holds ENGAJADOS (`is_hit=True`, `judgment` ainda PENDING de
+        # proposito -- ver `_sweep_engaged_holds`) tem seu PROPRIO ciclo
+        # de vida por sustentacao; a varredura generica de overdue nao
+        # pode trata-los como vitimas comuns so porque o
+        # `target_hit_time_sec` (o INICIO do hold) ja passou.
+        not_engaged = self._engaged_mask[:active_count]
+        np.logical_not(threat_view["is_hit"], out=not_engaged)
+        np.logical_and(pending, not_engaged, out=pending)
+
         if self._heavy_threat_type_id is not None:
             # projeteis refletidos (Parry) continuam PENDING de proposito
             # -- sao "armas" agora, nao vitimas; a varredura de miss NAO
@@ -205,6 +247,8 @@ class JudgmentSystem(ISystem):
             np.logical_and(pending, reflected, out=pending)
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
+        if self._hold_threat_type_id is not None:
+            self._sweep_engaged_holds(world, threat_view, active_count, now_effective)
 
         for polarity in triggered_polarities:
             self._try_player_hit(world, threat_view, deltas, active_count, polarity)
@@ -364,6 +408,16 @@ class JudgmentSystem(ISystem):
         selection[rejected] = np.inf
         best_row = int(np.argmin(selection))
 
+        # Notas Longas (Hold): Fase 1 (Start) bem-sucedida -- a candidata
+        # NAO e destruida, fica "engajada" para `_sweep_engaged_holds`
+        # assumir a Fase 2 (Sustain) a partir do proximo frame. Checado
+        # ANTES do Parry por construcao (as duas mecanicas sao mutuamente
+        # exclusivas por fase, mas a ordem fixa evita ambiguidade caso
+        # uma fase configure as duas por engano).
+        if self._hold_threat_type_id is not None and float(threat_view["duration_sec"][best_row]) > 0.0:
+            self._register_hold_engage(threat_view, best_row)
+            return
+
         is_parry = (
             self._heavy_threat_type_id is not None
             and int(threat_view["threat_type"][best_row]) == self._heavy_threat_type_id
@@ -436,3 +490,121 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+
+    def _register_hold_engage(self, threat_view: np.ndarray, best_row: int) -> None:
+        """Notas Longas -- Fase 1 (Start): a candidata vencedora NAO e
+        destruida. Zera sua velocidade (para junto ao anel em vez de
+        atravessar) e DESARMA sua colisao com o nucleo
+        (`collision_layer/mask = 0`, o MESMO idioma do aviso telegrafado
+        da Sobrevivencia) -- assim o `CoreDamageSystem` nunca a ve
+        enquanto ela estiver sustentada, sem precisar tocar naquele
+        sistema. `is_hit=True` com `judgment` ainda PENDING marca "esta
+        linha pertence a Fase 2" para `_sweep_engaged_holds` e para a
+        exclusao correspondente em `update()`."""
+        entity_index = int(self._threat_pool.active_entity_indices()[best_row])
+
+        v_row = self._velocity_pool.dense_row_of(entity_index)
+        v_view = self._velocity_pool.active_view()
+        v_view["linear_x"][v_row] = 0.0
+        v_view["linear_y"][v_row] = 0.0
+
+        hb_row = self._hitbox_pool.dense_row_of(entity_index)
+        hb_view = self._hitbox_pool.active_view()
+        hb_view["collision_layer"][hb_row] = 0
+        hb_view["collision_mask"][hb_row] = 0
+
+        threat_view["is_hit"][best_row] = True
+
+        self._play(self._hold_engage_sound_id, 0.6)
+
+    def _sweep_engaged_holds(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        active_count: int,
+        now_effective: float,
+    ) -> None:
+        """Notas Longas -- Fase 2 (Sustain), vetorizada sobre TODAS as
+        linhas engajadas (tipicamente 0-1 por vez, mas nao ha razao para
+        um laco escalar): uma linha completa com sucesso quando
+        `agora_efetivo >= target_hit_time_sec + duration_sec`; quebra
+        (MISS imediato) se `fire` nao estiver segurado OU a mira sair de
+        `hold_aim_tolerance_rad` -- o que vier primeiro no frame, sem
+        esperar o fim da janela. `fire_held`/`aim_angle` sao leituras
+        ESCALARES (um unico gatilho, uma unica mira) comparadas contra
+        TODAS as linhas engajadas de uma vez via `out=`.
+        """
+        owned = self._owned_mask[:active_count]
+        np.equal(threat_view["mode_tag"], MODE_TAG_DEFENDER, out=owned)
+        engaged = self._engaged_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=engaged)
+        np.logical_and(engaged, threat_view["is_hit"], out=engaged)
+        np.logical_and(engaged, owned, out=engaged)
+        np.greater(threat_view["duration_sec"], 0.0, out=self._scratch_mask[:active_count])
+        np.logical_and(engaged, self._scratch_mask[:active_count], out=engaged)
+        if not np.any(engaged):
+            return
+
+        sustain_end = self._sustain_end_buffer[:active_count]
+        np.add(threat_view["target_hit_time_sec"], threat_view["duration_sec"], out=sustain_end)
+        completed = self._heavy_mask[:active_count]
+        np.greater_equal(now_effective, sustain_end, out=completed)
+        np.logical_and(completed, engaged, out=completed)
+
+        fire_held = self._input_provider.is_action_held(self._fire_action_name)
+        player_row = self._player_pool.dense_row_of(self._player_entity_index)
+        aim_angle = float(self._player_pool.active_view()["aim_angle_rad"][player_row])
+        angles = self._angle_buffer[:active_count]
+        np.subtract(threat_view["spawn_angle_rad"], aim_angle, out=angles)
+        np.add(angles, math.pi, out=angles)
+        np.mod(angles, _TAU, out=angles)
+        np.subtract(angles, math.pi, out=angles)
+        np.abs(angles, out=angles)
+        aim_ok = self._pre_polarity_mask[:active_count]
+        np.less_equal(angles, self._hold_aim_tolerance_rad, out=aim_ok)
+
+        broken = self._color_mask[:active_count]
+        if fire_held:
+            np.logical_not(aim_ok, out=broken)
+        else:
+            broken.fill(True)
+        np.logical_and(broken, engaged, out=broken)
+        np.logical_and(broken, np.logical_not(completed), out=broken)  # completar tem prioridade
+
+        for row in np.flatnonzero(completed):
+            self._resolve_hold_success(world, threat_view, int(row))
+        for row in np.flatnonzero(broken):
+            self._resolve_hold_break(world, threat_view, int(row))
+
+    def _resolve_hold_success(self, world: World, threat_view: np.ndarray, row: int) -> None:
+        """Sustentou o Hold ate o fim: PERFECT, destruicao diferida,
+        placar/combo normais."""
+        threat_view["judgment"][row] = JUDGMENT_PERFECT
+        world.destroy_entity(int(threat_view["packed_handle"][row]))
+
+        state = self._game_state
+        state.score += self._score_perfect
+        state.perfect_count += 1
+        state.combo_count += 1
+        if state.combo_count > state.max_combo:
+            state.max_combo = state.combo_count
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+
+    def _resolve_hold_break(self, world: World, threat_view: np.ndarray, row: int) -> None:
+        """Soltou o gatilho ou desmirou antes do fim do Hold: MISS
+        imediato (sem esperar a janela de miss generica), combo zerado,
+        e o feedback fisico duplo que esta tarefa pediu -- Camera Shake
+        (`GameState.trigger_shake`) e Haptics (`IInputProvider.set_rumble`,
+        no-op silencioso sem controle conectado)."""
+        threat_view["judgment"][row] = JUDGMENT_MISS
+        world.destroy_entity(int(threat_view["packed_handle"][row]))
+
+        state = self._game_state
+        state.miss_count += 1
+        state.combo_count = 0
+        state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+        state.trigger_shake(self._hold_break_shake_px)
+        self._input_provider.set_rumble(
+            self._rumble_low_freq, self._rumble_high_freq, self._rumble_duration_seconds
+        )
+        self._play(self._hold_break_sound_id, 0.7)

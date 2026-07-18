@@ -99,6 +99,21 @@ class HertzConfig:
     flow_volume_boost: float = 0.15
     flow_shatter_seconds: float = 0.35
 
+    # -- Screen Shake (Camera, comum aos 3 modos -- sempre ativo; quem
+    #    aciona e cada mecanica via `GameState.trigger_shake`) --
+    shake_decay_per_second: float = 60.0
+
+    # -- Haptics/Rumble (comum; no-op silencioso sem controle conectado) --
+    rumble_low_freq: float = 0.35
+    rumble_high_freq: float = 0.85
+    rumble_duration_seconds: float = 0.25
+
+    # -- Notas Longas / Holds do Defensor (opt-in por fase) --
+    holds_enabled: bool = False
+    hold_duration_seconds: float = 1.5
+    hold_aim_tolerance_degrees: float = 50.0
+    hold_break_shake_px: float = 22.0
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -168,6 +183,14 @@ class HertzConfig:
             flow_combo_threshold=raw.get("flow_combo_threshold", 50),
             flow_volume_boost=raw.get("flow_volume_boost", 0.15),
             flow_shatter_seconds=raw.get("flow_shatter_seconds", 0.35),
+            shake_decay_per_second=raw.get("shake_decay_per_second", 60.0),
+            rumble_low_freq=raw.get("rumble_low_freq", 0.35),
+            rumble_high_freq=raw.get("rumble_high_freq", 0.85),
+            rumble_duration_seconds=raw.get("rumble_duration_seconds", 0.25),
+            holds_enabled=raw.get("holds_enabled", False),
+            hold_duration_seconds=raw.get("hold_duration_seconds", 1.5),
+            hold_aim_tolerance_degrees=raw.get("hold_aim_tolerance_degrees", 50.0),
+            hold_break_shake_px=raw.get("hold_break_shake_px", 22.0),
         )
 
 

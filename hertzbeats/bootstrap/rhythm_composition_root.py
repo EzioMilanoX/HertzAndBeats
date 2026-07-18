@@ -46,11 +46,14 @@ from hertzbeats.audio.sfx_synth import (
     SFX_CLICK,
     SFX_DEFLECT,
     SFX_GRAZE,
+    SFX_HOLD_BREAK,
+    SFX_HOLD_ENGAGE,
     SFX_PARRY,
     SFX_TAP,
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
+from hertzbeats.systems.camera_shake_system import CameraShakeSystem
 from hertzbeats.systems.convergence_ring_system import (
     CONVERGENCE_RING_DTYPE,
     ConvergenceRingSystem,
@@ -204,6 +207,10 @@ def _compose_defender_mode(ctx: _ModeContext):
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
         ring_archetype_name="convergence_ring",
+        hold_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_heavy") if config.holds_enabled else None
+        ),
+        hold_duration_seconds=config.hold_duration_seconds,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -247,6 +254,12 @@ def _compose_defender_mode(ctx: _ModeContext):
     heavy_threat_type_id = (
         config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
     )
+    # Notas Longas (Hold, opt-in por fase, `holds_enabled`): mutuamente
+    # exclusivo com Polaridade/Parry por convencao de fase (ambos reusam
+    # o mesmo threat_type "pesada", mas cada fase liga so UM dos dois).
+    hold_threat_type_id = (
+        config.threat_type_ids.get("rhythm_threat_heavy") if config.holds_enabled else None
+    )
     ctx.world.register_system(
         JudgmentSystem(
             audio_clock=ctx.audio_clock,
@@ -273,6 +286,14 @@ def _compose_defender_mode(ctx: _ModeContext):
             parry_sound_id=SFX_PARRY,
             reflected_collision_layer=REFLECTED_COLLISION_LAYER if config.polarity_enabled else None,
             reflected_collision_mask=THREAT_COLLISION_LAYER if config.polarity_enabled else None,
+            hold_threat_type_id=hold_threat_type_id,
+            hold_aim_tolerance_rad=math.radians(config.hold_aim_tolerance_degrees),
+            hold_break_shake_px=config.hold_break_shake_px,
+            rumble_low_freq=config.rumble_low_freq,
+            rumble_high_freq=config.rumble_high_freq,
+            rumble_duration_seconds=config.rumble_duration_seconds,
+            hold_engage_sound_id=SFX_HOLD_ENGAGE,
+            hold_break_sound_id=SFX_HOLD_BREAK,
         )
     )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
@@ -893,6 +914,12 @@ def compose_world(
             )
         )
 
+    # Screen Shake: decaimento comum aos 3 modos, independente de quem
+    # aciona `GameState.trigger_shake` (Hold quebrado no Defensor hoje;
+    # qualquer mecanica futura de Sobrevivencia/Arcade so precisa chamar
+    # o mesmo metodo, sem registrar nada extra aqui).
+    world.register_system(CameraShakeSystem(game_state, config.shake_decay_per_second))
+
     world.register_system(
         UIRenderSystem(
             memory_manager=memory_manager,
@@ -1067,6 +1094,8 @@ class RhythmCompositionRoot:
             SFX_CLICK,
             SFX_DEFLECT,
             SFX_GRAZE,
+            SFX_HOLD_BREAK,
+            SFX_HOLD_ENGAGE,
             SFX_PARRY,
             SFX_TAP,
             ensure_sfx,
@@ -1108,7 +1137,10 @@ class RhythmCompositionRoot:
         # play_one_shot em jogo nao pode pagar o custo de I/O e sair fora
         # do tempo.
         ensure_sfx()
-        for sound_id in (SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE):
+        for sound_id in (
+            SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE,
+            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK,
+        ):
             audio_engine.preload_one_shot(sound_id)
 
         # 2-4. Fases data-driven + musicas do jogador + fluxo de partida.
