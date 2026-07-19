@@ -55,11 +55,26 @@ class SurvivalSpawnerSystem(RhythmSpawnerSystem):
         threat_collision_mask: int,
         max_threats_per_frame: int,
         strike_seconds: float = 0.30,
+        hold_threat_type_id: int = None,
+        hold_duration_seconds: float = 0.0,
+        safe_zone_radius: float = 70.0,
     ) -> None:
         """`bar_half_by_type` e a meia-espessura por `threat_type`;
         `strike_seconds` e a janela letal apos o onset. As camadas de
         colisao REAIS ficam guardadas para o `WallPhaseSystem` armar a
-        hitbox na virada de fase."""
+        hitbox na virada de fase.
+
+        SAFE ZONE (opt-in via `hold_threat_type_id`): toda pesada
+        (mesmo `threat_type` que o Parry do Defensor/o Shield do
+        Arcade reusam) vira uma zona CIRCULAR ESTATICA -- nunca uma
+        parede que varre -- numa posicao de grade 4x2 determinada pela
+        `lane` (a mesma "geografia repete com a musica" do resto do
+        modo, so numa malha propria). Sua hitbox NUNCA e armada (ver
+        `WallPhaseSystem`); `duration_sec = hold_duration_seconds`
+        marca a linha para o `SafeZoneJudgmentSystem` e para a exclusao
+        dela em todo coletor generico do modo (`SurvivalDamageSystem`,
+        `GrazeSystem`).
+        """
         super().__init__(
             audio_clock=audio_clock,
             scheduled_threats=scheduled_spawns,
@@ -81,6 +96,9 @@ class SurvivalSpawnerSystem(RhythmSpawnerSystem):
         self._threat_collision_layer = int(threat_collision_layer)
         self._threat_collision_mask = int(threat_collision_mask)
         self._strike_seconds = float(strike_seconds)
+        self._hold_threat_type_id = hold_threat_type_id
+        self._hold_duration_seconds = float(hold_duration_seconds)
+        self._safe_zone_radius = float(safe_zone_radius)
 
     @property
     def collision_layer(self) -> int:
@@ -103,23 +121,39 @@ class SurvivalSpawnerSystem(RhythmSpawnerSystem):
         lane = int(threat_view["lane"][threat_row])
 
         hit_time = float(self._hit_times[row_index])
-        bar_half = float(self._bar_half_by_type[threat_type])
-        horizontal = lane % 2 == 0
-        if threat_type != 0:
-            # PESADA (pico de energia/drop): cai no CENTRO da arena --
-            # o anti-camping ritmico; ninguem estaciona impune no meio
-            position_fraction = 0.5
-        else:
-            position_fraction = (lane // 2) % 4 / 4.0 + 0.125  # 1/8, 3/8, 5/8, 7/8
+        is_safe_zone = (
+            self._hold_threat_type_id is not None and threat_type == self._hold_threat_type_id
+        )
+        duration_sec = self._hold_duration_seconds if is_safe_zone else 0.0
 
-        if horizontal:
-            position_x = self._arena_width / 2.0
-            position_y = self._arena_height * position_fraction
-            half_width, half_height = self._arena_width / 2.0, bar_half
+        if is_safe_zone:
+            # grade 4x2 deterministica derivada da lane (timbre) --
+            # PROPRIA (nao a faixa horizontal/vertical das paredes
+            # comuns): a zona nunca varre, so aparece parada.
+            x_frac = ((lane % 4) + 0.5) / 4.0
+            y_frac = 0.3 if (lane // 4) % 2 == 0 else 0.7
+            position_x = self._arena_width * x_frac
+            position_y = self._arena_height * y_frac
+            half_width = half_height = self._safe_zone_radius
+            horizontal = True  # so afeta o angulo cosmetico abaixo
         else:
-            position_x = self._arena_width * position_fraction
-            position_y = self._arena_height / 2.0
-            half_width, half_height = bar_half, self._arena_height / 2.0
+            bar_half = float(self._bar_half_by_type[threat_type])
+            horizontal = lane % 2 == 0
+            if threat_type != 0:
+                # PESADA (pico de energia/drop): cai no CENTRO da arena --
+                # o anti-camping ritmico; ninguem estaciona impune no meio
+                position_fraction = 0.5
+            else:
+                position_fraction = (lane // 2) % 4 / 4.0 + 0.125  # 1/8, 3/8, 5/8, 7/8
+
+            if horizontal:
+                position_x = self._arena_width / 2.0
+                position_y = self._arena_height * position_fraction
+                half_width, half_height = self._arena_width / 2.0, bar_half
+            else:
+                position_x = self._arena_width * position_fraction
+                position_y = self._arena_height / 2.0
+                half_width, half_height = bar_half, self._arena_height / 2.0
 
         strength = float(self._scheduled_threats["strength"][row_index])
         threat_view["mode_tag"][threat_row] = MODE_TAG_SURVIVAL
@@ -127,6 +161,7 @@ class SurvivalSpawnerSystem(RhythmSpawnerSystem):
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time + self._strike_seconds
+        threat_view["duration_sec"][threat_row] = duration_sec
         threat_view["spawn_angle_rad"][threat_row] = _HALF_PI if horizontal else 0.0
         threat_view["is_hit"][threat_row] = False
         threat_view["judgment"][threat_row] = JUDGMENT_PENDING
@@ -156,10 +191,17 @@ class SurvivalSpawnerSystem(RhythmSpawnerSystem):
 
         sprite_row = self._sprite_pool.dense_row_of(entity_index)
         sprite_view = self._sprite_pool.active_view()
-        sprite_view["texture_id"][sprite_row] = 0  # barra procedural
-        sprite_view["tint_r"][sprite_row] = 255
-        sprite_view["tint_g"][sprite_row] = 64 + int(160.0 * strength)
-        sprite_view["tint_b"][sprite_row] = 220
+        sprite_view["texture_id"][sprite_row] = 0  # barra/zona procedural
+        if is_safe_zone:
+            # verde/ciano: distingue a Safe Zone (refugio, nunca letal)
+            # das paredes vermelhas comuns
+            sprite_view["tint_r"][sprite_row] = 90
+            sprite_view["tint_g"][sprite_row] = 255
+            sprite_view["tint_b"][sprite_row] = 170
+        else:
+            sprite_view["tint_r"][sprite_row] = 255
+            sprite_view["tint_g"][sprite_row] = 64 + int(160.0 * strength)
+            sprite_view["tint_b"][sprite_row] = 220
         sprite_view["tint_a"][sprite_row] = 60  # translucida ate o onset
         sprite_view["layer_z"][sprite_row] = 8
 

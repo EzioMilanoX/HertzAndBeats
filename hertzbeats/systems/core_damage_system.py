@@ -56,6 +56,7 @@ class CoreDamageSystem(ISystem):
         good_window_seconds: float,
         judgment_display_seconds: float,
         practice_mode: bool = False,
+        damage_shake_px: float = 0.0,
     ) -> None:
         """Guarda a referencia ao `CollisionSystem` ja registrado (fonte
         dos pares do frame) e resolve as pools uma unica vez.
@@ -63,7 +64,9 @@ class CoreDamageSystem(ISystem):
         Modo Treino (`practice_mode=True`, musicas do jogador): o MISS
         continua contando/quebrando o combo normalmente (o feedback de
         ritmo nao muda) -- so o dano de vida e suprimido, para treinar
-        um mapeamento novo sem risco de Game Over."""
+        um mapeamento novo sem risco de Game Over. `damage_shake_px`
+        aciona `GameState.trigger_shake` a cada MISS (sem tocar a
+        camera se `0.0` -- opt-out silencioso, sem branch extra)."""
         self._collision_system = collision_system
         self._audio_clock = audio_clock
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
@@ -73,6 +76,7 @@ class CoreDamageSystem(ISystem):
         self._good_window = float(good_window_seconds)
         self._judgment_display_seconds = float(judgment_display_seconds)
         self._practice_mode = bool(practice_mode)
+        self._damage_shake_px = float(damage_shake_px)
 
     def update(self, world: World, delta_time: float) -> None:
         """Processa os pares de colisao do frame corrente (ver regras na
@@ -128,3 +132,5 @@ class CoreDamageSystem(ISystem):
                 if not self._practice_mode and state.health > 0:
                     state.health -= 1
                 state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+                if self._damage_shake_px > 0.0:
+                    state.trigger_shake(self._damage_shake_px)

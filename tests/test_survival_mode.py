@@ -126,6 +126,19 @@ def test_touching_lethal_wall_damages_and_breaks_combo(tmp_path, null_input, nul
     assert state.last_judgment == JUDGMENT_MISS
 
 
+def test_touching_lethal_wall_triggers_camera_shake(tmp_path, null_input, null_clock):
+    composed, config = _compose_survival(tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)])
+
+    null_clock.set_now_seconds(1.0)
+    null_input.poll()
+    composed.world.step(0.0)
+
+    null_clock.set_now_seconds(3.0)  # onset: vira letal e colide no MESMO frame
+    composed.world.step(0.0)  # dt=0.0 isola o tremor do decaimento do MESMO frame
+
+    assert composed.game_state.shake_intensity == config.survival_damage_shake_px
+
+
 def test_dash_on_beat_grants_iframes_and_survives_the_strike(tmp_path, null_input, null_clock):
     composed, config = _compose_survival(tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)])
     state = composed.game_state

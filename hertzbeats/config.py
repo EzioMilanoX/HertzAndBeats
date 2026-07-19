@@ -108,11 +108,32 @@ class HertzConfig:
     rumble_high_freq: float = 0.85
     rumble_duration_seconds: float = 0.25
 
-    # -- Notas Longas / Holds do Defensor (opt-in por fase) --
+    # -- Notas Longas / Holds -- UM flag para os 3 modos, cada um
+    #    interpreta a sustentacao a sua maneira (Defensor: fire+mira;
+    #    Arcade: tecla da coluna + Shield; Sobrevivencia: Safe Zone +
+    #    Ancora) -- mesma filosofia de "a IA dita o tempo, o modo dita
+    #    a interpretacao" ja usada pelo resto do schema. --
     holds_enabled: bool = False
     hold_duration_seconds: float = 1.5
+
+    # -- Defensor: Hold por fire+mira sustentados --
     hold_aim_tolerance_degrees: float = 50.0
     hold_break_shake_px: float = 22.0
+
+    # -- Arcade 4K: Hold classico (tecla sustentada) + Shield --
+    lane_shield_max_charges: int = 3
+    lane_shield_depleted_shake_px: float = 35.0
+
+    # -- Sobrevivencia: Safe Zone estacionaria + tecla Ancorar --
+    safe_zone_radius: float = 70.0
+    anchor_action_name: str = "anchor"
+    safe_zone_break_shake_px: float = 40.0
+
+    # -- Mais tremores/efeitos ("game feel" geral, sempre ativos) --
+    core_damage_shake_px: float = 14.0
+    survival_damage_shake_px: float = 14.0
+    shockwave_trigger_shake_px: float = 8.0
+    parry_impact_shake_px: float = 10.0
 
     # -- Modo Treino (musicas do jogador, alternado no menu com T) --
     practice_mode: bool = False
@@ -195,6 +216,15 @@ class HertzConfig:
             hold_duration_seconds=raw.get("hold_duration_seconds", 1.5),
             hold_aim_tolerance_degrees=raw.get("hold_aim_tolerance_degrees", 50.0),
             hold_break_shake_px=raw.get("hold_break_shake_px", 22.0),
+            lane_shield_max_charges=raw.get("lane_shield_max_charges", 3),
+            lane_shield_depleted_shake_px=raw.get("lane_shield_depleted_shake_px", 35.0),
+            safe_zone_radius=raw.get("safe_zone_radius", 70.0),
+            anchor_action_name=raw.get("anchor_action_name", "anchor"),
+            safe_zone_break_shake_px=raw.get("safe_zone_break_shake_px", 40.0),
+            core_damage_shake_px=raw.get("core_damage_shake_px", 14.0),
+            survival_damage_shake_px=raw.get("survival_damage_shake_px", 14.0),
+            shockwave_trigger_shake_px=raw.get("shockwave_trigger_shake_px", 8.0),
+            parry_impact_shake_px=raw.get("parry_impact_shake_px", 10.0),
             practice_mode=raw.get("practice_mode", False),
             practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),
         )

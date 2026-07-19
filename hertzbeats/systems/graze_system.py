@@ -94,6 +94,12 @@ class GrazeSystem(ISystem):
         np.logical_and(lethal, self._scratch_mask[:active_count], out=lethal)
         np.logical_not(threat_view["has_grazed"], out=self._scratch_mask[:active_count])
         np.logical_and(lethal, self._scratch_mask[:active_count], out=lethal)
+        # Safe Zone (`duration_sec>0`, opt-in via `holds_enabled`) e um
+        # refugio -- nunca uma parede letal para "raspar" por perto,
+        # mesma exclusao aplicada ao coletor generico do
+        # `SurvivalDamageSystem`.
+        np.less_equal(threat_view["duration_sec"], 0.0, out=self._scratch_mask[:active_count])
+        np.logical_and(lethal, self._scratch_mask[:active_count], out=lethal)
         if not np.any(lethal):
             return
 

@@ -28,7 +28,12 @@ class WallPhaseSystem(ISystem):
       CollisionSystem nem gera pares).
     - VIRADA: quando `agora_efetivo >= target_hit_time_sec` (o MESMO
       relogio compensado do julgamento), a parede fica solida (alfa 255,
-      camada visual acima) e a hitbox e ARMADA com as camadas reais.
+      camada visual acima) e a hitbox e ARMADA com as camadas reais --
+      EXCETO Safe Zones (`duration_sec > 0`, opt-in via `holds_enabled`):
+      elas tambem "solidificam" visualmente no onset, mas a hitbox
+      NUNCA e armada (permanece layer/mask 0 para sempre) -- sao um
+      refugio julgado por distancia direta pelo `SafeZoneJudgmentSystem`,
+      nunca uma colisao perigosa.
 
     Zero-GC: mascaras vetorizadas em buffers pre-alocados selecionam as
     paredes em aviso e as que viram neste frame; o pisca-pisca e uma
@@ -91,9 +96,10 @@ class WallPhaseSystem(ISystem):
             row_int = int(row)
             threat_view["phase"][row_int] = PHASE_LETHAL
             entity_index = int(entity_indices[row_int])
-            hitbox_row = self._hitbox_pool.dense_row_of(entity_index)
-            hitbox_view["collision_layer"][hitbox_row] = self._lethal_collision_layer
-            hitbox_view["collision_mask"][hitbox_row] = self._lethal_collision_mask
+            if float(threat_view["duration_sec"][row_int]) <= 0.0:
+                hitbox_row = self._hitbox_pool.dense_row_of(entity_index)
+                hitbox_view["collision_layer"][hitbox_row] = self._lethal_collision_layer
+                hitbox_view["collision_mask"][hitbox_row] = self._lethal_collision_mask
             sprite_row = self._sprite_pool.dense_row_of(entity_index)
             sprite_view["tint_a"][sprite_row] = 255
             sprite_view["layer_z"][sprite_row] = 22

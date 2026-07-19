@@ -44,6 +44,7 @@ class ParryImpactSystem(ISystem):
         center_xy: tuple,
         spawn_radius: float,
         score_per_kill: int,
+        impact_shake_px: float = 0.0,
     ) -> None:
         self._collision_system = collision_system
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
@@ -53,6 +54,7 @@ class ParryImpactSystem(ISystem):
         self._center_x, self._center_y = float(center_xy[0]), float(center_xy[1])
         self._spawn_radius_sq = float(spawn_radius) ** 2
         self._score_per_kill = int(score_per_kill)
+        self._impact_shake_px = float(impact_shake_px)
 
     def update(self, world: World, delta_time: float) -> None:
         del delta_time
@@ -105,6 +107,8 @@ class ParryImpactSystem(ISystem):
             threat_view["judgment"][victim_row] = JUDGMENT_MISS
             world.destroy_entity(int(threat_view["packed_handle"][victim_row]))
             self._game_state.score += self._score_per_kill
+            if self._impact_shake_px > 0.0:
+                self._game_state.trigger_shake(self._impact_shake_px)
 
     def _expire_out_of_bounds(self, world: World, threat_view) -> None:
         """Destroi projeteis refletidos que ja saíram da arena (alem do

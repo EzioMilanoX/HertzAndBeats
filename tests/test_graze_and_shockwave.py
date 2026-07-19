@@ -230,6 +230,15 @@ def test_dash_on_beat_activates_a_shockwave_slot_at_the_player(tmp_path, null_in
     assert abs(float(transform_pool.active_view()["position_y"][t_row]) - player_y) < 1e-6
 
 
+def test_shockwave_trigger_shakes_the_camera(tmp_path, null_input, null_clock):
+    composed, config = _compose_survival(tmp_path, null_input, null_clock, [_heavy(3.0)])
+    _advance_to(composed, null_clock, null_input, 1.0)
+
+    _dash_on_beat(composed, null_clock, null_input, 3.0)
+
+    assert composed.game_state.shake_intensity == config.shockwave_trigger_shake_px
+
+
 def test_dash_off_beat_does_not_activate_any_shockwave(tmp_path, null_input, null_clock):
     composed, config = _compose_survival(tmp_path, null_input, null_clock, [_heavy(3.0)])
     # arena silenciosa (nada spawnado ainda) -> dash e sempre "fora do tempo"

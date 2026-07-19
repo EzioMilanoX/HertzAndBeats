@@ -42,6 +42,19 @@ class LaneJudgmentSystem(ISystem):
     (`delta < -miss_window`), zerando o combo -- identico ao modo
     Defensor. Tecla pressionada SEM nota na janela da coluna (ghost tap)
     nao pune: fiel ao estilo VSRG/FNF.
+
+    NOTAS LONGAS CLASSICAS + SHIELD (opt-in via `holds_enabled`; campo
+    `duration_sec` escrito pelo `LaneNoteSpawnerSystem` nas pesadas que
+    NAO viraram Scratch): apertar a coluna certa na janela Good de uma
+    linha com `duration_sec > 0` NAO a destroi -- ela fica "engajada"
+    (`is_hit=True`, `judgment` continua PENDING) e a barra segue caindo
+    normalmente (mesmo idioma visual do Scratch); `_sweep_engaged_lane_holds`
+    assume o resto do ciclo: soltar a tecla da coluna antes do fim e
+    MISS imediato, sustentar ate `target_hit_time_sec + duration_sec` e
+    PERFECT. Um MISS de Hold e absorvido por `GameState.shield_charges`
+    enquanto houver carga (so tremor leve); esgotado, passa a custar
+    vida de verdade -- a PRIMEIRA forma do Arcade 4K de chegar ao Game
+    Over.
     """
 
     def __init__(
@@ -59,6 +72,16 @@ class LaneJudgmentSystem(ISystem):
         lane_action_names: Tuple[str, ...] = DEFAULT_LANE_ACTIONS,
         audio_engine=None,
         ghost_tap_sound_id: str = None,
+        holds_enabled: bool = False,
+        practice_mode: bool = False,
+        hold_break_shake_px: float = 0.0,
+        lane_shield_depleted_shake_px: float = 0.0,
+        rumble_low_freq: float = 0.0,
+        rumble_high_freq: float = 0.0,
+        rumble_duration_seconds: float = 0.0,
+        hold_engage_sound_id: str = None,
+        hold_break_sound_id: str = None,
+        shield_break_sound_id: str = None,
     ) -> None:
         """Buffers pre-alocados pela capacidade da pool (o update nunca
         aloca arrays)."""
@@ -75,6 +98,16 @@ class LaneJudgmentSystem(ISystem):
         self._lane_action_names = tuple(lane_action_names)
         self._audio_engine = audio_engine
         self._ghost_tap_sound_id = ghost_tap_sound_id
+        self._holds_enabled = bool(holds_enabled)
+        self._practice_mode = bool(practice_mode)
+        self._hold_break_shake_px = float(hold_break_shake_px)
+        self._lane_shield_depleted_shake_px = float(lane_shield_depleted_shake_px)
+        self._rumble_low_freq = float(rumble_low_freq)
+        self._rumble_high_freq = float(rumble_high_freq)
+        self._rumble_duration_seconds = float(rumble_duration_seconds)
+        self._hold_engage_sound_id = hold_engage_sound_id
+        self._hold_break_sound_id = hold_break_sound_id
+        self._shield_break_sound_id = shield_break_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -83,6 +116,7 @@ class LaneJudgmentSystem(ISystem):
         self._scratch_mask = np.zeros(capacity, dtype=bool)
         self._owned_mask = np.zeros(capacity, dtype=bool)
         self._not_hold_mask = np.zeros(capacity, dtype=bool)
+        self._engaged_mask = np.zeros(capacity, dtype=bool)
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
 
     def update(self, world: World, delta_time: float) -> None:
@@ -106,6 +140,8 @@ class LaneJudgmentSystem(ISystem):
         np.equal(threat_view["mode_tag"], MODE_TAG_LANES, out=owned)
 
         self._sweep_overdue_misses(world, threat_view, deltas, active_count)
+        if self._holds_enabled:
+            self._sweep_engaged_lane_holds(world, threat_view, active_count, now_effective)
 
         # 4 checagens escalares de acao por frame; mascaras vetorizadas
         # apenas para as colunas efetivamente pressionadas (raro).
@@ -133,6 +169,14 @@ class LaneJudgmentSystem(ISystem):
         not_hold = self._not_hold_mask[:active_count]
         np.logical_not(threat_view["is_hold"], out=not_hold)
         np.logical_and(overdue, not_hold, out=overdue)
+        # notas longas classicas ENGAJADAS (`is_hit=True`, `duration_sec>0`,
+        # `judgment` ainda PENDING de proposito -- ver `_sweep_engaged_lane_holds`)
+        # tem seu PROPRIO ciclo de vida por sustentacao; esta varredura
+        # generica so pode destruir quem AINDA nao foi tocado (mesma
+        # licao do Hold do Defensor/Safe Zone da Sobrevivencia).
+        not_engaged = self._engaged_mask[:active_count]
+        np.logical_not(threat_view["is_hit"], out=not_engaged)
+        np.logical_and(overdue, not_engaged, out=overdue)
 
         overdue_rows = np.flatnonzero(overdue)
         if overdue_rows.shape[0] == 0:
@@ -188,6 +232,13 @@ class LaneJudgmentSystem(ISystem):
         selection[rejected] = np.inf
         best_row = int(np.argmin(selection))
 
+        # Nota longa classica: Fase 1 (Start) bem-sucedida -- a
+        # candidata NAO e destruida, fica "engajada" para
+        # `_sweep_engaged_lane_holds` assumir a Fase 2 (Sustain).
+        if self._holds_enabled and float(threat_view["duration_sec"][best_row]) > 0.0:
+            self._register_hold_engage(threat_view, best_row)
+            return
+
         judgment = (
             JUDGMENT_PERFECT if float(abs_deltas[best_row]) <= self._perfect_window else JUDGMENT_GOOD
         )
@@ -206,3 +257,103 @@ class LaneJudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+
+    def _play(self, sound_id, volume: float) -> None:
+        """Dispara um SFX se houver backend e som configurados (testes
+        headless injetam NullAudioEngine ou nada)."""
+        if self._audio_engine is not None and sound_id is not None:
+            self._audio_engine.play_one_shot(sound_id, volume)
+
+    def _register_hold_engage(self, threat_view: np.ndarray, best_row: int) -> None:
+        """Nota longa classica -- Fase 1 (Start): a candidata vencedora
+        NAO e destruida nem tem sua velocidade alterada -- a barra
+        continua caindo normalmente (mesmo idioma visual do Scratch),
+        so precisa que a tecla da coluna continue pressionada ate o
+        fim. `is_hit=True` com `judgment` ainda PENDING marca "esta
+        linha pertence a Fase 2" para `_sweep_engaged_lane_holds` e para
+        a exclusao correspondente em `_sweep_overdue_misses`."""
+        threat_view["is_hit"][best_row] = True
+        self._play(self._hold_engage_sound_id, 0.6)
+
+    def _sweep_engaged_lane_holds(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        active_count: int,
+        now_effective: float,
+    ) -> None:
+        """Notas longas classicas -- Fase 2 (Sustain): filtro vetorizado
+        (linhas engajadas, `duration_sec>0`, donas deste juiz) seguido
+        de um laco escalar sobre as poucas linhas casadas (tipicamente
+        0-4, no maximo uma por coluna) -- cada linha tem sua PROPRIA
+        tecla de coluna (`lane_action_names[lane]`), o que impede a
+        checagem vetorizada de um unico gatilho usada pelo Hold do
+        Defensor. Soltar a tecla antes do fim e MISS imediato; segurar
+        ate `target_hit_time_sec + duration_sec` e PERFECT."""
+        owned = self._owned_mask[:active_count]
+        np.equal(threat_view["mode_tag"], MODE_TAG_LANES, out=owned)
+        engaged = self._engaged_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=engaged)
+        np.logical_and(engaged, threat_view["is_hit"], out=engaged)
+        np.logical_and(engaged, owned, out=engaged)
+        np.greater(threat_view["duration_sec"], 0.0, out=self._scratch_mask[:active_count])
+        np.logical_and(engaged, self._scratch_mask[:active_count], out=engaged)
+
+        engaged_rows = np.flatnonzero(engaged)
+        if engaged_rows.shape[0] == 0:
+            return
+
+        for row in engaged_rows:
+            row_int = int(row)
+            lane = int(threat_view["lane"][row_int])
+            if not self._input_provider.is_action_held(self._lane_action_names[lane]):
+                self._resolve_hold_break(world, threat_view, row_int)
+                continue
+            sustain_end = float(threat_view["target_hit_time_sec"][row_int]) + float(
+                threat_view["duration_sec"][row_int]
+            )
+            if now_effective >= sustain_end:
+                self._resolve_hold_success(world, threat_view, row_int)
+
+    def _resolve_hold_success(self, world: World, threat_view: np.ndarray, row: int) -> None:
+        """Sustentou a nota longa ate o fim: PERFECT, destruicao
+        diferida, placar/combo normais (mesmo veredito do Hold do
+        Defensor)."""
+        threat_view["judgment"][row] = JUDGMENT_PERFECT
+        world.destroy_entity(int(threat_view["packed_handle"][row]))
+
+        state = self._game_state
+        state.score += self._score_perfect
+        state.perfect_count += 1
+        state.combo_count += 1
+        if state.combo_count > state.max_combo:
+            state.max_combo = state.combo_count
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+
+    def _resolve_hold_break(self, world: World, threat_view: np.ndarray, row: int) -> None:
+        """Soltou a tecla da coluna antes do fim da nota longa: MISS
+        imediato, combo zerado. O Shield (`GameState.shield_charges`)
+        absorve a falha enquanto houver carga -- so consome 1 carga e
+        um tremor leve; esgotado, a falha passa a custar vida de
+        verdade (tremor maior + Haptics) -- a PRIMEIRA forma do Arcade
+        4K de chegar ao Game Over."""
+        threat_view["judgment"][row] = JUDGMENT_MISS
+        world.destroy_entity(int(threat_view["packed_handle"][row]))
+
+        state = self._game_state
+        state.miss_count += 1
+        state.combo_count = 0
+        state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+
+        if state.shield_charges > 0:
+            state.shield_charges -= 1
+            state.trigger_shake(self._hold_break_shake_px)
+            self._play(self._hold_break_sound_id, 0.7)
+        else:
+            if not self._practice_mode and state.health > 0:
+                state.health -= 1
+            state.trigger_shake(self._lane_shield_depleted_shake_px)
+            self._input_provider.set_rumble(
+                self._rumble_low_freq, self._rumble_high_freq, self._rumble_duration_seconds
+            )
+            self._play(self._shield_break_sound_id, 0.85)

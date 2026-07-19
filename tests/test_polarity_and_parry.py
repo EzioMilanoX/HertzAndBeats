@@ -241,3 +241,39 @@ def test_parry_reflected_projectile_destroys_threat_in_its_path(tmp_path, null_i
     remaining_index = int(threat_pool.active_entity_indices()[0])
     assert remaining_index == heavy_index  # o refletido sobrevive, segue viajando
     assert composed.game_state.score > score_before
+
+
+def test_parry_reflected_projectile_impact_triggers_camera_shake(tmp_path, null_input, null_clock):
+    composed, config = _compose_polarity(
+        tmp_path, null_input, null_clock,
+        [_heavy(3.0, lane=0), _basic(3.6, lane=0)],
+    )
+    threat_pool = composed.memory_manager.get_pool("rhythm_threat")
+    transform_pool = composed.memory_manager.get_pool("transform")
+
+    _advance_to(composed, null_clock, null_input, 2.98)
+    entity_indices = list(threat_pool.active_entity_indices())
+    heavy_index = None
+    basic_index = None
+    for entity_index in entity_indices:
+        entity_index = int(entity_index)
+        row = threat_pool.dense_row_of(entity_index)
+        if int(threat_pool.active_view()["threat_type"][row]) == 1:
+            heavy_index = entity_index
+        else:
+            basic_index = entity_index
+
+    _fire_at(composed, null_clock, null_input, 2.99, "fire", 1.0, 0.0)  # PERFECT -> reflete
+
+    heavy_t_row = transform_pool.dense_row_of(heavy_index)
+    heavy_x = float(transform_pool.active_view()["position_x"][heavy_t_row])
+    heavy_y = float(transform_pool.active_view()["position_y"][heavy_t_row])
+    basic_t_row = transform_pool.dense_row_of(basic_index)
+    transform_pool.active_view()["position_x"][basic_t_row] = heavy_x
+    transform_pool.active_view()["position_y"][basic_t_row] = heavy_y
+
+    null_input.set_action_held("fire", False)
+    null_input.poll()
+    composed.world.step(0.0)  # impacto do refletido no basic
+
+    assert composed.game_state.shake_intensity == config.parry_impact_shake_px

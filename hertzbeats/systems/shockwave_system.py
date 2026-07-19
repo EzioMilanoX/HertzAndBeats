@@ -57,6 +57,7 @@ class ShockwaveSystem(ISystem):
         duration_seconds: float,
         heavy_threat_type_id: int,
         score_per_kill: int,
+        trigger_shake_px: float = 0.0,
     ) -> None:
         self._collision_system = collision_system
         self._transform_pool = memory_manager.get_pool("transform")
@@ -73,6 +74,7 @@ class ShockwaveSystem(ISystem):
         self._duration = float(duration_seconds)
         self._heavy_threat_type_id = int(heavy_threat_type_id)
         self._score_per_kill = int(score_per_kill)
+        self._trigger_shake_px = float(trigger_shake_px)
         self._next_slot = 0
 
     def update(self, world: World, delta_time: float) -> None:
@@ -88,6 +90,9 @@ class ShockwaveSystem(ISystem):
     def _trigger_next_slot(self) -> None:
         """Ativa o proximo slot do pool fixo (round-robin: um inteiro
         primitivo cclando 0..N-1, sem alocar nada)."""
+        if self._trigger_shake_px > 0.0:
+            self._game_state.trigger_shake(self._trigger_shake_px)
+
         entity_index = int(self._entity_indices[self._next_slot])
         self._next_slot = (self._next_slot + 1) % self._entity_indices.shape[0]
 

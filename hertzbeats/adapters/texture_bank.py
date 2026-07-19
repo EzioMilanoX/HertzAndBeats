@@ -95,6 +95,27 @@ _HOLDS_CONTROL_HINT = (
 """Dica dedicada da fase de Notas Longas -- Hold exige SUSTENTAR
 gatilho+mira, bem diferente do clique instantaneo do Defensor comum."""
 
+_LANES_HOLDS_CONTROL_HINT = (
+    "SEGURE a tecla da coluna na nota CIANO ate o fim -- soltar antes gasta uma carga do Shield"
+)
+"""Dica dedicada do Arcade 4K com Notas Longas: a tecla precisa
+continuar pressionada, nao e mais um toque instantaneo."""
+
+_SURVIVAL_HOLDS_CONTROL_HINT = (
+    "FIQUE dentro da Safe Zone verde e SEGURE E ate o fim -- sair ou soltar e MISS"
+)
+"""Dica dedicada da Sobrevivencia com Safe Zone: exige ficar parado
+dentro da zona E segurar a acao Ancorar."""
+
+_HOLDS_HINT_BY_MODE = {
+    "defender": _HOLDS_CONTROL_HINT,
+    "lanes": _LANES_HOLDS_CONTROL_HINT,
+    "survival": _SURVIVAL_HOLDS_CONTROL_HINT,
+}
+"""Cada modo interpreta `holds_enabled` de um jeito diferente (ver
+`HertzConfig.holds_enabled`) -- a dica de controles precisa acompanhar,
+por isso e escolhida pelo `game_mode` da fase e nao so pela flag."""
+
 _MODE_CONTROL_HINTS = {
     "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
     "survival": "W A S D movem  |  ESPACO dash atraves das ondas  |  sem tiro",
@@ -102,11 +123,13 @@ _MODE_CONTROL_HINTS = {
     "hybrid": "W A S D movem + MOUSE/CLIQUE atiram  |  ESPACO dash",
     "polarity": _POLARITY_CONTROL_HINT,
     "holds": _HOLDS_CONTROL_HINT,
+    "lanes_holds": _LANES_HOLDS_CONTROL_HINT,
+    "survival_holds": _SURVIVAL_HOLDS_CONTROL_HINT,
 }
 """Dica de controles exibida no menu para o MODO/variante da fase
-selecionada -- "polarity"/"holds" reusam a MESMA dica das fases curadas
-7/8 (mesmas mecanicas, agora tambem escolhiveis para musicas do
-jogador via A/D)."""
+selecionada -- "polarity"/"holds"/"lanes_holds"/"survival_holds" reusam
+a MESMA dica das fases curadas equivalentes (mesmas mecanicas, agora
+tambem escolhiveis para musicas do jogador via A/D)."""
 
 _MODE_DISPLAY_NAMES = {
     "defender": "O DEFENSOR",
@@ -115,6 +138,8 @@ _MODE_DISPLAY_NAMES = {
     "hybrid": "HIBRIDO",
     "polarity": "DEFENSOR: POLARIDADE",
     "holds": "DEFENSOR: NOTAS LONGAS",
+    "lanes_holds": "ARCADE 4K: NOTAS LONGAS",
+    "survival_holds": "SOBREVIVENCIA: SAFE ZONE",
 }
 """Nome exibido no seletor de minigame das musicas do jogador."""
 
@@ -161,7 +186,9 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         if stage.overrides.get("polarity_enabled", False):
             hint_text = _POLARITY_CONTROL_HINT
         elif stage.overrides.get("holds_enabled", False):
-            hint_text = _HOLDS_CONTROL_HINT
+            # cada modo interpreta Hold a sua maneira -- a dica segue o
+            # `game_mode` da fase, nao so a flag (ver `_HOLDS_HINT_BY_MODE`)
+            hint_text = _HOLDS_HINT_BY_MODE.get(stage_mode, _HOLDS_CONTROL_HINT)
         else:
             hint_text = _MODE_CONTROL_HINTS.get(stage_mode, "")
         register_text(f"stage_{i}_hint", hint_font, hint_text, _GOOD_COLOR)

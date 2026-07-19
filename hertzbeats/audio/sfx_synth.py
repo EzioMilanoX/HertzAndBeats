@@ -24,6 +24,7 @@ SFX_PARRY = "data/sfx/parry.wav"
 SFX_GRAZE = "data/sfx/graze.wav"
 SFX_HOLD_ENGAGE = "data/sfx/hold_engage.wav"
 SFX_HOLD_BREAK = "data/sfx/hold_break.wav"
+SFX_SHIELD_BREAK = "data/sfx/shield_break.wav"
 
 
 def _cannon(sample_rate: int) -> np.ndarray:
@@ -112,6 +113,19 @@ def _hold_break(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _shield_break(sample_rate: int) -> np.ndarray:
+    """Shield esgotado (Arcade 4K): estilhaco de vidro -- ruido
+    filtrado de decaimento rapido somado a um estalo agudo, marcando
+    que a falha finalmente custou vida de verdade."""
+    length = int(0.28 * sample_rate)
+    rng = np.random.RandomState(4090)
+    noise = rng.uniform(-1.0, 1.0, size=length)
+    t = np.arange(length) / sample_rate
+    shard = np.exp(-t * 9.0) * np.sin(2 * np.pi * 3200.0 * t)
+    mix = np.exp(-t * 18.0) * noise * 0.7 + shard * 0.5
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -124,6 +138,7 @@ def ensure_sfx() -> None:
         (SFX_GRAZE, _graze),
         (SFX_HOLD_ENGAGE, _hold_engage),
         (SFX_HOLD_BREAK, _hold_break),
+        (SFX_SHIELD_BREAK, _shield_break),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

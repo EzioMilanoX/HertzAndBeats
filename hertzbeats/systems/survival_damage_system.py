@@ -50,11 +50,13 @@ class SurvivalDamageSystem(ISystem):
         score_survive: int,
         judgment_display_seconds: float,
         practice_mode: bool = False,
+        damage_shake_px: float = 0.0,
     ) -> None:
         """Buffers dimensionados pela capacidade da pool de ameacas.
         Modo Treino (`practice_mode=True`): MISS continua contando/
         quebrando o combo, so o dano de vida e suprimido -- ver a mesma
-        nota em `CoreDamageSystem`."""
+        nota em `CoreDamageSystem`. `damage_shake_px` aciona
+        `GameState.trigger_shake` a cada toque letal (0.0 desliga)."""
         self._collision_system = collision_system
         self._audio_clock = audio_clock
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
@@ -64,11 +66,13 @@ class SurvivalDamageSystem(ISystem):
         self._score_survive = int(score_survive)
         self._judgment_display_seconds = float(judgment_display_seconds)
         self._practice_mode = bool(practice_mode)
+        self._damage_shake_px = float(damage_shake_px)
 
         capacity = self._threat_pool.capacity
         self._expired_mask = np.zeros(capacity, dtype=bool)
         self._pending_mask = np.zeros(capacity, dtype=bool)
         self._owned_mask = np.zeros(capacity, dtype=bool)
+        self._not_hold_mask = np.zeros(capacity, dtype=bool)
 
     def update(self, world: World, delta_time: float) -> None:
         """Aplica vereditos de colisao e a varredura de expiracao."""
@@ -131,6 +135,8 @@ class SurvivalDamageSystem(ISystem):
                 if not self._practice_mode and state.health > 0:
                     state.health -= 1
                 state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+                if self._damage_shake_px > 0.0:
+                    state.trigger_shake(self._damage_shake_px)
 
     def _sweep_expired(
         self,
@@ -148,6 +154,15 @@ class SurvivalDamageSystem(ISystem):
         owned = self._owned_mask[:active_count]
         np.equal(threat_view["mode_tag"], MODE_TAG_SURVIVAL, out=owned)
         np.logical_and(expired, owned, out=expired)
+        # Safe Zones (`duration_sec>0`, opt-in via `holds_enabled`) tem
+        # ciclo de vida PROPRIO no `SafeZoneJudgmentSystem` -- este
+        # coletor generico de expiracao NUNCA pode resolve-las (mesma
+        # licao do Hold do Defensor/Arcade: uma linha com vida
+        # independente precisa de exclusao explicita de toda varredura
+        # generica baseada em tempo).
+        not_safe_zone = self._not_hold_mask[:active_count]
+        np.less_equal(threat_view["duration_sec"], 0.0, out=not_safe_zone)
+        np.logical_and(expired, not_safe_zone, out=expired)
         expired_rows = np.flatnonzero(expired)
         if expired_rows.shape[0] == 0:
             return

@@ -49,6 +49,7 @@ from hertzbeats.audio.sfx_synth import (
     SFX_HOLD_BREAK,
     SFX_HOLD_ENGAGE,
     SFX_PARRY,
+    SFX_SHIELD_BREAK,
     SFX_TAP,
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
@@ -85,6 +86,7 @@ from hertzbeats.systems.lane_judgment_system import LaneJudgmentSystem
 from hertzbeats.systems.lane_note_spawner_system import LANE_COUNT_4K, LaneNoteSpawnerSystem
 from hertzbeats.systems.player_input_system import PlayerInputSystem
 from hertzbeats.systems.radial_spawner_system import RadialRhythmSpawnerSystem
+from hertzbeats.systems.safe_zone_judgment_system import SafeZoneJudgmentSystem
 from hertzbeats.systems.survival_damage_system import SurvivalDamageSystem
 from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
 from hertzbeats.systems.survival_spawner_system import SurvivalSpawnerSystem
@@ -310,6 +312,7 @@ def _compose_defender_mode(ctx: _ModeContext):
                 center_xy=(center_x, center_y),
                 spawn_radius=config.spawn_radius,
                 score_per_kill=config.score_good,
+                impact_shake_px=config.parry_impact_shake_px,
             )
         )
     ctx.world.register_system(
@@ -322,6 +325,7 @@ def _compose_defender_mode(ctx: _ModeContext):
             good_window_seconds=config.good_window_seconds,
             judgment_display_seconds=config.judgment_display_seconds,
             practice_mode=config.practice_mode,
+            damage_shake_px=config.core_damage_shake_px,
         )
     )
     return (spawner_system,), collision_system
@@ -366,6 +370,11 @@ def _compose_survival_mode(ctx: _ModeContext):
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
         strike_seconds=config.survival_strike_seconds,
+        hold_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_heavy", -1) if config.holds_enabled else None
+        ),
+        hold_duration_seconds=config.hold_duration_seconds,
+        safe_zone_radius=config.safe_zone_radius,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -433,6 +442,7 @@ def _compose_survival_mode(ctx: _ModeContext):
             duration_seconds=config.shockwave_duration_seconds,
             heavy_threat_type_id=config.threat_type_ids.get("rhythm_threat_heavy", -1),
             score_per_kill=config.score_good,
+            trigger_shake_px=config.shockwave_trigger_shake_px,
         )
     )
     ctx.world.register_system(
@@ -445,8 +455,29 @@ def _compose_survival_mode(ctx: _ModeContext):
             score_survive=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
             practice_mode=config.practice_mode,
+            damage_shake_px=config.survival_damage_shake_px,
         )
     )
+    if config.holds_enabled:
+        ctx.world.register_system(
+            SafeZoneJudgmentSystem(
+                audio_clock=ctx.audio_clock,
+                input_provider=ctx.input_provider,
+                memory_manager=ctx.memory_manager,
+                game_state=ctx.game_state,
+                player_entity_index=ctx.player_entity_index,
+                anchor_action_name=config.anchor_action_name,
+                score_per_success=config.score_good,
+                judgment_display_seconds=config.judgment_display_seconds,
+                safe_zone_break_shake_px=config.safe_zone_break_shake_px,
+                rumble_low_freq=config.rumble_low_freq,
+                rumble_high_freq=config.rumble_high_freq,
+                rumble_duration_seconds=config.rumble_duration_seconds,
+                practice_mode=config.practice_mode,
+                audio_engine=ctx.audio_engine,
+                break_sound_id=SFX_HOLD_BREAK,
+            )
+        )
     return (spawner_system,), collision_system
 
 
@@ -503,6 +534,8 @@ def _compose_lanes_mode(ctx: _ModeContext):
         max_threats_per_frame=config.max_threats_per_frame,
         is_hold_by_row=is_hold_out,
         hold_end_by_row=hold_end_out,
+        hold_threat_type_id=heavy_type_id if config.holds_enabled else None,
+        hold_duration_seconds=config.hold_duration_seconds,
     )
 
     # nucleo e mira nao participam deste modo; receptores + rotulos de
@@ -538,6 +571,16 @@ def _compose_lanes_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
             audio_engine=ctx.audio_engine,
             ghost_tap_sound_id=SFX_TAP,
+            holds_enabled=config.holds_enabled,
+            practice_mode=config.practice_mode,
+            hold_break_shake_px=config.hold_break_shake_px,
+            lane_shield_depleted_shake_px=config.lane_shield_depleted_shake_px,
+            rumble_low_freq=config.rumble_low_freq,
+            rumble_high_freq=config.rumble_high_freq,
+            rumble_duration_seconds=config.rumble_duration_seconds,
+            hold_engage_sound_id=SFX_HOLD_ENGAGE,
+            hold_break_sound_id=SFX_HOLD_BREAK,
+            shield_break_sound_id=SFX_SHIELD_BREAK,
         )
     )
     ctx.world.register_system(
@@ -628,6 +671,11 @@ def _compose_hybrid_mode(ctx: _ModeContext):
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
         strike_seconds=config.survival_strike_seconds,
+        hold_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_heavy", -1) if config.holds_enabled else None
+        ),
+        hold_duration_seconds=config.hold_duration_seconds,
+        safe_zone_radius=config.safe_zone_radius,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -749,6 +797,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             duration_seconds=config.shockwave_duration_seconds,
             heavy_threat_type_id=config.threat_type_ids.get("rhythm_threat_heavy", -1),
             score_per_kill=config.score_good,
+            trigger_shake_px=config.shockwave_trigger_shake_px,
         )
     )
     ctx.world.register_system(
@@ -761,6 +810,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             good_window_seconds=config.good_window_seconds,
             judgment_display_seconds=config.judgment_display_seconds,
             practice_mode=config.practice_mode,
+            damage_shake_px=config.core_damage_shake_px,
         )
     )
     if config.polarity_enabled:
@@ -773,6 +823,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
                 center_xy=(center_x, center_y),
                 spawn_radius=config.spawn_radius,
                 score_per_kill=config.score_good,
+                impact_shake_px=config.parry_impact_shake_px,
             )
         )
     ctx.world.register_system(
@@ -785,8 +836,29 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             score_survive=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
             practice_mode=config.practice_mode,
+            damage_shake_px=config.survival_damage_shake_px,
         )
     )
+    if config.holds_enabled:
+        ctx.world.register_system(
+            SafeZoneJudgmentSystem(
+                audio_clock=ctx.audio_clock,
+                input_provider=ctx.input_provider,
+                memory_manager=ctx.memory_manager,
+                game_state=ctx.game_state,
+                player_entity_index=ctx.player_entity_index,
+                anchor_action_name=config.anchor_action_name,
+                score_per_success=config.score_good,
+                judgment_display_seconds=config.judgment_display_seconds,
+                safe_zone_break_shake_px=config.safe_zone_break_shake_px,
+                rumble_low_freq=config.rumble_low_freq,
+                rumble_high_freq=config.rumble_high_freq,
+                rumble_duration_seconds=config.rumble_duration_seconds,
+                practice_mode=config.practice_mode,
+                audio_engine=ctx.audio_engine,
+                break_sound_id=SFX_HOLD_BREAK,
+            )
+        )
     return (radial_spawner, wall_spawner), collision_system
 
 
@@ -867,7 +939,10 @@ def compose_world(
         threat_half_by_type[type_id] = config.threat_half_extents.get(type_name, 10.0)
         threat_texture_by_type[type_id] = _THREAT_TEXTURE_BY_NAME.get(type_name, TEX_THREAT_BASIC)
 
-    game_state = GameState(max_health=config.max_health)
+    game_state = GameState(
+        max_health=config.max_health,
+        shield_charges=config.lane_shield_max_charges if config.holds_enabled else 0,
+    )
 
     # Entidades persistentes -----------------------------------------
     player_entity_index = _create_player_core(world, memory_manager, config)
@@ -1111,6 +1186,7 @@ class RhythmCompositionRoot:
             SFX_HOLD_BREAK,
             SFX_HOLD_ENGAGE,
             SFX_PARRY,
+            SFX_SHIELD_BREAK,
             SFX_TAP,
             ensure_sfx,
         )
@@ -1153,7 +1229,7 @@ class RhythmCompositionRoot:
         ensure_sfx()
         for sound_id in (
             SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE,
-            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK,
+            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK,
         ):
             audio_engine.preload_one_shot(sound_id)
 

@@ -34,14 +34,22 @@ _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
 
-MODE_CYCLE = ("defender", "survival", "lanes", "hybrid", "polarity", "holds")
-"""Ordem em que A/D alternam o modo nas musicas do jogador. As duas
-variantes finais ("polarity"/"holds") continuam sendo o modo Defensor
-por baixo -- so acrescentam `polarity_enabled`/`holds_enabled` (ver
-`MODE_VARIANT_OVERRIDES`) -- mesmas mecanicas das fases curadas 7 e 8,
-agora disponiveis para QUALQUER musica sua. Colocadas no FIM da lista
-(nao entre "defender" e "survival") para nao alterar a ordem ja
-testada do ciclo original."""
+MODE_CYCLE = (
+    "defender",
+    "survival",
+    "lanes",
+    "hybrid",
+    "polarity",
+    "holds",
+    "lanes_holds",
+    "survival_holds",
+)
+"""Ordem em que A/D alternam o modo nas musicas do jogador. As variantes
+finais continuam sendo os modos base por baixo -- so acrescentam
+`polarity_enabled`/`holds_enabled` (ver `MODE_VARIANT_OVERRIDES`) --
+mesmas mecanicas das fases curadas. Colocadas no FIM da lista (nao
+entre "defender" e "survival") para nao alterar a ordem ja testada do
+ciclo original a cada extensao."""
 
 MODE_VARIANT_OVERRIDES = {
     "defender": {"game_mode": "defender"},
@@ -50,6 +58,8 @@ MODE_VARIANT_OVERRIDES = {
     "hybrid": {"game_mode": "hybrid"},
     "polarity": {"game_mode": "defender", "polarity_enabled": True},
     "holds": {"game_mode": "defender", "holds_enabled": True},
+    "lanes_holds": {"game_mode": "lanes", "holds_enabled": True},
+    "survival_holds": {"game_mode": "survival", "holds_enabled": True},
 }
 """Campos de `HertzConfig` sobrescritos por variante escolhida no menu
 das musicas do jogador -- resolvido UMA vez por `_compose_stage`, o
@@ -57,7 +67,9 @@ mesmo `dataclasses.replace` que as fases curadas usam via `overrides`
 de `stages.json`. `polarity_enabled`/`holds_enabled` nao aparecem nas
 variantes que nao os usam porque a config BASE ja os tem como `False`
 (nenhuma leva residual entre trocas: `stage_config` e reconstruida do
-zero a cada `_compose_stage`)."""
+zero a cada `_compose_stage`). "lanes_holds"/"survival_holds": Hold
+classico + Shield no Arcade 4K e Safe Zone + Ancora na Sobrevivencia,
+agora disponiveis para QUALQUER musica sua."""
 
 
 class HertzGameLoop(GameLoop):

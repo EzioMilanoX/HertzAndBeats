@@ -44,6 +44,17 @@ def test_overdue_collision_damages_and_breaks_combo(compose, null_clock, null_in
     assert composed.memory_manager.get_pool("rhythm_threat").count == 0
 
 
+def test_overdue_collision_triggers_camera_shake(compose, null_clock, null_input):
+    composed, config = compose([_basic(3.0)])
+    _spawn_and_park_threat_at_core(composed, config, null_clock)
+
+    null_clock.set_now_seconds(3.12)
+    null_input.poll()
+    composed.world.step(0.0)
+
+    assert composed.game_state.shake_intensity == config.core_damage_shake_px
+
+
 def test_collision_within_late_hit_window_does_not_punish(compose, null_clock, null_input):
     composed, config = compose([_basic(3.0)])
     _spawn_and_park_threat_at_core(composed, config, null_clock)

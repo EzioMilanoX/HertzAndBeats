@@ -58,6 +58,8 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         min_travel_seconds: float = 0.05,
         is_hold_by_row: np.ndarray = None,
         hold_end_by_row: np.ndarray = None,
+        hold_threat_type_id: int = None,
+        hold_duration_seconds: float = 0.0,
     ) -> None:
         """`lane_center_xs` (float64, len 4) e `lane_tints_rgb`
         (uint8, shape (4,3)) sao pre-computados na composicao.
@@ -68,6 +70,14 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         `lane_scratch_clustering`) e o instante em que o hold termina.
         Vivem FORA do `SCHEDULED_THREAT_DTYPE` da engine -- schema
         neutro, so este produto sabe o que e um "hold".
+
+        NOTA LONGA CLASSICA (`duration_sec`, opt-in via
+        `hold_threat_type_id`, mutuamente exclusiva do Scratch por
+        construcao -- ver `_create_threat_entity`): toda pesada que NAO
+        entrou num cluster de Scratch vira uma nota longa comum de
+        tecla sustentada (`duration_sec = hold_duration_seconds`), a
+        interpretacao do Arcade 4K para o mesmo campo mode-agnostico que
+        o Defensor ja usa para o Hold por fire+mira sustentados.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -92,6 +102,8 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         self._min_travel_seconds = float(min_travel_seconds)
         self._is_hold_by_row = is_hold_by_row
         self._hold_end_by_row = hold_end_by_row
+        self._hold_threat_type_id = hold_threat_type_id
+        self._hold_duration_seconds = float(hold_duration_seconds)
         # roteamento kick/vocal so faz sentido em beatmaps MULTI-camada;
         # num mapa de camada unica ele colapsaria tudo em 2 colunas
         self._route_by_layer = bool(np.any(scheduled_spawns["layer"] != 0)) if scheduled_spawns.shape[0] else False
@@ -125,11 +137,23 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         is_hold = bool(self._is_hold_by_row[row_index]) if self._is_hold_by_row is not None else False
         hold_end = float(self._hold_end_by_row[row_index]) if is_hold else hit_time
 
+        # Nota longa classica: so pesadas que NAO foram fundidas num
+        # cluster de Scratch (`is_hold=False`) podem ser reinterpretadas
+        # -- as duas mecanicas nunca disputam a mesma linha.
+        is_classic_hold = (
+            not is_hold
+            and self._hold_threat_type_id is not None
+            and threat_type == self._hold_threat_type_id
+        )
+        duration_sec = self._hold_duration_seconds if is_classic_hold else 0.0
+        classic_hold_end = hit_time + duration_sec if is_classic_hold else hit_time
+
         strength = float(self._scheduled_threats["strength"][row_index])
         threat_view["mode_tag"][threat_row] = MODE_TAG_LANES
         threat_view["strength"][threat_row] = strength
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hold_end
+        threat_view["duration_sec"][threat_row] = duration_sec
         threat_view["spawn_angle_rad"][threat_row] = math.pi / 2.0  # caindo (tela, y para baixo)
         threat_view["is_hit"][threat_row] = False
         threat_view["is_hold"][threat_row] = is_hold
@@ -149,6 +173,10 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         # "nota longa" sem complicar a cinematica.
         if is_hold:
             hold_span_px = (hold_end - hit_time) * fall_speed
+            transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
+            transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
+        elif is_classic_hold:
+            hold_span_px = (classic_hold_end - hit_time) * fall_speed
             transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
             transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
         else:
@@ -178,6 +206,13 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
             sprite_view["tint_r"][sprite_row] = 255
             sprite_view["tint_g"][sprite_row] = 240
             sprite_view["tint_b"][sprite_row] = 180
+        elif is_classic_hold:
+            # ciano: distingue a nota longa classica (tecla sustentada)
+            # tanto do Scratch (dourado) quanto das notas normais (cor
+            # da coluna)
+            sprite_view["tint_r"][sprite_row] = 120
+            sprite_view["tint_g"][sprite_row] = 230
+            sprite_view["tint_b"][sprite_row] = 255
         else:
             sprite_view["tint_r"][sprite_row] = self._lane_tints_rgb[lane, 0]
             sprite_view["tint_g"][sprite_row] = self._lane_tints_rgb[lane, 1]

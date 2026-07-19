@@ -36,9 +36,10 @@ class GameState:
         "parry_count",
         "deflect_count",
         "shake_intensity",
+        "shield_charges",
     )
 
-    def __init__(self, max_health: int) -> None:
+    def __init__(self, max_health: int, shield_charges: int = 0) -> None:
         self.score: int = 0
         self.combo_count: int = 0
         self.max_combo: int = 0
@@ -75,6 +76,13 @@ class GameState:
         Qualquer sistema pode chamar `trigger_shake(...)`; NUNCA e
         escrito diretamente (sempre por esse metodo, que decide o
         criterio de sobreposicao de tremores concorrentes)."""
+        self.shield_charges: int = int(shield_charges)
+        """Arcade 4K -- Notas Longas classicas (opt-in, `holds_enabled`):
+        quantas vezes o jogador pode QUEBRAR um Hold antes que passe a
+        custar vida de verdade (o Arcade normalmente nao tira vida).
+        Inicializado por `_compose_lanes_mode` a partir de
+        `HertzConfig.lane_shield_max_charges`; `0` nos demais modos
+        (nunca lido/decrementado la)."""
 
     @property
     def in_fever(self) -> bool:
