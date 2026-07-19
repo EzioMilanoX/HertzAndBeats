@@ -80,8 +80,13 @@
       "overrides": {
         "polarity_enabled": true,
         "approach_seconds": 1.8,
-        "aim_tolerance_degrees": 30.0
-      }
+        "aim_tolerance_degrees": 30.0,
+        "orbital_eclipse_count": 2
+      },
+      "modchart_events": [
+        { "type": "radius_collapse", "time_seconds": 20.0, "duration_seconds": 2.5, "target_radius": 14.0 },
+        { "type": "radius_collapse", "time_seconds": 34.0, "duration_seconds": 2.5, "target_radius": 26.0 }
+      ]
     },
     {
       "stage_id": "stage_notas_longas",

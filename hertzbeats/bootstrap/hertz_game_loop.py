@@ -238,6 +238,31 @@ class HertzGameLoop(GameLoop):
         else:
             renderer.set_playfield(None)
 
+    def _sync_defender_playfield(self) -> None:
+        """Colapso do Anel de Julgamento (Defensor): mantem o anel
+        desenhado (`renderer.set_playfield("radial", ...)`) em sincronia
+        com `GameState.current_judgment_radius` -- sem isso, o anel
+        ficaria parado no raio ORIGINAL enquanto a mira/velocidade das
+        ameacas novas ja reagem ao colapso. Mesma familia de
+        `_sync_lane_playfield` (Modcharts do Arcade 4K). No-op fora do
+        Defensor ou com um renderer sem suporte a playfield."""
+        if self._composed is None or self._stage_config.game_mode != "defender":
+            return
+        renderer = getattr(self, "_renderer", None)
+        if renderer is None or not hasattr(renderer, "set_playfield"):
+            return
+        config = self._stage_config
+        center_x, center_y = config.center_xy
+        renderer.set_playfield(
+            "radial",
+            center_x=center_x,
+            center_y=center_y,
+            spawn_radius=config.spawn_radius,
+            judgment_radius=self._composed.game_state.current_judgment_radius,
+            width=config.window_width,
+            height=config.window_height,
+        )
+
     def _sync_lane_playfield(self) -> None:
         """Modcharts (Arcade 4K): mantem a decoracao de fundo das
         colunas (`renderer.set_playfield("lanes", ...)`) em sincronia
@@ -619,6 +644,7 @@ class HertzGameLoop(GameLoop):
             self._sync_blindness()
             self._sync_hitlag()
             self._sync_lane_playfield()
+            self._sync_defender_playfield()
             self._render_frame()
 
             elapsed = time.perf_counter() - now

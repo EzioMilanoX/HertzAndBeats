@@ -131,7 +131,7 @@ para isso não acontecer em condições normais.</li>
 <tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
 <tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
 <tr><td><strong>4 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
-<tr><td><strong>5 - POLARIDADE</strong><br><small>azul/rosa + parry | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>polarity_enabled=True, approach_seconds=1.8, aim_tolerance_degrees=30.0</td><td>—</td></tr>
+<tr><td><strong>5 - POLARIDADE</strong><br><small>azul/rosa + parry | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>polarity_enabled=True, approach_seconds=1.8, aim_tolerance_degrees=30.0, orbital_eclipse_count=2</td><td>—</td></tr>
 <tr><td><strong>6 - NOTAS LONGAS</strong><br><small>segure o gatilho + a mira | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>holds_enabled=True, approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
 <tr><td><strong>7 - ARCADE: NOTAS LONGAS</strong><br><small>segure a coluna + Shield | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, holds_enabled=True, approach_seconds=1.8</td><td>—</td></tr>
 </table>
@@ -236,8 +236,8 @@ padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própr
 <tr><td><code>track_path</code></td><td><code>&quot;data/tracks/stage2_batida_franca.wav&quot;</code></td></tr>
 <tr><td><code>input_bindings_path</code></td><td><code>&quot;data/input_bindings/default_keyboard.json&quot;</code></td></tr>
 <tr><td><code>stages_path</code></td><td><code>&quot;data/stages/stages.json&quot;</code></td></tr>
-<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1, &quot;rhythm_threat_bomb&quot;: 2, &quot;rhythm_threat_heal&quot;: 3, &quot;rhythm_threat_orbit&quot;: 4}</code></td></tr>
-<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0, &quot;rhythm_threat_bomb&quot;: 12.0, &quot;rhythm_threat_heal&quot;: 11.0, &quot;rhythm_threat_orbit&quot;: 13.0}</code></td></tr>
+<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1, &quot;rhythm_threat_bomb&quot;: 2, &quot;rhythm_threat_heal&quot;: 3, &quot;rhythm_threat_orbit&quot;: 4, &quot;rhythm_threat_twin&quot;: 5}</code></td></tr>
+<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0, &quot;rhythm_threat_bomb&quot;: 12.0, &quot;rhythm_threat_heal&quot;: 11.0, &quot;rhythm_threat_orbit&quot;: 13.0, &quot;rhythm_threat_twin&quot;: 9.0}</code></td></tr>
 <tr><td><code>lane_count</code></td><td><code>8</code></td></tr>
 <tr><td><code>approach_seconds</code></td><td><code>2.0</code></td></tr>
 <tr><td><code>spawn_radius</code></td><td><code>420.0</code></td></tr>
@@ -271,13 +271,17 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>214 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>234 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_convergence_rings.py</code> — Aneis de Convergencia do Defensor: encolhem matematicamente ate o anel de julgamento no ms do hit. (4 testes)</summary><ul><li><code>test_ring_spawns_alongside_threat_at_spawn_radius</code></li><li><code>test_ring_radius_shrinks_linearly_to_the_judgment_ring</code></li><li><code>test_ring_self_destructs_at_the_hit_instant</code></li><li><code>test_ring_tint_matches_the_threat_it_warns_about</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (4 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_overdue_collision_triggers_camera_shake</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
+<details><summary><code>test_defender_judgment_radius_collapse.py</code> — Defensor -- Colapso do Anel de Julgamento: raio dinamico via evento do beatmap, lido por mira/spawner/renderer. (7 testes)</summary><ul><li><code>test_parse_radius_collapse_events_sorts_by_time_and_filters_other_types</code></li><li><code>test_compute_collapsed_radius_before_during_and_after</code></li><li><code>test_compute_collapsed_radius_chains_a_sequence_of_events</code></li><li><code>test_no_collapse_events_keeps_the_base_radius_forever</code></li><li><code>test_radius_collapse_event_shrinks_current_judgment_radius_over_time</code></li><li><code>test_crosshair_orbits_at_the_collapsed_radius</code></li><li><code>test_new_threat_speed_uses_the_collapsed_radius_not_the_base_one</code></li></ul></details>
 <details><summary><code>test_defender_orbital_capture.py</code> — Defensor -- Captura Orbital (Escudos Rotativos): Parry Perfeito num tipo especial vira escudo, nao reflexo. (5 testes)</summary><ul><li><code>test_perfect_hit_on_orbit_type_captures_it_instead_of_destroying</code></li><li><code>test_orbit_capture_requires_the_tighter_perfect_window</code></li><li><code>test_captured_shield_orbits_the_core_over_time</code></li><li><code>test_orbital_shield_destroys_a_threat_that_crosses_its_path</code></li><li><code>test_orbiting_shield_is_never_swept_as_overdue_miss</code></li></ul></details>
+<details><summary><code>test_defender_orbital_eclipse.py</code> — Defensor -- Eclipses Orbitais: barreiras dinamicas que giram ao redor do nucleo e bloqueiam o projetil refletido do Parry. (4 testes)</summary><ul><li><code>test_orbital_eclipse_count_creates_that_many_shield_layer_obstacles</code></li><li><code>test_zero_eclipse_count_creates_no_obstacles</code></li><li><code>test_orbital_eclipse_position_always_matches_its_own_integrated_rotation</code></li><li><code>test_orbital_eclipse_blocks_the_reflected_parry_projectile</code></li></ul></details>
+<details><summary><code>test_defender_overload_shockwave.py</code> — Defensor -- Overload do Nucleo: Dash em Overdrive sobre uma batida viva dispara o ShockwaveSystem reaproveitado. (4 testes)</summary><ul><li><code>test_dash_in_overdrive_on_a_live_beat_triggers_overload_and_resets_resonance</code></li><li><code>test_dash_without_overdrive_never_triggers_overload</code></li><li><code>test_dash_in_overdrive_without_a_live_beat_nearby_does_nothing</code></li><li><code>test_overload_shockwave_destroys_a_weak_threat_it_sweeps</code></li></ul></details>
 <details><summary><code>test_defender_polarity_resonance.py</code> — Defensor -- Ressonancia de Polaridade (Combos Monocromaticos): corrente por cor e Overdrive perfurante. (5 testes)</summary><ul><li><code>test_destroying_same_color_threats_in_sequence_builds_the_chain</code></li><li><code>test_destroying_a_different_color_threat_resets_the_chain_to_one</code></li><li><code>test_in_overdrive_becomes_true_only_at_the_configured_threshold</code></li><li><code>test_overdrive_shot_pierces_and_destroys_every_matching_color_candidate_at_once</code></li><li><code>test_overdrive_piercing_never_consumes_a_heavy_parry_candidate</code></li></ul></details>
+<details><summary><code>test_defender_twin_polarity.py</code> — Defensor -- Gemeos de Polaridade: um evento &quot;twin&quot; nasce como DUAS ameacas opostas no mesmo frame. (5 testes)</summary><ul><li><code>test_twin_event_spawns_two_entities_in_diametrically_opposite_lanes</code></li><li><code>test_twin_pair_shares_the_same_target_hit_time_and_opposite_angles</code></li><li><code>test_twin_pair_has_opposite_polarities</code></li><li><code>test_non_twin_threat_type_still_spawns_a_single_entity</code></li><li><code>test_twin_type_is_inert_without_polarity_enabled</code></li></ul></details>
 <details><summary><code>test_flow_state.py</code> — Flow State (&quot;vidro quebrado&quot;): 50 PERFECTs seguidos apaga o HUD; um Miss o restaura. (3 testes)</summary><ul><li><code>test_flow_combo_threshold_is_wired_only_for_lanes_mode</code></li><li><code>test_flow_state_hides_score_combo_and_labels_at_the_threshold</code></li><li><code>test_flow_state_restores_the_hud_after_a_miss_resets_combo</code></li></ul></details>
 <details><summary><code>test_flow_tier.py</code> — Flow State: o tier de 50 combos extras chega ao renderer TODO frame, nao so na transicao. (4 testes)</summary><ul><li><code>test_tier_is_zero_before_reaching_the_flow_threshold</code></li><li><code>test_tier_is_one_exactly_at_the_threshold</code></li><li><code>test_tier_advances_within_flow_without_leaving_and_re_entering</code></li><li><code>test_tier_resets_to_zero_after_a_miss_breaks_the_combo</code></li></ul></details>
 <details><summary><code>test_gun_sync_and_ghost_tap.py</code> — Gun Sync (canhao no acerto, clique no misfire) e Ghost Tapping (tap livre sem punicao) no Arcade. (4 testes)</summary><ul><li><code>test_hit_on_time_plays_the_cannon</code></li><li><code>test_misfire_plays_click_and_jams_the_gun</code></li><li><code>test_jammed_gun_ignores_trigger_until_it_clears</code></li><li><code>test_ghost_tap_plays_soft_tick_without_penalty</code></li></ul></details>
@@ -638,6 +642,13 @@ escolhida no menu, tecla T).</pre>
 que a faixa exista (re-sintese deterministica se necessario).</pre>
 <h4><code>._apply_playfield()</code></h4><pre class="doc">Sincroniza a decoracao de arena do renderer com o MODO da fase
 carregada (no-op com renderer sem suporte, ex. NullRenderer).</pre>
+<h4><code>._sync_defender_playfield()</code></h4><pre class="doc">Colapso do Anel de Julgamento (Defensor): mantem o anel
+desenhado (`renderer.set_playfield(&quot;radial&quot;, ...)`) em sincronia
+com `GameState.current_judgment_radius` -- sem isso, o anel
+ficaria parado no raio ORIGINAL enquanto a mira/velocidade das
+ameacas novas ja reagem ao colapso. Mesma familia de
+`_sync_lane_playfield` (Modcharts do Arcade 4K). No-op fora do
+Defensor ou com um renderer sem suporte a playfield.</pre>
 <h4><code>._sync_lane_playfield()</code></h4><pre class="doc">Modcharts (Arcade 4K): mantem a decoracao de fundo das
 colunas (`renderer.set_playfield(&quot;lanes&quot;, ...)`) em sincronia
 com a posicao ATUAL calculada pelo `LaneChoreographySystem`
@@ -746,6 +757,22 @@ o que fica visivel: mira no Defensor, nada no Arcade, ...).</pre>
 centro, ameacas radiais 360, mira livre + tiro na batida; misfire
 zera o combo. Ordem: PlayerInput -&gt; Spawner radial -&gt; Judgment -&gt;
 Physics -&gt; Collision -&gt; CoreDamage.</pre>
+<h4><code>_create_shockwave_pool()</code></h4><pre class="doc">Pre-cria `pool_size` entidades de onda de choque (Overload do
+Nucleo), inicialmente INATIVAS (hitbox/sprite zerados pelo proprio
+`MemoryManager` -- camada/mascara 0 e alfa 0 sao o &quot;invisivel/sem
+colisao&quot; default de uma linha nova). Disciplina Zero-GC MAIS
+ESTRITA que o resto do jogo: este pool fixo e reaproveitado para
+sempre em round-robin pelo `ShockwaveSystem`, nunca criado/destruido
+durante a partida.</pre>
+<h4><code>_create_orbital_eclipse_entities()</code></h4><pre class="doc">Pre-cria `orbital_eclipse_count` obstaculos (Eclipses Orbitais),
+distribuidos em angulos UNIFORMES ao redor do circulo
+(`TAU * i / count`) -- todos giram JUNTOS depois (mesma
+`rotation_speed`), preservando o espacamento relativo entre si para
+sempre. `velocity.linear_x/y` fica ZERADO (a translacao do
+`PhysicsSystem` generico e um no-op para eles -- so o angulo
+integra); `velocity.angular` e a UNICA fonte de movimento, constante
+desde a criacao. Zero-GC: laco escalar sobre uma contagem tipicamente
+pequena (1-3), so na composicao (fase de carregamento).</pre>
 <h4><code>_create_distraction_pool()</code></h4><pre class="doc">Pre-cria `pool_size` entidades de Obstrucao Visual (jumpscare),
 inicialmente INATIVAS (`tint_a=0` default de uma linha nova de
 sprite) -- disciplina Zero-GC MAIS ESTRITA que o resto do jogo:
@@ -839,6 +866,12 @@ pontuacao no World&quot; da arquitetura sem tocar o nucleo. Mutar
 atributos primitivos de uma instancia pre-alocada e Zero-GC pelo
 mesmo criterio dos contadores internos da engine (ex.:
 `World._pending_destroy_count`).</pre>
+<h4><code>.consume_overdrive_for_overload()</code></h4><pre class="doc">Defensor -- Overload do Nucleo: o `JudgmentSystem` chama isto
+ao detectar Dash+batida viva com a Ressonancia CHEIA (`in_overdrive`)
+-- arma o pedido de Shockwave E zera a corrente de Ressonancia
+(`resonance_chain`/`resonance_color`) na MESMA chamada, como o
+&quot;custo&quot; de ativar o Overload (a barra se esvazia ao ser gasta,
+nao continua cheia).</pre>
 <h4><code>.is_blinded()</code></h4><pre class="doc">True enquanto o Vignette Flash estiver ativo.</pre>
 <h4><code>.trigger_blindness()</code></h4><pre class="doc">Aciona/reforca a Cegueira Ritmica. Mesmo criterio de
 `trigger_shake`: usa `max()`, nao soma -- duas bombas seguidas
@@ -891,8 +924,8 @@ Incrementada a cada mudanca na forma de gerar notas a partir do audio;
 `music_library.needs_analysis` re-analisa automaticamente musicas cujo
 beatmap cacheado veio de um mapeador mais antigo.</pre>
 </details>
-<details class="module" id="hertzbeats-modchart"><summary><code>hertzbeats/modchart.py</code> — Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (Swap, Reverse Scroll).</summary>
-<pre class="doc">Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (Swap, Reverse Scroll).</pre>
+<details class="module" id="hertzbeats-modchart"><summary><code>hertzbeats/modchart.py</code> — Modcharts: eventos globais do beatmap que alteram a coreografia do Arcade 4K (Swap, Reverse Scroll) ou o Defensor (Colapso do Anel).</summary>
+<pre class="doc">Modcharts: eventos globais do beatmap que alteram a coreografia do Arcade 4K (Swap, Reverse Scroll) ou o Defensor (Colapso do Anel).</pre>
 <h4><code>parse_swap_events()</code></h4><pre class="doc">Normaliza a lista crua de `stages.json`
 (`{&quot;type&quot;: &quot;swap&quot;, &quot;time_seconds&quot;, &quot;duration_seconds&quot;, &quot;lane_a&quot;, &quot;lane_b&quot;}`)
 em tuplas `(time_seconds, duration_seconds, lane_a, lane_b)`
@@ -934,6 +967,21 @@ sobreponham no tempo, o uso normal de um Modchart escrito a mao).
 
 Pura e sem estado -- nao possui `out=` porque e um ESCALAR, nao um
 array; testavel sem ECS/pygame.</pre>
+<h4><code>parse_radius_collapse_events()</code></h4><pre class="doc">Normaliza a lista crua de `stages.json`
+(`{&quot;type&quot;: &quot;radius_collapse&quot;, &quot;time_seconds&quot;, &quot;duration_seconds&quot;,
+&quot;target_radius&quot;}`) em tuplas `(time_seconds, duration_seconds,
+target_radius)` ORDENADAS por tempo. Eventos de outro tipo (swap,
+reverse_scroll, distraction) sao ignorados aqui -- cada feature
+filtra so o que lhe interessa da MESMA lista de `modchart_events`.</pre>
+<h4><code>compute_collapsed_radius()</code></h4><pre class="doc">Raio ATUAL (px) do Anel de Julgamento do Defensor. MESMO idioma
+de encadeamento de `compute_scroll_flip_fraction`: cada evento faz
+um Lerp a partir de onde o raio ACUMULADO dos eventos anteriores
+parou ate `target_radius` (nao entre dois valores fixos), ao longo
+de `duration_seconds` -- permite uma SEQUENCIA de colapsos/expansoes
+ao longo da musica (ex.: encolhe no Drop, expande de volta depois),
+desde que os eventos nao se sobreponham no tempo.
+
+Pura e sem estado -- escalar, testavel sem ECS/pygame.</pre>
 </details>
 <details class="module" id="hertzbeats-music_library"><summary><code>hertzbeats/music_library.py</code> — Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`</summary>
 <pre class="doc">Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`
@@ -1087,12 +1135,14 @@ Atributos:
         escolhido no menu (A/D alternam) em vez de fixado por
         `overrides`; fases construidas do repositorio mantem a
         afinacao curada por modo.
-    modchart_events: eventos GLOBAIS de coreografia do Arcade 4K
-        (`{&quot;type&quot;: &quot;swap&quot;, &quot;time_seconds&quot;, &quot;duration_seconds&quot;,
-        &quot;lane_a&quot;, &quot;lane_b&quot;}`, ordem livre -- `parse_swap_events` os
-        ordena por tempo). Dado 100% GAME-side (nao existe no
-        `beatmap.json` da engine): so o `LaneChoreographySystem` os
-        le, quando `game_mode == &quot;lanes&quot;`.</pre>
+    modchart_events: eventos GLOBAIS de coreografia (`{&quot;type&quot;: ...}`,
+        ordem livre -- cada `parse_*_events` filtra e ordena so o seu
+        proprio tipo por tempo). Dado 100% GAME-side (nao existe no
+        `beatmap.json` da engine). Arcade 4K (`game_mode == &quot;lanes&quot;`):
+        &quot;swap&quot;/&quot;reverse_scroll&quot;/&quot;distraction&quot;. Defensor
+        (`game_mode == &quot;defender&quot;`): &quot;radius_collapse&quot; (Colapso do
+        Anel de Julgamento, `JudgmentRadiusSystem`), sempre
+        registrado independente do tipo de evento presente.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-camera_shake_system"><summary><code>hertzbeats/systems/camera_shake_system.py</code> — Decai o tremor de tela e a Cegueira Ritmica globais a cada frame -- comum a todos os modos, independente de quem os acionou.</summary>
 <pre class="doc">Decai o tremor de tela e a Cegueira Ritmica globais a cada frame -- comum a todos os modos, independente de quem os acionou.</pre>
@@ -1200,6 +1250,23 @@ acaba.
 Zero-GC: nenhuma alocacao por frame -- o cursor e um inteiro
 primitivo, o round-robin e aritmetica de modulo, e o coletor de
 expiracao itera so sobre os poucos slots do pool fixo.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-judgment_radius_system"><summary><code>hertzbeats/systems/judgment_radius_system.py</code> — Colapso do Anel de Julgamento: interpola GameState.current_judgment_radius conforme os eventos do beatmap.</summary>
+<pre class="doc">Colapso do Anel de Julgamento: interpola GameState.current_judgment_radius conforme os eventos do beatmap.</pre>
+<h3>classe <code>JudgmentRadiusSystem</code></h3><pre class="doc">&quot;Colapso do Anel de Julgamento&quot; (Defensor): escreve
+`GameState.current_judgment_radius` TODO frame a partir de
+`compute_collapsed_radius` (funcao pura em `modchart.py`, MESMO
+idioma de encadeamento Lerp de `compute_scroll_flip_fraction`) --
+sem nenhum evento `radius_collapse` no beatmap da fase, o raio
+simplesmente permanece em `base_radius` para sempre (no-op, mesma
+filosofia do `ReverseScrollSystem` &quot;sempre registrado, inofensivo
+sem Modchart ativo&quot;).
+
+Nao toca NENHUMA pool de entidade -- e um escalar so em
+`GameState`, lido por `RadialRhythmSpawnerSystem` (velocidade de
+ameacas novas), `PlayerInputSystem` (orbita da mira) e
+`HertzGameLoop._sync_defender_playfield` (o anel desenhado). Zero-GC
+trivial: nenhum array, nenhuma pool, um float por frame.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-judgment_system"><summary><code>hertzbeats/systems/judgment_system.py</code> — Julga o input do jogador contra as ameacas vivas: PERFECT/GOOD/MISS, sem alocar um unico objeto.</summary>
 <pre class="doc">Julga o input do jogador contra as ameacas vivas: PERFECT/GOOD/MISS, sem alocar um unico objeto.</pre>
@@ -1499,6 +1566,29 @@ de uma vez (tipicamente 0-3 por partida) via mascara booleana e
 fancy indexing sobre buffers pre-alocados -- nenhum laco escalar,
 nenhum array transiente novo por frame.</pre>
 </details>
+<details class="module" id="hertzbeats-systems-orbital_eclipse_system"><summary><code>hertzbeats/systems/orbital_eclipse_system.py</code> — Eclipses Orbitais: converte a rotacao ja integrada pelo PhysicsSystem generico em posicao orbital cartesiana.</summary>
+<pre class="doc">Eclipses Orbitais: converte a rotacao ja integrada pelo PhysicsSystem generico em posicao orbital cartesiana.</pre>
+<h3>classe <code>OrbitalEclipseSystem</code></h3><pre class="doc">&quot;Eclipses Orbitais&quot; (Barreiras Dinamicas): cada obstaculo do
+arquetipo `orbital_eclipse` tem `velocity.angular` CONSTANTE (armado
+uma unica vez na criacao) -- o `PhysicsSystem` GENERICO da engine ja
+integra sozinho `transform.rotation_rad += angular * delta_time`
+(movimento circular uniforme &quot;de graca&quot;, sem nenhum sistema novo
+para isso). O motor generico, porem, nao tem nocao de ORBITA: ele so
+sabe girar (`rotation_rad`) e transladar linearmente
+(`position += velocity_linear * dt`) -- nunca converter um angulo em
+posicao ao redor de um centro. Este sistema faz exatamente essa
+ponte, e por isso PRECISA rodar DEPOIS do `PhysicsSystem` no
+registro da composicao: le o `rotation_rad` JA atualizado neste
+frame e sobrescreve `position_x/y` para o ponto correspondente no
+circulo de raio `orbit_radius` -- `velocity.linear_x/y` de cada
+eclipse fica ZERADO desde a criacao, entao a integracao linear do
+`PhysicsSystem` sobre elas e sempre um no-op (evita tocar a ENGINE).
+
+Zero-GC: vetorizado sobre os poucos eclipses (tipicamente 1-3) via
+`dense_rows_of`; `np.cos`/`np.sin` alocam um array transiente do
+tamanho da contagem de eclipses -- desprezivel e do MESMO padrao ja
+aceito pelo `OrbitalCaptureSystem`.</pre>
+</details>
 <details class="module" id="hertzbeats-systems-parry_impact_system"><summary><code>hertzbeats/systems/parry_impact_system.py</code> — Parry Perfeito: o projetil refletido varre o caminho de volta, destruindo ameacas mais fracas.</summary>
 <pre class="doc">Parry Perfeito: o projetil refletido varre o caminho de volta, destruindo ameacas mais fracas.</pre>
 <p class='constants'>Constantes: <code>REFLECTED_COLLISION_LAYER</code>, <code>SHIELD_COLLISION_LAYER</code></p>
@@ -1523,8 +1613,22 @@ escudos orbitais NUNCA expiram por distancia (`is_reflected`
 permanece `False` neles, entao `_expire_out_of_bounds` os ignora
 naturalmente).
 
+Eclipses Orbitais (opt-in via `eclipse_entity_indices`): um par
+entre um projetil refletido e um Eclipse e tratado ANTES da logica
+de atacante/vitima acima -- aqui o Eclipse e quem &quot;vence&quot;: o
+projetil e destruido (sem pontuar, sem `miss_count`/combo -- so
+&quot;bloqueado&quot;) e o Eclipse, obstaculo permanente, segue orbitando.
+
 Zero-GC: mesmo idioma do `CoreDamageSystem` -- laco escalar sobre
-os poucos pares do frame (tipicamente 0-2).</pre>
+os poucos pares do frame (tipicamente 0-2); `eclipse_entity_indices`
+e guardado como `frozenset` (montado UMA vez no construtor) para
+checagem de pertencimento O(1) sem alocar por frame.</pre>
+<h4><code>._block_reflected_shot()</code></h4><pre class="doc">Eclipse Orbital: um dos dois lados do par e um Eclipse (o
+outro, se for um projetil refletido PENDING, e o &quot;tiro do
+jogador&quot; que o Eclipse bloqueia -- destruido sem pontuar, sem
+`miss_count`/combo, so removido da arena). Se o outro lado nao
+for um refletido valido (ex.: dois Eclipses se cruzando, ou o
+par ja foi resolvido neste frame), e um no-op silencioso.</pre>
 <h4><code>._is_attacker()</code></h4><pre class="doc">Uma linha e &quot;atacante&quot; (colide com ameacas, nunca e vitima)
 se for um projetil refletido (`is_reflected`) OU um Escudo
 Rotativo capturado (`phase == PHASE_ORBITING`) -- os dois
@@ -1551,7 +1655,10 @@ Responsabilidades:
       aqui, pois i-frames/cooldown sao &quot;game feel&quot;, nao eventos
       sincronizados a batida (estes consultam `IAudioClock`).
     - Feedback visual: reposiciona a entidade do crosshair no anel
-      de mira e pisca o tint do nucleo durante os i-frames.
+      de mira (raio LIDO de `GameState.current_judgment_radius` TODO
+      frame -- Colapso do Anel de Julgamento -- nunca uma constante
+      capturada no construtor) e pisca o tint do nucleo durante os
+      i-frames.
 
 Zero-GC: apenas leituras/escritas escalares em linhas densas
 re-resolvidas por frame (`dense_row_of`, nunca cacheadas -- um
@@ -1589,11 +1696,22 @@ primitivas nas linhas densas recem-anexadas (mesmo padrao do
 `_create_threat_entity` original); pools e arrays de afinacao por
 tipo de ameaca sao resolvidos UMA unica vez aqui no construtor.</pre>
 <h4><code>._create_threat_entity()</code></h4><pre class="doc">Cria a entidade via base class (que escreve `lane`/
-`threat_type` na pool `rhythm_threat`) e entao materializa os
-componentes radiais: posicao na borda, velocidade em direcao ao
-nucleo, hitbox/sprite por tipo, e os campos ritmicos
-(`target_hit_time_sec`, `spawn_angle_rad`, `packed_handle`)
-consumidos por `JudgmentSystem`/`CoreDamageSystem`.</pre>
+`threat_type` na pool `rhythm_threat`) e delega a
+`_materialize_threat` o resto (posicao, velocidade, hitbox,
+sprite, campos ritmicos).
+
+GEMEOS DE POLARIDADE: se o `threat_type` desta linha e
+`twin_threat_type_id`, uma SEGUNDA entidade e criada aqui mesmo
+(fora do cursor monotonico da base class -- este evento do
+beatmap continua contando como UM disparo so) numa lane
+DIAMETRALMENTE OPOSTA, com o MESMO `target_hit_time_sec`.</pre>
+<h4><code>._materialize_threat()</code></h4><pre class="doc">Materializa UMA ameaca radial ja criada (posicao na borda,
+velocidade em direcao ao nucleo, hitbox/sprite por tipo, e os
+campos ritmicos consumidos por `JudgmentSystem`/`CoreDamageSystem`)
+-- extraido de `_create_threat_entity` para ser chamado DUAS
+vezes no mesmo frame pelos Gemeos de Polaridade, uma por
+entidade, cada uma com sua PROPRIA `lane` (e portanto seu
+proprio angulo/polaridade).</pre>
 <h4><code>._spawn_convergence_ring()</code></h4><pre class="doc">Anel-aviso centrado no nucleo, na COR da ameaca: o
 `ConvergenceRingSystem` encolhe seu raio ate o anel de julgamento
 exatamente em `hit_time` (mesma base de tempo do julgamento).</pre>
@@ -1655,6 +1773,29 @@ fim e um acerto PERFECT.
 Zero-GC: mascara vetorizada sobre a pool inteira para achar o hold
 ativo (tipicamente 0 ou 1 por vez); a decisao de energia e um unico
 escalar por frame, aplicada por indice nas poucas linhas achadas.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-shockwave_system"><summary><code>hertzbeats/systems/shockwave_system.py</code> — Overload do Nucleo: Dash em Overdrive dispara uma onda de choque que varre ameacas fracas.</summary>
+<pre class="doc">Overload do Nucleo: Dash em Overdrive dispara uma onda de choque que varre ameacas fracas.</pre>
+<p class='constants'>Constantes: <code>SHOCKWAVE_DTYPE</code>, <code>SHOCKWAVE_COLLISION_LAYER</code></p>
+<h3>classe <code>ShockwaveSystem</code></h3><pre class="doc">&quot;Overload do Nucleo&quot;: reaproveitamento DIRETO do `ShockwaveSystem`
+original (Pulso de Impacto da extinta Sobrevivencia) -- mesmo
+crescimento exponencial de raio, mesmo pool fixo round-robin, MESMO
+truque de camada de colisao propria sobre o `CollisionSystem`
+generico. So o GATILHO muda: em vez de um dash na batida do corpo
+movel, este sistema consome `GameState.overload_requested` (armado
+pelo `JudgmentSystem` quando o jogador aciona Dash com a Ressonancia
+de Polaridade CHEIA sobre uma batida viva -- ver
+`GameState.consume_overdrive_for_overload`) -- um pedido de UM
+frame, resetado aqui mesmo apos consumido.
+
+Zero-GC: crescimento EXPONENCIAL do raio (`min * (max/min)^(t/dur)`)
+escalar sobre as poucas linhas ativas (0-5 slots); hitbox atualizada
+em escala com o raio; ao expirar, desativa (layer/mask 0, invisivel).</pre>
+<h4><code>._trigger_next_slot()</code></h4><pre class="doc">Ativa o proximo slot do pool fixo (round-robin: um inteiro
+primitivo ciclando 0..N-1, sem alocar nada), centrado no nucleo
+(o jogador do Defensor nunca se move -- ao contrario da
+Sobrevivencia extinta, nao ha posicao de corpo a consultar alem
+da propria entidade do jogador).</pre>
 </details>
 <details class="module" id="hertzbeats-systems-tutorial_system"><summary><code>hertzbeats/systems/tutorial_system.py</code> — Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</summary>
 <pre class="doc">Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</pre>

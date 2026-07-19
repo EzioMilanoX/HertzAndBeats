@@ -99,6 +99,7 @@ class JudgmentSystem(ISystem):
         orbit_threat_type_id: int = None,
         shield_collision_layer: int = None,
         shield_collision_mask: int = None,
+        dash_action_name: str = "dash",
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -150,6 +151,13 @@ class JudgmentSystem(ISystem):
         `GameState.trigger_hitlag` -- congela a APRESENTACAO por N
         quadros (o `IAudioClock`/`world.step` nunca param) e agenda o
         flash de cor invertida de retorno.
+
+        OVERLOAD DO NUCLEO (automatico quando `polarity_enabled`):
+        acionar `dash_action_name` (Espaco) com a Ressonancia CHEIA
+        (`GameState.in_overdrive`) sobre uma batida viva arma
+        `GameState.overload_requested` -- o `ShockwaveSystem` (reusado
+        da extinta Sobrevivencia) consome o pedido e dispara o Pulso de
+        Impacto no proximo `update` dele.
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -194,6 +202,7 @@ class JudgmentSystem(ISystem):
         self._orbit_threat_type_id = orbit_threat_type_id
         self._shield_collision_layer = shield_collision_layer
         self._shield_collision_mask = shield_collision_mask
+        self._dash_action_name = dash_action_name
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -298,6 +307,23 @@ class JudgmentSystem(ISystem):
             not_orbiting = self._orbiting_mask[:active_count]
             np.not_equal(threat_view["phase"], PHASE_ORBITING, out=not_orbiting)
             np.logical_and(pending, not_orbiting, out=pending)
+
+        # Overload do Nucleo: Dash sobre uma batida VIVA (candidata
+        # comum dentro da janela Good -- mesmo `pending` ja refinado
+        # acima, entao exclui Holds engajados/refletidos/escudos) com a
+        # Ressonancia de Polaridade CHEIA arma o `ShockwaveSystem`
+        # (`GameState.consume_overdrive_for_overload` tambem zera a
+        # corrente -- o "custo" do Overload). So testado quando
+        # `polarity_enabled` (a Ressonancia nem existe sem Polaridade).
+        if self._polarity_enabled and self._input_provider.is_action_pressed(self._dash_action_name):
+            if self._game_state.in_overdrive:
+                abs_deltas_for_beat = self._abs_delta_buffer[:active_count]
+                np.abs(deltas, out=abs_deltas_for_beat)
+                live_beat = self._duration_mask[:active_count]
+                np.less_equal(abs_deltas_for_beat, self._good_window, out=live_beat)
+                np.logical_and(live_beat, pending, out=live_beat)
+                if np.any(live_beat):
+                    self._game_state.consume_overdrive_for_overload()
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
         if self._hold_threat_type_id is not None:

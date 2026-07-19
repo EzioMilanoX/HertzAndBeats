@@ -42,6 +42,8 @@ class GameState:
         "resonance_overdrive_threshold",
         "visual_freeze_frames",
         "invert_colors",
+        "current_judgment_radius",
+        "overload_requested",
     )
 
     def __init__(
@@ -49,6 +51,7 @@ class GameState:
         max_health: int,
         shield_charges: int = 0,
         resonance_chain_threshold: int = 10,
+        judgment_radius: float = 0.0,
     ) -> None:
         self.score: int = 0
         self.combo_count: int = 0
@@ -134,6 +137,34 @@ class GameState:
         em que `visual_freeze_frames` volta a 0 ("quando a tela volta") --
         nunca lido/escrito por nenhum `ISystem`, mesma familia de
         `is_blinded`/`set_blindness_active`."""
+        self.current_judgment_radius: float = float(judgment_radius)
+        """Defensor -- Colapso do Anel de Julgamento: raio ATUAL (px) do
+        anel onde o hit e esperado, MUTAVEL (o valor de composicao e so
+        o ponto de partida). O `JudgmentRadiusSystem` interpola este
+        valor conforme os eventos `radius_collapse` do beatmap;
+        `RadialRhythmSpawnerSystem` o le no SPAWN de cada nova ameaca
+        (calculo de velocidade), `PlayerInputSystem` o le TODO frame
+        (orbita da mira) e o `HertzGameLoop` o publica no
+        `HBPygameRenderer` (`_sync_defender_playfield`) para o anel
+        desenhado acompanhar visualmente."""
+        self.overload_requested: bool = False
+        """Defensor -- Overload do Nucleo: pedido de UM frame para o
+        `ShockwaveSystem` disparar o proximo slot do seu pool fixo,
+        consumido (resetado a `False`) pelo proprio `ShockwaveSystem` no
+        frame em que age -- mesmo padrao pull-based de
+        `invert_colors`/`is_blinded`, nunca lido por mais de um
+        sistema."""
+
+    def consume_overdrive_for_overload(self) -> None:
+        """Defensor -- Overload do Nucleo: o `JudgmentSystem` chama isto
+        ao detectar Dash+batida viva com a Ressonancia CHEIA (`in_overdrive`)
+        -- arma o pedido de Shockwave E zera a corrente de Ressonancia
+        (`resonance_chain`/`resonance_color`) na MESMA chamada, como o
+        "custo" de ativar o Overload (a barra se esvazia ao ser gasta,
+        nao continua cheia)."""
+        self.overload_requested = True
+        self.resonance_chain = 0
+        self.resonance_color = -1
 
     @property
     def is_blinded(self) -> bool:

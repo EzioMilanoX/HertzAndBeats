@@ -70,6 +70,12 @@ TEX_DISTRACTION_SPLAT: int = 16
 procedural, desenhada sobre TUDO (layer_z acima do HUD) por um instante
 curto, num ponto aleatorio-mas-deterministico da tela."""
 
+TEX_ORBITAL_ECLIPSE: int = 17
+"""Eclipse Orbital (Defensor -- Barreira Dinamica): sem forma especial
+registrada, cai no fallback procedural de `HBPygameRenderer.draw_batch`
+(escala anisotropica = barra) -- so precisa de um id proprio para nao
+colidir com nenhuma outra textura/forma."""
+
 TEX_TUTORIAL_BASE: int = 200
 """Textos de instrucao do tutorial, pre-renderizados na composicao:
 o passo `j` da fase de indice `i` usa

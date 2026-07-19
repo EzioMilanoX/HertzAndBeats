@@ -25,6 +25,7 @@ from hertzbeats.components.texture_ids import (
     TEX_THREAT_POLARITY_BLUE,
     TEX_THREAT_POLARITY_PINK,
 )
+from hertzbeats.game_state import GameState
 
 _TAU = 2.0 * math.pi
 
@@ -69,7 +70,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         threat_archetype_name: str,
         center_xy: tuple,
         spawn_radius: float,
-        core_half_extent: float,
+        game_state: GameState,
         lane_count: int,
         threat_half_by_type: np.ndarray,
         threat_texture_by_type: np.ndarray,
@@ -82,6 +83,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         hold_duration_seconds: float = 0.0,
         polarity_enabled: bool = False,
         orbit_threat_type_id: int = None,
+        twin_threat_type_id: int = None,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -98,6 +100,23 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         `duration_sec = hold_duration_seconds` (> 0 marca Hold para o
         `JudgmentSystem`); as demais nascem com `duration_sec = 0.0`
         (default de pool zerada, nota comum).
+
+        COLAPSO DO ANEL DE JULGAMENTO: `game_state` substitui o antigo
+        `core_half_extent` fixo -- a distancia de viagem de CADA ameaca
+        nova e calculada contra `game_state.current_judgment_radius`
+        (mutavel, ver `JudgmentRadiusSystem`), nunca uma constante
+        capturada no construtor. So ameacas NOVAS sentem uma mudanca de
+        raio (a velocidade e calculada uma unica vez no spawn); ameacas
+        ja em voo mantem sua velocidade original.
+
+        GEMEOS DE POLARIDADE (opt-in via `twin_threat_type_id`): um
+        evento do beatmap com esse `threat_type` materializa DUAS
+        entidades no MESMO frame, mesmo `target_hit_time_sec`, em lanes
+        DIAMETRALMENTE OPOSTAS (`lane` e `lane + lane_count/2`) -- como
+        a polaridade e derivada da METADE do bucket de timbre de `lane`
+        (ver `_materialize_threat`), a lane espelhada cai SEMPRE no
+        bucket oposto, entao as duas nascem automaticamente em cores
+        opostas sem nenhuma logica extra de cor.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -117,7 +136,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._center_x = float(center_xy[0])
         self._center_y = float(center_xy[1])
         self._spawn_radius = float(spawn_radius)
-        self._core_half_extent = float(core_half_extent)
+        self._game_state = game_state
         self._lane_count = int(lane_count)
         self._threat_half_by_type = threat_half_by_type
         self._threat_texture_by_type = threat_texture_by_type
@@ -132,14 +151,19 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._hold_duration_seconds = float(hold_duration_seconds)
         self._polarity_enabled = bool(polarity_enabled)
         self._orbit_threat_type_id = orbit_threat_type_id
+        self._twin_threat_type_id = twin_threat_type_id
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
-        `threat_type` na pool `rhythm_threat`) e entao materializa os
-        componentes radiais: posicao na borda, velocidade em direcao ao
-        nucleo, hitbox/sprite por tipo, e os campos ritmicos
-        (`target_hit_time_sec`, `spawn_angle_rad`, `packed_handle`)
-        consumidos por `JudgmentSystem`/`CoreDamageSystem`.
+        `threat_type` na pool `rhythm_threat`) e delega a
+        `_materialize_threat` o resto (posicao, velocidade, hitbox,
+        sprite, campos ritmicos).
+
+        GEMEOS DE POLARIDADE: se o `threat_type` desta linha e
+        `twin_threat_type_id`, uma SEGUNDA entidade e criada aqui mesmo
+        (fora do cursor monotonico da base class -- este evento do
+        beatmap continua contando como UM disparo so) numa lane
+        DIAMETRALMENTE OPOSTA, com o MESMO `target_hit_time_sec`.
         """
         packed = super()._create_threat_entity(world, row_index)
         entity_index = unpack_index(packed)
@@ -150,12 +174,51 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         lane = int(threat_view["lane"][threat_row])
 
         hit_time = float(self._hit_times[row_index])
+        strength = float(self._scheduled_threats["strength"][row_index])
+        self._materialize_threat(world, entity_index, packed, threat_row, lane, threat_type, hit_time, strength)
+
+        if self._twin_threat_type_id is not None and threat_type == self._twin_threat_type_id:
+            mirror_lane = (lane + self._lane_count // 2) % self._lane_count
+            twin_packed = world.create_entity(self._threat_archetype_name)
+            twin_index = unpack_index(twin_packed)
+            twin_row = self._threat_pool.dense_row_of(twin_index)
+            twin_view = self._threat_pool.active_view()
+            twin_view["lane"][twin_row] = mirror_lane
+            twin_view["threat_type"][twin_row] = threat_type
+            self._materialize_threat(
+                world, twin_index, twin_packed, twin_row, mirror_lane, threat_type, hit_time, strength
+            )
+
+        return packed
+
+    def _materialize_threat(
+        self,
+        world: World,
+        entity_index: int,
+        packed: PackedEntityId,
+        threat_row: int,
+        lane: int,
+        threat_type: int,
+        hit_time: float,
+        strength: float,
+    ) -> None:
+        """Materializa UMA ameaca radial ja criada (posicao na borda,
+        velocidade em direcao ao nucleo, hitbox/sprite por tipo, e os
+        campos ritmicos consumidos por `JudgmentSystem`/`CoreDamageSystem`)
+        -- extraido de `_create_threat_entity` para ser chamado DUAS
+        vezes no mesmo frame pelos Gemeos de Polaridade, uma por
+        entidade, cada uma com sua PROPRIA `lane` (e portanto seu
+        proprio angulo/polaridade)."""
         time_remaining = hit_time - self._compute_effective_time()
         if time_remaining < self._min_travel_seconds:
             time_remaining = self._min_travel_seconds
 
         threat_half = float(self._threat_half_by_type[threat_type])
-        travel_distance = self._spawn_radius - (self._core_half_extent + threat_half)
+        # Colapso do Anel de Julgamento: a distancia de viagem mira o
+        # raio ATUAL (mutavel) do anel, nao mais uma constante fixa --
+        # so ameacas NOVAS sentem a mudanca (velocidade e calculada uma
+        # unica vez, aqui, no spawn).
+        travel_distance = self._spawn_radius - self._game_state.current_judgment_radius
         speed = travel_distance / time_remaining
 
         angle = _TAU * (lane % self._lane_count) / self._lane_count
@@ -164,7 +227,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         spawn_x = self._center_x + direction_x * self._spawn_radius
         spawn_y = self._center_y + direction_y * self._spawn_radius
 
-        strength = float(self._scheduled_threats["strength"][row_index])
+        threat_view = self._threat_pool.active_view()
         threat_view["mode_tag"][threat_row] = MODE_TAG_DEFENDER
         threat_view["phase"][threat_row] = PHASE_LETHAL
         threat_view["strength"][threat_row] = strength
@@ -172,6 +235,9 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         # `lane` (assign_lanes no mapeador -- grave -> bucket baixo,
         # agudo -> bucket alto) -- zero analise extra. Metade inferior
         # dos buckets = grave = ROSA; metade superior = agudo = AZUL.
+        # Gemeos de Polaridade: a lane ESPELHADA (`lane + lane_count/2`)
+        # cai SEMPRE no bucket oposto, entao as duas entidades nascem em
+        # cores opostas automaticamente, sem branch extra aqui.
         threat_view["polarity_id"][threat_row] = (
             POLARITY_PINK if (lane % self._lane_count) < self._lane_count / 2.0 else POLARITY_BLUE
         )
@@ -229,9 +295,11 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
             sprite_view["tint_b"][sprite_row] = 225
         # Polaridade: pesadas (Parry, aceitam QUALQUER cor) mantem o
         # visual heavy de sempre -- so as comuns (cuja cor IMPORTA para
-        # o julgamento) ganham a forma+tint real azul/rosa. Acessibilidade
-        # a daltonismo: a forma (triangulo/quadrado) nunca depende so do
-        # tint -- ver `HBPygameRenderer.draw_batch`.
+        # o julgamento) ganham a forma+tint real azul/rosa (Gemeos
+        # inclusos: nascem com `threat_type` proprio, mas NAO e o de
+        # pesada/orbital, entao caem neste ramo normalmente).
+        # Acessibilidade a daltonismo: a forma (triangulo/quadrado) nunca
+        # depende so do tint -- ver `HBPygameRenderer.draw_batch`.
         elif self._polarity_enabled and base_texture_id != TEX_THREAT_HEAVY:
             is_pink = int(threat_view["polarity_id"][threat_row]) == POLARITY_PINK
             sprite_view["texture_id"][sprite_row] = (
@@ -255,8 +323,6 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
 
         if self._ring_archetype_name is not None:
             self._spawn_convergence_ring(world, hit_time, time_remaining, sprite_view, sprite_row)
-
-        return packed
 
     def _spawn_convergence_ring(
         self, world: World, hit_time: float, travel_seconds: float,

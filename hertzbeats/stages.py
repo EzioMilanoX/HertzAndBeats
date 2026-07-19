@@ -39,12 +39,14 @@ class StageDef:
             escolhido no menu (A/D alternam) em vez de fixado por
             `overrides`; fases construidas do repositorio mantem a
             afinacao curada por modo.
-        modchart_events: eventos GLOBAIS de coreografia do Arcade 4K
-            (`{"type": "swap", "time_seconds", "duration_seconds",
-            "lane_a", "lane_b"}`, ordem livre -- `parse_swap_events` os
-            ordena por tempo). Dado 100% GAME-side (nao existe no
-            `beatmap.json` da engine): so o `LaneChoreographySystem` os
-            le, quando `game_mode == "lanes"`.
+        modchart_events: eventos GLOBAIS de coreografia (`{"type": ...}`,
+            ordem livre -- cada `parse_*_events` filtra e ordena so o seu
+            proprio tipo por tempo). Dado 100% GAME-side (nao existe no
+            `beatmap.json` da engine). Arcade 4K (`game_mode == "lanes"`):
+            "swap"/"reverse_scroll"/"distraction". Defensor
+            (`game_mode == "defender"`): "radius_collapse" (Colapso do
+            Anel de Julgamento, `JudgmentRadiusSystem`), sempre
+            registrado independente do tipo de evento presente.
     """
 
     stage_id: str

@@ -163,6 +163,36 @@ class HertzConfig:
     # -- Defensor: Juice Extremo de Parry (Hitlag Visual Simulado) --
     parry_hitlag_freeze_frames: int = 3
 
+    # -- Defensor: Gemeos de Polaridade -- opt-in por presenca do tipo
+    #    "rhythm_threat_twin" em `threat_type_ids` (mesmo criterio de
+    #    Bombas/Cura/Orbital); nenhum campo extra necessario aqui --
+    #    reusa `lane_count`/`polarity_enabled` ja existentes.
+
+    # -- Defensor: Eclipses Orbitais (Barreiras Dinamicas) -- opt-in por
+    #    `orbital_eclipse_count > 0` --
+    orbital_eclipse_count: int = 0
+    orbital_eclipse_radius: float = 150.0
+    orbital_eclipse_rotation_speed_rad_per_sec: float = 1.2
+    orbital_eclipse_half_width: float = 28.0
+    orbital_eclipse_half_height: float = 8.0
+
+    # -- Defensor: Overload do Nucleo (Dash + Ressonancia cheia sobre
+    #    batida viva) -- reusa o `ShockwaveSystem` do Pulso de Impacto
+    #    da extinta Sobrevivencia, sempre ativo quando `polarity_enabled`
+    #    (a Ressonancia so existe com Polaridade) --
+    shockwave_pool_size: int = 5
+    shockwave_min_radius: float = 20.0
+    shockwave_max_radius: float = 260.0
+    shockwave_duration_seconds: float = 0.2
+    shockwave_trigger_shake_px: float = 8.0
+
+    # -- Defensor: Colapso do Anel de Julgamento (Dynamic Radius) --
+    # nenhum campo extra necessario: o raio BASE reusa
+    # `core_half_extent`/`threat_half_extents`, e os eventos de colapso
+    # vem de `StageDef.modchart_events` (`{"type": "radius_collapse",
+    # "time_seconds", "duration_seconds", "target_radius"}`), mesmo
+    # dado 100% game-side ja usado por Swap/Reverse Scroll/Distraction.
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -246,6 +276,18 @@ class HertzConfig:
             orbit_angular_speed_rad_per_sec=raw.get("orbit_angular_speed_rad_per_sec", 2.4),
             resonance_chain_threshold=raw.get("resonance_chain_threshold", 10),
             parry_hitlag_freeze_frames=raw.get("parry_hitlag_freeze_frames", 3),
+            orbital_eclipse_count=raw.get("orbital_eclipse_count", 0),
+            orbital_eclipse_radius=raw.get("orbital_eclipse_radius", 150.0),
+            orbital_eclipse_rotation_speed_rad_per_sec=raw.get(
+                "orbital_eclipse_rotation_speed_rad_per_sec", 1.2
+            ),
+            orbital_eclipse_half_width=raw.get("orbital_eclipse_half_width", 28.0),
+            orbital_eclipse_half_height=raw.get("orbital_eclipse_half_height", 8.0),
+            shockwave_pool_size=raw.get("shockwave_pool_size", 5),
+            shockwave_min_radius=raw.get("shockwave_min_radius", 20.0),
+            shockwave_max_radius=raw.get("shockwave_max_radius", 260.0),
+            shockwave_duration_seconds=raw.get("shockwave_duration_seconds", 0.2),
+            shockwave_trigger_shake_px=raw.get("shockwave_trigger_shake_px", 8.0),
         )
 
 

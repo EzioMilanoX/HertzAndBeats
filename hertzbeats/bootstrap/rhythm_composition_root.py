@@ -55,7 +55,11 @@ from hertzbeats.audio.sfx_synth import (
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
-from hertzbeats.modchart import parse_reverse_scroll_events, parse_swap_events
+from hertzbeats.modchart import (
+    parse_radius_collapse_events,
+    parse_reverse_scroll_events,
+    parse_swap_events,
+)
 from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
 from hertzbeats.systems.convergence_ring_system import (
@@ -67,20 +71,24 @@ from hertzbeats.systems.distraction_system import (
     DistractionSystem,
     parse_distraction_events,
 )
+from hertzbeats.systems.judgment_radius_system import JudgmentRadiusSystem
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
 from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
+from hertzbeats.systems.orbital_eclipse_system import OrbitalEclipseSystem
 from hertzbeats.systems.parry_impact_system import (
     REFLECTED_COLLISION_LAYER,
     SHIELD_COLLISION_LAYER,
     ParryImpactSystem,
 )
 from hertzbeats.systems.scratch_judgment_system import ScratchJudgmentSystem
+from hertzbeats.systems.shockwave_system import SHOCKWAVE_DTYPE, ShockwaveSystem
 from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
     TEX_HEALTH_PIP,
     TEX_LABEL_COMBO,
     TEX_LABEL_SCORE,
+    TEX_ORBITAL_ECLIPSE,
     TEX_PLAYER_CORE,
     TEX_THREAT_BASIC,
     TEX_THREAT_HEAVY,
@@ -237,7 +245,7 @@ def _compose_defender_mode(ctx: _ModeContext):
         threat_archetype_name="rhythm_threat_radial",
         center_xy=(center_x, center_y),
         spawn_radius=config.spawn_radius,
-        core_half_extent=config.core_half_extent,
+        game_state=ctx.game_state,
         lane_count=config.lane_count,
         threat_half_by_type=ctx.threat_half_by_type,
         threat_texture_by_type=ctx.threat_texture_by_type,
@@ -252,6 +260,9 @@ def _compose_defender_mode(ctx: _ModeContext):
         polarity_enabled=config.polarity_enabled,
         orbit_threat_type_id=(
             config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
+        ),
+        twin_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_twin") if config.polarity_enabled else None
         ),
     )
     collision_system = CollisionSystem(
@@ -274,7 +285,7 @@ def _compose_defender_mode(ctx: _ModeContext):
             player_entity_index=ctx.player_entity_index,
             crosshair_entity_index=ctx.crosshair_entity_index,
             center_xy=(center_x, center_y),
-            crosshair_orbit_radius=judgment_ring_radius,
+            game_state=ctx.game_state,
             dash_duration_seconds=config.dash_duration_seconds,
             dash_cooldown_seconds=config.dash_cooldown_seconds,
         )
@@ -286,6 +297,19 @@ def _compose_defender_mode(ctx: _ModeContext):
             memory_manager=ctx.memory_manager,
             spawn_radius=config.spawn_radius,
             judgment_ring_radius=judgment_ring_radius,
+        )
+    )
+    # Colapso do Anel de Julgamento: sempre registrado (mesma filosofia
+    # do `ReverseScrollSystem` -- sem nenhum evento `radius_collapse` no
+    # beatmap da fase, o raio so permanece em `judgment_ring_radius`
+    # para sempre, no-op). `GameState.current_judgment_radius` ja
+    # comeca com esse MESMO valor (ver `compose_world`).
+    ctx.world.register_system(
+        JudgmentRadiusSystem(
+            audio_clock=ctx.audio_clock,
+            game_state=ctx.game_state,
+            base_radius=judgment_ring_radius,
+            collapse_events=parse_radius_collapse_events(ctx.modchart_events),
         )
     )
     # Polaridade + Parry Perfeito (opt-in por fase, `polarity_enabled`):
@@ -362,6 +386,24 @@ def _compose_defender_mode(ctx: _ModeContext):
             )
         )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
+
+    # Eclipses Orbitais (Barreiras Dinamicas, opt-in por `orbital_eclipse_count`):
+    # ao CONTRARIO da Captura Orbital acima, aqui a rotacao passa PELO
+    # `PhysicsSystem` generico (`velocity.angular` constante ->
+    # `rotation_rad` integrado de graca) -- entao o `OrbitalEclipseSystem`
+    # (conversao angulo->posicao) precisa rodar DEPOIS dele, nao antes.
+    eclipse_entity_indices = None
+    if config.orbital_eclipse_count > 0:
+        eclipse_entity_indices = _create_orbital_eclipse_entities(ctx.world, ctx.memory_manager, config)
+        ctx.world.register_system(
+            OrbitalEclipseSystem(
+                memory_manager=ctx.memory_manager,
+                center_xy=(center_x, center_y),
+                orbit_radius=config.orbital_eclipse_radius,
+                eclipse_entity_indices=eclipse_entity_indices,
+            )
+        )
+
     ctx.world.register_system(collision_system)
     if config.polarity_enabled:
         ctx.world.register_system(
@@ -374,6 +416,30 @@ def _compose_defender_mode(ctx: _ModeContext):
                 spawn_radius=config.spawn_radius,
                 score_per_kill=config.score_good,
                 impact_shake_px=config.parry_impact_shake_px,
+                eclipse_entity_indices=eclipse_entity_indices,
+            )
+        )
+        # Overload do Nucleo: reaproveita o ShockwaveSystem do Pulso de
+        # Impacto (extinta Sobrevivencia) -- so faz sentido com
+        # Polaridade, ja que a Ressonancia (o "combustivel" do Overload)
+        # so existe entao.
+        shockwave_entity_indices = _create_shockwave_pool(
+            ctx.world, ctx.memory_manager, config.shockwave_pool_size
+        )
+        ctx.world.register_system(
+            ShockwaveSystem(
+                collision_system=collision_system,
+                memory_manager=ctx.memory_manager,
+                game_state=ctx.game_state,
+                player_entity_index=ctx.player_entity_index,
+                shockwave_entity_indices=shockwave_entity_indices,
+                min_radius=config.shockwave_min_radius,
+                max_radius=config.shockwave_max_radius,
+                duration_seconds=config.shockwave_duration_seconds,
+                score_per_kill=config.score_good,
+                heavy_threat_type_id=heavy_threat_type_id,
+                orbit_threat_type_id=orbit_threat_type_id,
+                trigger_shake_px=config.shockwave_trigger_shake_px,
             )
         )
     ctx.world.register_system(
@@ -390,6 +456,76 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
     )
     return (spawner_system,), collision_system
+
+
+def _create_shockwave_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
+    """Pre-cria `pool_size` entidades de onda de choque (Overload do
+    Nucleo), inicialmente INATIVAS (hitbox/sprite zerados pelo proprio
+    `MemoryManager` -- camada/mascara 0 e alfa 0 sao o "invisivel/sem
+    colisao" default de uma linha nova). Disciplina Zero-GC MAIS
+    ESTRITA que o resto do jogo: este pool fixo e reaproveitado para
+    sempre em round-robin pelo `ShockwaveSystem`, nunca criado/destruido
+    durante a partida."""
+    indices = np.zeros(pool_size, dtype=np.int64)
+    for i in range(pool_size):
+        indices[i] = unpack_index(world.create_entity("shockwave"))
+    return indices
+
+
+def _create_orbital_eclipse_entities(
+    world: World, memory_manager: MemoryManager, config: HertzConfig
+) -> np.ndarray:
+    """Pre-cria `orbital_eclipse_count` obstaculos (Eclipses Orbitais),
+    distribuidos em angulos UNIFORMES ao redor do circulo
+    (`TAU * i / count`) -- todos giram JUNTOS depois (mesma
+    `rotation_speed`), preservando o espacamento relativo entre si para
+    sempre. `velocity.linear_x/y` fica ZERADO (a translacao do
+    `PhysicsSystem` generico e um no-op para eles -- so o angulo
+    integra); `velocity.angular` e a UNICA fonte de movimento, constante
+    desde a criacao. Zero-GC: laco escalar sobre uma contagem tipicamente
+    pequena (1-3), so na composicao (fase de carregamento)."""
+    count = config.orbital_eclipse_count
+    indices = np.zeros(count, dtype=np.int64)
+    transform_pool = memory_manager.get_pool("transform")
+    velocity_pool = memory_manager.get_pool("velocity")
+    hitbox_pool = memory_manager.get_pool("hitbox")
+    sprite_pool = memory_manager.get_pool("sprite")
+
+    for i in range(count):
+        packed = world.create_entity("orbital_eclipse")
+        entity_index = unpack_index(packed)
+        indices[i] = entity_index
+        angle = 2.0 * math.pi * i / count
+
+        transform_row = transform_pool.dense_row_of(entity_index)
+        transform_view = transform_pool.active_view()
+        transform_view["rotation_rad"][transform_row] = angle
+        transform_view["scale_x"][transform_row] = config.orbital_eclipse_half_width / 8.0
+        transform_view["scale_y"][transform_row] = config.orbital_eclipse_half_height / 8.0
+
+        velocity_row = velocity_pool.dense_row_of(entity_index)
+        velocity_view = velocity_pool.active_view()
+        velocity_view["linear_x"][velocity_row] = 0.0
+        velocity_view["linear_y"][velocity_row] = 0.0
+        velocity_view["angular"][velocity_row] = config.orbital_eclipse_rotation_speed_rad_per_sec
+
+        hitbox_row = hitbox_pool.dense_row_of(entity_index)
+        hitbox_view = hitbox_pool.active_view()
+        hitbox_view["half_width"][hitbox_row] = config.orbital_eclipse_half_width
+        hitbox_view["half_height"][hitbox_row] = config.orbital_eclipse_half_height
+        hitbox_view["collision_layer"][hitbox_row] = SHIELD_COLLISION_LAYER
+        hitbox_view["collision_mask"][hitbox_row] = REFLECTED_COLLISION_LAYER
+
+        sprite_row = sprite_pool.dense_row_of(entity_index)
+        sprite_view = sprite_pool.active_view()
+        sprite_view["texture_id"][sprite_row] = TEX_ORBITAL_ECLIPSE
+        sprite_view["tint_r"][sprite_row] = 120
+        sprite_view["tint_g"][sprite_row] = 40
+        sprite_view["tint_b"][sprite_row] = 160
+        sprite_view["tint_a"][sprite_row] = 255
+        sprite_view["layer_z"][sprite_row] = 18
+
+    return indices
 
 
 def _create_distraction_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
@@ -659,6 +795,9 @@ def compose_world(
     memory_manager.create_pool(
         "distraction", DISTRACTION_DTYPE, dense_capacity=max(config.distraction_pool_size, 1)
     )
+    memory_manager.create_pool(
+        "shockwave", SHOCKWAVE_DTYPE, dense_capacity=max(config.shockwave_pool_size, 1)
+    )
 
     world = World(memory_manager)
     world.register_archetype(
@@ -668,6 +807,8 @@ def compose_world(
     world.register_archetype("player_core", ("transform", "hitbox", "sprite", "player_state"))
     world.register_archetype("hud_sprite", ("transform", "sprite"))
     world.register_archetype("distraction", ("transform", "sprite", "distraction"))
+    world.register_archetype("shockwave", ("transform", "hitbox", "sprite", "shockwave"))
+    world.register_archetype("orbital_eclipse", ("transform", "velocity", "hitbox", "sprite"))
 
     # 3. Beatmap: tempos de IMPACTO do JSON viram tempos de SPAWN
     #    (deslocados por approach_seconds) para o cursor do spawner;
@@ -697,6 +838,11 @@ def compose_world(
         max_health=config.max_health,
         shield_charges=config.lane_shield_max_charges if config.holds_enabled else 0,
         resonance_chain_threshold=config.resonance_chain_threshold,
+        # Colapso do Anel de Julgamento: valor BASE, igual ao raio fixo
+        # de sempre (nucleo + meio-tamanho da ameaca comum) -- so o
+        # Defensor o muta depois (`JudgmentRadiusSystem`); nos demais
+        # modos fica parado neste valor, nunca lido.
+        judgment_radius=config.core_half_extent + config.threat_half_extents.get("rhythm_threat_basic", 10.0),
     )
 
     # Entidades persistentes -----------------------------------------

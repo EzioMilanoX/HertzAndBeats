@@ -1,4 +1,4 @@
-"""Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (Swap, Reverse Scroll)."""
+"""Modcharts: eventos globais do beatmap que alteram a coreografia do Arcade 4K (Swap, Reverse Scroll) ou o Defensor (Colapso do Anel)."""
 from __future__ import annotations
 
 from typing import Dict, Sequence, Tuple
@@ -113,3 +113,50 @@ def compute_scroll_flip_fraction(
         )
         fraction = fraction + (target_fraction - fraction) * progress
     return fraction
+
+
+def parse_radius_collapse_events(raw_events: Sequence[Dict]) -> Tuple[Tuple[float, float, float], ...]:
+    """Normaliza a lista crua de `stages.json`
+    (`{"type": "radius_collapse", "time_seconds", "duration_seconds",
+    "target_radius"}`) em tuplas `(time_seconds, duration_seconds,
+    target_radius)` ORDENADAS por tempo. Eventos de outro tipo (swap,
+    reverse_scroll, distraction) sao ignorados aqui -- cada feature
+    filtra so o que lhe interessa da MESMA lista de `modchart_events`."""
+    events = []
+    for raw in raw_events:
+        if raw.get("type") != "radius_collapse":
+            continue
+        events.append(
+            (
+                float(raw["time_seconds"]),
+                float(raw.get("duration_seconds", 1.0)),
+                float(raw["target_radius"]),
+            )
+        )
+    events.sort(key=lambda event: event[0])
+    return tuple(events)
+
+
+def compute_collapsed_radius(
+    now_effective: float,
+    base_radius: float,
+    collapse_events: Tuple[Tuple[float, float, float], ...],
+) -> float:
+    """Raio ATUAL (px) do Anel de Julgamento do Defensor. MESMO idioma
+    de encadeamento de `compute_scroll_flip_fraction`: cada evento faz
+    um Lerp a partir de onde o raio ACUMULADO dos eventos anteriores
+    parou ate `target_radius` (nao entre dois valores fixos), ao longo
+    de `duration_seconds` -- permite uma SEQUENCIA de colapsos/expansoes
+    ao longo da musica (ex.: encolhe no Drop, expande de volta depois),
+    desde que os eventos nao se sobreponham no tempo.
+
+    Pura e sem estado -- escalar, testavel sem ECS/pygame."""
+    radius = base_radius
+    for time_seconds, duration_seconds, target_radius in collapse_events:
+        if now_effective < time_seconds:
+            break
+        progress = (
+            1.0 if duration_seconds <= 0.0 else min(1.0, (now_effective - time_seconds) / duration_seconds)
+        )
+        radius = radius + (target_radius - radius) * progress
+    return radius

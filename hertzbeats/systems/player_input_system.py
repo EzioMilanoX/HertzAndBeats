@@ -8,6 +8,8 @@ from ouroboros.core.systems.base_system import ISystem
 from ouroboros.core.world import World
 from ouroboros.interfaces.input_provider import IInputProvider
 
+from hertzbeats.game_state import GameState
+
 
 class PlayerInputSystem(ISystem):
     """
@@ -27,7 +29,10 @@ class PlayerInputSystem(ISystem):
           aqui, pois i-frames/cooldown sao "game feel", nao eventos
           sincronizados a batida (estes consultam `IAudioClock`).
         - Feedback visual: reposiciona a entidade do crosshair no anel
-          de mira e pisca o tint do nucleo durante os i-frames.
+          de mira (raio LIDO de `GameState.current_judgment_radius` TODO
+          frame -- Colapso do Anel de Julgamento -- nunca uma constante
+          capturada no construtor) e pisca o tint do nucleo durante os
+          i-frames.
 
     Zero-GC: apenas leituras/escritas escalares em linhas densas
     re-resolvidas por frame (`dense_row_of`, nunca cacheadas -- um
@@ -41,7 +46,7 @@ class PlayerInputSystem(ISystem):
         player_entity_index: int,
         crosshair_entity_index: int,
         center_xy: tuple,
-        crosshair_orbit_radius: float,
+        game_state: GameState,
         dash_duration_seconds: float,
         dash_cooldown_seconds: float,
     ) -> None:
@@ -54,7 +59,7 @@ class PlayerInputSystem(ISystem):
         self._crosshair_entity_index = int(crosshair_entity_index)
         self._center_x = float(center_xy[0])
         self._center_y = float(center_xy[1])
-        self._crosshair_orbit_radius = float(crosshair_orbit_radius)
+        self._game_state = game_state
         self._dash_duration_seconds = float(dash_duration_seconds)
         self._dash_cooldown_seconds = float(dash_cooldown_seconds)
 
@@ -83,11 +88,12 @@ class PlayerInputSystem(ISystem):
 
         crosshair_row = self._transform_pool.dense_row_of(self._crosshair_entity_index)
         transform_view = self._transform_pool.active_view()
+        orbit_radius = self._game_state.current_judgment_radius
         transform_view["position_x"][crosshair_row] = (
-            self._center_x + math.cos(aim_angle) * self._crosshair_orbit_radius
+            self._center_x + math.cos(aim_angle) * orbit_radius
         )
         transform_view["position_y"][crosshair_row] = (
-            self._center_y + math.sin(aim_angle) * self._crosshair_orbit_radius
+            self._center_y + math.sin(aim_angle) * orbit_radius
         )
         transform_view["rotation_rad"][crosshair_row] = aim_angle
 
