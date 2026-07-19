@@ -18,7 +18,13 @@ from hertzbeats.components.schemas import (
     POLARITY_BLUE,
     POLARITY_PINK,
 )
-from hertzbeats.components.texture_ids import TEX_CONVERGENCE_RING, TEX_THREAT_BASIC
+from hertzbeats.components.texture_ids import (
+    TEX_CONVERGENCE_RING,
+    TEX_THREAT_BASIC,
+    TEX_THREAT_HEAVY,
+    TEX_THREAT_POLARITY_BLUE,
+    TEX_THREAT_POLARITY_PINK,
+)
 
 _TAU = 2.0 * math.pi
 
@@ -74,6 +80,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         ring_archetype_name: str = None,
         hold_threat_type_id: int = None,
         hold_duration_seconds: float = 0.0,
+        polarity_enabled: bool = False,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -122,6 +129,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         )
         self._hold_threat_type_id = hold_threat_type_id
         self._hold_duration_seconds = float(hold_duration_seconds)
+        self._polarity_enabled = bool(polarity_enabled)
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -200,15 +208,36 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         hitbox_view["collision_layer"][hitbox_row] = self._threat_collision_layer
         hitbox_view["collision_mask"][hitbox_row] = self._threat_collision_mask
 
+        base_texture_id = (
+            self._threat_texture_by_type[threat_type]
+            if threat_type < self._threat_texture_by_type.shape[0]
+            else TEX_THREAT_BASIC
+        )
         sprite_row = self._sprite_pool.dense_row_of(entity_index)
         sprite_view = self._sprite_pool.active_view()
-        if threat_type < self._threat_texture_by_type.shape[0]:
-            sprite_view["texture_id"][sprite_row] = self._threat_texture_by_type[threat_type]
+        # Polaridade: pesadas (Parry, aceitam QUALQUER cor) mantem o
+        # visual heavy de sempre -- so as comuns (cuja cor IMPORTA para
+        # o julgamento) ganham a forma+tint real azul/rosa. Acessibilidade
+        # a daltonismo: a forma (triangulo/quadrado) nunca depende so do
+        # tint -- ver `HBPygameRenderer.draw_batch`.
+        if self._polarity_enabled and base_texture_id != TEX_THREAT_HEAVY:
+            is_pink = int(threat_view["polarity_id"][threat_row]) == POLARITY_PINK
+            sprite_view["texture_id"][sprite_row] = (
+                TEX_THREAT_POLARITY_PINK if is_pink else TEX_THREAT_POLARITY_BLUE
+            )
+            if is_pink:
+                sprite_view["tint_r"][sprite_row] = 255
+                sprite_view["tint_g"][sprite_row] = 90
+                sprite_view["tint_b"][sprite_row] = 190
+            else:
+                sprite_view["tint_r"][sprite_row] = 70
+                sprite_view["tint_g"][sprite_row] = 140
+                sprite_view["tint_b"][sprite_row] = 255
         else:
-            sprite_view["texture_id"][sprite_row] = TEX_THREAT_BASIC
-        sprite_view["tint_r"][sprite_row] = 255
-        sprite_view["tint_g"][sprite_row] = 64 + int(120.0 * (1.0 - strength))
-        sprite_view["tint_b"][sprite_row] = 80
+            sprite_view["texture_id"][sprite_row] = base_texture_id
+            sprite_view["tint_r"][sprite_row] = 255
+            sprite_view["tint_g"][sprite_row] = 64 + int(120.0 * (1.0 - strength))
+            sprite_view["tint_b"][sprite_row] = 80
         sprite_view["tint_a"][sprite_row] = 255
         sprite_view["layer_z"][sprite_row] = 20
 

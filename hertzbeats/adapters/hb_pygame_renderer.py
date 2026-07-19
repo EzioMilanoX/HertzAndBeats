@@ -1,12 +1,32 @@
 """PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial."""
 from __future__ import annotations
 
+import math
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pygame
 
 from ouroboros.adapters.pygame_backend.pygame_renderer import PygameRenderer
+
+from hertzbeats.components.texture_ids import (
+    TEX_CONVERGENCE_RING,
+    TEX_PLAYER_CORE_BLUE,
+    TEX_PLAYER_CORE_PINK,
+    TEX_THREAT_POLARITY_BLUE,
+    TEX_THREAT_POLARITY_PINK,
+)
+
+_INNER_MARK_COLOR = (250, 250, 255)
+"""Cor FIXA do simbolo interno azul/rosa (quase-branco) -- contraste
+alto contra QUALQUER tom de fundo, o mesmo criterio de icone que
+funciona sem depender do matiz (acessibilidade a daltonismo)."""
+
+_FLOW_TIER_PALETTE = (
+    (90, 70, 160), (64, 200, 255), (255, 180, 64), (255, 90, 190), (140, 255, 120),
+)
+"""Paleta ciclica da linha de julgamento no Flow State -- cada tier de
+50 combos extras avanca uma cor (`tier % len(paleta)`)."""
 
 
 class HBPygameRenderer(PygameRenderer):
@@ -55,9 +75,11 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_selected: int = 0
         self._overlay_stage_count: int = 0
         self._overlay_selected_mode: Optional[str] = None
+        self._overlay_practice_enabled: Optional[bool] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
+        self._flow_tier: int = 0
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
         """Registra `surface` (ja convertida com alpha) para `texture_id`.
@@ -76,16 +98,20 @@ class HBPygameRenderer(PygameRenderer):
         selected_index: int = 0,
         stage_count: int = 0,
         selected_mode: Optional[str] = None,
+        practice_enabled: Optional[bool] = None,
     ) -> None:
         """Publica o estado de fluxo a desenhar sobre o frame: `None`
         (jogando, sem overlay), "menu", "paused", "game_over" ou
         "results". `selected_mode` (fases de musica do jogador) troca a
-        dica fixa da fase pelo seletor de minigame. Chamado pelo
+        dica fixa da fase pelo seletor de minigame; `practice_enabled`
+        (`None` em fases curadas, `True`/`False` nas musicas do jogador)
+        mostra o estado do Modo Treino junto do seletor. Chamado pelo
         `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_selected = int(selected_index)
         self._overlay_stage_count = int(stage_count)
         self._overlay_selected_mode = selected_mode
+        self._overlay_practice_enabled = practice_enabled
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -99,6 +125,16 @@ class HBPygameRenderer(PygameRenderer):
         no lado puramente visual depois que o `UIRenderSystem` ja apagou
         todo o HUD. Chamado pelo `HertzGameLoop` na transicao de combo."""
         self._flow_mode_active = bool(active)
+
+    def set_flow_tier(self, tier: int) -> None:
+        """Sem HUD, o jogador perde a nocao de quanto o combo avancou
+        alem do limiar do Flow -- este `tier` (`combo // limiar`, 0 fora
+        do Flow) avanca a cor E o pulso da linha de julgamento a cada 50
+        acertos adicionais (`begin_frame`), uma dica visual sutil que
+        nao exige nenhum texto/HUD de volta. Chamado pelo
+        `HertzGameLoop` todo frame (nao so na transicao -- o tier muda
+        DENTRO do Flow, sem cruzar o limiar de novo)."""
+        self._flow_tier = int(tier)
 
     def set_playfield(self, kind: Optional[str], **params) -> None:
         """Define a decoracao de arena do MODO ativo, desenhada a cada
@@ -177,9 +213,22 @@ class HBPygameRenderer(PygameRenderer):
                 pygame.draw.line(self._surface, (36, 28, 70), (column.left, 0), (column.left, height))
                 pygame.draw.line(self._surface, (36, 28, 70), (column.right, 0), (column.right, height))
             pygame.draw.line(
-                self._surface, (90, 70, 160),
-                (0, judgment_y), (int(params.get("width", self._width)), judgment_y), 2,
+                self._surface, self._judgment_line_color(),
+                (0, judgment_y), (int(params.get("width", self._width)), judgment_y),
+                4 if self._flow_tier > 0 else 2,
             )
+
+    def _judgment_line_color(self) -> Tuple[int, int, int]:
+        """Cor da linha de julgamento: neutra fora do Flow State; dentro
+        dele, avanca por `_FLOW_TIER_PALETTE` a cada tier de 50 combos
+        extras e PULSA em brilho (seno sobre o relogio de parede --
+        puramente cosmetico, sem nenhuma decisao de jogabilidade aqui,
+        entao fora da disciplina Zero-GC do gameplay)."""
+        if self._flow_tier <= 0:
+            return (90, 70, 160)
+        base = _FLOW_TIER_PALETTE[self._flow_tier % len(_FLOW_TIER_PALETTE)]
+        pulse = 0.7 + 0.3 * math.sin(pygame.time.get_ticks() / 180.0)
+        return tuple(min(255, int(channel * pulse)) for channel in base)
 
     def end_frame(self) -> None:
         if self._overlay_mode is not None:
@@ -224,11 +273,13 @@ class HBPygameRenderer(PygameRenderer):
             if first + MAX_VISIBLE < count:
                 y += self._blit_centered("scroll_down", center_x, y) + 8
 
-            # fase de musica do jogador: seletor de minigame; fase curada:
-            # dica fixa de controles do modo dela
+            # fase de musica do jogador: seletor de minigame + Modo Treino;
+            # fase curada: dica fixa de controles do modo dela
             if self._overlay_selected_mode is not None:
                 y += self._blit_centered(f"modename_{self._overlay_selected_mode}", center_x, y + 14) + 6
-                self._blit_centered(f"modectl_{self._overlay_selected_mode}", center_x, y + 8)
+                y += self._blit_centered(f"modectl_{self._overlay_selected_mode}", center_x, y + 8) + 6
+                practice_key = "practice_on" if self._overlay_practice_enabled else "practice_off"
+                self._blit_centered(practice_key, center_x, y + 6)
             else:
                 self._blit_centered(f"stage_{self._overlay_selected}_hint", center_x, y + 16)
             self._blit_centered("hint_menu", center_x, self._height - 54)
@@ -277,10 +328,22 @@ class HBPygameRenderer(PygameRenderer):
                 scale_x = max(float(scales_xy[i, 0]), 0.01)
                 scale_y = max(float(scales_xy[i, 1]), 0.01)
                 color = (int(tint_rgba[i, 0]), int(tint_rgba[i, 1]), int(tint_rgba[i, 2]))
-                if int(texture_ids[i]) == 4:  # TEX_CONVERGENCE_RING: contorno
+                shape_id = int(texture_ids[i])
+                if shape_id == TEX_CONVERGENCE_RING:  # contorno
                     pygame.draw.circle(
                         self._surface, color, (int(x), int(y)), max(2, int(8.0 * scale_x)), 2
                     )
+                elif shape_id in (TEX_THREAT_POLARITY_BLUE, TEX_PLAYER_CORE_BLUE):
+                    # Polaridade -- acessibilidade a daltonismo: TRIANGULO
+                    # interno alem da cor (Azul), fixo independente do tint.
+                    radius = max(2, int(8.0 * scale_x))
+                    pygame.draw.circle(self._surface, color, (int(x), int(y)), radius)
+                    self._draw_inner_triangle(x, y, radius)
+                elif shape_id in (TEX_THREAT_POLARITY_PINK, TEX_PLAYER_CORE_PINK):
+                    # mesma logica, QUADRADO interno (Rosa).
+                    radius = max(2, int(8.0 * scale_x))
+                    pygame.draw.circle(self._surface, color, (int(x), int(y)), radius)
+                    self._draw_inner_square(x, y, radius)
                 elif abs(scale_x - scale_y) > 0.01:
                     # escala anisotropica = barra/laser (modo Sobrevivencia)
                     width = max(1, int(16.0 * scale_x))
@@ -289,3 +352,22 @@ class HBPygameRenderer(PygameRenderer):
                     pygame.draw.rect(self._surface, color, rect)
                 else:
                     pygame.draw.circle(self._surface, color, (int(x), int(y)), max(1, int(8.0 * scale_x)))
+
+    def _draw_inner_triangle(self, x: float, y: float, radius: int) -> None:
+        """Simbolo interno FIXO da Polaridade Azul (acessibilidade a
+        daltonismo -- nunca depende so da cor). Tamanho proporcional ao
+        raio do circulo externo."""
+        side = max(2, int(radius * 0.62))
+        points = [
+            (x, y - side),
+            (x - side * 0.87, y + side * 0.5),
+            (x + side * 0.87, y + side * 0.5),
+        ]
+        pygame.draw.polygon(self._surface, _INNER_MARK_COLOR, points)
+
+    def _draw_inner_square(self, x: float, y: float, radius: int) -> None:
+        """Simbolo interno FIXO da Polaridade Rosa."""
+        side = max(2, int(radius * 0.9))
+        rect = pygame.Rect(0, 0, side, side)
+        rect.center = (int(x), int(y))
+        pygame.draw.rect(self._surface, _INNER_MARK_COLOR, rect)

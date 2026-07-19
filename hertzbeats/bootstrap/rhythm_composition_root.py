@@ -53,6 +53,7 @@ from hertzbeats.audio.sfx_synth import (
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
+from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
 from hertzbeats.systems.convergence_ring_system import (
     CONVERGENCE_RING_DTYPE,
@@ -211,6 +212,7 @@ def _compose_defender_mode(ctx: _ModeContext):
             config.threat_type_ids.get("rhythm_threat_heavy") if config.holds_enabled else None
         ),
         hold_duration_seconds=config.hold_duration_seconds,
+        polarity_enabled=config.polarity_enabled,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -319,6 +321,7 @@ def _compose_defender_mode(ctx: _ModeContext):
             player_entity_index=ctx.player_entity_index,
             good_window_seconds=config.good_window_seconds,
             judgment_display_seconds=config.judgment_display_seconds,
+            practice_mode=config.practice_mode,
         )
     )
     return (spawner_system,), collision_system
@@ -441,6 +444,7 @@ def _compose_survival_mode(ctx: _ModeContext):
             player_entity_index=ctx.player_entity_index,
             score_survive=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
+            practice_mode=config.practice_mode,
         )
     )
     return (spawner_system,), collision_system
@@ -609,6 +613,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
         threat_collision_mask=PLAYER_COLLISION_LAYER,
         max_threats_per_frame=config.max_threats_per_frame,
         ring_archetype_name="convergence_ring",
+        polarity_enabled=config.polarity_enabled,
     )
     wall_spawner = SurvivalSpawnerSystem(
         audio_clock=ctx.audio_clock,
@@ -755,6 +760,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             player_entity_index=ctx.player_entity_index,
             good_window_seconds=config.good_window_seconds,
             judgment_display_seconds=config.judgment_display_seconds,
+            practice_mode=config.practice_mode,
         )
     )
     if config.polarity_enabled:
@@ -778,6 +784,7 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             player_entity_index=ctx.player_entity_index,
             score_survive=config.score_good,
             judgment_display_seconds=config.judgment_display_seconds,
+            practice_mode=config.practice_mode,
         )
     )
     return (radial_spawner, wall_spawner), collision_system
@@ -841,6 +848,13 @@ def compose_world(
     #    o array original de impacto segue paralelo, linha a linha.
     scheduled = BeatmapLoader(config.threat_type_ids).load(Path(config.beatmap_path))
     hit_times = scheduled["timestamp_seconds"].copy()
+    if config.practice_mode:
+        # Modo Treino: reduz a densidade de onsets ANTES de qualquer
+        # spawner ver o beatmap -- pura interpretacao game-side, o
+        # arquivo original no disco nunca muda.
+        scheduled, hit_times = thin_schedule_for_practice(
+            scheduled, hit_times, config.practice_density_keep_fraction
+        )
     np.subtract(scheduled["timestamp_seconds"], config.approach_seconds, out=scheduled["timestamp_seconds"])
     np.maximum(scheduled["timestamp_seconds"], 0.0, out=scheduled["timestamp_seconds"])
 

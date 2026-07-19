@@ -93,6 +93,7 @@ class HertzGameLoop(GameLoop):
         self._notice_key: Optional[str] = None
         self._notice_timer = 0.0
         self._chosen_mode_index = {}  # fase selectable_mode -> indice em MODE_CYCLE
+        self._practice_mode: dict = {}  # fase selectable_mode -> Modo Treino ligado?
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
 
@@ -133,13 +134,24 @@ class HertzGameLoop(GameLoop):
         musicas do jogador); fases curadas usam o modo dos overrides."""
         return MODE_CYCLE[self._chosen_mode_index.get(stage_index, 0) % len(MODE_CYCLE)]
 
+    def practice_mode_on(self, stage_index: int) -> bool:
+        """Modo Treino ligado para uma fase `selectable_mode` (musicas
+        do jogador) -- densidade de onsets reduzida e sem dano de vida.
+        Fases curadas do repositorio nunca tem Modo Treino (so a fase
+        escolhida no menu, tecla T)."""
+        return self._practice_mode.get(stage_index, False)
+
     def _compose_stage(self, stage_index: int) -> ComposedGame:
         """Recompoe o `World` inteiro para a fase `stage_index` e garante
         que a faixa exista (re-sintese deterministica se necessario)."""
         stage = self._stages[stage_index]
         stage_config = resolve_stage_config(self._base_config, stage)
         if stage.selectable_mode:
-            stage_config = dataclasses.replace(stage_config, game_mode=self.chosen_mode(stage_index))
+            stage_config = dataclasses.replace(
+                stage_config,
+                game_mode=self.chosen_mode(stage_index),
+                practice_mode=self._practice_mode.get(stage_index, False),
+            )
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
         composed = compose_world(
@@ -279,7 +291,9 @@ class HertzGameLoop(GameLoop):
         if inp.is_action_pressed("menu_up"):
             self._selected_stage = (self._selected_stage - 1) % stage_count
 
-        # musicas do jogador: A/D (ou setas) alternam o minigame
+        # musicas do jogador: A/D (ou setas) alternam o minigame; T liga/
+        # desliga o Modo Treino (densidade reduzida + sem dano de vida --
+        # util para uma fase recem-mapeada pela IA e ainda desconhecida).
         if self._stages[self._selected_stage].selectable_mode:
             direction = 0
             if inp.is_action_pressed("menu_right"):
@@ -289,6 +303,8 @@ class HertzGameLoop(GameLoop):
             if direction != 0:
                 current = self._chosen_mode_index.get(self._selected_stage, 0)
                 self._chosen_mode_index[self._selected_stage] = (current + direction) % len(MODE_CYCLE)
+            if inp.is_action_pressed("toggle_practice"):
+                self._practice_mode[self._selected_stage] = not self.practice_mode_on(self._selected_stage)
 
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
             self._start_stage(self._selected_stage)
@@ -334,11 +350,20 @@ class HertzGameLoop(GameLoop):
         para o HUD -- aqui so replicamos a mesma condicao para acionar os
         efeitos que vivem FORA do ECS: swell/restauracao de volume da
         faixa e escurecimento de fundo do renderer; a saida (um Miss
-        zera o combo) dispara o aviso de "vidro quebrado"."""
+        zera o combo) dispara o aviso de "vidro quebrado".
+
+        Sem HUD, o jogador perde a nocao de progresso alem do limiar --
+        `tier` (`combo // limiar`, 0 fora do Flow) e sincronizado com o
+        renderer TODO frame (nao so na transicao: o tier sobe DENTRO do
+        Flow, sem cruzar o limiar de novo), pulsando a linha de
+        julgamento a cada 50 acertos extras."""
         config = self._stage_config
         if config.game_mode != "lanes":
             return
         in_flow_now = state.combo_count >= config.flow_combo_threshold
+        if hasattr(self._renderer, "set_flow_tier"):
+            tier = (state.combo_count // config.flow_combo_threshold) if in_flow_now else 0
+            self._renderer.set_flow_tier(tier)
         if in_flow_now == self._was_in_flow:
             return
         if hasattr(self._audio_engine, "set_track_volume"):
@@ -384,13 +409,12 @@ class HertzGameLoop(GameLoop):
         renderer sem suporte a overlay, ex. NullRenderer)."""
         if hasattr(self._renderer, "set_overlay"):
             overlay_mode = None if self._flow == FLOW_PLAYING else self._flow
-            selected_mode = (
-                self.chosen_mode(self._selected_stage)
-                if self._stages[self._selected_stage].selectable_mode
-                else None
-            )
+            is_selectable = self._stages[self._selected_stage].selectable_mode
+            selected_mode = self.chosen_mode(self._selected_stage) if is_selectable else None
+            practice_enabled = self.practice_mode_on(self._selected_stage) if is_selectable else None
             self._renderer.set_overlay(
-                overlay_mode, self._selected_stage, len(self._stages), selected_mode=selected_mode
+                overlay_mode, self._selected_stage, len(self._stages),
+                selected_mode=selected_mode, practice_enabled=practice_enabled,
             )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)

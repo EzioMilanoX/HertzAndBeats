@@ -18,6 +18,9 @@
   "lane_1": "KEY_S",
   "lane_2": "KEY_W",
   "lane_3": "KEY_D",
+  "scratch_left": "KEY_Z",
+  "scratch_right": "KEY_X",
+  "toggle_practice": "KEY_T",
   "latency_up": "KEY_=",
   "latency_down": "KEY_-"
 }

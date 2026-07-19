@@ -138,6 +138,8 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     )
     register_text("hint_paused", hint_font, "ESC continua  |  M volta ao menu", _LABEL_COLOR)
     register_text("flow_shatter", big_font, "VIDRO QUEBRADO!", _MISS_COLOR)
+    register_text("practice_on", hint_font, "MODO TREINO: LIGADO (T)  -- menos notas, sem dano", _GOOD_COLOR)
+    register_text("practice_off", hint_font, "MODO TREINO: DESLIGADO (T)", _LABEL_COLOR)
     register_text("hint_end", hint_font, "R tenta de novo  |  M volta ao menu", _LABEL_COLOR)
     register_text(
         "hint_results", hint_font,

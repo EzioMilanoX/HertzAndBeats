@@ -49,8 +49,12 @@ class SurvivalDamageSystem(ISystem):
         player_entity_index: int,
         score_survive: int,
         judgment_display_seconds: float,
+        practice_mode: bool = False,
     ) -> None:
-        """Buffers dimensionados pela capacidade da pool de ameacas."""
+        """Buffers dimensionados pela capacidade da pool de ameacas.
+        Modo Treino (`practice_mode=True`): MISS continua contando/
+        quebrando o combo, so o dano de vida e suprimido -- ver a mesma
+        nota em `CoreDamageSystem`."""
         self._collision_system = collision_system
         self._audio_clock = audio_clock
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
@@ -59,6 +63,7 @@ class SurvivalDamageSystem(ISystem):
         self._player_entity_index = int(player_entity_index)
         self._score_survive = int(score_survive)
         self._judgment_display_seconds = float(judgment_display_seconds)
+        self._practice_mode = bool(practice_mode)
 
         capacity = self._threat_pool.capacity
         self._expired_mask = np.zeros(capacity, dtype=bool)
@@ -123,7 +128,7 @@ class SurvivalDamageSystem(ISystem):
                 threat_view["judgment"][threat_row] = JUDGMENT_MISS
                 state.miss_count += 1
                 state.combo_count = 0
-                if state.health > 0:
+                if not self._practice_mode and state.health > 0:
                     state.health -= 1
                 state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
 

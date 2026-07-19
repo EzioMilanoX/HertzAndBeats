@@ -214,6 +214,7 @@ small, .muted {{ color:var(--muted); }}
 <nav>
   <a href="#visao">Visão geral</a><a href="#rodar">Rodar</a><a href="#jogar">Como jogar</a>
   <a href="#fluxo">Fluxo</a><a href="#fases">Fases</a><a href="#mecanicas">Mecânicas novas</a>
+  <a href="#polimento">Polimento</a>
   <a href="#arquitetura">Arquitetura</a>
   <a href="#config">Config</a><a href="#ferramentas">Ferramentas</a><a href="#testes">Testes</a><a href="#api">API</a>
 </nav>
@@ -264,7 +265,9 @@ cravados na batida em qualquer escala.</li>
 <tr><td>Atirar Azul / Parry</td><td>Botão esquerdo do mouse</td></tr>
 <tr><td>Atirar Rosa (fase Polaridade)</td><td>Botão direito do mouse</td></tr>
 <tr><td>Dash (i-frames / Pulso de Impacto)</td><td>Espaço</td></tr>
+<tr><td>Scratch alternado (Arcade 4K)</td><td>Z/X alternados, ou a roda do mouse — alternativas ao mover o mouse continuamente</td></tr>
 <tr><td>Menu: escolher fase</td><td>Setas ↑/↓ · ENTER ou clique para jogar · ESC sai</td></tr>
+<tr><td>Menu: Modo Treino (músicas suas)</td><td>T liga/desliga (densidade reduzida, sem dano de vida)</td></tr>
 <tr><td>Pausar / retomar</td><td>ESC</td></tr>
 <tr><td>Derrota / vitória</td><td>R repete · ENTER próxima fase · M menu</td></tr>
 </table>
@@ -349,6 +352,27 @@ restaura a interface. Aproximação honesta: <code>pygame.mixer</code> não tem 
 "bass boost" é um <strong>swell de volume real</strong> (a faixa sobe para 1.0 exatamente na entrada do
 Flow via <code>HBPygameAudioEngine.set_track_volume</code>) — sem fingir um grave que o backend não pode
 produzir.</p>
+
+<h2 id="polimento">Polimento e acessibilidade</h2>
+<p><strong>Acessibilidade a daltonismo (Polaridade)</strong>: depender só de Azul/Rosa excluía
+jogadores daltônicos. Toda ameaça comum da fase Polaridade agora tem uma FORMA fixa por cor —
+triângulo interno (Azul) ou quadrado interno (Rosa) — desenhada em <code>HBPygameRenderer.draw_batch</code>
+independente do tint; o núcleo também troca de forma ao disparar cada cor. Pesadas (Parry, aceitam
+qualquer cor) mantêm o visual de sempre.</p>
+<p><strong>Scratch por mais de uma via</strong>: mover o mouse continuamente esbarra no limite físico
+do mousepad. <code>scratch_energy</code> agora é o <strong>maior</strong> entre 3 fontes independentes —
+o movimento relativo do mouse, o impulso da roda (<code>pygame.MOUSEWHEEL</code>) e a
+<strong>alternância</strong> entre as ações <code>scratch_left</code>/<code>scratch_right</code>
+(Z/X por padrão, ou gatilhos LT/RT de um controle) — sem exigir nenhuma das três.</p>
+<p><strong>Progresso visível no Flow State</strong>: sem HUD, o jogador perdia a noção de quanto o
+combo avançou além do limiar. A linha de julgamento agora avança de cor e pulsa a cada 50 acertos
+extras (<code>tier = combo // limiar</code>), sincronizado todo frame pelo <code>HertzGameLoop</code>
+via <code>IRenderer.set_flow_tier</code>.</p>
+<p><strong>Modo Treino (músicas do jogador)</strong>: uma música complexa recém-mapeada pode gerar
+uma fase brutal. No menu, a tecla <strong>T</strong> liga/desliga o Modo Treino para a música
+selecionada — reduz a densidade de onsets (<code>thin_schedule_for_practice</code>, função pura que
+mantém 1 a cada N eventos uniformemente, sem tocar o beatmap.json versionado) e suprime o dano de
+vida (o MISS continua contando e quebrando o combo — só a vida é poupada).</p>
 
 <h2 id="arquitetura">Arquitetura</h2>
 <p>Ordem <strong>exata</strong> de execução por frame, registrada em

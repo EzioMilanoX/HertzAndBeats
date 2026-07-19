@@ -24,10 +24,13 @@ A IA dita o **tempo** (o mesmo `beatmap.json`); o modo dita a **interpretação 
 | Mira 360º (Defensor) | Mouse (direção a partir do núcleo) |
 | Atirar Azul / Parry (Defensor) | Botão esquerdo do mouse |
 | Atirar Rosa (fase Polaridade) | Botão direito do mouse |
+| Segurar Nota Longa (fase Notas Longas) | Segure o clique **e** a mira sobre a ameaça até esgotar |
 | Mover (Sobrevivência) | W A S D |
 | Colunas (Arcade 4K) | **A S W D** (convenção FNF: ← ↓ ↑ →) |
-| Dash (i-frames) | Espaço |
+| Scratch alternado (Arcade 4K) | **Z/X** alternados, ou a roda do mouse — alternativas ao mouse contínuo |
+| Dash (i-frames / Pulso de Impacto) | Espaço |
 | Menu: escolher fase | Setas **ou W/S** · ENTER, ESPAÇO ou clique para jogar |
+| Menu: Modo Treino (músicas suas) | **T** liga/desliga (densidade reduzida, sem dano de vida) |
 | Pausar / retomar | ESC |
 | Após derrota/vitória | R repete a fase, ENTER vai à próxima, M (ou BACKSPACE) volta ao menu |
 | **Calibrar áudio** | **+ / −** durante o jogo (passos de 10 ms, salvo entre sessões) |
@@ -50,8 +53,9 @@ Um tutorial e três fases padrões, definidos em [data/stages/stages.json](data/
 | **5 · Arcade 4K** | Arcade | **mesmo beatmap da fase 2** | Notas D/F/J/K, queda em 1.8s |
 | **6 · Híbrido** | Defensor+Sobrevivência | **mesmo beatmap da fase 3** | Seções de 9.6s alternando tiro e dash |
 | **7 · Polaridade** | Defensor (Polaridade+Parry) | **mesmo beatmap da fase 3** | Aproximação 1.8s, cone 30°, `polarity_enabled: true` |
+| **8 · Notas Longas** | Defensor (Hold) | **mesmo beatmap da fase 1** | Aproximação 2.4s, 4 de vida, `holds_enabled: true` |
 
-As fases 4, 5 e 7 consomem **os mesmos `beatmap.json`** das fases 1, 2 e 3 — a demonstração literal da tese: o modo é só outra interpretação espacial do mesmo tempo extraído pela IA. Trocar o modo de uma fase é uma linha no JSON: `"overrides": { "game_mode": "survival" }`.
+As fases 4, 5, 7 e 8 consomem **os mesmos `beatmap.json`** das fases 1, 2 e 3 — a demonstração literal da tese: o modo é só outra interpretação espacial do mesmo tempo extraído pela IA. Trocar o modo de uma fase é uma linha no JSON: `"overrides": { "game_mode": "survival" }`.
 
 O **tutorial** ensina jogando: faixas de instrução aparecem no topo da tela em sincronia com a música (mova a mira → atire quando a ameaça tocar o anel → janelas PERFECT/GOOD → uma onda de 3 ameaças simultâneas para aprender o Dash → sequência final). O beatmap do tutorial é **autoral** (timing didático, em [data/beatmaps/tutorial.beatmap.json](data/beatmaps/tutorial.beatmap.json)) — o `generate_stage_assets.py` preserva ele e só regenera os das fases via IA. Por baixo, é o mesmo motor: um `TutorialSystem` zero-GC avança um cursor de passos contra o `IAudioClock` (a mesma base de tempo do spawner) e troca a textura de um sprite-banner pré-renderizado; os passos vêm do JSON da fase (`tutorial_steps`), então qualquer fase pode virar um tutorial.
 
@@ -155,6 +159,46 @@ boost" do enunciado é um **swell de volume real** — a faixa toca normalmente 
 máximo e sobe para 1.0 exatamente na entrada do Flow (`HBPygameAudioEngine.set_track_volume`) — um
 efeito genuíno e audível, sem fingir um grave que o backend não pode produzir.
 
+## Game Feel: Notas Longas (Hold), Screen Shake e Haptics
+
+**Defensor — Notas Longas** (opt-in via `holds_enabled`, fase **8 · Notas Longas**): ameaças pesadas
+viram um Hold em duas fases. Fase 1 (Start): um acerto na janela Good normal não destrói a ameaça —
+ela fica "engajada" (velocidade zerada, colisão com o núcleo desarmada). Fase 2 (Sustain): segure o
+gatilho **e** a mira sobre ela continuamente até `target_hit_time_sec + duration_sec` — soltar ou
+desmirar antes disso é MISS imediato (sem esperar o fim), sustentar até o fim é PERFECT.
+
+**Screen Shake**: `GameState.shake_intensity` (pixels de deslocamento) decai a cada frame via um novo
+`CameraShakeSystem`, comum aos 3 modos; o `HertzGameLoop` traduz isso num offset aleatório real via
+`IRenderer.set_camera_offset` — método que **já existia** na engine (ROADMAP próprio do usuário) mas
+nunca tinha um chamador no jogo. Quebrar um Hold aciona o tremor.
+
+**Haptics**: `IInputProvider.set_rumble(low_freq, high_freq, duration_sec)` é um método novo na
+própria engine (ABC `IInputProvider`), com implementação real via `Joystick.rumble` do pygame — no-op
+silencioso sem controle conectado. O `JudgmentSystem` chama direto ao quebrar um Hold.
+
+## Polimento e acessibilidade
+
+**Acessibilidade a daltonismo (Polaridade)**: depender só de Azul/Rosa excluía jogadores daltônicos.
+Toda ameaça comum da fase Polaridade agora tem uma **forma** fixa por cor — triângulo interno (Azul)
+ou quadrado interno (Rosa), desenhada em `HBPygameRenderer.draw_batch` **independente** do tint; o
+núcleo também troca de forma ao disparar cada cor. Pesadas (Parry, aceitam qualquer cor) mantêm o
+visual de sempre.
+
+**Scratch por mais de uma via**: mover o mouse continuamente esbarra no limite físico do mousepad.
+`scratch_energy` agora é o **maior** entre 3 fontes independentes — o movimento relativo do mouse, o
+impulso da roda do mouse, e a **alternância** entre as ações `scratch_left`/`scratch_right` (Z/X por
+padrão, ou gatilhos LT/RT de um controle) — nenhuma delas é obrigatória.
+
+**Progresso visível no Flow State**: sem HUD, o jogador perdia a noção de quanto o combo avançou além
+do limiar. A linha de julgamento agora avança de cor e pulsa a cada 50 acertos extras
+(`tier = combo // limiar`), sincronizado todo frame pelo `HertzGameLoop`.
+
+**Modo Treino (músicas do jogador)**: uma música complexa recém-mapeada pode gerar uma fase brutal.
+No menu, **T** liga/desliga o Modo Treino para a música selecionada — reduz a densidade de onsets
+(`thin_schedule_for_practice`, função pura que mantém 1 a cada N eventos uniformemente, sem tocar o
+beatmap.json versionado) e suprime o dano de vida (o MISS continua contando e quebrando o combo — só
+a vida é poupada).
+
 ## Arquitetura
 
 Tudo é SoA (Structure of Arrays) sobre as `ComponentPool` da engine — nenhum objeto "HitEvent"/"Threat" Python é instanciado no loop de gameplay (Zero-GC).
@@ -189,7 +233,7 @@ pip install pytest
 python -m pytest
 ```
 
-Cobre: spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase) e as 7 mecânicas novas: Polaridade/Deflect/Parry (com reflexão em cadeia), Graze/Fever, Pulso de Impacto, clustering puro de Scratch, balanço causal das Pistas Dinâmicas, `ScratchJudgmentSystem` e Flow State.
+Cobre (171 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold em 2 fases) + Screen Shake + Haptics, e os 4 itens de polimento: acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino.
 
 ## Estrutura
 

@@ -114,6 +114,10 @@ class HertzConfig:
     hold_aim_tolerance_degrees: float = 50.0
     hold_break_shake_px: float = 22.0
 
+    # -- Modo Treino (musicas do jogador, alternado no menu com T) --
+    practice_mode: bool = False
+    practice_density_keep_fraction: float = 0.5
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -191,6 +195,8 @@ class HertzConfig:
             hold_duration_seconds=raw.get("hold_duration_seconds", 1.5),
             hold_aim_tolerance_degrees=raw.get("hold_aim_tolerance_degrees", 50.0),
             hold_break_shake_px=raw.get("hold_break_shake_px", 22.0),
+            practice_mode=raw.get("practice_mode", False),
+            practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),
         )
 
 

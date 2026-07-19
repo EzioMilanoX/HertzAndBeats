@@ -20,6 +20,7 @@ from hertzbeats.components.schemas import (
     POLARITY_BLUE,
     POLARITY_PINK,
 )
+from hertzbeats.components.texture_ids import TEX_PLAYER_CORE_BLUE, TEX_PLAYER_CORE_PINK
 from hertzbeats.game_state import GameState
 
 _TAU = 2.0 * math.pi
@@ -131,6 +132,7 @@ class JudgmentSystem(ISystem):
         self._player_pool = memory_manager.get_pool("player_state")
         self._velocity_pool = memory_manager.get_pool("velocity")
         self._hitbox_pool = memory_manager.get_pool("hitbox")
+        self._sprite_pool = memory_manager.get_pool("sprite")
         self._game_state = game_state
         self._player_entity_index = int(player_entity_index)
 
@@ -203,6 +205,13 @@ class JudgmentSystem(ISystem):
                     self._play(self._jam_sound_id, 0.4)
                 else:
                     triggered_polarities.append(polarity)
+
+        if self._polarity_enabled and triggered_polarities:
+            # acessibilidade a daltonismo (item 1 do pedido de polimento):
+            # o NUCLEO muda de forma (triangulo/quadrado, mesmo simbolo
+            # das ameacas) ao trocar de cor -- reforco visual de "voce
+            # esta atirando NESTA cor agora", independente de acerto.
+            self._set_core_polarity_shape(triggered_polarities[-1])
 
         active_count = self._threat_pool.count
         if active_count == 0:
@@ -283,6 +292,19 @@ class JudgmentSystem(ISystem):
         self._game_state.miss_count += missed
         self._game_state.combo_count = 0
         self._game_state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+
+    def _set_core_polarity_shape(self, polarity: int) -> None:
+        """Troca o `texture_id` do sprite do nucleo para a variante com o
+        simbolo interno da cor disparada -- so o `texture_id` muda
+        (nunca o `tint_r/g/b/a`, que continua 100% do `PlayerInputSystem`
+        para o feedback de i-frames do Dash): como nenhum outro sistema
+        reescreve `texture_id` do nucleo por frame, a mudanca persiste
+        sozinha ate o proximo disparo, sem precisar reaplicar todo
+        frame."""
+        row = self._sprite_pool.dense_row_of(self._player_entity_index)
+        self._sprite_pool.active_view()["texture_id"][row] = (
+            TEX_PLAYER_CORE_PINK if polarity == POLARITY_PINK else TEX_PLAYER_CORE_BLUE
+        )
 
     def _play(self, sound_id, volume: float) -> None:
         """Dispara um SFX se houver backend e som configurados (testes

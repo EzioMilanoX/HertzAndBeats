@@ -29,6 +29,25 @@ TEX_THREAT_BASIC: int = 10
 TEX_THREAT_HEAVY: int = 11
 """Ameaca pesada (pico de energia/onset forte)."""
 
+TEX_THREAT_POLARITY_BLUE: int = 12
+"""Ameaca comum da fase Polaridade, timbre AGUDO: circulo azul com um
+TRIANGULO interno -- acessibilidade para daltonismo (Azul/Rosa nao pode
+depender so da cor), destruida pelo gatilho azul (`fire`)."""
+
+TEX_THREAT_POLARITY_PINK: int = 13
+"""Ameaca comum da fase Polaridade, timbre GRAVE: circulo rosa com um
+QUADRADO interno -- mesma logica de acessibilidade, destruida pelo
+gatilho rosa (`fire_alt`)."""
+
+TEX_PLAYER_CORE_BLUE: int = 14
+"""Nucleo do jogador na fase Polaridade, logo apos disparar o gatilho
+AZUL -- mesmo triangulo interno das ameacas azuis, reforcando "voce
+esta na cor azul agora"."""
+
+TEX_PLAYER_CORE_PINK: int = 15
+"""Nucleo do jogador na fase Polaridade, logo apos disparar o gatilho
+ROSA -- mesmo quadrado interno das ameacas rosas."""
+
 TEX_DIGIT_BASE: int = 100
 """Digito `d` do HUD = `TEX_DIGIT_BASE + d` (0..9), pre-renderizado no
 carregamento -- nunca `font.render` dentro do loop."""
