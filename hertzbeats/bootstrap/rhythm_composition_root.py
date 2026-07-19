@@ -47,6 +47,7 @@ from hertzbeats.audio.sfx_synth import (
     SFX_CLICK,
     SFX_DEFLECT,
     SFX_GRAZE,
+    SFX_HEAL,
     SFX_HOLD_BREAK,
     SFX_HOLD_ENGAGE,
     SFX_PARRY,
@@ -55,12 +56,17 @@ from hertzbeats.audio.sfx_synth import (
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
-from hertzbeats.modchart import parse_swap_events
+from hertzbeats.modchart import parse_reverse_scroll_events, parse_swap_events
 from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
 from hertzbeats.systems.convergence_ring_system import (
     CONVERGENCE_RING_DTYPE,
     ConvergenceRingSystem,
+)
+from hertzbeats.systems.distraction_system import (
+    DISTRACTION_DTYPE,
+    DistractionSystem,
+    parse_distraction_events,
 )
 from hertzbeats.systems.graze_system import GrazeSystem
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
@@ -88,6 +94,7 @@ from hertzbeats.systems.lane_judgment_system import LaneJudgmentSystem
 from hertzbeats.systems.lane_note_spawner_system import LANE_COUNT_4K, LaneNoteSpawnerSystem
 from hertzbeats.systems.player_input_system import PlayerInputSystem
 from hertzbeats.systems.radial_spawner_system import RadialRhythmSpawnerSystem
+from hertzbeats.systems.reverse_scroll_system import ReverseScrollSystem
 from hertzbeats.systems.safe_zone_judgment_system import SafeZoneJudgmentSystem
 from hertzbeats.systems.survival_damage_system import SurvivalDamageSystem
 from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
@@ -121,6 +128,7 @@ class ComposedGame:
         "player_entity_index",
         "crosshair_entity_index",
         "lane_choreography_system",
+        "lane_geometry_y",
     )
 
     def __init__(
@@ -133,6 +141,7 @@ class ComposedGame:
         player_entity_index: int,
         crosshair_entity_index: int,
         lane_choreography_system=None,
+        lane_geometry_y=None,
     ) -> None:
         self.world = world
         self.memory_manager = memory_manager
@@ -147,6 +156,12 @@ class ComposedGame:
         modos. Exposto para o `HertzGameLoop` sincronizar a decoracao
         de fundo (`renderer.set_playfield`) com a posicao ATUAL das
         colunas a cada frame."""
+        self.lane_geometry_y = lane_geometry_y
+        """Array `[spawn_y, judgment_line_y]` MUTAVEL (mesma identidade
+        lida pelo `LaneNoteSpawnerSystem`/escrita pelo
+        `ReverseScrollSystem`) quando `game_mode == "lanes"`; `None` nos
+        demais modos. Exposto para o `HertzGameLoop` sincronizar a linha
+        de julgamento do fundo com a Inversao de Gravidade."""
 
     @property
     def spawner_system(self):
@@ -184,12 +199,14 @@ class _ModeContext:
         "crosshair_entity_index",
         "modchart_events",
         "lane_choreography_system",
+        "lane_geometry_y",
     )
 
-    _OPTIONAL_SLOTS = frozenset({"lane_choreography_system"})
+    _OPTIONAL_SLOTS = frozenset({"lane_choreography_system", "lane_geometry_y"})
     """Slots preenchidos DEPOIS da construcao (pela propria estrategia
-    de modo, ex.: `_compose_lanes_mode` grava `lane_choreography_system`
-    de volta no `ctx`) -- unicos que podem faltar em `kwargs`."""
+    de modo, ex.: `_compose_lanes_mode` grava `lane_choreography_system`/
+    `lane_geometry_y` de volta no `ctx`) -- unicos que podem faltar em
+    `kwargs`."""
 
     def __init__(self, **kwargs) -> None:
         for name in self.__slots__:
@@ -366,6 +383,18 @@ def _create_shockwave_pool(world: World, memory_manager: MemoryManager, pool_siz
     return indices
 
 
+def _create_distraction_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
+    """Pre-cria `pool_size` entidades de Obstrucao Visual (jumpscare),
+    inicialmente INATIVAS (`tint_a=0` default de uma linha nova de
+    sprite) -- MESMA disciplina Zero-GC do `_create_shockwave_pool`:
+    pool fixo, reaproveitado para sempre em round-robin pelo
+    `DistractionSystem`, nunca criado/destruido durante a partida."""
+    indices = np.zeros(pool_size, dtype=np.int64)
+    for i in range(pool_size):
+        indices[i] = unpack_index(world.create_entity("distraction"))
+    return indices
+
+
 def _compose_survival_mode(ctx: _ModeContext):
     """MODO 2 -- Sobrevivencia Pura (estilo Just Shapes & Beats):
     movimento livre, paredes de som varrem a arena cruzando o centro na
@@ -521,6 +550,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
     Sem CollisionSystem: o julgamento e temporal por coluna. Ordem:
     Spawner de notas -> LaneJudgment -> Physics."""
     config = ctx.config
+    base_spawn_y = -24.0
     judgment_line_y = config.window_height - config.judgment_line_offset
     lane_center_xs = lane_center_positions(config)
     # buffer MUTAVEL compartilhado por IDENTIDADE com o spawner E o
@@ -528,6 +558,10 @@ def _compose_lanes_mode(ctx: _ModeContext):
     # este array por inteiro todo frame; `lane_center_xs` acima segue
     # imutavel (a base para os calculos de offset).
     current_lane_xs = lane_center_xs.copy()
+    # idem no eixo Y: `ReverseScrollSystem` (Inversao de Gravidade)
+    # reescreve [spawn_y, judgment_line_y] todo frame; os dois valores
+    # BASE acima seguem imutaveis (referencia para o espelhamento).
+    current_geometry_y = np.array([base_spawn_y, judgment_line_y], dtype=np.float64)
     lane_tints_rgb = np.array(
         [[255, 214, 64], [64, 255, 214], [167, 139, 250], [255, 80, 96]], dtype=np.uint8
     )
@@ -545,9 +579,11 @@ def _compose_lanes_mode(ctx: _ModeContext):
         config.scratch_min_cluster_size,
         config.scratch_hold_tail_seconds,
     )
-    # Notas Toxicas (Bombas): opt-in por PRESENCA do tipo no beatmap/
-    # config (mesmo criterio de `rhythm_threat_heavy`), sem flag extra.
+    # Notas Toxicas (Bombas) e Notas de Cura: opt-in por PRESENCA do tipo
+    # no beatmap/config (mesmo criterio de `rhythm_threat_heavy`), sem
+    # flag extra.
     bomb_type_id = config.threat_type_ids.get("rhythm_threat_bomb")
+    heal_type_id = config.threat_type_ids.get("rhythm_threat_heal")
 
     spawner_system = LaneNoteSpawnerSystem(
         audio_clock=ctx.audio_clock,
@@ -556,8 +592,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
         hit_times=hit_times_out,
         threat_archetype_name="rhythm_threat_radial",
         lane_center_xs=current_lane_xs,
-        spawn_y=-24.0,
-        judgment_line_y=judgment_line_y,
+        geometry_y=current_geometry_y,
         note_half_by_type=ctx.threat_half_by_type,
         lane_tints_rgb=lane_tints_rgb,
         max_threats_per_frame=config.max_threats_per_frame,
@@ -567,6 +602,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
         hold_duration_seconds=config.hold_duration_seconds,
         hold_visual_max_fraction=config.lane_hold_visual_max_fraction,
         bomb_threat_type_id=bomb_type_id,
+        heal_threat_type_id=heal_type_id,
     )
 
     # nucleo e mira nao participam deste modo; receptores + rotulos de
@@ -616,6 +652,10 @@ def _compose_lanes_mode(ctx: _ModeContext):
             bomb_hit_shake_px=config.bomb_hit_shake_px,
             bomb_blindness_seconds=config.bomb_blindness_seconds,
             bomb_hit_sound_id=SFX_BOMB,
+            heal_threat_type_id=heal_type_id,
+            max_health=config.max_health,
+            heal_amount=config.heal_amount,
+            heal_sound_id=SFX_HEAL,
         )
     )
     ctx.world.register_system(
@@ -648,15 +688,54 @@ def _compose_lanes_mode(ctx: _ModeContext):
     )
     ctx.world.register_system(choreography_system)
     ctx.lane_choreography_system = choreography_system
-    if config.stutter_scroll_enabled:
+    ctx.lane_geometry_y = current_geometry_y
+    if config.stutter_scroll_enabled or config.hidden_notes_enabled:
         ctx.world.register_system(
             VisualModifierSystem(
                 audio_clock=ctx.audio_clock,
+                memory_manager=ctx.memory_manager,
                 game_state=ctx.game_state,
                 frequency_hz=config.stutter_scroll_frequency_hz,
                 amplitude_px=config.stutter_scroll_amplitude_px,
+                hidden_notes_enabled=config.hidden_notes_enabled,
+                hidden_fade_seconds=config.hidden_fade_seconds,
             )
         )
+    # Inversao de Gravidade (Reverse Scroll): espelha spawn/linha de
+    # julgamento em tempo real -- `current_geometry_y` e a MESMA
+    # identidade lida pelo spawner acima.
+    ctx.world.register_system(
+        ReverseScrollSystem(
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            base_spawn_y=base_spawn_y,
+            base_judgment_line_y=judgment_line_y,
+            window_height=config.window_height,
+            current_geometry_y=current_geometry_y,
+            reverse_events=parse_reverse_scroll_events(ctx.modchart_events),
+            receptor_entity_indices=receptor_entity_indices,
+            key_label_entity_indices=key_label_entity_indices,
+        )
+    )
+    # Obstrucoes Visuais (jumpscares): pool fixo de entidades pre-alocado
+    # em `compose_world` (fora deste modo -- mesmo criterio do
+    # `shockwave`), o modo so registra o sistema que consome os eventos
+    # "distraction" de `modchart_events`.
+    distraction_events = parse_distraction_events(ctx.modchart_events)
+    distraction_entity_indices = _create_distraction_pool(
+        ctx.world, ctx.memory_manager, config.distraction_pool_size
+    )
+    ctx.world.register_system(
+        DistractionSystem(
+            audio_clock=ctx.audio_clock,
+            memory_manager=ctx.memory_manager,
+            distraction_events=distraction_events,
+            distraction_entity_indices=distraction_entity_indices,
+            window_width=config.window_width,
+            window_height=config.window_height,
+            layer_z=HUD_LAYER_Z + 20,
+        )
+    )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     return (spawner_system,), None
 
@@ -956,6 +1035,9 @@ def compose_world(
     memory_manager.create_pool(
         "shockwave", SHOCKWAVE_DTYPE, dense_capacity=max(config.shockwave_pool_size, 1)
     )
+    memory_manager.create_pool(
+        "distraction", DISTRACTION_DTYPE, dense_capacity=max(config.distraction_pool_size, 1)
+    )
 
     world = World(memory_manager)
     world.register_archetype(
@@ -965,6 +1047,7 @@ def compose_world(
     world.register_archetype("player_core", ("transform", "hitbox", "sprite", "player_state"))
     world.register_archetype("hud_sprite", ("transform", "sprite"))
     world.register_archetype("shockwave", ("transform", "hitbox", "sprite", "shockwave"))
+    world.register_archetype("distraction", ("transform", "sprite", "distraction"))
 
     # 3. Beatmap: tempos de IMPACTO do JSON viram tempos de SPAWN
     #    (deslocados por approach_seconds) para o cursor do spawner;
@@ -1088,6 +1171,7 @@ def compose_world(
         player_entity_index=player_entity_index,
         crosshair_entity_index=crosshair_entity_index,
         lane_choreography_system=context.lane_choreography_system,
+        lane_geometry_y=context.lane_geometry_y,
     )
 
 
@@ -1233,10 +1317,12 @@ class RhythmCompositionRoot:
         )
         from hertzbeats.audio.demo_track_synth import ensure_track
         from hertzbeats.audio.sfx_synth import (
+            SFX_BOMB,
             SFX_CANNON,
             SFX_CLICK,
             SFX_DEFLECT,
             SFX_GRAZE,
+            SFX_HEAL,
             SFX_HOLD_BREAK,
             SFX_HOLD_ENGAGE,
             SFX_PARRY,
@@ -1283,7 +1369,7 @@ class RhythmCompositionRoot:
         ensure_sfx()
         for sound_id in (
             SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE,
-            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB,
+            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB, SFX_HEAL,
         ):
             audio_engine.preload_one_shot(sound_id)
 

@@ -253,10 +253,11 @@ class HertzGameLoop(GameLoop):
         """Modcharts (Arcade 4K): mantem a decoracao de fundo das
         colunas (`renderer.set_playfield("lanes", ...)`) em sincronia
         com a posicao ATUAL calculada pelo `LaneChoreographySystem`
-        (Swap com Lerp + Pistas Dinamicas) -- sem isso, as colunas
-        desenhadas no fundo ficariam paradas enquanto as notas e os
-        receptores deslizam por cima delas. No-op fora do modo Arcade
-        4K ou com um renderer sem suporte a playfield (ex. NullRenderer)."""
+        (Swap com Lerp + Pistas Dinamicas) e, no eixo Y, pelo
+        `ReverseScrollSystem` (Inversao de Gravidade) -- sem isso, a
+        decoracao de fundo ficaria parada enquanto notas/receptores se
+        movem por cima dela. No-op fora do modo Arcade 4K ou com um
+        renderer sem suporte a playfield (ex. NullRenderer)."""
         if self._composed is None or self._stage_config.game_mode != "lanes":
             return
         choreography = self._composed.lane_choreography_system
@@ -264,11 +265,16 @@ class HertzGameLoop(GameLoop):
         if choreography is None or renderer is None or not hasattr(renderer, "set_playfield"):
             return
         config = self._stage_config
+        geometry_y = self._composed.lane_geometry_y
+        judgment_y = (
+            float(geometry_y[1]) if geometry_y is not None
+            else config.window_height - config.judgment_line_offset
+        )
         renderer.set_playfield(
             "lanes",
             lane_xs=choreography.current_lane_xs.tolist(),
             lane_half_width=config.lane_spacing * 0.42,
-            judgment_y=config.window_height - config.judgment_line_offset,
+            judgment_y=judgment_y,
             width=config.window_width,
             height=config.window_height,
         )

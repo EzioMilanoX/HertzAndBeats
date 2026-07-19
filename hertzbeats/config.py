@@ -157,6 +157,23 @@ class HertzConfig:
     stutter_scroll_amplitude_px: float = 10.0
     stutter_scroll_frequency_hz: float = 9.0
 
+    # -- Arcade 4K: Notas Fantasmas (Hidden mod, fade de tint_a) --
+    hidden_notes_enabled: bool = False
+    hidden_fade_seconds: float = 0.5
+
+    # -- Arcade 4K: Notas de Cura -- opt-in por presenca do tipo
+    #    "rhythm_threat_heal" em `threat_type_ids` (mesmo criterio de
+    #    Bombas), so em acerto PERFECT --
+    heal_amount: int = 1
+
+    # -- Arcade 4K: Obstrucoes Visuais (jumpscares/distracoes) --
+    distraction_pool_size: int = 5
+
+    # -- Arcade 4K: Inversao de Gravidade (Reverse Scroll dinamico) --
+    # nenhum campo extra necessario: o piso numerico do recalculo de
+    # velocidade e uma constante interna do `ReverseScrollSystem`
+    # (`_TIME_EPSILON_SECONDS`), nao uma afinacao de jogabilidade.
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -251,6 +268,10 @@ class HertzConfig:
             stutter_scroll_enabled=raw.get("stutter_scroll_enabled", False),
             stutter_scroll_amplitude_px=raw.get("stutter_scroll_amplitude_px", 10.0),
             stutter_scroll_frequency_hz=raw.get("stutter_scroll_frequency_hz", 9.0),
+            hidden_notes_enabled=raw.get("hidden_notes_enabled", False),
+            hidden_fade_seconds=raw.get("hidden_fade_seconds", 0.5),
+            heal_amount=raw.get("heal_amount", 1),
+            distraction_pool_size=raw.get("distraction_pool_size", 5),
         )
 
 

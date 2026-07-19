@@ -246,8 +246,8 @@ padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própr
 <tr><td><code>track_path</code></td><td><code>&quot;data/tracks/stage2_batida_franca.wav&quot;</code></td></tr>
 <tr><td><code>input_bindings_path</code></td><td><code>&quot;data/input_bindings/default_keyboard.json&quot;</code></td></tr>
 <tr><td><code>stages_path</code></td><td><code>&quot;data/stages/stages.json&quot;</code></td></tr>
-<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1, &quot;rhythm_threat_bomb&quot;: 2}</code></td></tr>
-<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0, &quot;rhythm_threat_bomb&quot;: 12.0}</code></td></tr>
+<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1, &quot;rhythm_threat_bomb&quot;: 2, &quot;rhythm_threat_heal&quot;: 3}</code></td></tr>
+<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0, &quot;rhythm_threat_bomb&quot;: 12.0, &quot;rhythm_threat_heal&quot;: 11.0}</code></td></tr>
 <tr><td><code>lane_count</code></td><td><code>8</code></td></tr>
 <tr><td><code>approach_seconds</code></td><td><code>2.0</code></td></tr>
 <tr><td><code>spawn_radius</code></td><td><code>420.0</code></td></tr>
@@ -284,7 +284,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>212 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>233 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_convergence_rings.py</code> — Aneis de Convergencia do Defensor: encolhem matematicamente ate o anel de julgamento no ms do hit. (4 testes)</summary><ul><li><code>test_ring_spawns_alongside_threat_at_spawn_radius</code></li><li><code>test_ring_radius_shrinks_linearly_to_the_judgment_ring</code></li><li><code>test_ring_self_destructs_at_the_hit_instant</code></li><li><code>test_ring_tint_matches_the_threat_it_warns_about</code></li></ul></details>
@@ -299,8 +299,12 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
 <details><summary><code>test_lane_bomb_notes.py</code> — Arcade 4K: Notas Toxicas (Bombas) -- pressionar pune sem pontuar; deixar passar sem tocar e o jogo correto. (4 testes)</summary><ul><li><code>test_pressing_a_bomb_never_scores_and_damages_health</code></li><li><code>test_pressing_a_bomb_triggers_shake_and_blindness</code></li><li><code>test_letting_a_bomb_pass_untouched_is_survived_without_penalty</code></li><li><code>test_basic_note_is_unaffected_by_bombs_present_in_config</code></li></ul></details>
 <details><summary><code>test_lane_choreography.py</code> — Pistas Dinamicas: senoide amortecida causal (compute_lane_sway) + reposicionamento de colunas em composicao. (6 testes)</summary><ul><li><code>test_zero_sway_with_no_trigger_times</code></li><li><code>test_zero_sway_before_any_trigger_fires</code></li><li><code>test_matches_the_damped_sine_formula_at_a_known_instant</code></li><li><code>test_amplitude_scales_the_result_linearly</code></li><li><code>test_contributions_from_multiple_triggers_sum</code></li><li><code>test_lane_choreography_system_is_registered_and_sways_after_a_scratch_cluster</code></li></ul></details>
+<details><summary><code>test_lane_distractions.py</code> — Arcade 4K: Obstrucoes Visuais (jumpscares) -- pool fixo ativado por evento, cobre a tela por um instante e some sozinho. (5 testes)</summary><ul><li><code>test_parse_distraction_events_sorts_by_time_and_ignores_unknown_types</code></li><li><code>test_distraction_activates_at_its_scheduled_time_with_correct_position_and_texture</code></li><li><code>test_distraction_hides_itself_after_its_duration_expires</code></li><li><code>test_multiple_distractions_round_robin_across_the_fixed_pool</code></li><li><code>test_no_distraction_events_never_activates_the_pool</code></li></ul></details>
+<details><summary><code>test_lane_heal_notes.py</code> — Arcade 4K: Notas de Cura -- PERFECT recupera vida (clamp em max_health), GOOD pontua mas nao cura, deixar passar e MISS normal. (4 testes)</summary><ul><li><code>test_perfect_hit_on_heal_note_restores_one_health</code></li><li><code>test_heal_never_exceeds_max_health</code></li><li><code>test_good_hit_on_heal_note_scores_but_does_not_heal</code></li><li><code>test_missing_a_heal_note_is_a_normal_miss_with_no_health_penalty</code></li></ul></details>
+<details><summary><code>test_lane_hidden_notes.py</code> — Arcade 4K: Notas Fantasmas (Hidden mod) -- tint_a decai linearmente perto do julgamento, a janela de acerto nunca muda. (5 testes)</summary><ul><li><code>test_compute_hidden_alpha_is_opaque_far_from_the_hit_and_transparent_at_it</code></li><li><code>test_note_is_fully_opaque_before_entering_the_fade_window</code></li><li><code>test_note_fades_out_linearly_approaching_the_judgment_line</code></li><li><code>test_hidden_fade_never_changes_the_judgment_window</code></li><li><code>test_hidden_disabled_by_default_keeps_notes_always_opaque</code></li></ul></details>
 <details><summary><code>test_lane_holds_and_shield.py</code> — Arcade 4K: Notas Longas classicas (tecla sustentada) + Shield -- Fase 1 engaja, Fase 2 exige a tecla segurada. (8 testes)</summary><ul><li><code>test_lone_heavy_note_becomes_a_classic_hold_with_duration</code></li><li><code>test_hold_visual_bar_is_capped_and_never_dominates_the_fall_column</code></li><li><code>test_pressing_the_lane_key_on_a_hold_note_engages_without_destroying</code></li><li><code>test_sustaining_the_lane_key_through_duration_scores_perfect</code></li><li><code>test_engaged_hold_survives_well_past_its_original_target_time</code></li><li><code>test_releasing_the_lane_key_mid_sustain_is_absorbed_by_the_shield</code></li><li><code>test_shield_absorbs_up_to_its_max_charges_then_costs_real_health</code></li><li><code>test_basic_note_is_unaffected_by_holds_enabled</code></li></ul></details>
 <details><summary><code>test_lane_modchart.py</code> — Modcharts (Arcade 4K): evento &#x27;swap&#x27; troca duas colunas de lugar suavemente (Lerp) -- notas caindo acompanham. (8 testes)</summary><ul><li><code>test_parse_swap_events_sorts_by_time_and_ignores_unknown_types</code></li><li><code>test_compute_swapped_lane_xs_before_event_is_unaffected</code></li><li><code>test_compute_swapped_lane_xs_lerps_halfway_through_the_swap</code></li><li><code>test_compute_swapped_lane_xs_freezes_fully_swapped_after_duration</code></li><li><code>test_compute_swapped_lane_xs_never_mutates_the_base_array</code></li><li><code>test_falling_note_position_x_follows_the_swap_curve_in_real_time</code></li><li><code>test_receptor_follows_the_swap_too</code></li><li><code>test_no_modchart_events_behaves_exactly_like_before</code></li></ul></details>
+<details><summary><code>test_lane_reverse_scroll.py</code> — Arcade 4K: Inversao de Gravidade (Reverse Scroll) -- espelha spawn/linha de julgamento em tempo real; o julgamento nunca muda. (7 testes)</summary><ul><li><code>test_parse_reverse_scroll_events_sorts_by_time</code></li><li><code>test_compute_scroll_flip_fraction_before_after_and_midway</code></li><li><code>test_compute_scroll_flip_fraction_toggles_back_to_normal</code></li><li><code>test_no_reverse_events_note_still_lands_exactly_on_the_judgment_line</code></li><li><code>test_reverse_scroll_event_flips_spawn_and_judgment_geometry</code></li><li><code>test_falling_note_retargets_to_the_flipped_judgment_line_in_real_time</code></li><li><code>test_judgment_is_unaffected_by_an_active_reverse_scroll</code></li></ul></details>
 <details><summary><code>test_lane_scratch_clustering.py</code> — Clustering puro de pesadas -&gt; notas de Scratch (fusao game-side, sem tocar o beatmap.json). (5 testes)</summary><ul><li><code>test_cluster_of_three_or_more_consecutive_heavies_becomes_one_scratch_note</code></li><li><code>test_cluster_smaller_than_minimum_stays_as_individual_notes</code></li><li><code>test_gap_larger_than_threshold_splits_into_two_clusters</code></li><li><code>test_non_heavy_notes_pass_through_unchanged</code></li><li><code>test_basic_notes_around_a_cluster_preserve_temporal_order</code></li></ul></details>
 <details><summary><code>test_lane_stutter_scroll.py</code> — Stutter Scroll (Arcade 4K): ruido visual em Y so no draw_batch -- a fisica real (transform.position_y) nunca muda. (3 testes)</summary><ul><li><code>test_compute_stutter_offset_y_is_a_pure_sine_wave</code></li><li><code>test_apply_lane_stutter_only_offsets_lanes_mode_threat_entities</code></li><li><code>test_real_physics_position_is_unaffected_by_stutter_over_many_frames</code></li></ul></details>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
@@ -560,7 +564,7 @@ reconstroi os mesmos sons no primeiro build.
 Gun Sync: o canhao do tiro certeiro E percussao (bumbo pesado + estalo),
 desenhado para se fundir a trilha; o clique seco do misfire e o &quot;tec&quot; de
 arma emperrada; o tap fantasma e um tick discreto de batucada livre.</pre>
-<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code>, <code>SFX_DEFLECT</code>, <code>SFX_PARRY</code>, <code>SFX_GRAZE</code>, <code>SFX_HOLD_ENGAGE</code>, <code>SFX_HOLD_BREAK</code>, <code>SFX_SHIELD_BREAK</code>, <code>SFX_BOMB</code></p>
+<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code>, <code>SFX_DEFLECT</code>, <code>SFX_PARRY</code>, <code>SFX_GRAZE</code>, <code>SFX_HOLD_ENGAGE</code>, <code>SFX_HOLD_BREAK</code>, <code>SFX_SHIELD_BREAK</code>, <code>SFX_BOMB</code>, <code>SFX_HEAL</code></p>
 <h4><code>_cannon()</code></h4><pre class="doc">Tiro no tempo: bumbo profundo (sweep 160-&gt;40 Hz) + estalo curto --
 percussao que se soma a musica.</pre>
 <h4><code>_click()</code></h4><pre class="doc">Misfire: &#x27;tec&#x27; seco e metalico de gatilho emperrado.</pre>
@@ -582,6 +586,8 @@ filtrado de decaimento rapido somado a um estalo agudo, marcando
 que a falha finalmente custou vida de verdade.</pre>
 <h4><code>_bomb()</code></h4><pre class="doc">Bomba (Arcade 4K): explosao curta e suja -- ruido grave
 filtrado + thump abafado, claramente um erro (nao um acerto).</pre>
+<h4><code>_heal()</code></h4><pre class="doc">Nota de Cura: sino ascendente suave (2 harmonicos subindo) --
+contraste deliberado com o Bomba/thump grave, remete a &quot;recuperar&quot;.</pre>
 <h4><code>ensure_sfx()</code></h4><pre class="doc">Garante todos os SFX em data/sfx/ (sintese deterministica, so na
 primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
@@ -633,10 +639,11 @@ carregada (no-op com renderer sem suporte, ex. NullRenderer).</pre>
 <h4><code>._sync_lane_playfield()</code></h4><pre class="doc">Modcharts (Arcade 4K): mantem a decoracao de fundo das
 colunas (`renderer.set_playfield(&quot;lanes&quot;, ...)`) em sincronia
 com a posicao ATUAL calculada pelo `LaneChoreographySystem`
-(Swap com Lerp + Pistas Dinamicas) -- sem isso, as colunas
-desenhadas no fundo ficariam paradas enquanto as notas e os
-receptores deslizam por cima delas. No-op fora do modo Arcade
-4K ou com um renderer sem suporte a playfield (ex. NullRenderer).</pre>
+(Swap com Lerp + Pistas Dinamicas) e, no eixo Y, pelo
+`ReverseScrollSystem` (Inversao de Gravidade) -- sem isso, a
+decoracao de fundo ficaria parada enquanto notas/receptores se
+movem por cima dela. No-op fora do modo Arcade 4K ou com um
+renderer sem suporte a playfield (ex. NullRenderer).</pre>
 <h4><code>._flow_base_volume()</code></h4><pre class="doc">Volume &#x27;normal&#x27; da faixa fora do Flow State: um pouco abaixo
 do maximo, para que a entrada no Flow tenha um SWELL real ate
 1.0 (ver `HBPygameAudioEngine.set_track_volume`).</pre>
@@ -733,6 +740,11 @@ colisao&quot; default de uma linha nova). Disciplina Zero-GC MAIS
 ESTRITA que o resto do jogo: este pool fixo e reaproveitado para
 sempre em round-robin pelo `ShockwaveSystem`, nunca criado/destruido
 durante a partida.</pre>
+<h4><code>_create_distraction_pool()</code></h4><pre class="doc">Pre-cria `pool_size` entidades de Obstrucao Visual (jumpscare),
+inicialmente INATIVAS (`tint_a=0` default de uma linha nova de
+sprite) -- MESMA disciplina Zero-GC do `_create_shockwave_pool`:
+pool fixo, reaproveitado para sempre em round-robin pelo
+`DistractionSystem`, nunca criado/destruido durante a partida.</pre>
 <h4><code>_compose_survival_mode()</code></h4><pre class="doc">MODO 2 -- Sobrevivencia Pura (estilo Just Shapes &amp; Beats):
 movimento livre, paredes de som varrem a arena cruzando o centro na
 batida; sem botao de ataque -- julgamento 100% via CollisionSystem,
@@ -880,8 +892,8 @@ Incrementada a cada mudanca na forma de gerar notas a partir do audio;
 `music_library.needs_analysis` re-analisa automaticamente musicas cujo
 beatmap cacheado veio de um mapeador mais antigo.</pre>
 </details>
-<details class="module" id="hertzbeats-modchart"><summary><code>hertzbeats/modchart.py</code> — Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (ex.: Swap com Lerp).</summary>
-<pre class="doc">Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (ex.: Swap com Lerp).</pre>
+<details class="module" id="hertzbeats-modchart"><summary><code>hertzbeats/modchart.py</code> — Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (Swap, Reverse Scroll).</summary>
+<pre class="doc">Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (Swap, Reverse Scroll).</pre>
 <h4><code>parse_swap_events()</code></h4><pre class="doc">Normaliza a lista crua de `stages.json`
 (`{&quot;type&quot;: &quot;swap&quot;, &quot;time_seconds&quot;, &quot;duration_seconds&quot;, &quot;lane_a&quot;, &quot;lane_b&quot;}`)
 em tuplas `(time_seconds, duration_seconds, lane_a, lane_b)`
@@ -905,6 +917,24 @@ chega.
 
 Pura e sem estado -- retorna um array NOVO a cada chamada (o
 chamador decide se persiste o resultado); testavel sem ECS/pygame.</pre>
+<h4><code>parse_reverse_scroll_events()</code></h4><pre class="doc">Normaliza a lista crua de `stages.json`
+(`{&quot;type&quot;: &quot;reverse_scroll&quot;, &quot;time_seconds&quot;, &quot;duration_seconds&quot;,
+&quot;reversed&quot;: true|false}`) em tuplas
+`(time_seconds, duration_seconds, target_fraction)` ORDENADAS por
+tempo -- `target_fraction` e 1.0 (invertido) ou 0.0 (normal).
+Eventos de outro tipo (swap, distraction) sao ignorados aqui.</pre>
+<h4><code>compute_scroll_flip_fraction()</code></h4><pre class="doc">0.0 = scroll normal (notas caem PARA BAIXO), 1.0 = totalmente
+invertido (notas sobem PARA CIMA rumo a uma linha de julgamento no
+topo). Cada evento faz um Lerp a partir de onde a fracao ACUMULADA
+dos eventos anteriores parou ate `target_fraction`, ao longo de
+`duration_seconds` -- diferente do swap (que sempre faz Lerp entre
+dois valores FIXOS), aqui cada evento e um TOGGLE relativo ao
+estado atual, entao o encadeamento precisa carregar o valor
+anterior adiante (funciona corretamente desde que os eventos nao se
+sobreponham no tempo, o uso normal de um Modchart escrito a mao).
+
+Pura e sem estado -- nao possui `out=` porque e um ESCALAR, nao um
+array; testavel sem ECS/pygame.</pre>
 </details>
 <details class="module" id="hertzbeats-music_library"><summary><code>hertzbeats/music_library.py</code> — Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`</summary>
 <pre class="doc">Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`
@@ -1140,6 +1170,33 @@ os pares permanecem validos durante o frame inteiro.</pre>
 <h4><code>.update()</code></h4><pre class="doc">Processa os pares de colisao do frame corrente (ver regras na
 docstring da classe).</pre>
 </details>
+<details class="module" id="hertzbeats-systems-distraction_system"><summary><code>hertzbeats/systems/distraction_system.py</code> — Obstrucoes Visuais (jumpscares): manchas que cobrem a tela por um instante, sobre um pool fixo pre-alocado.</summary>
+<pre class="doc">Obstrucoes Visuais (jumpscares): manchas que cobrem a tela por um instante, sobre um pool fixo pre-alocado.</pre>
+<p class='constants'>Constantes: <code>DISTRACTION_DTYPE</code></p>
+<h4><code>parse_distraction_events()</code></h4><pre class="doc">Normaliza a lista crua de `stages.json`
+(`{&quot;type&quot;: &quot;distraction&quot;, &quot;time_seconds&quot;, &quot;duration_seconds&quot;,
+&quot;x_fraction&quot;, &quot;y_fraction&quot;}`) em tuplas
+`(time_seconds, duration_seconds, x_fraction, y_fraction)` ORDENADAS
+por tempo -- `x_fraction`/`y_fraction` (0..1) posicionam a mancha
+como fracao da janela, independente de resolucao. Eventos de outro
+tipo (swap, reverse_scroll) sao ignorados aqui -- cada feature filtra
+so o que lhe interessa da MESMA lista de `modchart_events`.</pre>
+<h3>classe <code>DistractionSystem</code></h3><pre class="doc">&quot;Obstrucoes Visuais&quot;: um cursor MONOTONICO (mesmo idioma do
+`RhythmSpawnerSystem` da engine) avanca sobre `distraction_events`
+(ordenados por tempo); ao cruzar o instante de um evento, ativa o
+PROXIMO slot do pool fixo de `distraction_entity_indices`
+(round-robin, nunca cria/destroi entidade -- mesma disciplina Zero-GC
+do `ShockwaveSystem`), posicionando-o em `(x_fraction*width,
+y_fraction*height)` com a textura pre-registrada
+(`TEX_DISTRACTION_SPLAT`) e `layer_z` acima do HUD -- cobre TUDO na
+tela por `duration_sec`. Um coletor de expiracao escalar (5
+iteracoes, no maximo) desliga o slot (`tint_a=0`) quando o tempo
+acaba.
+
+Zero-GC: nenhuma alocacao por frame -- o cursor e um inteiro
+primitivo, o round-robin e aritmetica de modulo, e o coletor de
+expiracao itera so sobre os poucos slots do pool fixo.</pre>
+</details>
 <details class="module" id="hertzbeats-systems-graze_system"><summary><code>hertzbeats/systems/graze_system.py</code> — Sistema de Graze (estilo Touhou): raspar perto de uma parede letal sem tocar rende pontos e Fever.</summary>
 <pre class="doc">Sistema de Graze (estilo Touhou): raspar perto de uma parede letal sem tocar rende pontos e Fever.</pre>
 <h3>classe <code>GrazeSystem</code></h3><pre class="doc">Segundo raio de deteccao da Sobrevivencia, PARALELO ao
@@ -1338,7 +1395,13 @@ zera o combo, custa vida e cega o jogador por um instante
 NAO tocar: uma bomba que passa da linha sem ser pressionada e
 destruida silenciosamente como SURVIVED (sem punicao nenhuma),
 excluida da varredura generica de MISS pela mesma licao de exclusao
-do Hold/Scratch.</pre>
+do Hold/Scratch.
+
+NOTAS DE CURA (opt-in via `heal_threat_type_id`): em tudo igual a
+uma nota comum (pontua PERFECT/GOOD, deixar passar e MISS normal,
+sem exclusao nenhuma de varredura) -- so um acerto PERFECT tem o
+efeito colateral extra de curar `heal_amount` de vida, respeitando
+o teto de `max_health`.</pre>
 <h4><code>.update()</code></h4><pre class="doc">Varre MISSes vencidos e julga as teclas de coluna do frame.</pre>
 <h4><code>._sweep_overdue_misses()</code></h4><pre class="doc">Nota que passou da linha alem da janela de miss sem tecla:
 MISS, combo zerado (uma vez por frame), destruicao diferida.</pre>
@@ -1489,6 +1552,46 @@ consumidos por `JudgmentSystem`/`CoreDamageSystem`.</pre>
 <h4><code>._spawn_convergence_ring()</code></h4><pre class="doc">Anel-aviso centrado no nucleo, na COR da ameaca: o
 `ConvergenceRingSystem` encolhe seu raio ate o anel de julgamento
 exatamente em `hit_time` (mesma base de tempo do julgamento).</pre>
+</details>
+<details class="module" id="hertzbeats-systems-reverse_scroll_system"><summary><code>hertzbeats/systems/reverse_scroll_system.py</code> — Inversao de Gravidade (Reverse Scroll): espelha spawn/linha de julgamento em tempo real -- o julgamento nunca muda.</summary>
+<pre class="doc">Inversao de Gravidade (Reverse Scroll): espelha spawn/linha de julgamento em tempo real -- o julgamento nunca muda.</pre>
+<p class='constants'>Constantes: <code>_TIME_EPSILON_SECONDS</code></p>
+<h3>classe <code>ReverseScrollSystem</code></h3><pre class="doc">&quot;Inversao de Gravidade&quot;: `reverse_scroll_events` (mesma lista de
+`modchart_events` da fase) fazem um Lerp continuo entre scroll
+NORMAL (notas caem, linha de julgamento embaixo) e INVERTIDO (notas
+sobem, linha de julgamento em cima) -- espelhando `spawn_y`/
+`judgment_line_y` em torno do centro vertical da janela
+(`flipped = window_height - base`).
+
+`current_geometry_y` (buffer de 2 elementos, MUTAVEL, compartilhado
+por IDENTIDADE com o `LaneNoteSpawnerSystem`) e reescrito todo
+frame -- uma nota NOVA nasce exatamente na geometria atual (mesma
+tecnica do buffer `current_lane_xs` do Swap). Uma nota JA CAINDO
+tambem precisa espelhar a mudanca: este sistema recalcula
+`velocity.linear_y` de TODA nota pendente do Arcade 4K a cada frame,
+de forma que, continuando nessa velocidade pelo tempo restante
+(`target_hit_time_sec - agora`), ela chegue EXATAMENTE na linha de
+julgamento ATUAL -- a mesma formula usada no spawn, so que reaplicada
+a cada frame a partir da posicao CORRENTE em vez da posicao de
+spawn. Quando nenhum evento esta ativo, essa formula e
+matematicamente IDENTICA a manter a velocidade original (nenhuma
+mudanca de comportamento fora de um Reverse Scroll ativo).
+
+O `LaneJudgmentSystem` e 100% temporal (nunca le posicao/velocidade),
+entao o julgamento nunca e afetado -- so a fisica/visual da queda.
+
+Zero-GC: um escalar (`compute_scroll_flip_fraction`) por frame;
+reescrita vetorizada de `velocity.linear_y` para TODAS as notas
+pendentes do modo (fancy indexing sobre buffers pre-alocados) mais
+um laco escalar minusculo (4 iteracoes) para os receptores/rotulos.</pre>
+<h4><code>._retarget_falling_notes()</code></h4><pre class="doc">`reference_time` e o instante que `transform.position_y`
+REALMENTE representa neste ponto do frame (ver `update`) -- NAO
+`now_effective` diretamente.</pre>
+<h4><code>._reposition_receptors()</code></h4><pre class="doc">Receptores acompanham a linha de julgamento; o rotulo da
+tecla fica do lado OPOSTO a area de jogo -- `+46px` no scroll
+normal (abaixo da linha), invertido suavemente para `-46px`
+(acima) conforme `flip` avanca, para nao ficar por cima das
+notas subindo.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-safe_zone_judgment_system"><summary><code>hertzbeats/systems/safe_zone_judgment_system.py</code> — Modo Sobrevivencia: Safe Zone estacionaria -- julga por distancia direta, exige Ancora continua.</summary>
 <pre class="doc">Modo Sobrevivencia: Safe Zone estacionaria -- julga por distancia direta, exige Ancora continua.</pre>
@@ -1694,26 +1797,37 @@ vida -- so a arena e as notas ficam visiveis.</pre>
 alem do mais significativo ficam com alfa 0 (ocultos), exceto o
 das unidades, sempre visivel (mostra o proprio 0).</pre>
 </details>
-<details class="module" id="hertzbeats-systems-visual_modifier_system"><summary><code>hertzbeats/systems/visual_modifier_system.py</code> — Stutter Scroll (Arcade 4K): gagueira visual em Y -- a fisica real (velocity_y) nunca muda.</summary>
-<pre class="doc">Stutter Scroll (Arcade 4K): gagueira visual em Y -- a fisica real (velocity_y) nunca muda.</pre>
+<details class="module" id="hertzbeats-systems-visual_modifier_system"><summary><code>hertzbeats/systems/visual_modifier_system.py</code> — Modificadores puramente visuais do Arcade 4K: Stutter Scroll (ruido em Y) e Hidden (fade de tint_a) -- nenhum toca o julgamento.</summary>
+<pre class="doc">Modificadores puramente visuais do Arcade 4K: Stutter Scroll (ruido em Y) e Hidden (fade de tint_a) -- nenhum toca o julgamento.</pre>
 <h4><code>compute_stutter_offset_y()</code></h4><pre class="doc">`sin(now_seconds * freq) * amplitude` -- puro e sem estado,
 testavel sem ECS. Um UNICO valor GLOBAL (nao por nota): todas as
 notas do Arcade 4K &quot;gaguejam&quot; em uníssono no momento do
 `draw_batch`, nunca na posicao fisica real.</pre>
-<h3>classe <code>VisualModifierSystem</code></h3><pre class="doc">Stutter Scroll: escreve `GameState.lane_stutter_offset_y` a cada
-frame com `compute_stutter_offset_y(...)` -- um ruido puramente
-ESTETICO que confunde a leitura visual da queda das notas do
-Arcade 4K sem qualquer risco para o julgamento (o `LaneJudgmentSystem`
-e 100% temporal, nunca le posicao).
+<h4><code>compute_hidden_alpha()</code></h4><pre class="doc">Notas Fantasmas (Hidden): fracao de `tint_a` (0..255) de uma nota
+a `delta_seconds` do julgamento -- 255 (opaca) para `delta &gt;=
+fade_seconds`, decaindo LINEARMENTE ate 0 (invisivel) exatamente em
+`delta == 0`. Pura, testavel sem ECS.</pre>
+<h3>classe <code>VisualModifierSystem</code></h3><pre class="doc">Dois modificadores puramente ESTETICOS do Arcade 4K, nenhum deles
+lido pelo `LaneJudgmentSystem` (100% temporal, nunca posicao/tint):
 
-Registrado ANTES do `UIRenderSystem` na ordem de sistemas (como
-pedido): o valor fica pronto no `GameState` antes do
-`HertzGameLoop._render_frame` (overrescrito) le-lo e somar so na
-posicao RENDERIZADA, no momento do `draw_batch` -- `transform.position_y`
-(a fisica real que o `PhysicsSystem` integra) nunca e escrito por
-este sistema, entao nao ha deriva acumulada frame a frame.
+- **Stutter Scroll**: escreve `GameState.lane_stutter_offset_y` a
+  cada frame (`compute_stutter_offset_y`) -- o `HertzGameLoop`
+  (`_render_frame` overrescrito) soma esse ruido SO na posicao
+  RENDERIZADA, no momento do `draw_batch`; `transform.position_y`
+  (a fisica real que o `PhysicsSystem` integra) nunca e tocado.
+- **Hidden (Notas Fantasmas)**, opt-in via `hidden_notes_enabled`:
+  `delta = target_hit_time_sec - agora_efetivo` para toda nota AINDA
+  PENDENTE e nao engajada/Scratch; dentro de `hidden_fade_seconds`
+  do julgamento, `sprite.tint_a` interpola linearmente de 255 ate 0
+  (`compute_hidden_alpha`) -- a nota fica progressivamente invisivel,
+  mas sua janela de acerto (puramente temporal) nao muda em nada.
 
-Zero-GC: um escalar por frame, nenhuma alocacao.</pre>
+Registrado ANTES do `UIRenderSystem` na ordem de sistemas: os dois
+valores ficam prontos antes do `HertzGameLoop` ler/renderizar.
+
+Zero-GC: Stutter e um escalar por frame; Hidden e vetorizado sobre
+as poucas linhas candidatas (fancy indexing em buffers ja
+pre-alocados, mesmo idioma do resto do jogo).</pre>
 </details>
 <details class="module" id="hertzbeats-systems-wall_phase_system"><summary><code>hertzbeats/systems/wall_phase_system.py</code> — Vira as paredes de som de AVISO para LETAL exatamente no onset (e anima o piscar do telegraph).</summary>
 <pre class="doc">Vira as paredes de som de AVISO para LETAL exatamente no onset (e anima o piscar do telegraph).</pre>

@@ -65,6 +65,11 @@ Indices PENDING/DODGED/SURVIVED nao tem palavra (0 = sem textura). Tupla
 criada uma unica vez no carregamento do modulo, indexada por inteiro no
 loop."""
 
+TEX_DISTRACTION_SPLAT: int = 16
+"""Obstrucao visual (jumpscare) do Arcade 4K: mancha de tinta
+procedural, desenhada sobre TUDO (layer_z acima do HUD) por um instante
+curto, num ponto aleatorio-mas-deterministico da tela."""
+
 TEX_TUTORIAL_BASE: int = 200
 """Textos de instrucao do tutorial, pre-renderizados na composicao:
 o passo `j` da fase de indice `i` usa

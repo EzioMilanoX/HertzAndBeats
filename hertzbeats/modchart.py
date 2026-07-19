@@ -1,4 +1,4 @@
-"""Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (ex.: Swap com Lerp)."""
+"""Modcharts: eventos globais do beatmap que alteram a coreografia das colunas do Arcade 4K (Swap, Reverse Scroll)."""
 from __future__ import annotations
 
 from typing import Dict, Sequence, Tuple
@@ -64,3 +64,52 @@ def compute_swapped_lane_xs(
         current[lane_a] = base_a + (base_b - base_a) * progress
         current[lane_b] = base_b + (base_a - base_b) * progress
     return current
+
+
+def parse_reverse_scroll_events(raw_events: Sequence[Dict]) -> Tuple[Tuple[float, float, float], ...]:
+    """Normaliza a lista crua de `stages.json`
+    (`{"type": "reverse_scroll", "time_seconds", "duration_seconds",
+    "reversed": true|false}`) em tuplas
+    `(time_seconds, duration_seconds, target_fraction)` ORDENADAS por
+    tempo -- `target_fraction` e 1.0 (invertido) ou 0.0 (normal).
+    Eventos de outro tipo (swap, distraction) sao ignorados aqui."""
+    events = []
+    for raw in raw_events:
+        if raw.get("type") != "reverse_scroll":
+            continue
+        events.append(
+            (
+                float(raw["time_seconds"]),
+                float(raw.get("duration_seconds", 1.0)),
+                1.0 if raw.get("reversed", True) else 0.0,
+            )
+        )
+    events.sort(key=lambda event: event[0])
+    return tuple(events)
+
+
+def compute_scroll_flip_fraction(
+    now_effective: float,
+    reverse_events: Tuple[Tuple[float, float, float], ...],
+) -> float:
+    """0.0 = scroll normal (notas caem PARA BAIXO), 1.0 = totalmente
+    invertido (notas sobem PARA CIMA rumo a uma linha de julgamento no
+    topo). Cada evento faz um Lerp a partir de onde a fracao ACUMULADA
+    dos eventos anteriores parou ate `target_fraction`, ao longo de
+    `duration_seconds` -- diferente do swap (que sempre faz Lerp entre
+    dois valores FIXOS), aqui cada evento e um TOGGLE relativo ao
+    estado atual, entao o encadeamento precisa carregar o valor
+    anterior adiante (funciona corretamente desde que os eventos nao se
+    sobreponham no tempo, o uso normal de um Modchart escrito a mao).
+
+    Pura e sem estado -- nao possui `out=` porque e um ESCALAR, nao um
+    array; testavel sem ECS/pygame."""
+    fraction = 0.0
+    for time_seconds, duration_seconds, target_fraction in reverse_events:
+        if now_effective < time_seconds:
+            break
+        progress = (
+            1.0 if duration_seconds <= 0.0 else min(1.0, (now_effective - time_seconds) / duration_seconds)
+        )
+        fraction = fraction + (target_fraction - fraction) * progress
+    return fraction

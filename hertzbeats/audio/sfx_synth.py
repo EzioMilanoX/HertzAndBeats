@@ -26,6 +26,7 @@ SFX_HOLD_ENGAGE = "data/sfx/hold_engage.wav"
 SFX_HOLD_BREAK = "data/sfx/hold_break.wav"
 SFX_SHIELD_BREAK = "data/sfx/shield_break.wav"
 SFX_BOMB = "data/sfx/bomb.wav"
+SFX_HEAL = "data/sfx/heal.wav"
 
 
 def _cannon(sample_rate: int) -> np.ndarray:
@@ -141,6 +142,16 @@ def _bomb(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _heal(sample_rate: int) -> np.ndarray:
+    """Nota de Cura: sino ascendente suave (2 harmonicos subindo) --
+    contraste deliberado com o Bomba/thump grave, remete a "recuperar"."""
+    length = int(0.25 * sample_rate)
+    t = np.arange(length) / sample_rate
+    sweep = np.cumsum(520.0 + 260.0 * (t / t[-1])) / sample_rate
+    tone = np.exp(-t * 5.0) * (np.sin(2 * np.pi * sweep) + 0.5 * np.sin(2 * np.pi * 2 * sweep))
+    return tone / (np.max(np.abs(tone)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -155,6 +166,7 @@ def ensure_sfx() -> None:
         (SFX_HOLD_BREAK, _hold_break),
         (SFX_SHIELD_BREAK, _shield_break),
         (SFX_BOMB, _bomb),
+        (SFX_HEAL, _heal),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

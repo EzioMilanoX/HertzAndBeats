@@ -50,8 +50,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         hit_times: np.ndarray,
         threat_archetype_name: str,
         lane_center_xs: np.ndarray,
-        spawn_y: float,
-        judgment_line_y: float,
+        geometry_y: np.ndarray,
         note_half_by_type: np.ndarray,
         lane_tints_rgb: np.ndarray,
         max_threats_per_frame: int,
@@ -62,9 +61,21 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         hold_duration_seconds: float = 0.0,
         hold_visual_max_fraction: float = 0.35,
         bomb_threat_type_id: int = None,
+        heal_threat_type_id: int = None,
     ) -> None:
         """`lane_center_xs` (float64, len 4) e `lane_tints_rgb`
         (uint8, shape (4,3)) sao pre-computados na composicao.
+        `geometry_y` e um array `[spawn_y, judgment_line_y]` MUTAVEL,
+        compartilhado por IDENTIDADE com o `ReverseScrollSystem`
+        (Inversao de Gravidade) -- uma nota nova nasce sempre na
+        geometria ATUAL (lida a cada spawn, nunca congelada na
+        construcao), entao ja nasce correta mesmo no meio de uma
+        inversao. Sem Reverse Scroll ativo, o array so contem os
+        valores fixos de sempre.
+
+        `hold_visual_max_fraction` (ver abaixo) tambem e recalculado por
+        spawn a partir da distancia ATUAL (`judgment_line_y - spawn_y`),
+        pelo mesmo motivo.
 
         `is_hold_by_row`/`hold_end_by_row` (opcionais, paralelos a
         `scheduled_spawns`/`hit_times`): marcam quais linhas sao notas
@@ -94,6 +105,10 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         distincao puramente por cor ja usada por Scratch/Hold neste
         modo. O `LaneJudgmentSystem` que decide a consequencia de
         acerta-la.
+
+        NOTA DE CURA (opt-in via `heal_threat_type_id`): mesmo
+        tratamento visual de uma nota comum, so o tint muda (verde) --
+        um PERFECT nela cura vida no `LaneJudgmentSystem`.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -111,8 +126,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
 
         self._hit_times = hit_times
         self._lane_center_xs = lane_center_xs
-        self._spawn_y = float(spawn_y)
-        self._judgment_line_y = float(judgment_line_y)
+        self._geometry_y = geometry_y
         self._note_half_by_type = note_half_by_type
         self._lane_tints_rgb = lane_tints_rgb
         self._min_travel_seconds = float(min_travel_seconds)
@@ -120,8 +134,9 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         self._hold_end_by_row = hold_end_by_row
         self._hold_threat_type_id = hold_threat_type_id
         self._hold_duration_seconds = float(hold_duration_seconds)
-        self._hold_visual_max_px = (self._judgment_line_y - self._spawn_y) * float(hold_visual_max_fraction)
+        self._hold_visual_max_fraction = float(hold_visual_max_fraction)
         self._bomb_threat_type_id = bomb_threat_type_id
+        self._heal_threat_type_id = heal_threat_type_id
         # roteamento kick/vocal so faz sentido em beatmaps MULTI-camada;
         # num mapa de camada unica ele colapsaria tudo em 2 colunas
         self._route_by_layer = bool(np.any(scheduled_spawns["layer"] != 0)) if scheduled_spawns.shape[0] else False
@@ -146,11 +161,14 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
             lane = original_lane % LANE_COUNT_4K
         threat_view["lane"][threat_row] = lane  # coluna 0..3 para o julgamento
 
+        spawn_y = float(self._geometry_y[0])
+        judgment_line_y = float(self._geometry_y[1])
+
         hit_time = float(self._hit_times[row_index])
         time_remaining = hit_time - self._compute_effective_time()
         if time_remaining < self._min_travel_seconds:
             time_remaining = self._min_travel_seconds
-        fall_speed = (self._judgment_line_y - self._spawn_y) / time_remaining
+        fall_speed = (judgment_line_y - spawn_y) / time_remaining
 
         is_hold = bool(self._is_hold_by_row[row_index]) if self._is_hold_by_row is not None else False
         hold_end = float(self._hold_end_by_row[row_index]) if is_hold else hit_time
@@ -182,7 +200,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         transform_row = self._transform_pool.dense_row_of(entity_index)
         transform_view = self._transform_pool.active_view()
         transform_view["position_x"][transform_row] = float(self._lane_center_xs[lane])
-        transform_view["position_y"][transform_row] = self._spawn_y
+        transform_view["position_y"][transform_row] = spawn_y
         # notas 1.7x maiores que o meio-tamanho logico: legibilidade da
         # queda importa mais que o volume exato (nao ha colisao no 4K).
         # Scratch (hold): a barra e esticada ao longo de Y pela duracao
@@ -190,14 +208,20 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         # encolhe conforme cai), suficiente para o efeito visual de
         # "nota longa" sem complicar a cinematica.
         if is_hold:
-            hold_span_px = (hold_end - hit_time) * fall_speed
+            # abs(): com Reverse Scroll ativo `fall_speed` pode ser
+            # NEGATIVO (subindo) -- o comprimento da barra e sempre
+            # positivo independente da direcao da queda.
+            hold_span_px = abs((hold_end - hit_time) * fall_speed)
             transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
             transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
         elif is_classic_hold:
             # teto de comprimento visual (ver docstring do construtor):
             # a duracao exigida do jogador (`duration_sec`) nao muda,
-            # so o quanto da queda a barra ocupa na tela.
-            hold_span_px = min((classic_hold_end - hit_time) * fall_speed, self._hold_visual_max_px)
+            # so o quanto da queda a barra ocupa na tela. Recalculado a
+            # cada spawn a partir da distancia ATUAL (Reverse Scroll
+            # pode ter mudado a distancia total de queda).
+            hold_visual_max_px = abs(judgment_line_y - spawn_y) * self._hold_visual_max_fraction
+            hold_span_px = min(abs((classic_hold_end - hit_time) * fall_speed), hold_visual_max_px)
             transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
             transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
         else:
@@ -240,6 +264,11 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
             sprite_view["tint_r"][sprite_row] = 235
             sprite_view["tint_g"][sprite_row] = 35
             sprite_view["tint_b"][sprite_row] = 35
+        elif self._heal_threat_type_id is not None and threat_type == self._heal_threat_type_id:
+            # verde de cura: um PERFECT nesta nota recupera vida
+            sprite_view["tint_r"][sprite_row] = 90
+            sprite_view["tint_g"][sprite_row] = 255
+            sprite_view["tint_b"][sprite_row] = 130
         else:
             sprite_view["tint_r"][sprite_row] = self._lane_tints_rgb[lane, 0]
             sprite_view["tint_g"][sprite_row] = self._lane_tints_rgb[lane, 1]

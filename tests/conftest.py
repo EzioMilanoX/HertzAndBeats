@@ -51,9 +51,13 @@ def make_config(beatmap_path: Path) -> HertzConfig:
         track_path="unused.wav",
         input_bindings_path="unused.json",
         stages_path="unused.json",
-        threat_type_ids={"rhythm_threat_basic": 0, "rhythm_threat_heavy": 1, "rhythm_threat_bomb": 2},
+        threat_type_ids={
+            "rhythm_threat_basic": 0, "rhythm_threat_heavy": 1,
+            "rhythm_threat_bomb": 2, "rhythm_threat_heal": 3,
+        },
         threat_half_extents={
-            "rhythm_threat_basic": 10.0, "rhythm_threat_heavy": 16.0, "rhythm_threat_bomb": 12.0,
+            "rhythm_threat_basic": 10.0, "rhythm_threat_heavy": 16.0,
+            "rhythm_threat_bomb": 12.0, "rhythm_threat_heal": 11.0,
         },
         lane_count=8,
         approach_seconds=2.0,

@@ -7,6 +7,8 @@ aritmetica e o `draw_batch` blita as Surfaces ja prontas.
 """
 from __future__ import annotations
 
+import random
+
 import pygame
 
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
@@ -14,6 +16,7 @@ from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
     TEX_DIGIT_BASE,
+    TEX_DISTRACTION_SPLAT,
     TEX_HEALTH_PIP,
     TEX_KEY_LABEL_BASE,
     TEX_LABEL_COMBO,
@@ -81,6 +84,25 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
     for lane, key_label in enumerate(LANE_KEY_LABELS):
         surface = key_font.render(key_label, True, (225, 220, 250)).convert_alpha()
         renderer.register_texture(TEX_KEY_LABEL_BASE + lane, surface)
+
+    # Obstrucao Visual (jumpscare): mancha de tinta procedural -- varios
+    # circulos irregulares sobrepostos, gerados por um RNG PROPRIO (seed
+    # fixa) para nao mexer no estado global de `random` e para o
+    # visual ser deterministico entre builds, mesmo criterio da sintese
+    # de SFX/faixas do resto do jogo.
+    splat_size = 220
+    splat = pygame.Surface((splat_size, splat_size), pygame.SRCALPHA)
+    rng = random.Random(1337)
+    center = splat_size / 2.0
+    for _ in range(9):
+        offset_x = rng.uniform(-splat_size * 0.28, splat_size * 0.28)
+        offset_y = rng.uniform(-splat_size * 0.28, splat_size * 0.28)
+        radius = rng.uniform(splat_size * 0.14, splat_size * 0.32)
+        alpha = rng.randint(190, 235)
+        pygame.draw.circle(
+            splat, (10, 8, 16, alpha), (int(center + offset_x), int(center + offset_y)), int(radius)
+        )
+    renderer.register_texture(TEX_DISTRACTION_SPLAT, splat.convert_alpha())
 
 
 _VIGNETTE_COLOR = (5, 3, 10, 255)

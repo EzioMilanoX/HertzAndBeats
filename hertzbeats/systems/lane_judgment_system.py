@@ -66,6 +66,12 @@ class LaneJudgmentSystem(ISystem):
     destruida silenciosamente como SURVIVED (sem punicao nenhuma),
     excluida da varredura generica de MISS pela mesma licao de exclusao
     do Hold/Scratch.
+
+    NOTAS DE CURA (opt-in via `heal_threat_type_id`): em tudo igual a
+    uma nota comum (pontua PERFECT/GOOD, deixar passar e MISS normal,
+    sem exclusao nenhuma de varredura) -- so um acerto PERFECT tem o
+    efeito colateral extra de curar `heal_amount` de vida, respeitando
+    o teto de `max_health`.
     """
 
     def __init__(
@@ -97,6 +103,10 @@ class LaneJudgmentSystem(ISystem):
         bomb_hit_shake_px: float = 0.0,
         bomb_blindness_seconds: float = 0.0,
         bomb_hit_sound_id: str = None,
+        heal_threat_type_id: int = None,
+        max_health: int = 0,
+        heal_amount: int = 1,
+        heal_sound_id: str = None,
     ) -> None:
         """Buffers pre-alocados pela capacidade da pool (o update nunca
         aloca arrays)."""
@@ -127,6 +137,10 @@ class LaneJudgmentSystem(ISystem):
         self._bomb_hit_shake_px = float(bomb_hit_shake_px)
         self._bomb_blindness_seconds = float(bomb_blindness_seconds)
         self._bomb_hit_sound_id = bomb_hit_sound_id
+        self._heal_threat_type_id = heal_threat_type_id
+        self._max_health = int(max_health)
+        self._heal_amount = int(heal_amount)
+        self._heal_sound_id = heal_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -281,6 +295,10 @@ class LaneJudgmentSystem(ISystem):
         )
         threat_view["is_hit"][best_row] = True
         threat_view["judgment"][best_row] = judgment
+        is_heal = (
+            self._heal_threat_type_id is not None
+            and int(threat_view["threat_type"][best_row]) == self._heal_threat_type_id
+        )
         world.destroy_entity(int(threat_view["packed_handle"][best_row]))
 
         state = self._game_state
@@ -294,6 +312,12 @@ class LaneJudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+
+        # Nota de Cura: so um PERFECT cura -- GOOD pontua normalmente
+        # (mesma nota, sem penalidade), mas nao recupera vida.
+        if is_heal and judgment == JUDGMENT_PERFECT and state.health < self._max_health:
+            state.health = min(state.health + self._heal_amount, self._max_health)
+            self._play(self._heal_sound_id, 0.6)
 
     def _play(self, sound_id, volume: float) -> None:
         """Dispara um SFX se houver backend e som configurados (testes
