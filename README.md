@@ -97,7 +97,7 @@ Se o áudio parecer adiantado/atrasado, calibre a latência de saída: `python -
 
 **Jogue qualquer `.mp3`, `.ogg`, `.wav` ou `.flac` na pasta [`musicas/`](musicas/) e abra o jogo.** Na primeira abertura a IA analisa a faixa (alguns segundos, com aviso na tela) e ela aparece no fim do menu; o beatmap fica cacheado em `data/beatmaps/user/` — as próximas aberturas são instantâneas. Substituiu o arquivo? A análise refaz sozinha.
 
-Com a música selecionada no menu, **A/D (ou ←/→) escolhem o minigame** — O Defensor, Sobrevivência, Arcade 4K ou Híbrido — e ENTER joga. O mesmo beatmap serve aos quatro modos.
+Com a música selecionada no menu, **A/D (ou ←/→) escolhem o minigame** — O Defensor, Sobrevivência, Arcade 4K, Híbrido, **Defensor: Polaridade** ou **Defensor: Notas Longas** — e ENTER joga. As duas últimas variantes são o próprio Defensor com `polarity_enabled`/`holds_enabled` ligados — as mesmas mecânicas das fases curadas 7 e 8, agora disponíveis para qualquer música sua. O mesmo beatmap serve a todas as variantes.
 
 A análise requer `librosa` (`pip install librosa`); sem ele, músicas já analisadas continuam jogáveis e as novas são puladas com aviso no console. Para controle fino (densidade, espaçamento, lanes), o CLI continua disponível:
 

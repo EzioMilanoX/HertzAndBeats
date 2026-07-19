@@ -83,14 +83,6 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
         renderer.register_texture(TEX_KEY_LABEL_BASE + lane, surface)
 
 
-_MODE_CONTROL_HINTS = {
-    "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
-    "survival": "W A S D movem  |  ESPACO dash atraves das ondas  |  sem tiro",
-    "lanes": "A S W D nas colunas, no ritmo das notas",
-    "hybrid": "W A S D movem + MOUSE/CLIQUE atiram  |  ESPACO dash",
-}
-"""Dica de controles exibida no menu para o MODO da fase selecionada."""
-
 _POLARITY_CONTROL_HINT = (
     "MOUSE mira  |  CLIQUE ESQ = AZUL, CLIQUE DIR = ROSA  |  PARRY em pesadas no tempo exato"
 )
@@ -103,11 +95,26 @@ _HOLDS_CONTROL_HINT = (
 """Dica dedicada da fase de Notas Longas -- Hold exige SUSTENTAR
 gatilho+mira, bem diferente do clique instantaneo do Defensor comum."""
 
+_MODE_CONTROL_HINTS = {
+    "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
+    "survival": "W A S D movem  |  ESPACO dash atraves das ondas  |  sem tiro",
+    "lanes": "A S W D nas colunas, no ritmo das notas",
+    "hybrid": "W A S D movem + MOUSE/CLIQUE atiram  |  ESPACO dash",
+    "polarity": _POLARITY_CONTROL_HINT,
+    "holds": _HOLDS_CONTROL_HINT,
+}
+"""Dica de controles exibida no menu para o MODO/variante da fase
+selecionada -- "polarity"/"holds" reusam a MESMA dica das fases curadas
+7/8 (mesmas mecanicas, agora tambem escolhiveis para musicas do
+jogador via A/D)."""
+
 _MODE_DISPLAY_NAMES = {
     "defender": "O DEFENSOR",
     "survival": "SOBREVIVENCIA",
     "lanes": "ARCADE 4K",
     "hybrid": "HIBRIDO",
+    "polarity": "DEFENSOR: POLARIDADE",
+    "holds": "DEFENSOR: NOTAS LONGAS",
 }
 """Nome exibido no seletor de minigame das musicas do jogador."""
 

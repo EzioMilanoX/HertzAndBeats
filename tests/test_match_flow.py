@@ -267,6 +267,92 @@ def test_user_song_mode_cycles_and_composes_chosen_mode(tmp_path, null_input):
     _press(loop, null_input, "confirm")
     assert loop.flow == FLOW_PLAYING
     assert loop._stage_config.game_mode == "survival"
+
+
+def test_user_song_can_reach_the_polarity_and_holds_variants(tmp_path, null_input):
+    """As duas variantes finais do ciclo ("polarity"/"holds") sao o
+    Defensor por baixo, com `polarity_enabled`/`holds_enabled` ligados
+    -- as MESMAS mecanicas das fases curadas 7/8, agora escolhiveis
+    para qualquer musica do jogador."""
+    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    song = StageDef(
+        stage_id="user_song", name="SONG", subtitle="sua musica",
+        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
+        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
+        tutorial_steps=(), selectable_mode=True,
+    )
+    audio_engine = NullAudioEngine()
+    loop = HertzGameLoop(
+        base_config=make_config(beatmap_path),
+        stages=(song,),
+        renderer=NullRenderer(),
+        input_provider=null_input,
+        audio_engine=audio_engine,
+        audio_clock=audio_engine.get_clock(),
+    )
+
+    # defender -> survival -> lanes -> hybrid -> polarity (4 passos)
+    for _ in range(4):
+        _press(loop, null_input, "menu_right")
+    assert loop.chosen_mode(0) == "polarity"
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.game_mode == "defender"
+    assert loop._stage_config.polarity_enabled is True
+    assert loop._stage_config.holds_enabled is False
+
+
+def test_user_song_holds_variant_enables_only_holds(tmp_path, null_input):
+    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    song = StageDef(
+        stage_id="user_song", name="SONG", subtitle="sua musica",
+        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
+        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
+        tutorial_steps=(), selectable_mode=True,
+    )
+    audio_engine = NullAudioEngine()
+    loop = HertzGameLoop(
+        base_config=make_config(beatmap_path),
+        stages=(song,),
+        renderer=NullRenderer(),
+        input_provider=null_input,
+        audio_engine=audio_engine,
+        audio_clock=audio_engine.get_clock(),
+    )
+
+    # defender -> survival -> lanes -> hybrid -> polarity -> holds (5 passos)
+    for _ in range(5):
+        _press(loop, null_input, "menu_right")
+    assert loop.chosen_mode(0) == "holds"
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.game_mode == "defender"
+    assert loop._stage_config.holds_enabled is True
+    assert loop._stage_config.polarity_enabled is False
+
+
+def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_input):
+    """Fases curadas (`selectable_mode=False`) ignoram `MODE_VARIANT_OVERRIDES`
+    por completo -- so usam os `overrides` do proprio `stages.json`."""
+    beatmap_path = write_beatmap(tmp_path / "curated.beatmap.json", [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5},
+    ])
+    stage = StageDef(
+        stage_id="curated", name="FASE CURADA", subtitle="", track_path=str(tmp_path / "c.wav"),
+        beatmap_path=str(beatmap_path), synth={"bpm": 120.0, "bars": 1}, beatmap_params={},
+        overrides={"game_mode": "survival"}, selectable_mode=False,
+    )
+    audio_engine = NullAudioEngine()
+    loop = HertzGameLoop(
+        base_config=make_config(beatmap_path), stages=(stage,), renderer=NullRenderer(),
+        input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
+    )
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.game_mode == "survival"
+    assert loop._stage_config.polarity_enabled is False
+    assert loop._stage_config.holds_enabled is False
     # e realmente o modo Sobrevivencia: sem sistema de julgamento radial
     from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
     assert any(isinstance(s, SurvivalPlayerSystem) for s in loop.composed.world._systems)
