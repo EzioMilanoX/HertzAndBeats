@@ -22,10 +22,6 @@ def _basic(timestamp: float, lane: int = 0) -> dict:
     return {"timestamp_seconds": timestamp, "threat_type": "rhythm_threat_basic", "lane": lane, "strength": 0.5}
 
 
-def _heavy(timestamp: float, lane: int = 0) -> dict:
-    return {"timestamp_seconds": timestamp, "threat_type": "rhythm_threat_heavy", "lane": lane, "strength": 0.9}
-
-
 def _load(tmp_path, threats):
     beatmap_path = write_beatmap(tmp_path / "t.beatmap.json", threats)
     scheduled = BeatmapLoader({"rhythm_threat_basic": 0, "rhythm_threat_heavy": 1}).load(beatmap_path)
@@ -88,22 +84,6 @@ def test_practice_mode_suppresses_health_damage_in_defender(tmp_path, null_input
     assert state.miss_count == 1  # o veredito continua contando
     assert state.combo_count == 0  # combo ainda quebra
     assert state.health == config.max_health  # so a VIDA e poupada
-
-
-def test_practice_mode_suppresses_health_damage_in_survival(tmp_path, null_input, null_clock):
-    beatmap_path = write_beatmap(tmp_path / "s.beatmap.json", [_heavy(3.0, lane=0)])
-    config = dataclasses.replace(make_config(beatmap_path), practice_mode=True, game_mode="survival")
-    composed = compose_world(config, null_input, null_clock)
-    state = composed.game_state
-
-    null_clock.set_now_seconds(1.0)
-    null_input.poll()
-    composed.world.step(0.0)
-    null_clock.set_now_seconds(3.0)  # onset: parede pesada centralizada toca o jogador
-    composed.world.step(0.016)
-
-    assert state.miss_count == 1
-    assert state.health == config.max_health
 
 
 @pytest.fixture

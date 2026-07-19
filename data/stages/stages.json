@@ -59,21 +59,8 @@
       }
     },
     {
-      "stage_id": "stage4_ondas_de_choque",
-      "name": "4 - ONDAS DE CHOQUE",
-      "subtitle": "sobrevivencia | beatmap da fase 1",
-      "track_path": "data/tracks/stage1_pulso_leve.wav",
-      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
-      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
-      "overrides": {
-        "game_mode": "survival",
-        "approach_seconds": 2.0,
-        "max_health": 4
-      }
-    },
-    {
       "stage_id": "stage5_arcade_4k",
-      "name": "5 - ARCADE 4K",
+      "name": "4 - ARCADE 4K",
       "subtitle": "A S W D | beatmap da fase 2",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
@@ -85,7 +72,7 @@
     },
     {
       "stage_id": "stage_polaridade",
-      "name": "7 - POLARIDADE",
+      "name": "5 - POLARIDADE",
       "subtitle": "azul/rosa + parry | beatmap da fase 3",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
@@ -98,7 +85,7 @@
     },
     {
       "stage_id": "stage_notas_longas",
-      "name": "8 - NOTAS LONGAS",
+      "name": "6 - NOTAS LONGAS",
       "subtitle": "segure o gatilho + a mira | beatmap da fase 1",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
@@ -111,24 +98,8 @@
       }
     },
     {
-      "stage_id": "stage6_hibrido",
-      "name": "6 - HIBRIDO",
-      "subtitle": "tiro + dash | beatmap da fase 3",
-      "track_path": "data/tracks/stage3_sobrecarga.wav",
-      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
-      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
-      "overrides": {
-        "game_mode": "hybrid",
-        "approach_seconds": 2.0,
-        "max_health": 4,
-        "aim_tolerance_degrees": 40.0,
-        "misfire_breaks_combo": false,
-        "mixed_section_seconds": 9.6
-      }
-    },
-    {
       "stage_id": "stage9_arcade_notas_longas",
-      "name": "9 - ARCADE: NOTAS LONGAS",
+      "name": "7 - ARCADE: NOTAS LONGAS",
       "subtitle": "segure a coluna + Shield | beatmap da fase 2",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
@@ -137,20 +108,6 @@
         "game_mode": "lanes",
         "holds_enabled": true,
         "approach_seconds": 1.8
-      }
-    },
-    {
-      "stage_id": "stage10_sobrevivencia_safe_zone",
-      "name": "10 - SOBREVIVENCIA: SAFE ZONE",
-      "subtitle": "fique parado + Ancora (E) | beatmap da fase 1",
-      "track_path": "data/tracks/stage1_pulso_leve.wav",
-      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
-      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
-      "overrides": {
-        "game_mode": "survival",
-        "holds_enabled": true,
-        "approach_seconds": 2.0,
-        "max_health": 4
       }
     }
   ]

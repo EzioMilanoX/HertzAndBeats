@@ -17,9 +17,9 @@ class CameraShakeSystem(ISystem):
 
     Este sistema so cuida do DECAIMENTO: `GameState.shake_intensity` e
     escrito por `trigger_shake(...)` de QUALQUER sistema (Hold quebrado
-    no Defensor, onda fora da Safe Zone na Sobrevivencia, ...) e este
-    sistema o reduz linearmente ate 0 -- um UNICO escalar primitivo,
-    entao mesmo sem vetorizacao numpy isso e Zero-GC por construcao
+    no Defensor, impacto do Parry, ...) e este sistema o reduz
+    linearmente ate 0 -- um UNICO escalar primitivo, entao mesmo sem
+    vetorizacao numpy isso e Zero-GC por construcao
     (nao ha array por entidade aqui: a "camera" e uma so).
 
     Registrado INCONDICIONALMENTE em `compose_world` (como o

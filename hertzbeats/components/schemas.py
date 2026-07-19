@@ -23,38 +23,29 @@ JUDGMENT_MISS: int = 3
 
 JUDGMENT_DODGED: int = 4
 """Atravessou a ameaca durante os i-frames de um Dash: nao pune nem
-quebra o combo, mas tambem nao pontua (no modo Sobrevivencia, pontua
-como sobrevivida)."""
+quebra o combo, mas tambem nao pontua."""
 
 JUDGMENT_SURVIVED: int = 5
-"""Modo Sobrevivencia: a ameaca varreu a arena e expirou sem tocar o
-jogador -- pontua e estende o combo."""
+"""Arcade 4K -- Bombas: a nota passou da linha de julgamento sem ser
+tocada -- o jogo CORRETO (silencioso, sem punicao nem pontuacao)."""
 
 MODE_TAG_DEFENDER: int = 0
 """Ameaca radial (julgada por mira + tempo)."""
 
-MODE_TAG_SURVIVAL: int = 1
-"""Parede de som (julgada por colisao/expiracao)."""
-
 MODE_TAG_LANES: int = 2
 """Nota de coluna (julgada por tecla + tempo)."""
 
-PHASE_WARNING: int = 0
-"""Fase de TELEGRAPH de uma parede de som: linha-guia translucida
-piscando, IGNORADA pela colisao (hitbox com layer/mask 0)."""
-
 PHASE_LETHAL: int = 1
-"""Fase letal: no instante do onset a parede fica solida e a colisao
-passa a valer."""
+"""Fase padrao de toda ameaca/nota: colisao/julgamento valem
+normalmente desde o spawn."""
 
 PHASE_ORBITING: int = 2
 """Defensor -- Captura Orbital (Escudos Rotativos): um Parry Perfeito
 numa ameaca tipo "orbit" nao a destroi nem a reflete -- ela vira um
 ESCUDO que orbita o nucleo para sempre (`OrbitalCaptureSystem`, seno/
 cosseno sobre `spawn_angle_rad` como offset angular fixo + o relogio).
-Reusa o MESMO campo `phase` do telegraph da Sobrevivencia (PHASE_WARNING/
-PHASE_LETHAL) sem conflito de dono: paredes de som nunca usam
-PHASE_ORBITING e ameacas orbitais nunca usam PHASE_WARNING."""
+Reaproveita o MESMO campo `phase` (normalmente PHASE_LETHAL) sem
+precisar de um campo novo."""
 
 POLARITY_BLUE: int = 0
 """Timbre AGUDO (metade superior dos buckets de timbre da IA -- ver
@@ -80,12 +71,11 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("polarity_id", np.uint8),
         ("is_reflected", np.bool_),
         ("is_hold", np.bool_),
-        ("has_grazed", np.bool_),
         ("duration_sec", np.float32),
     ]
 )
 """Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
-arquitetura). O MESMO schema serve aos tres modos de jogo: a IA dita o
+arquitetura). O MESMO schema serve aos dois modos de jogo: a IA dita o
 TEMPO (`target_hit_time_sec`); o modo ativo dita a INTERPRETACAO
 espacial dos campos (ver abaixo).
 
@@ -95,38 +85,29 @@ Campos:
         `threat_type_pool_name` -- esta pool cumpre os dois papeis, pois
         possui ambos os campos). Interpretacao por modo:
         Defensor -> setor angular da borda (angulo = tau*lane/8);
-        Sobrevivencia -> eixo/borda da varredura (lane % 4);
         Arcade 4K -> coluna da nota (lane % 4).
-    mode_tag: MODE_TAG_* -- QUAL juiz e dono desta ameaca. No modo
-        Hibrido, ameacas radiais e paredes coexistem na MESMA pool;
-        cada juiz filtra pelo seu tag (mascara vetorizada) e nunca toca
-        as ameacas do outro. Escrito SEMPRE pelo spawner (linhas densas
-        sao reusadas apos swap-remove -- um tag obsoleto seria lido como
-        valido).
+    mode_tag: MODE_TAG_* -- QUAL juiz e dono desta ameaca. Escrito
+        SEMPRE pelo spawner (linhas densas sao reusadas apos
+        swap-remove -- um tag obsoleto seria lido como valido).
     strength: intensidade 0..1 extraida pela IA offline (onset strength).
     target_hit_time_sec: instante EXATO (base de tempo de
         `IAudioClock.now_seconds`) do evento ritmico: toque no anel do
-        nucleo (Defensor), cruzamento do centro da arena
-        (Sobrevivencia) ou chegada a linha de julgamento (Arcade). E
+        nucleo (Defensor) ou chegada a linha de julgamento (Arcade). E
         contra este campo que os JudgmentSystems medem o delta do input.
-    expire_time_sec: instante em que a ameaca deixa de ser relevante
-        (Sobrevivencia: varredura saiu da arena -> vira SURVIVED se
-        ninguem foi atingido). Nos demais modos, o proprio instante da
-        batida (telemetria).
+    expire_time_sec: telemetria (o proprio instante da batida); tambem
+        usado como fim do cluster de Scratch do Arcade 4K (ver `is_hold`).
     spawn_angle_rad: Defensor: angulo (tela, y para baixo) da borda onde
-        nasceu, comparado com a mira 360. Demais modos: orientacao
+        nasceu, comparado com a mira 360. Arcade 4K: orientacao
         visual/telemetria. Captura Orbital (Defensor): apos a captura,
         REUTILIZADO como o OFFSET ANGULAR FIXO da orbita (congelado no
         angulo de spawn) -- o `OrbitalCaptureSystem` soma
         `angular_speed * agora_efetivo` a ele a cada frame, entao
         escudos capturados em momentos diferentes mantem seu
         espacamento relativo enquanto giram juntos.
-    phase: PHASE_* -- ciclo telegraph->letal das paredes de som
-        (Sobrevivencia/Hibrido): nascem como AVISO (colisao desligada
-        via layer/mask 0) e viram letais exatamente no onset. Ameacas
-        radiais e notas nascem direto em PHASE_LETHAL. Defensor --
-        Captura Orbital: um Parry Perfeito num tipo "orbit" grava
-        PHASE_ORBITING (ver a constante) em vez de destruir/refletir.
+    phase: PHASE_* -- normalmente PHASE_LETHAL (default de toda ameaca
+        desde o spawn). Defensor -- Captura Orbital: um Parry Perfeito
+        num tipo "orbit" grava PHASE_ORBITING (ver a constante) em vez
+        de destruir/refletir.
     is_hit: marcada True quando o jogador converte a ameaca com input
         correto -- o restante do frame ignora a linha, ja com destruicao
         enfileirada para o flush.
@@ -152,9 +133,6 @@ Campos:
         `target_hit_time_sec` (inicio) e `expire_time_sec` (fim do
         cluster) -- julgada por `ScratchJudgmentSystem`, nao pelo
         `LaneJudgmentSystem` comum.
-    has_grazed: Sobrevivencia -- True apos o `GrazeSystem` ja ter
-        contabilizado esta parede como "raspada" (impede pontuar Graze
-        repetidamente por quadro enquanto o jogador permanece na faixa).
     duration_sec: Notas Longas (Holds) genericas -- `> 0.0` marca a linha
         como uma nota de HOLD cuja janela de sustentacao vai de
         `target_hit_time_sec` (inicio, "Fase 1") ate

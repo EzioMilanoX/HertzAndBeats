@@ -37,9 +37,6 @@
 
   "game_mode": "defender",
   "misfire_breaks_combo": true,
-  "survival_move_speed": 320.0,
-  "survival_dash_speed": 820.0,
   "lane_spacing": 110.0,
-  "judgment_line_offset": 170.0,
-  "mixed_section_seconds": 12.0
+  "judgment_line_offset": 170.0
 }

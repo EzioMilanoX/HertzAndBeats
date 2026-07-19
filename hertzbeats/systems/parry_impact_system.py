@@ -22,11 +22,8 @@ jogador; este sistema so processa pares que NAO envolvem o jogador)."""
 
 SHIELD_COLLISION_LAYER = 64
 """Camada exclusiva dos Escudos Rotativos (Captura Orbital) -- bit
-proprio, distinto de `REFLECTED_COLLISION_LAYER` (32) e de
-`SHOCKWAVE_COLLISION_LAYER` (16, Sobrevivencia/Hibrido): um escudo e um
-"atacante" permanente (nunca expira/sai da arena como um refletido), e
-precisa coexistir sem overlap de bits com QUALQUER camada ja usada no
-Hibrido, onde Escudo e Shockwave podem estar ativos no MESMO `World`."""
+proprio, distinto de `REFLECTED_COLLISION_LAYER` (32): um escudo e um
+"atacante" permanente (nunca expira/sai da arena como um refletido)."""
 
 
 class ParryImpactSystem(ISystem):
@@ -52,8 +49,8 @@ class ParryImpactSystem(ISystem):
     permanece `False` neles, entao `_expire_out_of_bounds` os ignora
     naturalmente).
 
-    Zero-GC: mesmo idioma do `CoreDamageSystem`/`SurvivalDamageSystem`
-    -- laco escalar sobre os poucos pares do frame (tipicamente 0-2).
+    Zero-GC: mesmo idioma do `CoreDamageSystem` -- laco escalar sobre
+    os poucos pares do frame (tipicamente 0-2).
     """
 
     def __init__(

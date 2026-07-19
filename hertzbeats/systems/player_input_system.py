@@ -44,14 +44,8 @@ class PlayerInputSystem(ISystem):
         crosshair_orbit_radius: float,
         dash_duration_seconds: float,
         dash_cooldown_seconds: float,
-        manage_dash: bool = True,
     ) -> None:
-        """Resolve pools uma unica vez; guarda indices/afinacao primitivos.
-
-        `manage_dash=False` reduz o sistema a MIRA + crosshair: usado no
-        modo Hibrido, onde dash/i-frames/tint pertencem ao
-        `SurvivalPlayerSystem` (um unico escritor por campo de estado).
-        """
+        """Resolve pools uma unica vez; guarda indices/afinacao primitivos."""
         self._input_provider = input_provider
         self._player_pool = memory_manager.get_pool("player_state")
         self._transform_pool = memory_manager.get_pool("transform")
@@ -63,7 +57,6 @@ class PlayerInputSystem(ISystem):
         self._crosshair_orbit_radius = float(crosshair_orbit_radius)
         self._dash_duration_seconds = float(dash_duration_seconds)
         self._dash_cooldown_seconds = float(dash_cooldown_seconds)
-        self._manage_dash = bool(manage_dash)
 
     def update(self, world: World, delta_time: float) -> None:
         """Atualiza mira, dash e timers do jogador para este frame."""
@@ -76,14 +69,13 @@ class PlayerInputSystem(ISystem):
             player_view["aim_angle_rad"][player_row] = math.atan2(aim_y, aim_x)
         aim_angle = float(player_view["aim_angle_rad"][player_row])
 
-        if self._manage_dash:
-            cooldown = float(player_view["dash_cooldown_sec"][player_row]) - delta_time
-            iframes = float(player_view["iframe_timer_sec"][player_row]) - delta_time
-            if self._input_provider.is_action_pressed("dash") and cooldown <= 0.0:
-                iframes = self._dash_duration_seconds
-                cooldown = self._dash_cooldown_seconds
-            player_view["dash_cooldown_sec"][player_row] = cooldown if cooldown > 0.0 else 0.0
-            player_view["iframe_timer_sec"][player_row] = iframes if iframes > 0.0 else 0.0
+        cooldown = float(player_view["dash_cooldown_sec"][player_row]) - delta_time
+        iframes = float(player_view["iframe_timer_sec"][player_row]) - delta_time
+        if self._input_provider.is_action_pressed("dash") and cooldown <= 0.0:
+            iframes = self._dash_duration_seconds
+            cooldown = self._dash_cooldown_seconds
+        player_view["dash_cooldown_sec"][player_row] = cooldown if cooldown > 0.0 else 0.0
+        player_view["iframe_timer_sec"][player_row] = iframes if iframes > 0.0 else 0.0
 
         # arma emperrada (misfire): decrementa aqui, o dono dos timers
         gun_jam = float(player_view["gun_jam_sec"][player_row]) - delta_time
@@ -104,14 +96,13 @@ class PlayerInputSystem(ISystem):
         sprite_view = self._sprite_pool.active_view()
         sprite_view["tint_a"][crosshair_sprite_row] = 80 if gun_jam > 0.0 else 255
 
-        if self._manage_dash:
-            player_sprite_row = self._sprite_pool.dense_row_of(self._player_entity_index)
-            sprite_view = self._sprite_pool.active_view()
-            if iframes > 0.0:
-                sprite_view["tint_r"][player_sprite_row] = 80
-                sprite_view["tint_g"][player_sprite_row] = 255
-                sprite_view["tint_b"][player_sprite_row] = 255
-            else:
-                sprite_view["tint_r"][player_sprite_row] = 240
-                sprite_view["tint_g"][player_sprite_row] = 240
-                sprite_view["tint_b"][player_sprite_row] = 255
+        player_sprite_row = self._sprite_pool.dense_row_of(self._player_entity_index)
+        sprite_view = self._sprite_pool.active_view()
+        if iframes > 0.0:
+            sprite_view["tint_r"][player_sprite_row] = 80
+            sprite_view["tint_g"][player_sprite_row] = 255
+            sprite_view["tint_b"][player_sprite_row] = 255
+        else:
+            sprite_view["tint_r"][player_sprite_row] = 240
+            sprite_view["tint_g"][player_sprite_row] = 240
+            sprite_view["tint_b"][player_sprite_row] = 255

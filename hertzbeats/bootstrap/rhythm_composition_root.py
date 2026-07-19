@@ -46,7 +46,6 @@ from hertzbeats.audio.sfx_synth import (
     SFX_CANNON,
     SFX_CLICK,
     SFX_DEFLECT,
-    SFX_GRAZE,
     SFX_HEAL,
     SFX_HOLD_BREAK,
     SFX_HOLD_ENGAGE,
@@ -68,7 +67,6 @@ from hertzbeats.systems.distraction_system import (
     DistractionSystem,
     parse_distraction_events,
 )
-from hertzbeats.systems.graze_system import GrazeSystem
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
 from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
 from hertzbeats.systems.parry_impact_system import (
@@ -77,8 +75,6 @@ from hertzbeats.systems.parry_impact_system import (
     ParryImpactSystem,
 )
 from hertzbeats.systems.scratch_judgment_system import ScratchJudgmentSystem
-from hertzbeats.systems.shockwave_system import SHOCKWAVE_DTYPE, ShockwaveSystem
-from hertzbeats.systems.wall_phase_system import WallPhaseSystem
 from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
@@ -100,10 +96,6 @@ from hertzbeats.systems.lane_note_spawner_system import LANE_COUNT_4K, LaneNoteS
 from hertzbeats.systems.player_input_system import PlayerInputSystem
 from hertzbeats.systems.radial_spawner_system import RadialRhythmSpawnerSystem
 from hertzbeats.systems.reverse_scroll_system import ReverseScrollSystem
-from hertzbeats.systems.safe_zone_judgment_system import SafeZoneJudgmentSystem
-from hertzbeats.systems.survival_damage_system import SurvivalDamageSystem
-from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
-from hertzbeats.systems.survival_spawner_system import SurvivalSpawnerSystem
 from hertzbeats.systems.tutorial_system import TutorialSystem
 from hertzbeats.systems.ui_render_system import UIRenderSystem
 from hertzbeats.systems.visual_modifier_system import VisualModifierSystem
@@ -170,8 +162,8 @@ class ComposedGame:
 
     @property
     def spawner_system(self):
-        """Atalho de conveniencia: o spawner principal (modos puros tem
-        exatamente um; o Hibrido tem dois -- ver `spawner_systems`)."""
+        """Atalho de conveniencia: o spawner principal (todo modo tem
+        exatamente um -- ver `spawner_systems`)."""
         return self.spawner_systems[0]
 
     @property
@@ -400,166 +392,16 @@ def _compose_defender_mode(ctx: _ModeContext):
     return (spawner_system,), collision_system
 
 
-def _create_shockwave_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
-    """Pre-cria `pool_size` entidades de onda de choque (Pulso de
-    Impacto), inicialmente INATIVAS (hitbox/sprite zerados pelo proprio
-    `MemoryManager` -- camada/mascara 0 e alfa 0 sao o "invisivel/sem
-    colisao" default de uma linha nova). Disciplina Zero-GC MAIS
-    ESTRITA que o resto do jogo: este pool fixo e reaproveitado para
-    sempre em round-robin pelo `ShockwaveSystem`, nunca criado/destruido
-    durante a partida."""
-    indices = np.zeros(pool_size, dtype=np.int64)
-    for i in range(pool_size):
-        indices[i] = unpack_index(world.create_entity("shockwave"))
-    return indices
-
-
 def _create_distraction_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
     """Pre-cria `pool_size` entidades de Obstrucao Visual (jumpscare),
     inicialmente INATIVAS (`tint_a=0` default de uma linha nova de
-    sprite) -- MESMA disciplina Zero-GC do `_create_shockwave_pool`:
+    sprite) -- disciplina Zero-GC MAIS ESTRITA que o resto do jogo:
     pool fixo, reaproveitado para sempre em round-robin pelo
     `DistractionSystem`, nunca criado/destruido durante a partida."""
     indices = np.zeros(pool_size, dtype=np.int64)
     for i in range(pool_size):
         indices[i] = unpack_index(world.create_entity("distraction"))
     return indices
-
-
-def _compose_survival_mode(ctx: _ModeContext):
-    """MODO 2 -- Sobrevivencia Pura (estilo Just Shapes & Beats):
-    movimento livre, paredes de som varrem a arena cruzando o centro na
-    batida; sem botao de ataque -- julgamento 100% via CollisionSystem,
-    Dash com i-frames atravessa. Ordem: SurvivalPlayer -> Spawner de
-    varreduras -> Physics -> Collision -> SurvivalDamage."""
-    config = ctx.config
-
-    # espessura da barra por tipo: derivada dos meios-tamanhos radiais,
-    # mais fina -- e SEMPRE atravessavel com um dash bem cronometrado
-    bar_half_by_type = np.maximum(ctx.threat_half_by_type * 0.7, 5.0)
-
-    spawner_system = SurvivalSpawnerSystem(
-        audio_clock=ctx.audio_clock,
-        memory_manager=ctx.memory_manager,
-        scheduled_spawns=ctx.scheduled,
-        hit_times=ctx.hit_times,
-        threat_archetype_name="rhythm_threat_radial",
-        arena_width=float(config.window_width),
-        arena_height=float(config.window_height),
-        bar_half_by_type=bar_half_by_type,
-        threat_collision_layer=THREAT_COLLISION_LAYER,
-        threat_collision_mask=PLAYER_COLLISION_LAYER,
-        max_threats_per_frame=config.max_threats_per_frame,
-        strike_seconds=config.survival_strike_seconds,
-        hold_threat_type_id=(
-            config.threat_type_ids.get("rhythm_threat_heavy", -1) if config.holds_enabled else None
-        ),
-        hold_duration_seconds=config.hold_duration_seconds,
-        safe_zone_radius=config.safe_zone_radius,
-    )
-    collision_system = CollisionSystem(
-        ctx.memory_manager,
-        transform_pool_name="transform",
-        hitbox_pool_name="hitbox",
-        max_pairs=MAX_COLLISION_PAIRS,
-    )
-
-    _hide_sprite(ctx.memory_manager, ctx.crosshair_entity_index)  # sem mira neste modo
-
-    survival_player_system = SurvivalPlayerSystem(
-        input_provider=ctx.input_provider,
-        memory_manager=ctx.memory_manager,
-        player_entity_index=ctx.player_entity_index,
-        arena_width=float(config.window_width),
-        arena_height=float(config.window_height),
-        move_speed=config.survival_move_speed,
-        dash_speed=config.survival_dash_speed,
-        dash_duration_seconds=config.dash_duration_seconds,
-        dash_cooldown_seconds=config.dash_cooldown_seconds,
-        audio_clock=ctx.audio_clock,
-        on_beat_window_seconds=config.dash_beat_window_seconds,
-        audio_engine=ctx.audio_engine,
-        offbeat_sound_id=SFX_CLICK,
-    )
-    ctx.world.register_system(survival_player_system)
-    ctx.world.register_system(spawner_system)
-    ctx.world.register_system(
-        WallPhaseSystem(  # ANTES da colisao: a virada aviso->letal vale no frame do onset
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            lethal_collision_layer=THREAT_COLLISION_LAYER,
-            lethal_collision_mask=PLAYER_COLLISION_LAYER,
-        )
-    )
-    ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
-    ctx.world.register_system(collision_system)
-    ctx.world.register_system(
-        GrazeSystem(
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            player_entity_index=ctx.player_entity_index,
-            graze_margin=config.graze_margin,
-            fever_gain_per_graze=config.fever_gain_per_graze,
-            fever_decay_per_second=config.fever_decay_per_second,
-            fever_score_multiplier=config.fever_score_multiplier,
-            graze_score_per_hit=config.graze_score_per_hit,
-            audio_engine=ctx.audio_engine,
-            graze_sound_id=SFX_GRAZE,
-        )
-    )
-    shockwave_entity_indices = _create_shockwave_pool(
-        ctx.world, ctx.memory_manager, config.shockwave_pool_size
-    )
-    ctx.world.register_system(
-        ShockwaveSystem(
-            collision_system=collision_system,
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            survival_player_system=survival_player_system,
-            player_entity_index=ctx.player_entity_index,
-            shockwave_entity_indices=shockwave_entity_indices,
-            min_radius=config.shockwave_min_radius,
-            max_radius=config.shockwave_max_radius,
-            duration_seconds=config.shockwave_duration_seconds,
-            heavy_threat_type_id=config.threat_type_ids.get("rhythm_threat_heavy", -1),
-            score_per_kill=config.score_good,
-            trigger_shake_px=config.shockwave_trigger_shake_px,
-        )
-    )
-    ctx.world.register_system(
-        SurvivalDamageSystem(
-            collision_system=collision_system,
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            player_entity_index=ctx.player_entity_index,
-            score_survive=config.score_good,
-            judgment_display_seconds=config.judgment_display_seconds,
-            practice_mode=config.practice_mode,
-            damage_shake_px=config.survival_damage_shake_px,
-        )
-    )
-    if config.holds_enabled:
-        ctx.world.register_system(
-            SafeZoneJudgmentSystem(
-                audio_clock=ctx.audio_clock,
-                input_provider=ctx.input_provider,
-                memory_manager=ctx.memory_manager,
-                game_state=ctx.game_state,
-                player_entity_index=ctx.player_entity_index,
-                anchor_action_name=config.anchor_action_name,
-                score_per_success=config.score_good,
-                judgment_display_seconds=config.judgment_display_seconds,
-                safe_zone_break_shake_px=config.safe_zone_break_shake_px,
-                rumble_low_freq=config.rumble_low_freq,
-                rumble_high_freq=config.rumble_high_freq,
-                rumble_duration_seconds=config.rumble_duration_seconds,
-                practice_mode=config.practice_mode,
-                audio_engine=ctx.audio_engine,
-                break_sound_id=SFX_HOLD_BREAK,
-            )
-        )
-    return (spawner_system,), collision_system
 
 
 def lane_center_positions(config: HertzConfig) -> np.ndarray:
@@ -749,9 +591,9 @@ def _compose_lanes_mode(ctx: _ModeContext):
         )
     )
     # Obstrucoes Visuais (jumpscares): pool fixo de entidades pre-alocado
-    # em `compose_world` (fora deste modo -- mesmo criterio do
-    # `shockwave`), o modo so registra o sistema que consome os eventos
-    # "distraction" de `modchart_events`.
+    # aqui mesmo (disciplina Zero-GC mais estrita: nunca criado/destruido
+    # durante a partida), o modo so registra o sistema que consome os
+    # eventos "distraction" de `modchart_events`.
     distraction_events = parse_distraction_events(ctx.modchart_events)
     distraction_entity_indices = _create_distraction_pool(
         ctx.world, ctx.memory_manager, config.distraction_pool_size
@@ -771,279 +613,9 @@ def _compose_lanes_mode(ctx: _ModeContext):
     return (spawner_system,), None
 
 
-def _compose_hybrid_mode(ctx: _ModeContext):
-    """MODO 4 -- Hibrido (Defensor + Sobrevivencia alternando por SECAO
-    da musica): o beatmap e PARTICIONADO na composicao -- eventos de
-    secoes pares viram ameacas radiais (atire na batida), os de secoes
-    impares viram paredes de som (dashe atraves). Dois spawners
-    coexistem, cada um consumindo APENAS a sua particao pre-filtrada
-    (zero decisao de modo em runtime); os juizes se ignoram mutuamente
-    via `mode_tag`. O jogador MOVE o corpo (WASD/dash, i-frames) e mira
-    a torreta do nucleo com o mouse -- 'voce e o escudo movel do
-    nucleo'. Ordem: SurvivalPlayer (corpo) -> PlayerInput (mira, sem
-    dash) -> Spawner radial -> Spawner de varreduras -> Judgment ->
-    Physics -> Collision -> CoreDamage -> SurvivalDamage."""
-    config = ctx.config
-    center_x, center_y = config.center_xy
-
-    # particao por secao musical, sobre os tempos de IMPACTO (a janela
-    # de spawn atravessa a fronteira de secao sem problema algum)
-    section_index = np.floor_divide(ctx.hit_times, config.mixed_section_seconds).astype(np.int64)
-    defender_rows = np.flatnonzero(section_index % 2 == 0)
-    survival_rows = np.flatnonzero(section_index % 2 == 1)
-    defender_scheduled = ctx.scheduled[defender_rows]
-    defender_hits = ctx.hit_times[defender_rows]
-    survival_scheduled = ctx.scheduled[survival_rows]
-    survival_hits = ctx.hit_times[survival_rows]
-
-    radial_spawner = RadialRhythmSpawnerSystem(
-        audio_clock=ctx.audio_clock,
-        memory_manager=ctx.memory_manager,
-        scheduled_spawns=defender_scheduled,
-        hit_times=defender_hits,
-        threat_archetype_name="rhythm_threat_radial",
-        center_xy=(center_x, center_y),
-        spawn_radius=config.spawn_radius,
-        core_half_extent=config.core_half_extent,
-        lane_count=config.lane_count,
-        threat_half_by_type=ctx.threat_half_by_type,
-        threat_texture_by_type=ctx.threat_texture_by_type,
-        threat_collision_layer=THREAT_COLLISION_LAYER,
-        threat_collision_mask=PLAYER_COLLISION_LAYER,
-        max_threats_per_frame=config.max_threats_per_frame,
-        ring_archetype_name="convergence_ring",
-        polarity_enabled=config.polarity_enabled,
-        orbit_threat_type_id=(
-            config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
-        ),
-    )
-    wall_spawner = SurvivalSpawnerSystem(
-        audio_clock=ctx.audio_clock,
-        memory_manager=ctx.memory_manager,
-        scheduled_spawns=survival_scheduled,
-        hit_times=survival_hits,
-        threat_archetype_name="rhythm_threat_radial",
-        arena_width=float(config.window_width),
-        arena_height=float(config.window_height),
-        bar_half_by_type=np.maximum(ctx.threat_half_by_type * 0.7, 5.0),
-        threat_collision_layer=THREAT_COLLISION_LAYER,
-        threat_collision_mask=PLAYER_COLLISION_LAYER,
-        max_threats_per_frame=config.max_threats_per_frame,
-        strike_seconds=config.survival_strike_seconds,
-        hold_threat_type_id=(
-            config.threat_type_ids.get("rhythm_threat_heavy", -1) if config.holds_enabled else None
-        ),
-        hold_duration_seconds=config.hold_duration_seconds,
-        safe_zone_radius=config.safe_zone_radius,
-    )
-    collision_system = CollisionSystem(
-        ctx.memory_manager,
-        transform_pool_name="transform",
-        hitbox_pool_name="hitbox",
-        max_pairs=MAX_COLLISION_PAIRS,
-    )
-
-    judgment_ring_radius = config.core_half_extent + config.threat_half_extents.get(
-        "rhythm_threat_basic", 10.0
-    )
-    survival_player_system = SurvivalPlayerSystem(
-        input_provider=ctx.input_provider,
-        memory_manager=ctx.memory_manager,
-        player_entity_index=ctx.player_entity_index,
-        arena_width=float(config.window_width),
-        arena_height=float(config.window_height),
-        move_speed=config.survival_move_speed,
-        dash_speed=config.survival_dash_speed,
-        dash_duration_seconds=config.dash_duration_seconds,
-        dash_cooldown_seconds=config.dash_cooldown_seconds,
-        audio_clock=ctx.audio_clock,
-        on_beat_window_seconds=config.dash_beat_window_seconds,
-        audio_engine=ctx.audio_engine,
-        offbeat_sound_id=SFX_CLICK,
-    )
-    ctx.world.register_system(survival_player_system)
-    ctx.world.register_system(
-        PlayerInputSystem(
-            input_provider=ctx.input_provider,
-            memory_manager=ctx.memory_manager,
-            player_entity_index=ctx.player_entity_index,
-            crosshair_entity_index=ctx.crosshair_entity_index,
-            center_xy=(center_x, center_y),
-            crosshair_orbit_radius=judgment_ring_radius,
-            dash_duration_seconds=config.dash_duration_seconds,
-            dash_cooldown_seconds=config.dash_cooldown_seconds,
-            manage_dash=False,  # dash/i-frames/tint pertencem ao SurvivalPlayer
-        )
-    )
-    ctx.world.register_system(radial_spawner)
-    ctx.world.register_system(wall_spawner)
-    ctx.world.register_system(
-        ConvergenceRingSystem(
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            spawn_radius=config.spawn_radius,
-            judgment_ring_radius=judgment_ring_radius,
-        )
-    )
-    ctx.world.register_system(
-        WallPhaseSystem(  # ANTES da colisao: virada aviso->letal vale no frame do onset
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            lethal_collision_layer=THREAT_COLLISION_LAYER,
-            lethal_collision_mask=PLAYER_COLLISION_LAYER,
-        )
-    )
-    heavy_threat_type_id = (
-        config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
-    )
-    orbit_threat_type_id = (
-        config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
-    )
-    ctx.world.register_system(
-        JudgmentSystem(
-            audio_clock=ctx.audio_clock,
-            input_provider=ctx.input_provider,
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            player_entity_index=ctx.player_entity_index,
-            perfect_window_seconds=config.perfect_window_seconds,
-            good_window_seconds=config.good_window_seconds,
-            miss_window_seconds=config.miss_window_seconds,
-            aim_tolerance_rad=math.radians(config.aim_tolerance_degrees),
-            score_perfect=config.score_perfect,
-            score_good=config.score_good,
-            judgment_display_seconds=config.judgment_display_seconds,
-            misfire_breaks_combo=config.misfire_breaks_combo,
-            misfire_jam_seconds=config.misfire_jam_seconds,
-            audio_engine=ctx.audio_engine,
-            shot_sound_id=SFX_CANNON,
-            jam_sound_id=SFX_CLICK,
-            polarity_enabled=config.polarity_enabled,
-            fire_alt_action_name=config.fire_alt_action_name,
-            heavy_threat_type_id=heavy_threat_type_id,
-            deflect_sound_id=SFX_DEFLECT,
-            parry_sound_id=SFX_PARRY,
-            reflected_collision_layer=REFLECTED_COLLISION_LAYER if config.polarity_enabled else None,
-            reflected_collision_mask=THREAT_COLLISION_LAYER if config.polarity_enabled else None,
-            practice_mode=config.practice_mode,
-            hitlag_freeze_frames=config.parry_hitlag_freeze_frames if config.polarity_enabled else 0,
-            orbit_threat_type_id=orbit_threat_type_id,
-            shield_collision_layer=SHIELD_COLLISION_LAYER if orbit_threat_type_id is not None else None,
-            shield_collision_mask=THREAT_COLLISION_LAYER if orbit_threat_type_id is not None else None,
-        )
-    )
-    if orbit_threat_type_id is not None:
-        ctx.world.register_system(
-            OrbitalCaptureSystem(
-                audio_clock=ctx.audio_clock,
-                memory_manager=ctx.memory_manager,
-                center_xy=(center_x, center_y),
-                orbit_radius=config.orbit_radius,
-                angular_speed_rad_per_sec=config.orbit_angular_speed_rad_per_sec,
-            )
-        )
-    ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
-    ctx.world.register_system(collision_system)
-    ctx.world.register_system(
-        GrazeSystem(
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            player_entity_index=ctx.player_entity_index,
-            graze_margin=config.graze_margin,
-            fever_gain_per_graze=config.fever_gain_per_graze,
-            fever_decay_per_second=config.fever_decay_per_second,
-            fever_score_multiplier=config.fever_score_multiplier,
-            graze_score_per_hit=config.graze_score_per_hit,
-            audio_engine=ctx.audio_engine,
-            graze_sound_id=SFX_GRAZE,
-        )
-    )
-    shockwave_entity_indices = _create_shockwave_pool(
-        ctx.world, ctx.memory_manager, config.shockwave_pool_size
-    )
-    ctx.world.register_system(
-        ShockwaveSystem(
-            collision_system=collision_system,
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            survival_player_system=survival_player_system,
-            player_entity_index=ctx.player_entity_index,
-            shockwave_entity_indices=shockwave_entity_indices,
-            min_radius=config.shockwave_min_radius,
-            max_radius=config.shockwave_max_radius,
-            duration_seconds=config.shockwave_duration_seconds,
-            heavy_threat_type_id=config.threat_type_ids.get("rhythm_threat_heavy", -1),
-            score_per_kill=config.score_good,
-            trigger_shake_px=config.shockwave_trigger_shake_px,
-        )
-    )
-    ctx.world.register_system(
-        CoreDamageSystem(
-            collision_system=collision_system,
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            player_entity_index=ctx.player_entity_index,
-            good_window_seconds=config.good_window_seconds,
-            judgment_display_seconds=config.judgment_display_seconds,
-            practice_mode=config.practice_mode,
-            damage_shake_px=config.core_damage_shake_px,
-        )
-    )
-    if config.polarity_enabled:
-        ctx.world.register_system(
-            ParryImpactSystem(
-                collision_system=collision_system,
-                memory_manager=ctx.memory_manager,
-                game_state=ctx.game_state,
-                player_entity_index=ctx.player_entity_index,
-                center_xy=(center_x, center_y),
-                spawn_radius=config.spawn_radius,
-                score_per_kill=config.score_good,
-                impact_shake_px=config.parry_impact_shake_px,
-            )
-        )
-    ctx.world.register_system(
-        SurvivalDamageSystem(
-            collision_system=collision_system,
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            game_state=ctx.game_state,
-            player_entity_index=ctx.player_entity_index,
-            score_survive=config.score_good,
-            judgment_display_seconds=config.judgment_display_seconds,
-            practice_mode=config.practice_mode,
-            damage_shake_px=config.survival_damage_shake_px,
-        )
-    )
-    if config.holds_enabled:
-        ctx.world.register_system(
-            SafeZoneJudgmentSystem(
-                audio_clock=ctx.audio_clock,
-                input_provider=ctx.input_provider,
-                memory_manager=ctx.memory_manager,
-                game_state=ctx.game_state,
-                player_entity_index=ctx.player_entity_index,
-                anchor_action_name=config.anchor_action_name,
-                score_per_success=config.score_good,
-                judgment_display_seconds=config.judgment_display_seconds,
-                safe_zone_break_shake_px=config.safe_zone_break_shake_px,
-                rumble_low_freq=config.rumble_low_freq,
-                rumble_high_freq=config.rumble_high_freq,
-                rumble_duration_seconds=config.rumble_duration_seconds,
-                practice_mode=config.practice_mode,
-                audio_engine=ctx.audio_engine,
-                break_sound_id=SFX_HOLD_BREAK,
-            )
-        )
-    return (radial_spawner, wall_spawner), collision_system
-
-
 MODE_COMPOSERS = {
     "defender": _compose_defender_mode,
-    "survival": _compose_survival_mode,
     "lanes": _compose_lanes_mode,
-    "hybrid": _compose_hybrid_mode,
 }
 """Registro de estrategias de modo: `HertzConfig.game_mode` (por fase,
 via `overrides` em stages.json) -> funcao que registra os sistemas do
@@ -1085,9 +657,6 @@ def compose_world(
         "convergence_ring", CONVERGENCE_RING_DTYPE, dense_capacity=config.max_threats
     )
     memory_manager.create_pool(
-        "shockwave", SHOCKWAVE_DTYPE, dense_capacity=max(config.shockwave_pool_size, 1)
-    )
-    memory_manager.create_pool(
         "distraction", DISTRACTION_DTYPE, dense_capacity=max(config.distraction_pool_size, 1)
     )
 
@@ -1098,7 +667,6 @@ def compose_world(
     world.register_archetype("convergence_ring", ("transform", "sprite", "convergence_ring"))
     world.register_archetype("player_core", ("transform", "hitbox", "sprite", "player_state"))
     world.register_archetype("hud_sprite", ("transform", "sprite"))
-    world.register_archetype("shockwave", ("transform", "hitbox", "sprite", "shockwave"))
     world.register_archetype("distraction", ("transform", "sprite", "distraction"))
 
     # 3. Beatmap: tempos de IMPACTO do JSON viram tempos de SPAWN
@@ -1191,10 +759,9 @@ def compose_world(
             )
         )
 
-    # Screen Shake: decaimento comum aos 3 modos, independente de quem
-    # aciona `GameState.trigger_shake` (Hold quebrado no Defensor hoje;
-    # qualquer mecanica futura de Sobrevivencia/Arcade so precisa chamar
-    # o mesmo metodo, sem registrar nada extra aqui).
+    # Screen Shake: decaimento comum aos 2 modos, independente de quem
+    # aciona `GameState.trigger_shake` -- qualquer mecanica so precisa
+    # chamar o mesmo metodo, sem registrar nada extra aqui.
     world.register_system(CameraShakeSystem(game_state, config.shake_decay_per_second))
 
     world.register_system(
@@ -1374,7 +941,6 @@ class RhythmCompositionRoot:
             SFX_CANNON,
             SFX_CLICK,
             SFX_DEFLECT,
-            SFX_GRAZE,
             SFX_HEAL,
             SFX_HOLD_BREAK,
             SFX_HOLD_ENGAGE,
@@ -1421,7 +987,7 @@ class RhythmCompositionRoot:
         # do tempo.
         ensure_sfx()
         for sound_id in (
-            SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE,
+            SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY,
             SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB, SFX_HEAL,
         ):
             audio_engine.preload_one_shot(sound_id)

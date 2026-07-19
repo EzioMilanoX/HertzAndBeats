@@ -9,7 +9,8 @@ Jogue arquivos .mp3, .ogg, .wav ou .flac nesta pasta e abra o jogo.
   aberturas sao instantaneas.
 - A musica aparece no fim do menu de fases. Com ela selecionada, use
   A/D (ou setas esquerda/direita) para escolher o minigame:
-  O DEFENSOR, SOBREVIVENCIA, ARCADE 4K ou HIBRIDO. ENTER joga.
+  O DEFENSOR, ARCADE 4K, POLARIDADE, NOTAS LONGAS ou ARCADE: NOTAS
+  LONGAS. ENTER joga.
 - Substituiu o arquivo por outra versao? A analise roda de novo sozinha.
 - A analise requer librosa (pip install librosa). Sem ele, musicas ja
   analisadas continuam jogaveis; novas sao puladas com aviso no console.

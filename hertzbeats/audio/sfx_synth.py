@@ -21,7 +21,6 @@ SFX_CLICK = "data/sfx/click.wav"
 SFX_TAP = "data/sfx/tap.wav"
 SFX_DEFLECT = "data/sfx/deflect.wav"
 SFX_PARRY = "data/sfx/parry.wav"
-SFX_GRAZE = "data/sfx/graze.wav"
 SFX_HOLD_ENGAGE = "data/sfx/hold_engage.wav"
 SFX_HOLD_BREAK = "data/sfx/hold_break.wav"
 SFX_SHIELD_BREAK = "data/sfx/shield_break.wav"
@@ -78,19 +77,6 @@ def _parry(sample_rate: int) -> np.ndarray:
     )
     ring = np.exp(-t * 6.0) * np.sin(2 * np.pi * 1800.0 * t)
     mix = 0.85 * body + 0.35 * ring
-    return mix / (np.max(np.abs(mix)) * 1.05)
-
-
-def _graze(sample_rate: int) -> np.ndarray:
-    """Graze (Touhou): faisca sutil de hi-hat -- ruido determinístico
-    (semente fixa) filtrado por envelope curtissimo, nunca chamativo."""
-    length = int(0.045 * sample_rate)
-    rng = np.random.RandomState(2026)
-    noise = rng.uniform(-1.0, 1.0, size=length)
-    t = np.arange(length) / sample_rate
-    envelope = np.exp(-t * 260.0)
-    shimmer = np.sin(2 * np.pi * 7200.0 * t)
-    mix = envelope * noise * 0.6 + envelope * shimmer * 0.4
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
@@ -161,7 +147,6 @@ def ensure_sfx() -> None:
         (SFX_TAP, _tap),
         (SFX_DEFLECT, _deflect),
         (SFX_PARRY, _parry),
-        (SFX_GRAZE, _graze),
         (SFX_HOLD_ENGAGE, _hold_engage),
         (SFX_HOLD_BREAK, _hold_break),
         (SFX_SHIELD_BREAK, _shield_break),

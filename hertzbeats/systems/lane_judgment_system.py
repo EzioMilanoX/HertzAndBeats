@@ -208,7 +208,7 @@ class LaneJudgmentSystem(ISystem):
         # `judgment` ainda PENDING de proposito -- ver `_sweep_engaged_lane_holds`)
         # tem seu PROPRIO ciclo de vida por sustentacao; esta varredura
         # generica so pode destruir quem AINDA nao foi tocado (mesma
-        # licao do Hold do Defensor/Safe Zone da Sobrevivencia).
+        # licao do Hold do Defensor).
         not_engaged = self._engaged_mask[:active_count]
         np.logical_not(threat_view["is_hit"], out=not_engaged)
         np.logical_and(overdue, not_engaged, out=overdue)

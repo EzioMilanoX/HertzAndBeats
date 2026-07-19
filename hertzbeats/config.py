@@ -58,31 +58,13 @@ class HertzConfig:
     #    fase via `overrides` (dataclasses.replace).
     game_mode: str = "defender"
     misfire_breaks_combo: bool = True
-    survival_move_speed: float = 320.0
-    survival_dash_speed: float = 820.0
     lane_spacing: float = 110.0
     judgment_line_offset: float = 170.0
-    mixed_section_seconds: float = 12.0
     misfire_jam_seconds: float = 0.5
-    dash_beat_window_seconds: float = 0.15
-    survival_strike_seconds: float = 0.30
 
     # -- Polaridade + Parry Perfeito (Defensor, opt-in por fase) --
     polarity_enabled: bool = False
     fire_alt_action_name: str = "fire_alt"
-
-    # -- Graze + Fever (Sobrevivencia, sempre ativo no modo) --
-    graze_margin: float = 15.0
-    fever_gain_per_graze: float = 0.12
-    fever_decay_per_second: float = 0.05
-    fever_score_multiplier: float = 2.0
-    graze_score_per_hit: int = 50
-
-    # -- Pulso de Impacto / Shockwave (Sobrevivencia, sempre ativo) --
-    shockwave_pool_size: int = 5
-    shockwave_duration_seconds: float = 0.2
-    shockwave_max_radius: float = 260.0
-    shockwave_min_radius: float = 20.0
 
     # -- Pistas Dinamicas (Arcade 4K, sempre ativo) --
     lane_sway_amplitude_px: float = 34.0
@@ -108,11 +90,11 @@ class HertzConfig:
     rumble_high_freq: float = 0.85
     rumble_duration_seconds: float = 0.25
 
-    # -- Notas Longas / Holds -- UM flag para os 3 modos, cada um
+    # -- Notas Longas / Holds -- UM flag para os 2 modos, cada um
     #    interpreta a sustentacao a sua maneira (Defensor: fire+mira;
-    #    Arcade: tecla da coluna + Shield; Sobrevivencia: Safe Zone +
-    #    Ancora) -- mesma filosofia de "a IA dita o tempo, o modo dita
-    #    a interpretacao" ja usada pelo resto do schema. --
+    #    Arcade: tecla da coluna + Shield) -- mesma filosofia de "a IA
+    #    dita o tempo, o modo dita a interpretacao" ja usada pelo resto
+    #    do schema. --
     holds_enabled: bool = False
     hold_duration_seconds: float = 1.5
 
@@ -131,15 +113,8 @@ class HertzConfig:
     # do jogador (`hold_duration_seconds`) nunca muda, so o desenho.
     lane_hold_visual_max_fraction: float = 0.35
 
-    # -- Sobrevivencia: Safe Zone estacionaria + tecla Ancorar --
-    safe_zone_radius: float = 70.0
-    anchor_action_name: str = "anchor"
-    safe_zone_break_shake_px: float = 40.0
-
     # -- Mais tremores/efeitos ("game feel" geral, sempre ativos) --
     core_damage_shake_px: float = 14.0
-    survival_damage_shake_px: float = 14.0
-    shockwave_trigger_shake_px: float = 8.0
     parry_impact_shake_px: float = 10.0
 
     # -- Modo Treino (musicas do jogador, alternado no menu com T) --
@@ -229,25 +204,11 @@ class HertzConfig:
             output_latency_seconds=raw["output_latency_seconds"],
             game_mode=raw.get("game_mode", "defender"),
             misfire_breaks_combo=raw.get("misfire_breaks_combo", True),
-            survival_move_speed=raw.get("survival_move_speed", 320.0),
-            survival_dash_speed=raw.get("survival_dash_speed", 820.0),
             lane_spacing=raw.get("lane_spacing", 110.0),
             judgment_line_offset=raw.get("judgment_line_offset", 170.0),
-            mixed_section_seconds=raw.get("mixed_section_seconds", 12.0),
             misfire_jam_seconds=raw.get("misfire_jam_seconds", 0.5),
-            dash_beat_window_seconds=raw.get("dash_beat_window_seconds", 0.15),
-            survival_strike_seconds=raw.get("survival_strike_seconds", 0.30),
             polarity_enabled=raw.get("polarity_enabled", False),
             fire_alt_action_name=raw.get("fire_alt_action_name", "fire_alt"),
-            graze_margin=raw.get("graze_margin", 15.0),
-            fever_gain_per_graze=raw.get("fever_gain_per_graze", 0.12),
-            fever_decay_per_second=raw.get("fever_decay_per_second", 0.05),
-            fever_score_multiplier=raw.get("fever_score_multiplier", 2.0),
-            graze_score_per_hit=raw.get("graze_score_per_hit", 50),
-            shockwave_pool_size=raw.get("shockwave_pool_size", 5),
-            shockwave_duration_seconds=raw.get("shockwave_duration_seconds", 0.2),
-            shockwave_max_radius=raw.get("shockwave_max_radius", 260.0),
-            shockwave_min_radius=raw.get("shockwave_min_radius", 20.0),
             lane_sway_amplitude_px=raw.get("lane_sway_amplitude_px", 34.0),
             lane_sway_decay_per_second=raw.get("lane_sway_decay_per_second", 2.2),
             scratch_cluster_gap_seconds=raw.get("scratch_cluster_gap_seconds", 0.6),
@@ -268,12 +229,7 @@ class HertzConfig:
             lane_shield_max_charges=raw.get("lane_shield_max_charges", 3),
             lane_shield_depleted_shake_px=raw.get("lane_shield_depleted_shake_px", 35.0),
             lane_hold_visual_max_fraction=raw.get("lane_hold_visual_max_fraction", 0.35),
-            safe_zone_radius=raw.get("safe_zone_radius", 70.0),
-            anchor_action_name=raw.get("anchor_action_name", "anchor"),
-            safe_zone_break_shake_px=raw.get("safe_zone_break_shake_px", 40.0),
             core_damage_shake_px=raw.get("core_damage_shake_px", 14.0),
-            survival_damage_shake_px=raw.get("survival_damage_shake_px", 14.0),
-            shockwave_trigger_shake_px=raw.get("shockwave_trigger_shake_px", 8.0),
             parry_impact_shake_px=raw.get("parry_impact_shake_px", 10.0),
             practice_mode=raw.get("practice_mode", False),
             practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),

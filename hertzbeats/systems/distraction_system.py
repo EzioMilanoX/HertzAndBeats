@@ -19,8 +19,8 @@ DISTRACTION_DTYPE = np.dtype(
     ]
 )
 """Ciclo de vida de UMA entidade de obstrucao visual (pool de tamanho
-fixo, pre-alocada uma unica vez -- mesma disciplina do `SHOCKWAVE_DTYPE`:
-nunca criada/destruida, so ligada/desligada em round-robin)."""
+fixo, pre-alocada uma unica vez: nunca criada/destruida, so
+ligada/desligada em round-robin)."""
 
 
 def parse_distraction_events(
@@ -56,9 +56,8 @@ class DistractionSystem(ISystem):
     `RhythmSpawnerSystem` da engine) avanca sobre `distraction_events`
     (ordenados por tempo); ao cruzar o instante de um evento, ativa o
     PROXIMO slot do pool fixo de `distraction_entity_indices`
-    (round-robin, nunca cria/destroi entidade -- mesma disciplina Zero-GC
-    do `ShockwaveSystem`), posicionando-o em `(x_fraction*width,
-    y_fraction*height)` com a textura pre-registrada
+    (round-robin, nunca cria/destroi entidade), posicionando-o em
+    `(x_fraction*width, y_fraction*height)` com a textura pre-registrada
     (`TEX_DISTRACTION_SPLAT`) e `layer_z` acima do HUD -- cobre TUDO na
     tela por `duration_sec`. Um coletor de expiracao escalar (5
     iteracoes, no maximo) desliga o slot (`tint_a=0`) quando o tempo

@@ -258,15 +258,15 @@ def test_user_song_mode_cycles_and_composes_chosen_mode(tmp_path, null_input):
 
     assert loop.chosen_mode(0) == "defender"
     _press(loop, null_input, "menu_right")
-    assert loop.chosen_mode(0) == "survival"
-    _press(loop, null_input, "menu_right")
     assert loop.chosen_mode(0) == "lanes"
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_mode(0) == "polarity"
     _press(loop, null_input, "menu_left")
-    assert loop.chosen_mode(0) == "survival"
+    assert loop.chosen_mode(0) == "lanes"
 
     _press(loop, null_input, "confirm")
     assert loop.flow == FLOW_PLAYING
-    assert loop._stage_config.game_mode == "survival"
+    assert loop._stage_config.game_mode == "lanes"
 
 
 def test_user_song_can_reach_the_polarity_and_holds_variants(tmp_path, null_input):
@@ -293,8 +293,8 @@ def test_user_song_can_reach_the_polarity_and_holds_variants(tmp_path, null_inpu
         audio_clock=audio_engine.get_clock(),
     )
 
-    # defender -> survival -> lanes -> hybrid -> polarity (4 passos)
-    for _ in range(4):
+    # defender -> lanes -> polarity (2 passos)
+    for _ in range(2):
         _press(loop, null_input, "menu_right")
     assert loop.chosen_mode(0) == "polarity"
     _press(loop, null_input, "confirm")
@@ -323,8 +323,8 @@ def test_user_song_holds_variant_enables_only_holds(tmp_path, null_input):
         audio_clock=audio_engine.get_clock(),
     )
 
-    # defender -> survival -> lanes -> hybrid -> polarity -> holds (5 passos)
-    for _ in range(5):
+    # defender -> lanes -> polarity -> holds (3 passos)
+    for _ in range(3):
         _press(loop, null_input, "menu_right")
     assert loop.chosen_mode(0) == "holds"
     _press(loop, null_input, "confirm")
@@ -342,7 +342,7 @@ def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_i
     stage = StageDef(
         stage_id="curated", name="FASE CURADA", subtitle="", track_path=str(tmp_path / "c.wav"),
         beatmap_path=str(beatmap_path), synth={"bpm": 120.0, "bars": 1}, beatmap_params={},
-        overrides={"game_mode": "survival"}, selectable_mode=False,
+        overrides={"game_mode": "lanes"}, selectable_mode=False,
     )
     audio_engine = NullAudioEngine()
     loop = HertzGameLoop(
@@ -350,12 +350,12 @@ def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_i
         input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
     )
     _press(loop, null_input, "confirm")
-    assert loop._stage_config.game_mode == "survival"
+    assert loop._stage_config.game_mode == "lanes"
     assert loop._stage_config.polarity_enabled is False
     assert loop._stage_config.holds_enabled is False
-    # e realmente o modo Sobrevivencia: sem sistema de julgamento radial
-    from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
-    assert any(isinstance(s, SurvivalPlayerSystem) for s in loop.composed.world._systems)
+    # e realmente o Arcade 4K: o spawner de notas de coluna, nao o radial
+    from hertzbeats.systems.lane_note_spawner_system import LaneNoteSpawnerSystem
+    assert any(isinstance(s, LaneNoteSpawnerSystem) for s in loop.composed.world._systems)
 
 
 def test_saved_latency_roundtrip(tmp_path):

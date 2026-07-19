@@ -152,16 +152,9 @@ _LANES_HOLDS_CONTROL_HINT = (
 """Dica dedicada do Arcade 4K com Notas Longas: a tecla precisa
 continuar pressionada, nao e mais um toque instantaneo."""
 
-_SURVIVAL_HOLDS_CONTROL_HINT = (
-    "FIQUE dentro da Safe Zone verde e SEGURE E ate o fim -- sair ou soltar e MISS"
-)
-"""Dica dedicada da Sobrevivencia com Safe Zone: exige ficar parado
-dentro da zona E segurar a acao Ancorar."""
-
 _HOLDS_HINT_BY_MODE = {
     "defender": _HOLDS_CONTROL_HINT,
     "lanes": _LANES_HOLDS_CONTROL_HINT,
-    "survival": _SURVIVAL_HOLDS_CONTROL_HINT,
 }
 """Cada modo interpreta `holds_enabled` de um jeito diferente (ver
 `HertzConfig.holds_enabled`) -- a dica de controles precisa acompanhar,
@@ -169,28 +162,22 @@ por isso e escolhida pelo `game_mode` da fase e nao so pela flag."""
 
 _MODE_CONTROL_HINTS = {
     "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
-    "survival": "W A S D movem  |  ESPACO dash atraves das ondas  |  sem tiro",
     "lanes": "A S W D nas colunas, no ritmo das notas",
-    "hybrid": "W A S D movem + MOUSE/CLIQUE atiram  |  ESPACO dash",
     "polarity": _POLARITY_CONTROL_HINT,
     "holds": _HOLDS_CONTROL_HINT,
     "lanes_holds": _LANES_HOLDS_CONTROL_HINT,
-    "survival_holds": _SURVIVAL_HOLDS_CONTROL_HINT,
 }
 """Dica de controles exibida no menu para o MODO/variante da fase
-selecionada -- "polarity"/"holds"/"lanes_holds"/"survival_holds" reusam
-a MESMA dica das fases curadas equivalentes (mesmas mecanicas, agora
-tambem escolhiveis para musicas do jogador via A/D)."""
+selecionada -- "polarity"/"holds"/"lanes_holds" reusam a MESMA dica das
+fases curadas equivalentes (mesmas mecanicas, agora tambem escolhiveis
+para musicas do jogador via A/D)."""
 
 _MODE_DISPLAY_NAMES = {
     "defender": "O DEFENSOR",
-    "survival": "SOBREVIVENCIA",
     "lanes": "ARCADE 4K",
-    "hybrid": "HIBRIDO",
     "polarity": "DEFENSOR: POLARIDADE",
     "holds": "DEFENSOR: NOTAS LONGAS",
     "lanes_holds": "ARCADE 4K: NOTAS LONGAS",
-    "survival_holds": "SOBREVIVENCIA: SAFE ZONE",
 }
 """Nome exibido no seletor de minigame das musicas do jogador."""
 

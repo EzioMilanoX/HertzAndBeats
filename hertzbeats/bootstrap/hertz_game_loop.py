@@ -47,30 +47,22 @@ _NOTICE_SECONDS = 1.6
 
 MODE_CYCLE = (
     "defender",
-    "survival",
     "lanes",
-    "hybrid",
     "polarity",
     "holds",
     "lanes_holds",
-    "survival_holds",
 )
 """Ordem em que A/D alternam o modo nas musicas do jogador. As variantes
 finais continuam sendo os modos base por baixo -- so acrescentam
 `polarity_enabled`/`holds_enabled` (ver `MODE_VARIANT_OVERRIDES`) --
-mesmas mecanicas das fases curadas. Colocadas no FIM da lista (nao
-entre "defender" e "survival") para nao alterar a ordem ja testada do
-ciclo original a cada extensao."""
+mesmas mecanicas das fases curadas."""
 
 MODE_VARIANT_OVERRIDES = {
     "defender": {"game_mode": "defender"},
-    "survival": {"game_mode": "survival"},
     "lanes": {"game_mode": "lanes"},
-    "hybrid": {"game_mode": "hybrid"},
     "polarity": {"game_mode": "defender", "polarity_enabled": True},
     "holds": {"game_mode": "defender", "holds_enabled": True},
     "lanes_holds": {"game_mode": "lanes", "holds_enabled": True},
-    "survival_holds": {"game_mode": "survival", "holds_enabled": True},
 }
 """Campos de `HertzConfig` sobrescritos por variante escolhida no menu
 das musicas do jogador -- resolvido UMA vez por `_compose_stage`, o
@@ -78,9 +70,8 @@ mesmo `dataclasses.replace` que as fases curadas usam via `overrides`
 de `stages.json`. `polarity_enabled`/`holds_enabled` nao aparecem nas
 variantes que nao os usam porque a config BASE ja os tem como `False`
 (nenhuma leva residual entre trocas: `stage_config` e reconstruida do
-zero a cada `_compose_stage`). "lanes_holds"/"survival_holds": Hold
-classico + Shield no Arcade 4K e Safe Zone + Ancora na Sobrevivencia,
-agora disponiveis para QUALQUER musica sua."""
+zero a cada `_compose_stage`). "lanes_holds": Hold classico + Shield no
+Arcade 4K, agora disponivel para QUALQUER musica sua."""
 
 
 class HertzGameLoop(GameLoop):
@@ -223,11 +214,10 @@ class HertzGameLoop(GameLoop):
             return
         config = self._stage_config
         mode = config.game_mode
-        if mode in ("defender", "hybrid"):
-            kind = "radial" if mode == "defender" else "radial_arena"
+        if mode == "defender":
             center_x, center_y = config.center_xy
             renderer.set_playfield(
-                kind,
+                "radial",
                 center_x=center_x,
                 center_y=center_y,
                 spawn_radius=config.spawn_radius,
@@ -236,8 +226,6 @@ class HertzGameLoop(GameLoop):
                 width=config.window_width,
                 height=config.window_height,
             )
-        elif mode == "survival":
-            renderer.set_playfield("arena", width=config.window_width, height=config.window_height)
         elif mode == "lanes":
             renderer.set_playfield(
                 "lanes",

@@ -9,8 +9,8 @@ Fluxo (tudo em fase de carregamento, nunca no loop de gameplay):
        beatmap cacheado em `data/beatmaps/user/<slug>.beatmap.json` --
        as proximas aberturas sao instantaneas.
     3. Cada musica vira um `StageDef` com `selectable_mode=True`: no
-       menu, A/D (ou setas) alternam Defensor / Sobrevivencia /
-       Arcade 4K / Hibrido antes de comecar.
+       menu, A/D (ou setas) alternam Defensor / Arcade 4K e suas
+       variantes antes de comecar.
 
 Sem librosa instalado, musicas ja analisadas continuam jogaveis; novas
 sao puladas com aviso no console.

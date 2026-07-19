@@ -39,11 +39,11 @@ class HBPygameRenderer(PygameRenderer):
           `draw_batch` blita a textura registrada; ids sem textura caem
           no desenho procedural (circulos -- nucleo, ameacas, mira).
         - `set_playfield(...)`: decoracao de arena POR MODO (aneis do
-          Defensor, borda da Sobrevivencia, colunas + linha do Arcade),
-          desenhada em `begin_frame` e sincronizada pelo `HertzGameLoop`
-          a cada troca de fase.
-        - Barras/lasers procedurais quando a escala e anisotropica
-          (paredes de som da Sobrevivencia).
+          Defensor, colunas + linha do Arcade), desenhada em
+          `begin_frame` e sincronizada pelo `HertzGameLoop` a cada
+          troca de fase.
+        - Barras procedurais quando a escala e anisotropica (Notas
+          Longas/Scratch do Arcade 4K).
         - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
           esquerda e palavras expiradas).
         - Juice de Parry (Hitlag Visual Simulado, Defensor): `begin_frame`/
@@ -187,10 +187,8 @@ class HBPygameRenderer(PygameRenderer):
 
             "radial" -- aneis-guia do Defensor (spawn + anel de julgamento):
                 center_x, center_y, spawn_radius, judgment_radius
-            "arena"  -- borda da arena da Sobrevivencia: width, height
             "lanes"  -- colunas + linha de julgamento do Arcade 4K:
                 lane_xs (iteravel), lane_half_width, judgment_y, height
-            "radial_arena" -- Hibrido: aneis + borda.
             None     -- sem decoracao.
         """
         self._playfield_kind = kind
@@ -248,14 +246,10 @@ class HBPygameRenderer(PygameRenderer):
         if kind is None:
             return
         params = self._playfield_params
-        if kind in ("radial", "radial_arena"):
+        if kind == "radial":
             center = (int(params["center_x"]), int(params["center_y"]))
             pygame.draw.circle(self._surface, (36, 28, 70), center, int(params["spawn_radius"]), 1)
             pygame.draw.circle(self._surface, (90, 70, 160), center, int(params["judgment_radius"]), 2)
-        if kind in ("arena", "radial_arena"):
-            width = int(params["width"])
-            height = int(params["height"])
-            pygame.draw.rect(self._surface, (60, 48, 110), pygame.Rect(6, 6, width - 12, height - 12), 2)
         if kind == "lanes":
             height = int(params["height"])
             judgment_y = int(params["judgment_y"])
@@ -406,7 +400,7 @@ class HBPygameRenderer(PygameRenderer):
                     pygame.draw.circle(self._surface, color, (int(x), int(y)), radius)
                     self._draw_inner_square(x, y, radius)
                 elif abs(scale_x - scale_y) > 0.01:
-                    # escala anisotropica = barra/laser (modo Sobrevivencia)
+                    # escala anisotropica = barra (Notas Longas/Scratch, Arcade 4K)
                     width = max(1, int(16.0 * scale_x))
                     height = max(1, int(16.0 * scale_y))
                     rect = pygame.Rect(int(x - width / 2), int(y - height / 2), width, height)

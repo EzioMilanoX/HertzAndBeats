@@ -27,12 +27,9 @@ class GameState:
         "miss_count",
         "dodge_count",
         "misfire_count",
-        "survive_count",
         "health",
         "last_judgment",
         "judgment_display_seconds_left",
-        "graze_score",
-        "fever_meter",
         "parry_count",
         "deflect_count",
         "shake_intensity",
@@ -61,17 +58,9 @@ class GameState:
         self.miss_count: int = 0
         self.dodge_count: int = 0
         self.misfire_count: int = 0
-        self.survive_count: int = 0
         self.health: int = max_health
         self.last_judgment: int = JUDGMENT_PENDING
         self.judgment_display_seconds_left: float = 0.0
-        self.graze_score: int = 0
-        """Modo Sobrevivencia: pontos de "raspar" perto de uma parede
-        letal sem tocar -- estilo Touhou. Alimenta `fever_meter`."""
-        self.fever_meter: float = 0.0
-        """0..1: enche com Graze, decai com o tempo (ver
-        `GrazeSystem`/`survival_fever_decay_per_second`). Em 1.0, a
-        pontuacao de Graze e de sobrevivencia dobra (`in_fever`)."""
         self.parry_count: int = 0
         """Defensor (Polaridade): ameacas pesadas refletidas com sucesso
         no PERFECT."""
@@ -81,9 +70,8 @@ class GameState:
         self.shake_intensity: float = 0.0
         """Tremor de tela ATUAL, em pixels de deslocamento maximo --
         a "variavel global de camera" que o `CameraShakeSystem` decai a
-        cada frame (`HertzConfig.shake_decay_per_second`, mesmo par
-        mutavel/tuning-estatico de `fever_meter`/`fever_decay_per_second`)
-        e que o `HertzGameLoop` le a cada frame para transformar num
+        cada frame (`HertzConfig.shake_decay_per_second`) e que o
+        `HertzGameLoop` le a cada frame para transformar num
         offset aleatorio real via `IRenderer.set_camera_offset` (metodo
         JA EXISTENTE na engine, ROADMAP M1/M2 -- nao inventamos um novo).
         Qualquer sistema pode chamar `trigger_shake(...)`; NUNCA e
@@ -166,12 +154,6 @@ class GameState:
         as candidatas validas do frame, nao so a melhor -- ver
         `JudgmentSystem._try_player_hit`)."""
         return self.resonance_chain >= self.resonance_overdrive_threshold
-
-    @property
-    def in_fever(self) -> bool:
-        """True quando `fever_meter` esta cheio -- dobra a pontuacao de
-        Graze/sobrevivencia enquanto durar."""
-        return self.fever_meter >= 1.0
 
     def register_judgment_feedback(self, judgment: int, display_seconds: float) -> None:
         """Atualiza o feedback visual de julgamento consumido pelo

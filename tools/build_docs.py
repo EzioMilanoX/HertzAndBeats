@@ -317,7 +317,7 @@ janela temporal jogável (nada antes da pista completa de aproximação, nada de
 python tools/make_beatmap.py --audio minha.mp3 --output data/beatmaps/minha.beatmap.json --track-id minha</pre>
 <p>Depois adicione uma entrada em <code>stages.json</code> (sem o bloco <code>synth</code>) e ela aparece no menu.</p>
 
-<h2 id="mecanicas">Mecânicas novas (7 mecânicas, 3 modos)</h2>
+<h2 id="mecanicas">Mecânicas novas</h2>
 <p>Todas seguem a mesma disciplina Zero-GC do resto do jogo: campos extras no
 <code>RHYTHM_THREAT_DTYPE</code> compartilhado, mascaramento vetorizado por <code>mode_tag</code>/flag
 booleano, e sistemas dedicados que só tocam as linhas que lhes pertencem.</p>
@@ -333,13 +333,6 @@ em vez de destruir — <code>JudgmentSystem</code> inverte a velocidade e troca 
 <code>CollisionSystem</code> genérico passa a gerar entre o projétil e as demais ameaças no caminho de
 volta, destruindo a mais fraca em cadeia. O refletido permanece <code>JUDGMENT_PENDING</code> de
 propósito — agora é uma arma, não mais uma vítima — e a varredura de MISS o ignora.</p>
-<h3>Sobrevivência — Graze + Fever, Pulso de Impacto</h3>
-<p>Um segundo raio de detecção (AABB vetorizado, paralelo ao <code>CollisionSystem</code>) mede a
-distância a cada parede letal; cruzar a faixa estendida (<code>hitbox + graze_margin</code>) sem tocar
-a hitbox real concede <strong>Graze</strong> e carrega o medidor de <strong>Fever</strong> (decai com o
-tempo; cheio, dobra a pontuação). Um dash perfeito ativa uma de 5 entidades de onda de choque
-<strong>pré-alocadas</strong> (nunca criadas/destruídas — round-robin), cujo raio cresce
-exponencialmente por 0.2s e varre paredes fracas; pesadas resistem, como no Parry.</p>
 <h3>Arcade 4K — Pistas Dinâmicas, Scratch, Flow State</h3>
 <p>Clusters de 3+ picos consecutivos são fundidos <strong>puramente do lado do jogo</strong>
 (<code>lane_scratch_clustering</code>, sem tocar o beatmap.json) numa nota de <strong>Scratch</strong> —

@@ -672,9 +672,9 @@ class JudgmentSystem(ISystem):
         colisao trocada para `SHIELD_COLLISION_LAYER` (arma contra
         ameacas comuns, nunca contra o nucleo -- mesma logica de troca
         de camada do Parry) e `phase` marcada `PHASE_ORBITING` (reusa o
-        campo do telegraph da Sobrevivencia, sem conflito de dono aqui
-        no Defensor). `spawn_angle_rad` (so telemetria ate a captura)
-        vira o OFFSET ANGULAR FIXO da orbita a partir deste instante."""
+        campo `phase` ja existente, sem precisar de um campo novo).
+        `spawn_angle_rad` (so telemetria ate a captura) vira o OFFSET
+        ANGULAR FIXO da orbita a partir deste instante."""
         entity_index = int(self._threat_pool.active_entity_indices()[best_row])
         velocity_pool = self._velocity_pool
         v_row = velocity_pool.dense_row_of(entity_index)
@@ -706,9 +706,8 @@ class JudgmentSystem(ISystem):
         """Notas Longas -- Fase 1 (Start): a candidata vencedora NAO e
         destruida. Zera sua velocidade (para junto ao anel em vez de
         atravessar) e DESARMA sua colisao com o nucleo
-        (`collision_layer/mask = 0`, o MESMO idioma do aviso telegrafado
-        da Sobrevivencia) -- assim o `CoreDamageSystem` nunca a ve
-        enquanto ela estiver sustentada, sem precisar tocar naquele
+        (`collision_layer/mask = 0`) -- assim o `CoreDamageSystem` nunca
+        a ve enquanto ela estiver sustentada, sem precisar tocar naquele
         sistema. `is_hit=True` com `judgment` ainda PENDING marca "esta
         linha pertence a Fase 2" para `_sweep_engaged_holds` e para a
         exclusao correspondente em `update()`."""

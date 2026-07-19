@@ -130,13 +130,10 @@ para isso não acontecer em condições normais.</li>
 <tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
 <tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
 <tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
-<tr><td><strong>4 - ONDAS DE CHOQUE</strong><br><small>sobrevivencia | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>game_mode=survival, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
-<tr><td><strong>5 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
-<tr><td><strong>7 - POLARIDADE</strong><br><small>azul/rosa + parry | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>polarity_enabled=True, approach_seconds=1.8, aim_tolerance_degrees=30.0</td><td>—</td></tr>
-<tr><td><strong>8 - NOTAS LONGAS</strong><br><small>segure o gatilho + a mira | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>holds_enabled=True, approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
-<tr><td><strong>6 - HIBRIDO</strong><br><small>tiro + dash | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>game_mode=hybrid, approach_seconds=2.0, max_health=4, aim_tolerance_degrees=40.0, misfire_breaks_combo=False, mixed_section_seconds=9.6</td><td>—</td></tr>
-<tr><td><strong>9 - ARCADE: NOTAS LONGAS</strong><br><small>segure a coluna + Shield | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, holds_enabled=True, approach_seconds=1.8</td><td>—</td></tr>
-<tr><td><strong>10 - SOBREVIVENCIA: SAFE ZONE</strong><br><small>fique parado + Ancora (E) | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>game_mode=survival, holds_enabled=True, approach_seconds=2.0, max_health=4</td><td>—</td></tr>
+<tr><td><strong>4 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
+<tr><td><strong>5 - POLARIDADE</strong><br><small>azul/rosa + parry | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>polarity_enabled=True, approach_seconds=1.8, aim_tolerance_degrees=30.0</td><td>—</td></tr>
+<tr><td><strong>6 - NOTAS LONGAS</strong><br><small>segure o gatilho + a mira | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>holds_enabled=True, approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
+<tr><td><strong>7 - ARCADE: NOTAS LONGAS</strong><br><small>segure a coluna + Shield | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, holds_enabled=True, approach_seconds=1.8</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
 os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
@@ -153,7 +150,7 @@ janela temporal jogável (nada antes da pista completa de aproximação, nada de
 python tools/make_beatmap.py --audio minha.mp3 --output data/beatmaps/minha.beatmap.json --track-id minha</pre>
 <p>Depois adicione uma entrada em <code>stages.json</code> (sem o bloco <code>synth</code>) e ela aparece no menu.</p>
 
-<h2 id="mecanicas">Mecânicas novas (7 mecânicas, 3 modos)</h2>
+<h2 id="mecanicas">Mecânicas novas</h2>
 <p>Todas seguem a mesma disciplina Zero-GC do resto do jogo: campos extras no
 <code>RHYTHM_THREAT_DTYPE</code> compartilhado, mascaramento vetorizado por <code>mode_tag</code>/flag
 booleano, e sistemas dedicados que só tocam as linhas que lhes pertencem.</p>
@@ -169,13 +166,6 @@ em vez de destruir — <code>JudgmentSystem</code> inverte a velocidade e troca 
 <code>CollisionSystem</code> genérico passa a gerar entre o projétil e as demais ameaças no caminho de
 volta, destruindo a mais fraca em cadeia. O refletido permanece <code>JUDGMENT_PENDING</code> de
 propósito — agora é uma arma, não mais uma vítima — e a varredura de MISS o ignora.</p>
-<h3>Sobrevivência — Graze + Fever, Pulso de Impacto</h3>
-<p>Um segundo raio de detecção (AABB vetorizado, paralelo ao <code>CollisionSystem</code>) mede a
-distância a cada parede letal; cruzar a faixa estendida (<code>hitbox + graze_margin</code>) sem tocar
-a hitbox real concede <strong>Graze</strong> e carrega o medidor de <strong>Fever</strong> (decai com o
-tempo; cheio, dobra a pontuação). Um dash perfeito ativa uma de 5 entidades de onda de choque
-<strong>pré-alocadas</strong> (nunca criadas/destruídas — round-robin), cujo raio cresce
-exponencialmente por 0.2s e varre paredes fracas; pesadas resistem, como no Parry.</p>
 <h3>Arcade 4K — Pistas Dinâmicas, Scratch, Flow State</h3>
 <p>Clusters de 3+ picos consecutivos são fundidos <strong>puramente do lado do jogo</strong>
 (<code>lane_scratch_clustering</code>, sem tocar o beatmap.json) numa nota de <strong>Scratch</strong> —
@@ -265,11 +255,8 @@ padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própr
 <tr><td><code>output_latency_seconds</code></td><td><code>0.06</code></td></tr>
 <tr><td><code>game_mode</code></td><td><code>&quot;defender&quot;</code></td></tr>
 <tr><td><code>misfire_breaks_combo</code></td><td><code>true</code></td></tr>
-<tr><td><code>survival_move_speed</code></td><td><code>320.0</code></td></tr>
-<tr><td><code>survival_dash_speed</code></td><td><code>820.0</code></td></tr>
 <tr><td><code>lane_spacing</code></td><td><code>110.0</code></td></tr>
-<tr><td><code>judgment_line_offset</code></td><td><code>170.0</code></td></tr>
-<tr><td><code>mixed_section_seconds</code></td><td><code>12.0</code></td></tr></table>
+<tr><td><code>judgment_line_offset</code></td><td><code>170.0</code></td></tr></table>
 <p class="muted">Fases sobrescrevem campos via <code>overrides</code> (aplicados com
 <code>dataclasses.replace</code>; campo desconhecido = erro, nunca ignorado).</p>
 
@@ -284,7 +271,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>250 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>214 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_convergence_rings.py</code> — Aneis de Convergencia do Defensor: encolhem matematicamente ate o anel de julgamento no ms do hit. (4 testes)</summary><ul><li><code>test_ring_spawns_alongside_threat_at_spawn_radius</code></li><li><code>test_ring_radius_shrinks_linearly_to_the_judgment_ring</code></li><li><code>test_ring_self_destructs_at_the_hit_instant</code></li><li><code>test_ring_tint_matches_the_threat_it_warns_about</code></li></ul></details>
@@ -293,11 +280,9 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_defender_polarity_resonance.py</code> — Defensor -- Ressonancia de Polaridade (Combos Monocromaticos): corrente por cor e Overdrive perfurante. (5 testes)</summary><ul><li><code>test_destroying_same_color_threats_in_sequence_builds_the_chain</code></li><li><code>test_destroying_a_different_color_threat_resets_the_chain_to_one</code></li><li><code>test_in_overdrive_becomes_true_only_at_the_configured_threshold</code></li><li><code>test_overdrive_shot_pierces_and_destroys_every_matching_color_candidate_at_once</code></li><li><code>test_overdrive_piercing_never_consumes_a_heavy_parry_candidate</code></li></ul></details>
 <details><summary><code>test_flow_state.py</code> — Flow State (&quot;vidro quebrado&quot;): 50 PERFECTs seguidos apaga o HUD; um Miss o restaura. (3 testes)</summary><ul><li><code>test_flow_combo_threshold_is_wired_only_for_lanes_mode</code></li><li><code>test_flow_state_hides_score_combo_and_labels_at_the_threshold</code></li><li><code>test_flow_state_restores_the_hud_after_a_miss_resets_combo</code></li></ul></details>
 <details><summary><code>test_flow_tier.py</code> — Flow State: o tier de 50 combos extras chega ao renderer TODO frame, nao so na transicao. (4 testes)</summary><ul><li><code>test_tier_is_zero_before_reaching_the_flow_threshold</code></li><li><code>test_tier_is_one_exactly_at_the_threshold</code></li><li><code>test_tier_advances_within_flow_without_leaving_and_re_entering</code></li><li><code>test_tier_resets_to_zero_after_a_miss_breaks_the_combo</code></li></ul></details>
-<details><summary><code>test_graze_and_shockwave.py</code> — Sobrevivencia: Graze (raspar sem tocar -&gt; Fever) e Pulso de Impacto (dash no ritmo -&gt; onda expansiva). (14 testes)</summary><ul><li><code>test_grazing_a_lethal_wall_scores_and_builds_fever</code></li><li><code>test_touching_the_wall_does_not_count_as_graze</code></li><li><code>test_too_far_from_the_wall_does_not_count_as_graze</code></li><li><code>test_warning_phase_wall_never_grazes</code></li><li><code>test_grazing_only_scores_once_while_lingering</code></li><li><code>test_fever_doubles_graze_score</code></li><li><code>test_fever_decays_over_time_without_grazing</code></li><li><code>test_dash_on_beat_activates_a_shockwave_slot_at_the_player</code></li><li><code>test_shockwave_trigger_shakes_the_camera</code></li><li><code>test_dash_off_beat_does_not_activate_any_shockwave</code></li><li><code>test_shockwave_radius_grows_over_its_duration</code></li><li><code>test_shockwave_deactivates_after_its_duration</code></li><li><code>test_shockwave_destroys_a_normal_wall_in_its_radius</code></li><li><code>test_shockwave_does_not_destroy_a_heavy_wall</code></li></ul></details>
 <details><summary><code>test_gun_sync_and_ghost_tap.py</code> — Gun Sync (canhao no acerto, clique no misfire) e Ghost Tapping (tap livre sem punicao) no Arcade. (4 testes)</summary><ul><li><code>test_hit_on_time_plays_the_cannon</code></li><li><code>test_misfire_plays_click_and_jams_the_gun</code></li><li><code>test_jammed_gun_ignores_trigger_until_it_clears</code></li><li><code>test_ghost_tap_plays_soft_tick_without_penalty</code></li></ul></details>
 <details><summary><code>test_hold_notes_and_camera_shake.py</code> — Notas Longas (Hold) do Defensor: Fase 1 (Start) engaja, Fase 2 (Sustain) exige fire+mira continuos. (8 testes)</summary><ul><li><code>test_engaging_a_hold_does_not_destroy_it_and_disarms_collision</code></li><li><code>test_sustaining_through_the_full_duration_scores_perfect</code></li><li><code>test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble</code></li><li><code>test_releasing_fire_mid_sustain_deals_no_damage_in_practice_mode</code></li><li><code>test_aiming_away_mid_sustain_breaks_the_hold</code></li><li><code>test_engaged_hold_survives_well_past_its_original_target_time</code></li><li><code>test_camera_shake_system_decays_linearly_and_stops_at_zero</code></li><li><code>test_trigger_shake_takes_the_larger_of_overlapping_shakes</code></li></ul></details>
 <details><summary><code>test_hybrid_layers.py</code> — Perfil hybrid no jogo: fusao kick+vocal com prioridade do kick e roteamento por camada no Arcade. (5 testes)</summary><ul><li><code>test_merge_gives_kick_priority_and_keeps_order</code></li><li><code>test_merge_with_empty_layers</code></li><li><code>test_unquantized_selection_respects_gap_budget_and_window</code></li><li><code>test_lanes_mode_routes_kick_to_edges_and_vocal_to_center</code></li><li><code>test_single_layer_beatmap_keeps_timbre_lanes</code></li></ul></details>
-<details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
 <details><summary><code>test_lane_bomb_notes.py</code> — Arcade 4K: Notas Toxicas (Bombas) -- pressionar pune sem pontuar; deixar passar sem tocar e o jogo correto. (4 testes)</summary><ul><li><code>test_pressing_a_bomb_never_scores_and_damages_health</code></li><li><code>test_pressing_a_bomb_triggers_shake_and_blindness</code></li><li><code>test_letting_a_bomb_pass_untouched_is_survived_without_penalty</code></li><li><code>test_basic_note_is_unaffected_by_bombs_present_in_config</code></li></ul></details>
 <details><summary><code>test_lane_choreography.py</code> — Pistas Dinamicas: senoide amortecida causal (compute_lane_sway) + reposicionamento de colunas em composicao. (6 testes)</summary><ul><li><code>test_zero_sway_with_no_trigger_times</code></li><li><code>test_zero_sway_before_any_trigger_fires</code></li><li><code>test_matches_the_damped_sine_formula_at_a_known_instant</code></li><li><code>test_amplitude_scales_the_result_linearly</code></li><li><code>test_contributions_from_multiple_triggers_sum</code></li><li><code>test_lane_choreography_system_is_registered_and_sways_after_a_scratch_cluster</code></li></ul></details>
@@ -318,13 +303,11 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
 <details><summary><code>test_polarity_and_parry.py</code> — Polaridade (Ikaruga) + Parry Perfeito: cor certa destroi, cor errada e Deflect, pesada reflete. (8 testes)</summary><ul><li><code>test_matching_color_destroys_basic_threat</code></li><li><code>test_wrong_color_is_deflect_not_destroy</code></li><li><code>test_matching_pink_color_destroys_low_lane_threat</code></li><li><code>test_heavy_threat_accepts_either_color_and_reflects_instead_of_dying</code></li><li><code>test_heavy_threat_requires_the_tighter_perfect_window</code></li><li><code>test_reflected_projectile_is_not_swept_as_overdue_miss</code></li><li><code>test_parry_reflected_projectile_destroys_threat_in_its_path</code></li><li><code>test_parry_reflected_projectile_impact_triggers_camera_shake</code></li></ul></details>
 <details><summary><code>test_polarity_visual_accessibility.py</code> — Acessibilidade a daltonismo na Polaridade: forma (triangulo/quadrado) nunca depende so da cor. (5 testes)</summary><ul><li><code>test_blue_lane_threat_gets_blue_shape_and_real_tint</code></li><li><code>test_pink_lane_threat_gets_pink_shape_and_real_tint</code></li><li><code>test_heavy_threat_keeps_heavy_visual_even_with_polarity_enabled</code></li><li><code>test_shapes_are_not_used_when_polarity_is_disabled</code></li><li><code>test_core_shape_changes_to_blue_then_pink_on_fire</code></li></ul></details>
-<details><summary><code>test_practice_mode.py</code> — Modo Treino (musicas do jogador): densidade de onsets reduzida + vida infinita, tudo opt-in. (9 testes)</summary><ul><li><code>test_keep_fraction_one_is_a_lossless_copy</code></li><li><code>test_keep_fraction_half_keeps_every_other_uniformly</code></li><li><code>test_keep_fraction_handles_empty_schedule</code></li><li><code>test_practice_mode_thins_the_beatmap_before_any_spawner_sees_it</code></li><li><code>test_practice_mode_does_not_touch_the_beatmap_when_disabled</code></li><li><code>test_practice_mode_suppresses_health_damage_in_defender</code></li><li><code>test_practice_mode_suppresses_health_damage_in_survival</code></li><li><code>test_toggling_practice_mode_in_the_menu_carries_into_the_composed_stage</code></li><li><code>test_toggling_practice_mode_off_again_restores_normal_config</code></li></ul></details>
+<details><summary><code>test_practice_mode.py</code> — Modo Treino (musicas do jogador): densidade de onsets reduzida + vida infinita, tudo opt-in. (8 testes)</summary><ul><li><code>test_keep_fraction_one_is_a_lossless_copy</code></li><li><code>test_keep_fraction_half_keeps_every_other_uniformly</code></li><li><code>test_keep_fraction_handles_empty_schedule</code></li><li><code>test_practice_mode_thins_the_beatmap_before_any_spawner_sees_it</code></li><li><code>test_practice_mode_does_not_touch_the_beatmap_when_disabled</code></li><li><code>test_practice_mode_suppresses_health_damage_in_defender</code></li><li><code>test_toggling_practice_mode_in_the_menu_carries_into_the_composed_stage</code></li><li><code>test_toggling_practice_mode_off_again_restores_normal_config</code></li></ul></details>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
 <details><summary><code>test_render_visuals.py</code> — Regressao VISUAL do renderer (pygame headless): textos blitam como glifos, nunca blocos solidos. (4 testes)</summary><ul><li><code>test_word_texture_has_glyph_holes</code></li><li><code>test_word_texture_survives_alpha_roundtrip</code></li><li><code>test_digit_texture_has_glyph_holes</code></li><li><code>test_hidden_sprite_paints_nothing</code></li></ul></details>
 <details><summary><code>test_scratch_input_sources.py</code> — scratch_energy tem 3 fontes independentes (mouse/roda/teclas alternadas) -- combinadas por max(). (7 testes)</summary><ul><li><code>test_energy_pulse_saturates_at_one</code></li><li><code>test_energy_pulse_decays_and_floors_at_zero</code></li><li><code>test_energy_pulse_combines_gain_and_decay_in_the_same_call</code></li><li><code>test_alternating_energy_ignores_the_same_side_repeated</code></li><li><code>test_alternating_energy_spikes_on_a_genuine_switch</code></li><li><code>test_alternating_energy_decays_without_any_press</code></li><li><code>test_real_provider_polls_without_crashing_and_starts_at_zero_energy</code></li></ul></details>
 <details><summary><code>test_scratch_judgment.py</code> — Notas de Scratch (Arcade 4K): energia continua de mouse mantem o hold; parar e MISS imediato. (3 testes)</summary><ul><li><code>test_holding_energy_through_the_whole_scratch_scores_perfect</code></li><li><code>test_stopping_mid_hold_is_an_immediate_miss</code></li><li><code>test_scratch_note_ignores_lane_key_presses</code></li></ul></details>
-<details><summary><code>test_survival_mode.py</code> — Modo Sobrevivencia: paredes TELEGRAFADAS (aviso-&gt;letal no onset); dano so no toque letal; dash so protege NA BATIDA. (9 testes)</summary><ul><li><code>test_wall_spawns_in_warning_phase_with_collision_disarmed</code></li><li><code>test_wall_becomes_lethal_exactly_on_the_onset</code></li><li><code>test_touch_during_warning_phase_is_ignored</code></li><li><code>test_touching_lethal_wall_damages_and_breaks_combo</code></li><li><code>test_touching_lethal_wall_triggers_camera_shake</code></li><li><code>test_dash_on_beat_grants_iframes_and_survives_the_strike</code></li><li><code>test_dash_off_beat_grants_no_protection_and_still_costs_cooldown</code></li><li><code>test_expired_wall_scores_survival</code></li><li><code>test_heavy_threat_wall_is_centered_normal_wall_is_offset</code></li></ul></details>
-<details><summary><code>test_survival_safe_zone.py</code> — Sobrevivencia: Safe Zone estacionaria + Ancora -- fique dentro do raio e segure a tecla ate o fim. (7 testes)</summary><ul><li><code>test_heavy_threat_becomes_a_stationary_safe_zone_with_inert_hitbox</code></li><li><code>test_safe_zone_hitbox_never_arms_even_after_turning_lethal</code></li><li><code>test_anchoring_inside_the_zone_through_duration_scores_survived</code></li><li><code>test_safe_zone_survives_past_generic_expire_time_while_anchored</code></li><li><code>test_leaving_the_zone_mid_anchor_is_immediate_miss_with_shake_and_rumble</code></li><li><code>test_releasing_anchor_inside_the_zone_is_also_an_immediate_miss</code></li><li><code>test_graze_system_ignores_safe_zones</code></li></ul></details>
 <details><summary><code>test_tutorial_stage.py</code> — Tutorial: banner sincronizado ao relogio de audio e validade dos dados versionados das fases. (4 testes)</summary><ul><li><code>test_repo_stage_data_is_valid</code></li><li><code>test_tutorial_banner_follows_music_clock</code></li><li><code>test_stage_without_tutorial_steps_has_no_tutorial_system</code></li><li><code>test_simultaneous_tutorial_wave_all_dodged_with_one_dash</code></li></ul></details>
 <details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
 <details><summary><code>test_vignette_flash.py</code> — Vignette Flash (&quot;Cegueira Ritmica&quot;): GameState.blindness_timer_sec, decaimento e o overlay pre-renderizado. (4 testes)</summary><ul><li><code>test_trigger_blindness_takes_the_larger_of_overlapping_triggers</code></li><li><code>test_camera_shake_system_also_decays_blindness_timer</code></li><li><code>test_vignette_surface_is_window_sized_with_a_transparent_hole_at_the_judgment_line</code></li><li><code>test_sync_blindness_publishes_game_state_to_the_renderer</code></li></ul></details>
@@ -413,11 +396,11 @@ sobre todas as teclas de cada acao, mais os eixos de mira.</pre>
       `draw_batch` blita a textura registrada; ids sem textura caem
       no desenho procedural (circulos -- nucleo, ameacas, mira).
     - `set_playfield(...)`: decoracao de arena POR MODO (aneis do
-      Defensor, borda da Sobrevivencia, colunas + linha do Arcade),
-      desenhada em `begin_frame` e sincronizada pelo `HertzGameLoop`
-      a cada troca de fase.
-    - Barras/lasers procedurais quando a escala e anisotropica
-      (paredes de som da Sobrevivencia).
+      Defensor, colunas + linha do Arcade), desenhada em
+      `begin_frame` e sincronizada pelo `HertzGameLoop` a cada
+      troca de fase.
+    - Barras procedurais quando a escala e anisotropica (Notas
+      Longas/Scratch do Arcade 4K).
     - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
       esquerda e palavras expiradas).
     - Juice de Parry (Hitlag Visual Simulado, Defensor): `begin_frame`/
@@ -496,10 +479,8 @@ do frame seguinte ja desarma.</pre>
 
     &quot;radial&quot; -- aneis-guia do Defensor (spawn + anel de julgamento):
         center_x, center_y, spawn_radius, judgment_radius
-    &quot;arena&quot;  -- borda da arena da Sobrevivencia: width, height
     &quot;lanes&quot;  -- colunas + linha de julgamento do Arcade 4K:
         lane_xs (iteravel), lane_half_width, judgment_y, height
-    &quot;radial_arena&quot; -- Hibrido: aneis + borda.
     None     -- sem decoracao.</pre>
 <h4><code>.probe_display_size()</code></h4><pre class="doc">Resolucao do monitor atual, consultada ANTES de criar a
 janela (para `fit_config_to_display`). Inicializa apenas o
@@ -530,7 +511,7 @@ digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
 registradas no renderer UMA unica vez. Nenhum `font.render` acontece
 depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
 aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
-<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_SURVIVAL_HOLDS_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_MODE_CONTROL_HINTS</code>, <code>_MODE_DISPLAY_NAMES</code></p>
+<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_MODE_CONTROL_HINTS</code>, <code>_MODE_DISPLAY_NAMES</code></p>
 <h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
 composicao, depois de `renderer.initialize` (precisa do display
 ativo para `convert_alpha`).</pre>
@@ -587,7 +568,7 @@ reconstroi os mesmos sons no primeiro build.
 Gun Sync: o canhao do tiro certeiro E percussao (bumbo pesado + estalo),
 desenhado para se fundir a trilha; o clique seco do misfire e o &quot;tec&quot; de
 arma emperrada; o tap fantasma e um tick discreto de batucada livre.</pre>
-<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code>, <code>SFX_DEFLECT</code>, <code>SFX_PARRY</code>, <code>SFX_GRAZE</code>, <code>SFX_HOLD_ENGAGE</code>, <code>SFX_HOLD_BREAK</code>, <code>SFX_SHIELD_BREAK</code>, <code>SFX_BOMB</code>, <code>SFX_HEAL</code></p>
+<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code>, <code>SFX_DEFLECT</code>, <code>SFX_PARRY</code>, <code>SFX_HOLD_ENGAGE</code>, <code>SFX_HOLD_BREAK</code>, <code>SFX_SHIELD_BREAK</code>, <code>SFX_BOMB</code>, <code>SFX_HEAL</code></p>
 <h4><code>_cannon()</code></h4><pre class="doc">Tiro no tempo: bumbo profundo (sweep 160-&gt;40 Hz) + estalo curto --
 percussao que se soma a musica.</pre>
 <h4><code>_click()</code></h4><pre class="doc">Misfire: &#x27;tec&#x27; seco e metalico de gatilho emperrado.</pre>
@@ -597,8 +578,6 @@ metalico curto e agudo, sem peso (nao pune, so avisa &quot;quase&quot;).</pre>
 <h4><code>_parry()</code></h4><pre class="doc">Parry Perfeito: impacto mais pesado que o canhao normal -- a
 inversao de velocidade de uma ameaca pesada merece o SFX mais
 dramatico do Defensor.</pre>
-<h4><code>_graze()</code></h4><pre class="doc">Graze (Touhou): faisca sutil de hi-hat -- ruido determinístico
-(semente fixa) filtrado por envelope curtissimo, nunca chamativo.</pre>
 <h4><code>_hold_engage()</code></h4><pre class="doc">Notas Longas -- Fase 1 (Start) engajada: zumbido curto que
 &quot;trava&quot;, como um motor comecando a girar (sustentado ate a Fase 2
 resolver).</pre>
@@ -767,40 +746,17 @@ o que fica visivel: mira no Defensor, nada no Arcade, ...).</pre>
 centro, ameacas radiais 360, mira livre + tiro na batida; misfire
 zera o combo. Ordem: PlayerInput -&gt; Spawner radial -&gt; Judgment -&gt;
 Physics -&gt; Collision -&gt; CoreDamage.</pre>
-<h4><code>_create_shockwave_pool()</code></h4><pre class="doc">Pre-cria `pool_size` entidades de onda de choque (Pulso de
-Impacto), inicialmente INATIVAS (hitbox/sprite zerados pelo proprio
-`MemoryManager` -- camada/mascara 0 e alfa 0 sao o &quot;invisivel/sem
-colisao&quot; default de uma linha nova). Disciplina Zero-GC MAIS
-ESTRITA que o resto do jogo: este pool fixo e reaproveitado para
-sempre em round-robin pelo `ShockwaveSystem`, nunca criado/destruido
-durante a partida.</pre>
 <h4><code>_create_distraction_pool()</code></h4><pre class="doc">Pre-cria `pool_size` entidades de Obstrucao Visual (jumpscare),
 inicialmente INATIVAS (`tint_a=0` default de uma linha nova de
-sprite) -- MESMA disciplina Zero-GC do `_create_shockwave_pool`:
+sprite) -- disciplina Zero-GC MAIS ESTRITA que o resto do jogo:
 pool fixo, reaproveitado para sempre em round-robin pelo
 `DistractionSystem`, nunca criado/destruido durante a partida.</pre>
-<h4><code>_compose_survival_mode()</code></h4><pre class="doc">MODO 2 -- Sobrevivencia Pura (estilo Just Shapes &amp; Beats):
-movimento livre, paredes de som varrem a arena cruzando o centro na
-batida; sem botao de ataque -- julgamento 100% via CollisionSystem,
-Dash com i-frames atravessa. Ordem: SurvivalPlayer -&gt; Spawner de
-varreduras -&gt; Physics -&gt; Collision -&gt; SurvivalDamage.</pre>
 <h4><code>lane_center_positions()</code></h4><pre class="doc">Posicoes X centrais das 4 colunas do Arcade 4K (compartilhado
 entre a composicao do modo e a decoracao de arena do adapter).</pre>
 <h4><code>_compose_lanes_mode()</code></h4><pre class="doc">MODO 3 -- Arcade Classico 4K (estilo FNF/VSRG): 4 colunas fixas,
 notas caem ate a linha de julgamento, teclas D/F/J/K por coluna.
 Sem CollisionSystem: o julgamento e temporal por coluna. Ordem:
 Spawner de notas -&gt; LaneJudgment -&gt; Physics.</pre>
-<h4><code>_compose_hybrid_mode()</code></h4><pre class="doc">MODO 4 -- Hibrido (Defensor + Sobrevivencia alternando por SECAO
-da musica): o beatmap e PARTICIONADO na composicao -- eventos de
-secoes pares viram ameacas radiais (atire na batida), os de secoes
-impares viram paredes de som (dashe atraves). Dois spawners
-coexistem, cada um consumindo APENAS a sua particao pre-filtrada
-(zero decisao de modo em runtime); os juizes se ignoram mutuamente
-via `mode_tag`. O jogador MOVE o corpo (WASD/dash, i-frames) e mira
-a torreta do nucleo com o mouse -- &#x27;voce e o escudo movel do
-nucleo&#x27;. Ordem: SurvivalPlayer (corpo) -&gt; PlayerInput (mira, sem
-dash) -&gt; Spawner radial -&gt; Spawner de varreduras -&gt; Judgment -&gt;
-Physics -&gt; Collision -&gt; CoreDamage -&gt; SurvivalDamage.</pre>
 <h4><code>compose_world()</code></h4><pre class="doc">Composicao PURA (sem pygame): pools, arquetipos, entidades
 persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
 sistemas. Backends concretos entram por parametro -- os testes
@@ -821,8 +777,8 @@ arrays de indices (digito menos significativo primeiro) consumidos
 pelo `UIRenderSystem`.</pre>
 <h3>classe <code>ComposedGame</code></h3><pre class="doc">Referencias resultantes da composicao pura, para o `build()`
 concreto, para o `__main__` (placar final) e para testes headless.</pre>
-<h4><code>.spawner_system()</code></h4><pre class="doc">Atalho de conveniencia: o spawner principal (modos puros tem
-exatamente um; o Hibrido tem dois -- ver `spawner_systems`).</pre>
+<h4><code>.spawner_system()</code></h4><pre class="doc">Atalho de conveniencia: o spawner principal (todo modo tem
+exatamente um -- ver `spawner_systems`).</pre>
 <h4><code>.all_spawners_finished()</code></h4><pre class="doc">True quando TODOS os spawners consumiram seus beatmaps.</pre>
 <h3>classe <code>_ModeContext</code></h3><pre class="doc">Pacote de referencias comuns entregue a cada estrategia de modo
 (`MODE_COMPOSERS`): tudo que uma estrategia precisa para registrar
@@ -892,8 +848,6 @@ MONOCROMATICA atual atingiu o limiar de Overdrive -- disparos
 comuns de `resonance_color` viram &quot;perfurantes&quot; (abatem TODAS
 as candidatas validas do frame, nao so a melhor -- ver
 `JudgmentSystem._try_player_hit`).</pre>
-<h4><code>.in_fever()</code></h4><pre class="doc">True quando `fever_meter` esta cheio -- dobra a pontuacao de
-Graze/sobrevivencia enquanto durar.</pre>
 <h4><code>.register_judgment_feedback()</code></h4><pre class="doc">Atualiza o feedback visual de julgamento consumido pelo
 `UIRenderSystem` (palavra PERFECT/GOOD/MISS por alguns frames).</pre>
 <h4><code>.trigger_shake()</code></h4><pre class="doc">Aciona/reforca o tremor de tela. Usa `max()`, nao soma: dois
@@ -992,8 +946,8 @@ Fluxo (tudo em fase de carregamento, nunca no loop de gameplay):
        beatmap cacheado em `data/beatmaps/user/&lt;slug&gt;.beatmap.json` --
        as proximas aberturas sao instantaneas.
     3. Cada musica vira um `StageDef` com `selectable_mode=True`: no
-       menu, A/D (ou setas) alternam Defensor / Sobrevivencia /
-       Arcade 4K / Hibrido antes de comecar.
+       menu, A/D (ou setas) alternam Defensor / Arcade 4K e suas
+       variantes antes de comecar.
 
 Sem librosa instalado, musicas ja analisadas continuam jogaveis; novas
 sao puladas com aviso no console.</pre>
@@ -1150,9 +1104,9 @@ na engine, ROADMAP M1/M2, com default no-op e implementacao real em
 
 Este sistema so cuida do DECAIMENTO: `GameState.shake_intensity` e
 escrito por `trigger_shake(...)` de QUALQUER sistema (Hold quebrado
-no Defensor, onda fora da Safe Zone na Sobrevivencia, ...) e este
-sistema o reduz linearmente ate 0 -- um UNICO escalar primitivo,
-entao mesmo sem vetorizacao numpy isso e Zero-GC por construcao
+no Defensor, impacto do Parry, ...) e este sistema o reduz
+linearmente ate 0 -- um UNICO escalar primitivo, entao mesmo sem
+vetorizacao numpy isso e Zero-GC por construcao
 (nao ha array por entidade aqui: a &quot;camera&quot; e uma so).
 
 Registrado INCONDICIONALMENTE em `compose_world` (como o
@@ -1236,9 +1190,8 @@ so o que lhe interessa da MESMA lista de `modchart_events`.</pre>
 `RhythmSpawnerSystem` da engine) avanca sobre `distraction_events`
 (ordenados por tempo); ao cruzar o instante de um evento, ativa o
 PROXIMO slot do pool fixo de `distraction_entity_indices`
-(round-robin, nunca cria/destroi entidade -- mesma disciplina Zero-GC
-do `ShockwaveSystem`), posicionando-o em `(x_fraction*width,
-y_fraction*height)` com a textura pre-registrada
+(round-robin, nunca cria/destroi entidade), posicionando-o em
+`(x_fraction*width, y_fraction*height)` com a textura pre-registrada
 (`TEX_DISTRACTION_SPLAT`) e `layer_z` acima do HUD -- cobre TUDO na
 tela por `duration_sec`. Um coletor de expiracao escalar (5
 iteracoes, no maximo) desliga o slot (`tint_a=0`) quando o tempo
@@ -1247,24 +1200,6 @@ acaba.
 Zero-GC: nenhuma alocacao por frame -- o cursor e um inteiro
 primitivo, o round-robin e aritmetica de modulo, e o coletor de
 expiracao itera so sobre os poucos slots do pool fixo.</pre>
-</details>
-<details class="module" id="hertzbeats-systems-graze_system"><summary><code>hertzbeats/systems/graze_system.py</code> — Sistema de Graze (estilo Touhou): raspar perto de uma parede letal sem tocar rende pontos e Fever.</summary>
-<pre class="doc">Sistema de Graze (estilo Touhou): raspar perto de uma parede letal sem tocar rende pontos e Fever.</pre>
-<h3>classe <code>GrazeSystem</code></h3><pre class="doc">Segundo raio de deteccao da Sobrevivencia, PARALELO ao
-`CollisionSystem`/`SurvivalDamageSystem`: uma parede letal que o
-jogador cruza sem TOCAR (fora da hitbox real, mas dentro dela +
-`graze_margin`) concede pontos de Graze e carrega a barra de Fever
--- incentiva o estilo agressivo de &quot;raspar&quot; nas ameacas.
-
-Zero-GC: AABB vetorizado sobre TODAS as paredes LETAIS ativas contra
-a posicao do jogador (buffers pre-alocados, `out=` em toda ufunc);
-`has_grazed` (campo da propria linha SoA) evita pontuar a mesma
-parede a cada frame enquanto o jogador permanece na faixa -- so
-conta na TRANSICAO para dentro da banda de graze.
-
-Fever: `fever_meter` (0..1 no `GameState`) enche por Graze e decai
-com o tempo; cheio, dobra a pontuacao de Graze/sobrevivencia
-(`GameState.in_fever`) ate esvaziar de novo.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-judgment_system"><summary><code>hertzbeats/systems/judgment_system.py</code> — Julga o input do jogador contra as ameacas vivas: PERFECT/GOOD/MISS, sem alocar um unico objeto.</summary>
 <pre class="doc">Julga o input do jogador contra as ameacas vivas: PERFECT/GOOD/MISS, sem alocar um unico objeto.</pre>
@@ -1359,15 +1294,14 @@ assume a posicao via seno/cosseno a partir daqui em diante),
 colisao trocada para `SHIELD_COLLISION_LAYER` (arma contra
 ameacas comuns, nunca contra o nucleo -- mesma logica de troca
 de camada do Parry) e `phase` marcada `PHASE_ORBITING` (reusa o
-campo do telegraph da Sobrevivencia, sem conflito de dono aqui
-no Defensor). `spawn_angle_rad` (so telemetria ate a captura)
-vira o OFFSET ANGULAR FIXO da orbita a partir deste instante.</pre>
+campo `phase` ja existente, sem precisar de um campo novo).
+`spawn_angle_rad` (so telemetria ate a captura) vira o OFFSET
+ANGULAR FIXO da orbita a partir deste instante.</pre>
 <h4><code>._register_hold_engage()</code></h4><pre class="doc">Notas Longas -- Fase 1 (Start): a candidata vencedora NAO e
 destruida. Zera sua velocidade (para junto ao anel em vez de
 atravessar) e DESARMA sua colisao com o nucleo
-(`collision_layer/mask = 0`, o MESMO idioma do aviso telegrafado
-da Sobrevivencia) -- assim o `CoreDamageSystem` nunca a ve
-enquanto ela estiver sustentada, sem precisar tocar naquele
+(`collision_layer/mask = 0`) -- assim o `CoreDamageSystem` nunca
+a ve enquanto ela estiver sustentada, sem precisar tocar naquele
 sistema. `is_hit=True` com `judgment` ainda PENDING marca &quot;esta
 linha pertence a Fase 2&quot; para `_sweep_engaged_holds` e para a
 exclusao correspondente em `update()`.</pre>
@@ -1589,8 +1523,8 @@ escudos orbitais NUNCA expiram por distancia (`is_reflected`
 permanece `False` neles, entao `_expire_out_of_bounds` os ignora
 naturalmente).
 
-Zero-GC: mesmo idioma do `CoreDamageSystem`/`SurvivalDamageSystem`
--- laco escalar sobre os poucos pares do frame (tipicamente 0-2).</pre>
+Zero-GC: mesmo idioma do `CoreDamageSystem` -- laco escalar sobre
+os poucos pares do frame (tipicamente 0-2).</pre>
 <h4><code>._is_attacker()</code></h4><pre class="doc">Uma linha e &quot;atacante&quot; (colide com ameacas, nunca e vitima)
 se for um projetil refletido (`is_reflected`) OU um Escudo
 Rotativo capturado (`phase == PHASE_ORBITING`) -- os dois
@@ -1704,41 +1638,6 @@ normal (abaixo da linha), invertido suavemente para `-46px`
 (acima) conforme `flip` avanca, para nao ficar por cima das
 notas subindo.</pre>
 </details>
-<details class="module" id="hertzbeats-systems-safe_zone_judgment_system"><summary><code>hertzbeats/systems/safe_zone_judgment_system.py</code> — Modo Sobrevivencia: Safe Zone estacionaria -- julga por distancia direta, exige Ancora continua.</summary>
-<pre class="doc">Modo Sobrevivencia: Safe Zone estacionaria -- julga por distancia direta, exige Ancora continua.</pre>
-<h3>classe <code>SafeZoneJudgmentSystem</code></h3><pre class="doc">Safe Zone (opt-in via `holds_enabled`): zonas circulares ESTACIONARIAS
-(`SurvivalSpawnerSystem`, `duration_sec &gt; 0`) cuja hitbox NUNCA e
-armada (`WallPhaseSystem` as poupa por construcao) -- este sistema e
-o UNICO juiz delas, julgando por DISTANCIA DIRETA (mesmo idioma do
-`GrazeSystem`: le transform+hitbox das pools diretamente, sem
-depender de pares do `CollisionSystem`).
-
-Regra: a partir do onset (`phase == PHASE_LETHAL` -- o mesmo instante
-em que a zona &quot;solidifica&quot; visualmente), o jogador precisa ficar
-dentro de `safe_zone_radius` da zona E segurar a acao `anchor`
-continuamente ate `target_hit_time_sec + duration_sec`:
-    - Sustentou ate o fim        -&gt; SURVIVED: pontua, estende combo.
-    - Saiu do raio OU soltou
-      Ancora antes do fim        -&gt; MISS imediato: dano de vida
-      (respeita `practice_mode`), Camera Shake e Haptics
-      (`IInputProvider.set_rumble`).
-
-Zero-GC: filtro vetorizado (linhas ativas, tipicamente 0-2 por vez)
-seguido de um laco escalar computando a distancia via `math.hypot`
--- mesmo padrao do `GrazeSystem`/Hold do Defensor.</pre>
-<h4><code>.update()</code></h4><pre class="doc">Filtra as Safe Zones ativas (fase letal, ainda pendentes) e
-resolve cada uma por distancia direta ao jogador + estado da
-acao `anchor`.</pre>
-<h4><code>._play()</code></h4><pre class="doc">Dispara um SFX se houver backend e som configurados (testes
-headless injetam NullAudioEngine ou nada).</pre>
-<h4><code>._resolve_success()</code></h4><pre class="doc">Sustentou dentro da zona ate o fim: SURVIVED, destruicao
-diferida, placar/combo normais (mesmo veredito de sobreviver a
-uma parede comum).</pre>
-<h4><code>._resolve_break()</code></h4><pre class="doc">Saiu do raio ou soltou Ancora antes do fim: MISS imediato,
-combo zerado, dano de vida (respeita Modo Treino) e o feedback
-fisico duplo -- Camera Shake e Haptics (`IInputProvider.set_rumble`,
-no-op silencioso sem controle conectado).</pre>
-</details>
 <details class="module" id="hertzbeats-systems-scratch_judgment_system"><summary><code>hertzbeats/systems/scratch_judgment_system.py</code> — Notas de Scratch: exige energia continua de mouse (a &#x27;mesa do DJ&#x27;) do inicio ao fim do hold.</summary>
 <pre class="doc">Notas de Scratch: exige energia continua de mouse (a &#x27;mesa do DJ&#x27;) do inicio ao fim do hold.</pre>
 <h3>classe <code>ScratchJudgmentSystem</code></h3><pre class="doc">Julga as notas de Scratch (`is_hold=True`, clusters de pesadas
@@ -1756,105 +1655,6 @@ fim e um acerto PERFECT.
 Zero-GC: mascara vetorizada sobre a pool inteira para achar o hold
 ativo (tipicamente 0 ou 1 por vez); a decisao de energia e um unico
 escalar por frame, aplicada por indice nas poucas linhas achadas.</pre>
-</details>
-<details class="module" id="hertzbeats-systems-shockwave_system"><summary><code>hertzbeats/systems/shockwave_system.py</code> — Pulso de Impacto: Dash perfeito dispara uma onda de choque que varre obstaculos fracos.</summary>
-<pre class="doc">Pulso de Impacto: Dash perfeito dispara uma onda de choque que varre obstaculos fracos.</pre>
-<p class='constants'>Constantes: <code>SHOCKWAVE_DTYPE</code>, <code>SHOCKWAVE_COLLISION_LAYER</code></p>
-<h3>classe <code>ShockwaveSystem</code></h3><pre class="doc">&quot;Pulso de Impacto&quot;: quando o `SurvivalPlayerSystem` registra um dash
-PERFEITO (na batida) neste frame, este sistema pega a PROXIMA das
-`shockwave_pool_size` entidades pre-alocadas (round-robin -- nunca
-cria/destroi entidade, ao contrario do resto do jogo, seguindo a
-disciplina extra pedida: um pool fixo reaproveitado para sempre) e a
-poe na posicao do jogador, ativa.
-
-Zero-GC: crescimento EXPONENCIAL do raio (`min * (max/min)^(t/dur)`)
-vetorizado sobre as poucas linhas ativas (0-5); hitbox atualizada em
-escala com o raio; ao expirar, desativa (layer/mask 0, invisivel).
-Reusa o `CollisionSystem` generico: a onda tem sua PROPRIA camada
-(`SHOCKWAVE_COLLISION_LAYER`), destruindo paredes NAO-pesadas (o
-&quot;obstaculo fraco&quot; do enunciado) que cruzarem seu raio -- pesadas
-resistem, como no Parry do Defensor.</pre>
-<h4><code>._trigger_next_slot()</code></h4><pre class="doc">Ativa o proximo slot do pool fixo (round-robin: um inteiro
-primitivo cclando 0..N-1, sem alocar nada).</pre>
-</details>
-<details class="module" id="hertzbeats-systems-survival_damage_system"><summary><code>hertzbeats/systems/survival_damage_system.py</code> — Modo Sobrevivencia: julgamento 100% via CollisionSystem -- tocar a parede pune, atravessar no Dash pontua.</summary>
-<pre class="doc">Modo Sobrevivencia: julgamento 100% via CollisionSystem -- tocar a parede pune, atravessar no Dash pontua.</pre>
-<h3>classe <code>SurvivalDamageSystem</code></h3><pre class="doc">Unico juiz do modo Sobrevivencia (nao ha botao de ritmo): consome os
-pares do `CollisionSystem` e o relogio de audio para dar a cada
-parede de som exatamente UM veredito:
-
-    - Toque SEM i-frames  -&gt; MISS: dano, combo zerado. A parede NAO
-      e destruida (segue varrendo, so o veredito impede dano duplo).
-    - Toque COM i-frames  -&gt; DODGED: atravessou a parede no ritmo --
-      pontua e estende o combo (o Dash e o &quot;acerto&quot; deste modo).
-    - Expirou sem toque   -&gt; SURVIVED: o jogador saiu do caminho por
-      posicionamento -- pontua e estende o combo.
-
-A varredura de expiracao (vetorizada, buffers pre-alocados) tambem e
-o coletor de lixo do modo: TODA parede com `expire_time_sec` vencido
-e destruida (destruicao diferida da engine), pontuando apenas as
-ainda pendentes. Sem isso a pool nunca esvaziaria e a fase nunca
-terminaria.</pre>
-<h4><code>.update()</code></h4><pre class="doc">Aplica vereditos de colisao e a varredura de expiracao.</pre>
-<h4><code>._judge_collisions()</code></h4><pre class="doc">Pares jogador x parede do frame: MISS (dano) ou DODGED (dash).</pre>
-<h4><code>._sweep_expired()</code></h4><pre class="doc">Destroi TODA parede vencida; pontua as que expiraram ainda
-pendentes (SURVIVED).</pre>
-</details>
-<details class="module" id="hertzbeats-systems-survival_player_system"><summary><code>hertzbeats/systems/survival_player_system.py</code> — Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames NA BATIDA.</summary>
-<pre class="doc">Modo Sobrevivencia: movimento livre WASD + Dash direcional com i-frames NA BATIDA.</pre>
-<p class='constants'>Constantes: <code>_DIAGONAL_NORMALIZER</code></p>
-<h3>classe <code>SurvivalPlayerSystem</code></h3><pre class="doc">O &quot;InputSystem&quot; do modo Sobrevivencia: em vez de mira 360 fixa no
-centro, o jogador MOVE o nucleo livremente pela arena (WASD) e usa o
-Dash como unico verbo ritmico -- nao ha botao de ataque; atravessar
-as paredes de som no tempo certo E o gameplay.
-
-- Movimento: eixos derivados das acoes seguradas (`move_*`),
-  diagonal normalizada, posicao integrada com `delta_time` de frame
-  (game feel, nao evento ritmico) e CLAMPED a arena.
-- Dash com ESQUIVA RITMICA: o dash so FUNCIONA (impulso + i-frames,
-  respeitados pelo `SurvivalDamageSystem`) se o aperto cair a ate
-  `on_beat_window_seconds` de algum evento musical vivo na tela
-  (`target_hit_time_sec` das ameacas -- os onsets que o jogador esta
-  OUVINDO). Dash no desespero, fora do tempo, EMPERRA: consome o
-  cooldown, toca o clique seco e nada protege -- o contato com a
-  parede pune. `on_beat_window &lt;= 0` desliga a exigencia (modo
-  classico do tutorial/Defensor).
-- Feedback: tint ciano no nucleo durante os i-frames.
-
-Zero-GC: leituras de acao escalares, checagem de batida vetorizada
-em buffer pre-alocado, escritas escalares em linhas densas
-re-resolvidas por frame.</pre>
-<h4><code>._dash_is_on_beat()</code></h4><pre class="doc">True se o aperto de dash cai na janela de alguma batida viva
-(menor |target - agora_efetivo| entre as ameacas na tela).</pre>
-<h4><code>.update()</code></h4><pre class="doc">Integra movimento/dash do frame e escreve o estado do jogador.</pre>
-</details>
-<details class="module" id="hertzbeats-systems-survival_spawner_system"><summary><code>hertzbeats/systems/survival_spawner_system.py</code> — Modo Sobrevivencia: paredes de som TELEGRAFADAS -- linha-guia 1 aproximacao antes, letal no onset.</summary>
-<pre class="doc">Modo Sobrevivencia: paredes de som TELEGRAFADAS -- linha-guia 1 aproximacao antes, letal no onset.</pre>
-<p class='constants'>Constantes: <code>_HALF_PI</code></p>
-<h3>classe <code>SurvivalSpawnerSystem</code></h3><pre class="doc">Estrategia de spawn do modo Sobrevivencia sobre o MESMO
-`beatmap.json`, com TELEGRAPHING: nada mata ao aparecer.
-
-Ciclo de vida de cada parede de som:
-    1. AVISO (`PHASE_WARNING`), do spawn (hit - approach) ate o hit:
-       linha-guia translucida piscando NO LUGAR EXATO onde a parede
-       vai cair. A colisao a ignora por construcao: a hitbox nasce
-       com layer/mask 0 -- o CollisionSystem nem gera pares.
-    2. LETAL (`PHASE_LETHAL`), exatamente no onset (target_hit_time,
-       virada feita pelo `WallPhaseSystem` no MESMO relogio do
-       julgamento): cor vibrante, solida, hitbox armada.
-    3. EXPIRA em `hit + strike_seconds`: destruida pelo coletor do
-       `SurvivalDamageSystem` (SURVIVED se nao tocou ninguem).
-
-Interpretacao espacial dos campos do beatmap (deterministica e
-MUSICAL -- o mesmo som cai sempre no mesmo lugar):
-    - `lane % 2` escolhe o eixo (0 = parede horizontal, 1 = vertical);
-    - `lane // 2` escolhe a POSICAO (4 faixas por eixo, frac 1/8,
-      3/8, 5/8, 7/8 da arena) -- como a lane vem do TIMBRE, a
-      &quot;geografia&quot; da fase repete com a musica;
-    - `threat_type` dita a espessura (pesadas mais grossas).</pre>
-<h4><code>.collision_layer()</code></h4><pre class="doc">Layer real da hitbox, armada pelo `WallPhaseSystem` na virada.</pre>
-<h4><code>.collision_mask()</code></h4><pre class="doc">Mask real da hitbox, armada pelo `WallPhaseSystem` na virada.</pre>
-<h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a parede em fase de AVISO no lugar exato do strike.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-tutorial_system"><summary><code>hertzbeats/systems/tutorial_system.py</code> — Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</summary>
 <pre class="doc">Dirige o banner de instrucoes do tutorial em sincronia com a musica (cursor de tempo, zero-GC).</pre>
@@ -1939,30 +1739,6 @@ valores ficam prontos antes do `HertzGameLoop` ler/renderizar.
 Zero-GC: Stutter e um escalar por frame; Hidden e vetorizado sobre
 as poucas linhas candidatas (fancy indexing em buffers ja
 pre-alocados, mesmo idioma do resto do jogo).</pre>
-</details>
-<details class="module" id="hertzbeats-systems-wall_phase_system"><summary><code>hertzbeats/systems/wall_phase_system.py</code> — Vira as paredes de som de AVISO para LETAL exatamente no onset (e anima o piscar do telegraph).</summary>
-<pre class="doc">Vira as paredes de som de AVISO para LETAL exatamente no onset (e anima o piscar do telegraph).</pre>
-<p class='constants'>Constantes: <code>_BLINK_HZ</code></p>
-<h3>classe <code>WallPhaseSystem</code></h3><pre class="doc">O coracao do telegraphing: registrado ANTES do `CollisionSystem`,
-para que a virada AVISO -&gt; LETAL valha no mesmo frame do onset.
-
-- AVISO: a linha-guia pisca (alfa oscilando; pulso acelera perto do
-  strike) e a colisao esta desarmada (layer/mask 0, decidido no
-  spawn -- este sistema nao precisa &quot;proteger&quot; nada, o
-  CollisionSystem nem gera pares).
-- VIRADA: quando `agora_efetivo &gt;= target_hit_time_sec` (o MESMO
-  relogio compensado do julgamento), a parede fica solida (alfa 255,
-  camada visual acima) e a hitbox e ARMADA com as camadas reais --
-  EXCETO Safe Zones (`duration_sec &gt; 0`, opt-in via `holds_enabled`):
-  elas tambem &quot;solidificam&quot; visualmente no onset, mas a hitbox
-  NUNCA e armada (permanece layer/mask 0 para sempre) -- sao um
-  refugio julgado por distancia direta pelo `SafeZoneJudgmentSystem`,
-  nunca uma colisao perigosa.
-
-Zero-GC: mascaras vetorizadas em buffers pre-alocados selecionam as
-paredes em aviso e as que viram neste frame; o pisca-pisca e uma
-unica expressao vetorizada; a virada escreve escalarmente nas 0-2
-linhas do frame.</pre>
 </details>
 <details class="module" id="hertzbeats-user_settings"><summary><code>hertzbeats/user_settings.py</code> — Preferencias locais do jogador (nao versionadas): hoje, a latencia de audio calibrada.</summary>
 <pre class="doc">Preferencias locais do jogador (nao versionadas): hoje, a latencia de audio calibrada.</pre>
