@@ -30,7 +30,13 @@ class CameraShakeSystem(ISystem):
     Arcade 4K -- Bombas): um contador de SEGUNDOS RESTANTES, nao uma
     intensidade, entao decresce por `delta_time` puro (nao por uma taxa
     configuravel) ate zero -- o mesmo criterio simples de
-    `judgment_display_seconds_left`."""
+    `judgment_display_seconds_left`.
+
+    E tambem decai `GameState.visual_freeze_frames` (Juice de Parry,
+    Defensor): um contador de QUADROS de renderizacao, nao de segundos
+    -- decresce 1 por `update` (1 `update` = 1 frame real de
+    `world.step`), nunca por `delta_time`, entao o congelamento dura o
+    mesmo numero de quadros independente do FPS real."""
 
     def __init__(self, game_state: GameState, decay_per_second: float) -> None:
         self._game_state = game_state
@@ -43,3 +49,5 @@ class CameraShakeSystem(ISystem):
             state.shake_intensity = max(0.0, state.shake_intensity - self._decay_per_second * delta_time)
         if state.blindness_timer_sec > 0.0:
             state.blindness_timer_sec = max(0.0, state.blindness_timer_sec - delta_time)
+        if state.visual_freeze_frames > 0:
+            state.visual_freeze_frames -= 1

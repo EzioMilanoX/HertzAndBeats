@@ -141,6 +141,7 @@ class HertzGameLoop(GameLoop):
         self._practice_mode: dict = {}  # fase selectable_mode -> Modo Treino ligado?
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
+        self._was_frozen = False
 
         composed = self._compose_stage(0)
         super().__init__(
@@ -524,6 +525,33 @@ class HertzGameLoop(GameLoop):
             return
         self._renderer.set_blindness_active(self._composed.game_state.is_blinded)
 
+    def _sync_hitlag(self) -> None:
+        """Juice de Parry (Hitlag Visual Simulado): traduz
+        `GameState.visual_freeze_frames` (decaido pelo `CameraShakeSystem`
+        a cada `world.step`, comum aos 3 modos) num liga/desliga real via
+        `IRenderer.set_freeze_active` -- mesma familia de sincronizacao
+        de `_sync_camera_shake`/`_sync_blindness`. A TRANSICAO de
+        congelado->normal e detectada AQUI (`_was_frozen`, mesmo padrao
+        ja usado por `_was_in_flow` no Flow State) para armar o flash de
+        cor invertida por EXATAMENTE 1 frame -- o instante em que "a
+        tela volta". `GameState.invert_colors` e consumido (resetado a
+        `False`) no exato momento em que o flash e armado, nunca por
+        nenhum `ISystem`."""
+        if self._composed is None:
+            return
+        state = self._composed.game_state
+        freeze_active = state.visual_freeze_frames > 0
+        if hasattr(self._renderer, "set_freeze_active"):
+            self._renderer.set_freeze_active(freeze_active)
+
+        just_unfroze = self._was_frozen and not freeze_active
+        flash = just_unfroze and state.invert_colors
+        if hasattr(self._renderer, "set_color_invert"):
+            self._renderer.set_color_invert(flash)
+        if flash:
+            state.invert_colors = False
+        self._was_frozen = freeze_active
+
     def _render_frame(self) -> None:
         """Override do `GameLoop` da engine: MESMA coleta SoA de
         `transform`+`sprite`, mas aplicando o Stutter Scroll (ruido
@@ -601,6 +629,7 @@ class HertzGameLoop(GameLoop):
             self._sync_overlay()
             self._sync_camera_shake()
             self._sync_blindness()
+            self._sync_hitlag()
             self._sync_lane_playfield()
             self._render_frame()
 

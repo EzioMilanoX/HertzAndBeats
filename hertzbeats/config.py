@@ -174,6 +174,20 @@ class HertzConfig:
     # velocidade e uma constante interna do `ReverseScrollSystem`
     # (`_TIME_EPSILON_SECONDS`), nao uma afinacao de jogabilidade.
 
+    # -- Defensor: Captura Orbital (Escudos Rotativos) -- opt-in por
+    #    presenca do tipo "rhythm_threat_orbit" em `threat_type_ids`
+    #    (mesmo criterio de Bombas/Cura) --
+    orbit_radius: float = 90.0
+    orbit_angular_speed_rad_per_sec: float = 2.4
+
+    # -- Defensor: Ressonancia de Polaridade (Combos Monocromaticos,
+    #    opt-in por `polarity_enabled` -- reusa a MESMA cor ja atribuida
+    #    a cada ameaca comum) --
+    resonance_chain_threshold: int = 10
+
+    # -- Defensor: Juice Extremo de Parry (Hitlag Visual Simulado) --
+    parry_hitlag_freeze_frames: int = 3
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -272,6 +286,10 @@ class HertzConfig:
             hidden_fade_seconds=raw.get("hidden_fade_seconds", 0.5),
             heal_amount=raw.get("heal_amount", 1),
             distraction_pool_size=raw.get("distraction_pool_size", 5),
+            orbit_radius=raw.get("orbit_radius", 90.0),
+            orbit_angular_speed_rad_per_sec=raw.get("orbit_angular_speed_rad_per_sec", 2.4),
+            resonance_chain_threshold=raw.get("resonance_chain_threshold", 10),
+            parry_hitlag_freeze_frames=raw.get("parry_hitlag_freeze_frames", 3),
         )
 
 

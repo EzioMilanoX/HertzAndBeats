@@ -46,6 +46,18 @@ class HBPygameRenderer(PygameRenderer):
           (paredes de som da Sobrevivencia).
         - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
           esquerda e palavras expiradas).
+        - Juice de Parry (Hitlag Visual Simulado, Defensor): `begin_frame`/
+          `draw_batch` viram NO-OP enquanto `set_freeze_active(True)`
+          estiver ligado -- a Surface simplesmente nao e tocada, entao o
+          ultimo frame desenhado continua na tela ("congelado") sem
+          nenhum custo extra de copia. `end_frame` aplica um filtro de
+          cor invertida quando `set_color_invert(True)` -- publicado
+          pelo `HertzGameLoop` por EXATAMENTE 1 frame, no instante em
+          que o congelamento termina. `BLEND_RGB_SUB` em pygame calcula
+          `destino = destino - fonte` (nao o inverso), entao um negativo
+          de verdade (`resultado = 255 - original`) exige DOIS passos:
+          `scratch = branco - frame_atual` (SUB), depois `frame_atual =
+          scratch` (blit opaco simples) -- ver `_invert_surface`.
         - Screen Shake: `draw_batch` soma `self._cam_dx`/`self._cam_dy`
           a CADA posicao antes de desenhar -- campos JA EXISTENTES na
           `PygameRenderer` base (ROADMAP M1/M2, `set_camera_offset`,
@@ -82,6 +94,9 @@ class HBPygameRenderer(PygameRenderer):
         self._flow_tier: int = 0
         self._vignette_surface: Optional[pygame.Surface] = None
         self._blindness_active: bool = False
+        self._freeze_active: bool = False
+        self._color_invert_pending: bool = False
+        self._invert_surface: Optional[pygame.Surface] = None
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
         """Registra `surface` (ja convertida com alpha) para `texture_id`.
@@ -152,6 +167,20 @@ class HBPygameRenderer(PygameRenderer):
         apresentacao vive no game loop, nunca dentro de um `ISystem`)."""
         self._blindness_active = bool(active)
 
+    def set_freeze_active(self, active: bool) -> None:
+        """Juice de Parry (Hitlag): liga/desliga a suspensao de
+        `begin_frame`/`draw_batch` -- publicado pelo `HertzGameLoop` a
+        cada frame a partir de `GameState.visual_freeze_frames > 0`."""
+        self._freeze_active = bool(active)
+
+    def set_color_invert(self, active: bool) -> None:
+        """Juice de Parry: arma o flash de cor invertida para o PROXIMO
+        `end_frame` -- o `HertzGameLoop` so publica `True` por exatamente
+        1 frame (o instante em que o congelamento termina), entao nao ha
+        necessidade de auto-consumo aqui: o proximo `set_color_invert(False)`
+        do frame seguinte ja desarma."""
+        self._color_invert_pending = bool(active)
+
     def set_playfield(self, kind: Optional[str], **params) -> None:
         """Define a decoracao de arena do MODO ativo, desenhada a cada
         `begin_frame`. Chamado pelo `HertzGameLoop` a cada troca de fase:
@@ -181,6 +210,12 @@ class HBPygameRenderer(PygameRenderer):
         super().initialize(width, height, title)
         self._dim_surface = pygame.Surface((width, height), pygame.SRCALPHA)
         self._dim_surface.fill((4, 2, 12, 216))
+        # Surface de RASCUNHO (nao pre-renderizada -- reescrita a cada
+        # flash) para o filtro de cor invertida: `BLEND_RGB_SUB` calcula
+        # `destino - fonte`, entao para obter `255 - original` e preciso
+        # preencher de branco e SUBTRAIR o frame atual (a ordem inversa
+        # do que se poderia supor) -- ver `end_frame`.
+        self._invert_surface = pygame.Surface((width, height))
 
     def show_loading_message(self, message: str) -> None:
         """Tela de carregamento imediata (ex.: 'analisando musica nova').
@@ -206,6 +241,8 @@ class HBPygameRenderer(PygameRenderer):
             pass
 
     def begin_frame(self) -> None:
+        if self._freeze_active:
+            return  # Juice de Parry: repete o ultimo frame desenhado, pixel por pixel
         self._surface.fill((2, 1, 6) if self._flow_mode_active else (8, 6, 20))
         kind = self._playfield_kind
         if kind is None:
@@ -247,6 +284,10 @@ class HBPygameRenderer(PygameRenderer):
         return tuple(min(255, int(channel * pulse)) for channel in base)
 
     def end_frame(self) -> None:
+        if self._color_invert_pending and self._invert_surface is not None:
+            self._invert_surface.fill((255, 255, 255))
+            self._invert_surface.blit(self._surface, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
+            self._surface.blit(self._invert_surface, (0, 0))
         if self._blindness_active and self._vignette_surface is not None:
             self._surface.blit(self._vignette_surface, (0, 0))
         if self._overlay_mode is not None:
@@ -321,6 +362,8 @@ class HBPygameRenderer(PygameRenderer):
         layer_z: np.ndarray,
         count: int,
     ) -> None:
+        if self._freeze_active:
+            return  # Juice de Parry: nao desenha nada -- begin_frame ja preservou a Surface anterior
         if count == 0:
             return
         draw_order = np.argsort(layer_z[:count], kind="stable")

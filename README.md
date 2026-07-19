@@ -236,6 +236,15 @@ Oito mecânicas, todas **opt-in por dados** (nenhuma exige tocar em `LaneJudgmen
 
 Habilitar num `stages.json`: `"holds_enabled"`/`"stutter_scroll_enabled"`/`"hidden_notes_enabled": true` nos `overrides`, um `rhythm_threat_bomb`/`rhythm_threat_heal` no beatmap e/ou `"modchart_events": [...]` (swap, reverse_scroll, distraction) na definição da fase.
 
+## Defensor hardcore: Captura Orbital, Ressonância de Polaridade e Hitlag de Parry
+
+Quatro mecânicas que aprofundam o combate do Defensor **em cima** da Polaridade + Parry Perfeito já existente (tudo opt-in via `polarity_enabled`, sem tocar nos outros dois modos):
+
+- **Captura Orbital (Escudos Rotativos)** — um `threat_type` a mais, `rhythm_threat_orbit` (mesmo critério de opt-in de Bombas/Cura/pesadas). Um Parry Perfeito nesse tipo **não** reflete: `JudgmentSystem._register_orbital_capture` zera a velocidade, troca a camada de colisão para `SHIELD_COLLISION_LAYER` (arma contra ameaças comuns, nunca contra o núcleo — mesma técnica do Parry clássico) e grava `phase = PHASE_ORBITING` (reaproveita o campo do telegraph da Sobrevivência, sem conflito de dono no Defensor). O novo `OrbitalCaptureSystem` sobrescreve `position_x/y` diretamente todo frame via seno/cosseno em torno do núcleo — `spawn_angle_rad` (só telemetria até a captura) vira o offset angular fixo da órbita, então escudos capturados em momentos diferentes giram **juntos** preservando o espaçamento relativo. O `ParryImpactSystem` (já existente) passa a tratar `is_reflected` **ou** `phase == PHASE_ORBITING` como "atacante" — um escudo destrói qualquer ameaça comum que cruzar seu caminho, para sempre (nunca expira, ao contrário de um projétil refletido).
+- **Ressonância de Polaridade (Combos Monocromáticos)** — `GameState.resonance_color/resonance_chain` seguem a sequência de ameaças comuns destruídas: mesma cor estende a corrente, cor diferente reinicia em 1. Ao atingir `resonance_chain_threshold` (10 por padrão) o jogador entra em **Overdrive** daquela cor (`GameState.in_overdrive`) — reinterpretação honesta do "tiro perfurante" pedido para um modelo hitscan sem projétil físico (o Defensor não tem bala viajando): um único disparo em Overdrive abate **todas** as candidatas válidas da cor quente presentes no frame de uma vez (`_register_piercing_kill`), não só a melhor — pesadas/orbitais e Holds engajáveis ficam de fora, seguem suas próprias rotas mesmo durante o Overdrive.
+- **Ameaças de Hold Radial** — o Hold do Defensor (fase 8, já existente) ganhou o único gap real da revisão: soltar o gatilho ou desmirar antes do fim agora causa **dano instantâneo** no núcleo (mesmo guarda `practice_mode`/`health > 0` do `CoreDamageSystem`), além do MISS/Camera Shake/Haptics que já existiam.
+- **Juice Extremo de Parry (Hitlag Visual Simulado)** — todo Parry Perfeito (clássico ou Captura Orbital) arma `GameState.trigger_hitlag`: `visual_freeze_frames` (decaído por quadro, não por segundo, no `CameraShakeSystem`) suspende `begin_frame`/`draw_batch` no `HBPygameRenderer` — a Surface simplesmente não é tocada, repetindo o último frame desenhado — e `invert_colors` arma um flash de cor invertida (`branco − frame atual` via `BLEND_RGB_SUB`, depois copiado de volta — a ordem inversa do que se poderia supor) publicado por **exatamente 1 frame**, no instante em que o congelamento termina. O `IAudioClock`/`world.step` nunca param — só a apresentação congela, a garantia central da tarefa.
+
 ## Arquitetura
 
 Tudo é SoA (Structure of Arrays) sobre as `ComponentPool` da engine — nenhum objeto "HitEvent"/"Threat" Python é instanciado no loop de gameplay (Zero-GC).
@@ -270,7 +279,7 @@ pip install pytest
 python -m pytest
 ```
 
-Cobre (233 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold) nos 3 modos (Defensor em 2 fases, Arcade 4K + Shield, Sobrevivência + Safe Zone/Ancora) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, os 4 itens de polimento (acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino), e as 8 mecânicas/Modcharts avançados do Arcade 4K: Notas Tóxicas (Bombas), Notas de Cura, Notas Fantasmas (Hidden), Swap com Lerp entre colunas, Inversão de Gravidade (Reverse Scroll), Obstruções Visuais (jumpscares), Stutter Scroll e Vignette Flash.
+Cobre (250 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold) nos 3 modos (Defensor em 2 fases, Arcade 4K + Shield, Sobrevivência + Safe Zone/Ancora) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, os 4 itens de polimento (acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino), as 8 mecânicas/Modcharts avançados do Arcade 4K (Notas Tóxicas, Notas de Cura, Notas Fantasmas, Swap com Lerp, Inversão de Gravidade, Obstruções Visuais, Stutter Scroll, Vignette Flash), e as 4 mecânicas hardcore do Defensor: Captura Orbital, Ressonância de Polaridade/Overdrive perfurante, dano instantâneo no Hold Radial e Hitlag Visual de Parry (renderer real com driver `dummy`, não só GameState).
 
 ## Estrutura
 
@@ -278,7 +287,7 @@ Cobre (233 testes): spawn radial com impacto cravado na batida, janelas de julga
 hertzbeats/
   components/    schemas SoA (RhythmThreat, PlayerState) e ids de textura
   systems/       PlayerInput, RadialSpawner, Judgment, CoreDamage, UIRender,
-                 ParryImpact, Graze, Shockwave, LaneChoreography, ScratchJudgment
+                 ParryImpact, OrbitalCapture, Graze, Shockwave, LaneChoreography, ScratchJudgment
   lane_scratch_clustering.py  fusao pura de picos consecutivos em notas de Scratch
   adapters/      renderer/input/audio pygame do jogo (texturas, mira, pause, Flow)
   audio/         síntese determinística das faixas das fases

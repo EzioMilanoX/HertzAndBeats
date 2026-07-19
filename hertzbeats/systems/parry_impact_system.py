@@ -7,13 +7,26 @@ from ouroboros.core.systems.base_system import ISystem
 from ouroboros.core.systems.collision_system import CollisionSystem
 from ouroboros.core.world import World
 
-from hertzbeats.components.schemas import JUDGMENT_MISS, JUDGMENT_PENDING, MODE_TAG_DEFENDER
+from hertzbeats.components.schemas import (
+    JUDGMENT_MISS,
+    JUDGMENT_PENDING,
+    MODE_TAG_DEFENDER,
+    PHASE_ORBITING,
+)
 from hertzbeats.game_state import GameState
 
 REFLECTED_COLLISION_LAYER = 32
 """Camada exclusiva do projetil refletido -- nao colide com o nucleo
 (o `CoreDamageSystem` so processa pares que envolvem o indice do
 jogador; este sistema so processa pares que NAO envolvem o jogador)."""
+
+SHIELD_COLLISION_LAYER = 64
+"""Camada exclusiva dos Escudos Rotativos (Captura Orbital) -- bit
+proprio, distinto de `REFLECTED_COLLISION_LAYER` (32) e de
+`SHOCKWAVE_COLLISION_LAYER` (16, Sobrevivencia/Hibrido): um escudo e um
+"atacante" permanente (nunca expira/sai da arena como um refletido), e
+precisa coexistir sem overlap de bits com QUALQUER camada ja usada no
+Hibrido, onde Escudo e Shockwave podem estar ativos no MESMO `World`."""
 
 
 class ParryImpactSystem(ISystem):
@@ -23,13 +36,21 @@ class ParryImpactSystem(ISystem):
     velocidade e troca sua camada de colisao para `REFLECTED_COLLISION_LAYER`
     (mascara = camada normal de ameacas) -- isso faz o `CollisionSystem`
     generico passar a gerar pares ENTRE o projetil refletido e as demais
-    ameacas pendentes no seu caminho, sem tocar o nucleo.
+    ameacas pendentes no seu caminho, sem tocar o nucleo. Captura Orbital
+    (Escudos Rotativos): o MESMO `JudgmentSystem`, num acerto PERFECT
+    numa ameaca tipo "orbit", troca a camada para `SHIELD_COLLISION_LAYER`
+    em vez de refletir -- um escudo e um "atacante" tao valido quanto um
+    projetil refletido, so que PERMANENTE (nunca expira).
 
     Este sistema, registrado logo apos o `CollisionSystem`, consome
     esses pares (ignorando qualquer par que envolva o jogador -- esse e
     tratado pelo `CoreDamageSystem`) e destroi a ameaca mais fraca de
-    cada par colidente, pontuando o jogador. O projetil refletido em si
-    e destruido quando sai da arena (`spawn_radius` do centro).
+    cada par colidente (o "atacante" -- refletido OU escudo -- nunca e
+    destruido pela colisao), pontuando o jogador. O projetil refletido
+    em si e destruido quando sai da arena (`spawn_radius` do centro);
+    escudos orbitais NUNCA expiram por distancia (`is_reflected`
+    permanece `False` neles, entao `_expire_out_of_bounds` os ignora
+    naturalmente).
 
     Zero-GC: mesmo idioma do `CoreDamageSystem`/`SurvivalDamageSystem`
     -- laco escalar sobre os poucos pares do frame (tipicamente 0-2).
@@ -90,13 +111,15 @@ class ParryImpactSystem(ISystem):
             if int(threat_view["mode_tag"][row_b]) != MODE_TAG_DEFENDER:
                 continue
 
-            reflected_row, victim_row = None, None
-            if bool(threat_view["is_reflected"][row_a]) and not bool(threat_view["is_reflected"][row_b]):
-                reflected_row, victim_row = row_a, row_b
-            elif bool(threat_view["is_reflected"][row_b]) and not bool(threat_view["is_reflected"][row_a]):
-                reflected_row, victim_row = row_b, row_a
+            a_is_attacker = self._is_attacker(threat_view, row_a)
+            b_is_attacker = self._is_attacker(threat_view, row_b)
+            attacker_row, victim_row = None, None
+            if a_is_attacker and not b_is_attacker:
+                attacker_row, victim_row = row_a, row_b
+            elif b_is_attacker and not a_is_attacker:
+                attacker_row, victim_row = row_b, row_a
             else:
-                continue  # nenhum dos dois e o projetil refletido (ou os dois sao)
+                continue  # nenhum dos dois e um atacante (ou os dois sao)
 
             if int(threat_view["judgment"][victim_row]) != JUDGMENT_PENDING:
                 continue
@@ -109,6 +132,14 @@ class ParryImpactSystem(ISystem):
             self._game_state.score += self._score_per_kill
             if self._impact_shake_px > 0.0:
                 self._game_state.trigger_shake(self._impact_shake_px)
+
+    @staticmethod
+    def _is_attacker(threat_view, row: int) -> bool:
+        """Uma linha e "atacante" (colide com ameacas, nunca e vitima)
+        se for um projetil refletido (`is_reflected`) OU um Escudo
+        Rotativo capturado (`phase == PHASE_ORBITING`) -- os dois
+        desfechos possiveis de um Parry Perfeito."""
+        return bool(threat_view["is_reflected"][row]) or int(threat_view["phase"][row]) == PHASE_ORBITING
 
     def _expire_out_of_bounds(self, world: World, threat_view) -> None:
         """Destroi projeteis refletidos que ja saíram da arena (alem do

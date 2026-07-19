@@ -17,6 +17,7 @@ from hertzbeats.components.schemas import (
     JUDGMENT_PENDING,
     JUDGMENT_PERFECT,
     MODE_TAG_DEFENDER,
+    PHASE_ORBITING,
     POLARITY_BLUE,
     POLARITY_PINK,
 )
@@ -93,6 +94,11 @@ class JudgmentSystem(ISystem):
         rumble_duration_seconds: float = 0.0,
         hold_engage_sound_id: str = None,
         hold_break_sound_id: str = None,
+        practice_mode: bool = False,
+        hitlag_freeze_frames: int = 0,
+        orbit_threat_type_id: int = None,
+        shield_collision_layer: int = None,
+        shield_collision_mask: int = None,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -124,7 +130,26 @@ class JudgmentSystem(ISystem):
         `target_hit_time_sec + duration_sec`; soltar OU desmirar antes
         disso e MISS imediato (`hold_break_shake_px` de Camera Shake +
         `set_rumble` do `IInputProvider`), sustentar ate o fim e
-        PERFECT.
+        PERFECT (dano instantaneo no nucleo em caso de quebra, mesmo
+        guarda `practice_mode` do `CoreDamageSystem`).
+
+        CAPTURA ORBITAL (ativo quando `orbit_threat_type_id` e
+        fornecido): MESMA janela PERFECT-apenas do Parry, mas o desfecho
+        e diferente -- `_register_orbital_capture` marca `PHASE_ORBITING`
+        em vez de refletir; o `OrbitalCaptureSystem` assume o resto.
+
+        RESSONANCIA DE POLARIDADE (automatico quando `polarity_enabled`):
+        cada destruicao comum atualiza `GameState.resonance_color/chain`
+        (`_register_resonance`); ao atingir `in_overdrive`, um disparo da
+        cor quente vira "perfurante" -- reinterpretado para o modelo
+        hitscan como abater TODAS as candidatas validas do frame de uma
+        vez (`_register_piercing_kill`), nao so a melhor.
+
+        JUICE DE PARRY (ativo quando `hitlag_freeze_frames > 0`): todo
+        Parry Perfeito (classico OU Captura Orbital) arma
+        `GameState.trigger_hitlag` -- congela a APRESENTACAO por N
+        quadros (o `IAudioClock`/`world.step` nunca param) e agenda o
+        flash de cor invertida de retorno.
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -164,6 +189,11 @@ class JudgmentSystem(ISystem):
         self._rumble_duration_seconds = float(rumble_duration_seconds)
         self._hold_engage_sound_id = hold_engage_sound_id
         self._hold_break_sound_id = hold_break_sound_id
+        self._practice_mode = bool(practice_mode)
+        self._hitlag_freeze_frames = int(hitlag_freeze_frames)
+        self._orbit_threat_type_id = orbit_threat_type_id
+        self._shield_collision_layer = shield_collision_layer
+        self._shield_collision_mask = shield_collision_mask
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -179,6 +209,9 @@ class JudgmentSystem(ISystem):
         self._selection_buffer = np.zeros(capacity, dtype=np.float64)
         self._engaged_mask = np.zeros(capacity, dtype=bool)
         self._sustain_end_buffer = np.zeros(capacity, dtype=np.float64)
+        self._pierce_mask = np.zeros(capacity, dtype=bool)
+        self._duration_mask = np.zeros(capacity, dtype=bool)
+        self._orbiting_mask = np.zeros(capacity, dtype=bool)
 
     def update(self, world: World, delta_time: float) -> None:
         """Executa o julgamento do frame: (1) varre MISSes vencidos,
@@ -254,6 +287,17 @@ class JudgmentSystem(ISystem):
             reflected = self._heavy_mask[:active_count]
             np.logical_not(threat_view["is_reflected"], out=reflected)
             np.logical_and(pending, reflected, out=pending)
+
+        if self._orbit_threat_type_id is not None:
+            # Escudos capturados (`phase == PHASE_ORBITING`) tambem
+            # continuam PENDING de proposito -- viram "armas" que
+            # orbitam para sempre (`OrbitalCaptureSystem`); a varredura
+            # de miss NAO pode destrui-los so porque o `target_hit_time_sec`
+            # original (de quando ainda eram vitimas) ja passou -- mesma
+            # classe de exclusao ja aplicada acima para refletidos.
+            not_orbiting = self._orbiting_mask[:active_count]
+            np.not_equal(threat_view["phase"], PHASE_ORBITING, out=not_orbiting)
+            np.logical_and(pending, not_orbiting, out=pending)
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
         if self._hold_threat_type_id is not None:
@@ -352,19 +396,30 @@ class JudgmentSystem(ISystem):
         abs_deltas = self._abs_delta_buffer[:active_count]
         np.abs(deltas, out=abs_deltas)
 
-        # janela por linha: PERFECT-apenas para pesadas (parry), Good
-        # para as demais -- assim uma pesada so vira candidata quando o
-        # timing ja garante PERFECT, sem branch extra depois.
-        if self._heavy_threat_type_id is not None:
+        # janela por linha: PERFECT-apenas para pesadas (parry) E
+        # orbitais (Captura Orbital -- MESMO Parry Perfeito, so muda o
+        # DESFECHO), Good para as demais -- assim so viram candidatas
+        # quando o timing ja garante PERFECT, sem branch extra depois.
+        # `is_special` (buffer `_heavy_mask`, reaproveitado abaixo no
+        # bloco de Polaridade -- nao e recalculado la) fica gravado ate
+        # o fim da funcao: nenhum outro trecho escreve nele entre aqui e
+        # o bloco `if self._polarity_enabled:`.
+        if self._heavy_threat_type_id is not None or self._orbit_threat_type_id is not None:
             # `np.where` nao aceita `out=` -- preenche com a janela Good
-            # e sobrescreve so as linhas pesadas com a Perfect (mesmo
+            # e sobrescreve so as linhas especiais com a Perfect (mesmo
             # idioma de mascara booleana ja usado em `_selection_buffer`
             # logo abaixo).
             window = self._window_buffer[:active_count]
-            is_heavy = self._scratch_mask[:active_count]
-            np.equal(threat_view["threat_type"], self._heavy_threat_type_id, out=is_heavy)
+            is_special = self._heavy_mask[:active_count]
+            is_special.fill(False)
+            if self._heavy_threat_type_id is not None:
+                np.equal(threat_view["threat_type"], self._heavy_threat_type_id, out=self._scratch_mask[:active_count])
+                np.logical_or(is_special, self._scratch_mask[:active_count], out=is_special)
+            if self._orbit_threat_type_id is not None:
+                np.equal(threat_view["threat_type"], self._orbit_threat_type_id, out=self._scratch_mask[:active_count])
+                np.logical_or(is_special, self._scratch_mask[:active_count], out=is_special)
             window.fill(self._good_window)
-            window[is_heavy] = self._perfect_window
+            window[is_special] = self._perfect_window
         else:
             window = self._good_window
 
@@ -392,11 +447,11 @@ class JudgmentSystem(ISystem):
             self._register_misfire()
             return
 
-        # Polaridade: pesadas aceitam QUALQUER cor (o parry e a defesa
-        # universal); basicas exigem `polarity_id == fired_polarity`.
-        # Se sobrar candidata SO por causa da cor (pre-polaridade
-        # nao-vazio, pos-polaridade vazio) e um DEFLECT -- timing certo,
-        # cor errada, sem punicao.
+        # Polaridade: pesadas/orbitais aceitam QUALQUER cor (o Parry e a
+        # defesa universal, capturar um escudo tambem); basicas exigem
+        # `polarity_id == fired_polarity`. Se sobrar candidata SO por
+        # causa da cor (pre-polaridade nao-vazio, pos-polaridade vazio)
+        # e um DEFLECT -- timing certo, cor errada, sem punicao.
         if self._polarity_enabled:
             pre_polarity = self._pre_polarity_mask[:active_count]
             np.copyto(pre_polarity, candidates)
@@ -404,13 +459,13 @@ class JudgmentSystem(ISystem):
             color_match = self._color_mask[:active_count]
             np.equal(threat_view["polarity_id"], fired_polarity, out=color_match)
 
-            if self._heavy_threat_type_id is not None:
-                # heavy sempre passa (o parry e a defesa universal);
-                # basica exige a cor certa -- OR sobre buffers distintos
-                is_heavy = self._heavy_mask[:active_count]
-                np.equal(threat_view["threat_type"], self._heavy_threat_type_id, out=is_heavy)
+            if self._heavy_threat_type_id is not None or self._orbit_threat_type_id is not None:
+                # `is_special` (heavy OU orbit) ja foi computado no
+                # bloco da janela acima, no MESMO buffer `_heavy_mask` --
+                # nenhum trecho intermediario o reescreve, entao reusar
+                # aqui evita recalcular a mascara do zero.
                 allow = self._scratch_mask[:active_count]
-                np.logical_or(is_heavy, color_match, out=allow)
+                np.logical_or(self._heavy_mask[:active_count], color_match, out=allow)
             else:
                 allow = color_match
             np.logical_and(candidates, allow, out=candidates)
@@ -422,6 +477,36 @@ class JudgmentSystem(ISystem):
         if not np.any(candidates):
             self._register_misfire()
             return
+
+        # Ressonancia de Polaridade -- Overdrive: reinterpretacao do
+        # "tiro perfurante" para o modelo hitscan sem projetil fisico do
+        # Defensor (nao ha bala para atravessar nada) -- em vez disso, UM
+        # disparo em Overdrive abate TODAS as candidatas comuns da cor
+        # quente presentes NESTE frame, nao so a melhor (`argmin`
+        # normal). Pesadas/orbitais (Parry/Captura, sempre "passam" de
+        # cor) e Holds engajaveis ficam de fora -- continuam seguindo
+        # suas proprias rotas mesmo durante o Overdrive.
+        if (
+            self._polarity_enabled
+            and self._game_state.in_overdrive
+            and fired_polarity == self._game_state.resonance_color
+        ):
+            pierce_candidates = self._pierce_mask[:active_count]
+            np.copyto(pierce_candidates, candidates)
+            if self._heavy_threat_type_id is not None or self._orbit_threat_type_id is not None:
+                not_special = self._engaged_mask[:active_count]
+                np.logical_not(self._heavy_mask[:active_count], out=not_special)
+                np.logical_and(pierce_candidates, not_special, out=pierce_candidates)
+            if self._hold_threat_type_id is not None:
+                not_hold = self._duration_mask[:active_count]
+                np.greater(threat_view["duration_sec"], 0.0, out=not_hold)
+                np.logical_not(not_hold, out=not_hold)
+                np.logical_and(pierce_candidates, not_hold, out=pierce_candidates)
+
+            pierce_rows = np.flatnonzero(pierce_candidates)
+            if pierce_rows.shape[0] > 1:
+                self._register_piercing_kill(world, threat_view, abs_deltas, pierce_rows)
+                return
 
         selection = self._selection_buffer[:active_count]
         np.copyto(selection, abs_deltas)
@@ -448,6 +533,14 @@ class JudgmentSystem(ISystem):
             self._register_parry(world, threat_view, best_row)
             return
 
+        is_orbit_capture = (
+            self._orbit_threat_type_id is not None
+            and int(threat_view["threat_type"][best_row]) == self._orbit_threat_type_id
+        )
+        if is_orbit_capture:
+            self._register_orbital_capture(world, threat_view, best_row)
+            return
+
         best_abs_delta = float(abs_deltas[best_row])
         judgment = JUDGMENT_PERFECT if best_abs_delta <= self._perfect_window else JUDGMENT_GOOD
 
@@ -469,6 +562,8 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+        if self._polarity_enabled:
+            self._register_resonance(int(threat_view["polarity_id"][best_row]))
 
     def _register_deflect(self) -> None:
         """DEFLECT (Polaridade): timing e mira certos, cor errada -- a
@@ -512,6 +607,100 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+        if self._hitlag_freeze_frames > 0:
+            state.trigger_hitlag(self._hitlag_freeze_frames)
+
+    def _register_resonance(self, polarity_id: int) -> None:
+        """Ressonancia de Polaridade (Combos Monocromaticos): destruir
+        uma ameaca comum da MESMA cor da corrente atual estende a
+        corrente; uma cor DIFERENTE reinicia em 1 (nao soma com a
+        anterior -- a corrente e sempre de UMA cor so por vez)."""
+        state = self._game_state
+        if polarity_id == state.resonance_color:
+            state.resonance_chain += 1
+        else:
+            state.resonance_color = polarity_id
+            state.resonance_chain = 1
+
+    def _register_piercing_kill(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        abs_deltas: np.ndarray,
+        pierce_rows: np.ndarray,
+    ) -> None:
+        """Overdrive de Ressonancia: UM disparo abate TODAS as linhas em
+        `pierce_rows` de uma vez (cada uma julgada PERFECT/GOOD pelo seu
+        PROPRIO delta) -- ver a nota de reinterpretacao do "perfurante"
+        hitscan em `_try_player_hit`. Laco escalar deliberado: o numero
+        de candidatas simultaneas na MESMA janela+cone e tipicamente
+        pequeno (poucas ameacas convergindo no mesmo instante), entao
+        vetorizar aqui so complicaria sem ganho real de performance."""
+        self._play(self._shot_sound_id, 0.9)
+        state = self._game_state
+        any_perfect = False
+        for row in pierce_rows:
+            row = int(row)
+            best_abs_delta = float(abs_deltas[row])
+            judgment = JUDGMENT_PERFECT if best_abs_delta <= self._perfect_window else JUDGMENT_GOOD
+            any_perfect = any_perfect or judgment == JUDGMENT_PERFECT
+
+            threat_view["is_hit"][row] = True
+            threat_view["judgment"][row] = judgment
+            world.destroy_entity(int(threat_view["packed_handle"][row]))
+            self._register_resonance(int(threat_view["polarity_id"][row]))
+
+            if judgment == JUDGMENT_PERFECT:
+                state.score += self._score_perfect
+                state.perfect_count += 1
+            else:
+                state.score += self._score_good
+                state.good_count += 1
+            state.combo_count += 1
+            if state.combo_count > state.max_combo:
+                state.max_combo = state.combo_count
+
+        state.register_judgment_feedback(
+            JUDGMENT_PERFECT if any_perfect else JUDGMENT_GOOD, self._judgment_display_seconds
+        )
+
+    def _register_orbital_capture(self, world: World, threat_view: np.ndarray, best_row: int) -> None:
+        """CAPTURA ORBITAL: em vez de refletir (Parry classico) ou
+        destruir, a ameaca tipo "orbit" vira um ESCUDO ROTATIVO em
+        torno do nucleo -- velocidade zerada (`OrbitalCaptureSystem`
+        assume a posicao via seno/cosseno a partir daqui em diante),
+        colisao trocada para `SHIELD_COLLISION_LAYER` (arma contra
+        ameacas comuns, nunca contra o nucleo -- mesma logica de troca
+        de camada do Parry) e `phase` marcada `PHASE_ORBITING` (reusa o
+        campo do telegraph da Sobrevivencia, sem conflito de dono aqui
+        no Defensor). `spawn_angle_rad` (so telemetria ate a captura)
+        vira o OFFSET ANGULAR FIXO da orbita a partir deste instante."""
+        entity_index = int(self._threat_pool.active_entity_indices()[best_row])
+        velocity_pool = self._velocity_pool
+        v_row = velocity_pool.dense_row_of(entity_index)
+        v_view = velocity_pool.active_view()
+        v_view["linear_x"][v_row] = 0.0
+        v_view["linear_y"][v_row] = 0.0
+
+        if self._shield_collision_layer is not None:
+            hb_row = self._hitbox_pool.dense_row_of(entity_index)
+            hb_view = self._hitbox_pool.active_view()
+            hb_view["collision_layer"][hb_row] = self._shield_collision_layer
+            hb_view["collision_mask"][hb_row] = self._shield_collision_mask
+
+        threat_view["phase"][best_row] = PHASE_ORBITING
+        threat_view["judgment"][best_row] = JUDGMENT_PENDING  # segue viva, agora como escudo
+
+        self._play(self._parry_sound_id, 1.0)  # mesma "defesa perfeita" do Parry classico
+
+        state = self._game_state
+        state.orbit_capture_count += 1
+        state.combo_count += 1
+        if state.combo_count > state.max_combo:
+            state.max_combo = state.combo_count
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+        if self._hitlag_freeze_frames > 0:
+            state.trigger_hitlag(self._hitlag_freeze_frames)
 
     def _register_hold_engage(self, threat_view: np.ndarray, best_row: int) -> None:
         """Notas Longas -- Fase 1 (Start): a candidata vencedora NAO e
@@ -615,7 +804,11 @@ class JudgmentSystem(ISystem):
     def _resolve_hold_break(self, world: World, threat_view: np.ndarray, row: int) -> None:
         """Soltou o gatilho ou desmirou antes do fim do Hold: MISS
         imediato (sem esperar a janela de miss generica), combo zerado,
-        e o feedback fisico duplo que esta tarefa pediu -- Camera Shake
+        dano INSTANTANEO no nucleo (mesmo guarda `practice_mode`/
+        `health > 0` do `CoreDamageSystem` -- Ameaca de Hold Radial e
+        tao punitiva quanto deixar uma ameaca comum atingir o nucleo, so
+        que pela quebra da sustentacao em vez de colisao), e o feedback
+        fisico duplo que esta tarefa pediu -- Camera Shake
         (`GameState.trigger_shake`) e Haptics (`IInputProvider.set_rumble`,
         no-op silencioso sem controle conectado)."""
         threat_view["judgment"][row] = JUDGMENT_MISS
@@ -624,6 +817,8 @@ class JudgmentSystem(ISystem):
         state = self._game_state
         state.miss_count += 1
         state.combo_count = 0
+        if not self._practice_mode and state.health > 0:
+            state.health -= 1
         state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
         state.trigger_shake(self._hold_break_shake_px)
         self._input_provider.set_rumble(

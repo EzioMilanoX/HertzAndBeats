@@ -47,6 +47,15 @@ PHASE_LETHAL: int = 1
 """Fase letal: no instante do onset a parede fica solida e a colisao
 passa a valer."""
 
+PHASE_ORBITING: int = 2
+"""Defensor -- Captura Orbital (Escudos Rotativos): um Parry Perfeito
+numa ameaca tipo "orbit" nao a destroi nem a reflete -- ela vira um
+ESCUDO que orbita o nucleo para sempre (`OrbitalCaptureSystem`, seno/
+cosseno sobre `spawn_angle_rad` como offset angular fixo + o relogio).
+Reusa o MESMO campo `phase` do telegraph da Sobrevivencia (PHASE_WARNING/
+PHASE_LETHAL) sem conflito de dono: paredes de som nunca usam
+PHASE_ORBITING e ameacas orbitais nunca usam PHASE_WARNING."""
+
 POLARITY_BLUE: int = 0
 """Timbre AGUDO (metade superior dos buckets de timbre da IA -- ver
 `assign_lanes` no mapeador): so pode ser destruida pelo botao azul."""
@@ -106,11 +115,18 @@ Campos:
         batida (telemetria).
     spawn_angle_rad: Defensor: angulo (tela, y para baixo) da borda onde
         nasceu, comparado com a mira 360. Demais modos: orientacao
-        visual/telemetria.
+        visual/telemetria. Captura Orbital (Defensor): apos a captura,
+        REUTILIZADO como o OFFSET ANGULAR FIXO da orbita (congelado no
+        angulo de spawn) -- o `OrbitalCaptureSystem` soma
+        `angular_speed * agora_efetivo` a ele a cada frame, entao
+        escudos capturados em momentos diferentes mantem seu
+        espacamento relativo enquanto giram juntos.
     phase: PHASE_* -- ciclo telegraph->letal das paredes de som
         (Sobrevivencia/Hibrido): nascem como AVISO (colisao desligada
         via layer/mask 0) e viram letais exatamente no onset. Ameacas
-        radiais e notas nascem direto em PHASE_LETHAL.
+        radiais e notas nascem direto em PHASE_LETHAL. Defensor --
+        Captura Orbital: um Parry Perfeito num tipo "orbit" grava
+        PHASE_ORBITING (ver a constante) em vez de destruir/refletir.
     is_hit: marcada True quando o jogador converte a ameaca com input
         correto -- o restante do frame ignora a linha, ja com destruicao
         enfileirada para o flush.

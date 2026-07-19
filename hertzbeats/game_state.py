@@ -39,9 +39,20 @@ class GameState:
         "shield_charges",
         "blindness_timer_sec",
         "lane_stutter_offset_y",
+        "orbit_capture_count",
+        "resonance_color",
+        "resonance_chain",
+        "resonance_overdrive_threshold",
+        "visual_freeze_frames",
+        "invert_colors",
     )
 
-    def __init__(self, max_health: int, shield_charges: int = 0) -> None:
+    def __init__(
+        self,
+        max_health: int,
+        shield_charges: int = 0,
+        resonance_chain_threshold: int = 10,
+    ) -> None:
         self.score: int = 0
         self.combo_count: int = 0
         self.max_combo: int = 0
@@ -100,6 +111,41 @@ class GameState:
         momento do `draw_batch` -- `transform.position_y` (a fisica
         REAL, que o `LaneJudgmentSystem`/`PhysicsSystem` usam) nunca e
         tocado, entao nao ha deriva acumulada frame a frame."""
+        self.orbit_capture_count: int = 0
+        """Defensor (Captura Orbital): quantos Escudos Rotativos o
+        jogador ja capturou na partida -- telemetria/HUD, espelha
+        `parry_count`/`deflect_count`."""
+        self.resonance_color: int = -1
+        """Defensor (Ressonancia de Polaridade): a cor (`POLARITY_BLUE`/
+        `POLARITY_PINK`) da corrente MONOCROMATICA atual. `-1` (nenhuma
+        cor valida) e o estado inicial "sem corrente" -- o primeiro
+        acerto de qualquer cor sempre inicia uma corrente nova, nunca
+        casa por acidente com `POLARITY_BLUE == 0`."""
+        self.resonance_chain: int = 0
+        """Defensor (Ressonancia de Polaridade): ameacas comuns
+        destruidas em sequencia com a MESMA `resonance_color`. Destruir
+        uma ameaca de cor DIFERENTE reinicia a corrente em 1 (nao soma) --
+        ver `JudgmentSystem._register_resonance`."""
+        self.resonance_overdrive_threshold: int = int(resonance_chain_threshold)
+        """Defensor (Ressonancia de Polaridade): tamanho da corrente que
+        liga o Overdrive daquela cor (`in_overdrive`). Guardado aqui (nao
+        so em `HertzConfig`) para que a property `in_overdrive` seja
+        auto-suficiente, mesmo criterio de `shield_charges` guardar o
+        valor de config resolvido na composicao."""
+        self.visual_freeze_frames: int = 0
+        """Juice de Parry (Hitlag Visual Simulado): quadros de
+        RENDERIZACAO restantes com o `draw_batch` suspenso (repete o
+        ultimo frame desenhado) -- decaido por `CameraShakeSystem`
+        (`-1` por `update`, nunca por `delta_time`: e uma contagem de
+        QUADROS, nao de segundos). O `IAudioClock`/`world.step` NUNCA
+        param por causa disso -- so a APRESENTACAO congela, exatamente
+        a garantia que esta tarefa exige."""
+        self.invert_colors: bool = False
+        """Juice de Parry: pedido de flash de cor invertida, consumido
+        UMA UNICA VEZ pelo `HertzGameLoop._sync_hitlag` no exato frame
+        em que `visual_freeze_frames` volta a 0 ("quando a tela volta") --
+        nunca lido/escrito por nenhum `ISystem`, mesma familia de
+        `is_blinded`/`set_blindness_active`."""
 
     @property
     def is_blinded(self) -> bool:
@@ -111,6 +157,15 @@ class GameState:
         `trigger_shake`: usa `max()`, nao soma -- duas bombas seguidas
         nao empilham um tempo de cegueira absurdo."""
         self.blindness_timer_sec = max(self.blindness_timer_sec, float(seconds))
+
+    @property
+    def in_overdrive(self) -> bool:
+        """Defensor (Ressonancia de Polaridade): True quando a corrente
+        MONOCROMATICA atual atingiu o limiar de Overdrive -- disparos
+        comuns de `resonance_color` viram "perfurantes" (abatem TODAS
+        as candidatas validas do frame, nao so a melhor -- ver
+        `JudgmentSystem._try_player_hit`)."""
+        return self.resonance_chain >= self.resonance_overdrive_threshold
 
     @property
     def in_fever(self) -> bool:
@@ -131,3 +186,13 @@ class GameState:
         parede letal) resultam no MAIOR dos dois, nao numa intensidade
         absurda que a soma produziria -- decai normalmente dali."""
         self.shake_intensity = max(self.shake_intensity, float(intensity_px))
+
+    def trigger_hitlag(self, freeze_frames: int) -> None:
+        """Aciona/reforca o Hitlag Visual do Parry. Mesmo criterio de
+        `trigger_shake`/`trigger_blindness`: `max()`, nao soma -- dois
+        Parries no mesmo instante nao dobram o congelamento. SEMPRE
+        arma o flash de cor invertida (`invert_colors = True`) junto,
+        mesmo se `freeze_frames` nao renovar o congelamento atual (um
+        Parry novo continua merecendo o flash de retorno)."""
+        self.visual_freeze_frames = max(self.visual_freeze_frames, int(freeze_frames))
+        self.invert_colors = True

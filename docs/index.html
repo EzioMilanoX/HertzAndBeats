@@ -246,8 +246,8 @@ padrão da engine: o <code>PackedEntityId</code> (uint64) fica gravado na própr
 <tr><td><code>track_path</code></td><td><code>&quot;data/tracks/stage2_batida_franca.wav&quot;</code></td></tr>
 <tr><td><code>input_bindings_path</code></td><td><code>&quot;data/input_bindings/default_keyboard.json&quot;</code></td></tr>
 <tr><td><code>stages_path</code></td><td><code>&quot;data/stages/stages.json&quot;</code></td></tr>
-<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1, &quot;rhythm_threat_bomb&quot;: 2, &quot;rhythm_threat_heal&quot;: 3}</code></td></tr>
-<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0, &quot;rhythm_threat_bomb&quot;: 12.0, &quot;rhythm_threat_heal&quot;: 11.0}</code></td></tr>
+<tr><td><code>threat_type_ids</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 0, &quot;rhythm_threat_heavy&quot;: 1, &quot;rhythm_threat_bomb&quot;: 2, &quot;rhythm_threat_heal&quot;: 3, &quot;rhythm_threat_orbit&quot;: 4}</code></td></tr>
+<tr><td><code>threat_half_extents</code></td><td><code>{&quot;rhythm_threat_basic&quot;: 10.0, &quot;rhythm_threat_heavy&quot;: 16.0, &quot;rhythm_threat_bomb&quot;: 12.0, &quot;rhythm_threat_heal&quot;: 11.0, &quot;rhythm_threat_orbit&quot;: 13.0}</code></td></tr>
 <tr><td><code>lane_count</code></td><td><code>8</code></td></tr>
 <tr><td><code>approach_seconds</code></td><td><code>2.0</code></td></tr>
 <tr><td><code>spawn_radius</code></td><td><code>420.0</code></td></tr>
@@ -284,16 +284,18 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>233 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>250 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_convergence_rings.py</code> — Aneis de Convergencia do Defensor: encolhem matematicamente ate o anel de julgamento no ms do hit. (4 testes)</summary><ul><li><code>test_ring_spawns_alongside_threat_at_spawn_radius</code></li><li><code>test_ring_radius_shrinks_linearly_to_the_judgment_ring</code></li><li><code>test_ring_self_destructs_at_the_hit_instant</code></li><li><code>test_ring_tint_matches_the_threat_it_warns_about</code></li></ul></details>
 <details><summary><code>test_core_damage_system.py</code> — CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames. (4 testes)</summary><ul><li><code>test_overdue_collision_damages_and_breaks_combo</code></li><li><code>test_overdue_collision_triggers_camera_shake</code></li><li><code>test_collision_within_late_hit_window_does_not_punish</code></li><li><code>test_dash_iframes_dodge_without_damage_or_combo_break</code></li></ul></details>
+<details><summary><code>test_defender_orbital_capture.py</code> — Defensor -- Captura Orbital (Escudos Rotativos): Parry Perfeito num tipo especial vira escudo, nao reflexo. (5 testes)</summary><ul><li><code>test_perfect_hit_on_orbit_type_captures_it_instead_of_destroying</code></li><li><code>test_orbit_capture_requires_the_tighter_perfect_window</code></li><li><code>test_captured_shield_orbits_the_core_over_time</code></li><li><code>test_orbital_shield_destroys_a_threat_that_crosses_its_path</code></li><li><code>test_orbiting_shield_is_never_swept_as_overdue_miss</code></li></ul></details>
+<details><summary><code>test_defender_polarity_resonance.py</code> — Defensor -- Ressonancia de Polaridade (Combos Monocromaticos): corrente por cor e Overdrive perfurante. (5 testes)</summary><ul><li><code>test_destroying_same_color_threats_in_sequence_builds_the_chain</code></li><li><code>test_destroying_a_different_color_threat_resets_the_chain_to_one</code></li><li><code>test_in_overdrive_becomes_true_only_at_the_configured_threshold</code></li><li><code>test_overdrive_shot_pierces_and_destroys_every_matching_color_candidate_at_once</code></li><li><code>test_overdrive_piercing_never_consumes_a_heavy_parry_candidate</code></li></ul></details>
 <details><summary><code>test_flow_state.py</code> — Flow State (&quot;vidro quebrado&quot;): 50 PERFECTs seguidos apaga o HUD; um Miss o restaura. (3 testes)</summary><ul><li><code>test_flow_combo_threshold_is_wired_only_for_lanes_mode</code></li><li><code>test_flow_state_hides_score_combo_and_labels_at_the_threshold</code></li><li><code>test_flow_state_restores_the_hud_after_a_miss_resets_combo</code></li></ul></details>
 <details><summary><code>test_flow_tier.py</code> — Flow State: o tier de 50 combos extras chega ao renderer TODO frame, nao so na transicao. (4 testes)</summary><ul><li><code>test_tier_is_zero_before_reaching_the_flow_threshold</code></li><li><code>test_tier_is_one_exactly_at_the_threshold</code></li><li><code>test_tier_advances_within_flow_without_leaving_and_re_entering</code></li><li><code>test_tier_resets_to_zero_after_a_miss_breaks_the_combo</code></li></ul></details>
 <details><summary><code>test_graze_and_shockwave.py</code> — Sobrevivencia: Graze (raspar sem tocar -&gt; Fever) e Pulso de Impacto (dash no ritmo -&gt; onda expansiva). (14 testes)</summary><ul><li><code>test_grazing_a_lethal_wall_scores_and_builds_fever</code></li><li><code>test_touching_the_wall_does_not_count_as_graze</code></li><li><code>test_too_far_from_the_wall_does_not_count_as_graze</code></li><li><code>test_warning_phase_wall_never_grazes</code></li><li><code>test_grazing_only_scores_once_while_lingering</code></li><li><code>test_fever_doubles_graze_score</code></li><li><code>test_fever_decays_over_time_without_grazing</code></li><li><code>test_dash_on_beat_activates_a_shockwave_slot_at_the_player</code></li><li><code>test_shockwave_trigger_shakes_the_camera</code></li><li><code>test_dash_off_beat_does_not_activate_any_shockwave</code></li><li><code>test_shockwave_radius_grows_over_its_duration</code></li><li><code>test_shockwave_deactivates_after_its_duration</code></li><li><code>test_shockwave_destroys_a_normal_wall_in_its_radius</code></li><li><code>test_shockwave_does_not_destroy_a_heavy_wall</code></li></ul></details>
 <details><summary><code>test_gun_sync_and_ghost_tap.py</code> — Gun Sync (canhao no acerto, clique no misfire) e Ghost Tapping (tap livre sem punicao) no Arcade. (4 testes)</summary><ul><li><code>test_hit_on_time_plays_the_cannon</code></li><li><code>test_misfire_plays_click_and_jams_the_gun</code></li><li><code>test_jammed_gun_ignores_trigger_until_it_clears</code></li><li><code>test_ghost_tap_plays_soft_tick_without_penalty</code></li></ul></details>
-<details><summary><code>test_hold_notes_and_camera_shake.py</code> — Notas Longas (Hold) do Defensor: Fase 1 (Start) engaja, Fase 2 (Sustain) exige fire+mira continuos. (7 testes)</summary><ul><li><code>test_engaging_a_hold_does_not_destroy_it_and_disarms_collision</code></li><li><code>test_sustaining_through_the_full_duration_scores_perfect</code></li><li><code>test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble</code></li><li><code>test_aiming_away_mid_sustain_breaks_the_hold</code></li><li><code>test_engaged_hold_survives_well_past_its_original_target_time</code></li><li><code>test_camera_shake_system_decays_linearly_and_stops_at_zero</code></li><li><code>test_trigger_shake_takes_the_larger_of_overlapping_shakes</code></li></ul></details>
+<details><summary><code>test_hold_notes_and_camera_shake.py</code> — Notas Longas (Hold) do Defensor: Fase 1 (Start) engaja, Fase 2 (Sustain) exige fire+mira continuos. (8 testes)</summary><ul><li><code>test_engaging_a_hold_does_not_destroy_it_and_disarms_collision</code></li><li><code>test_sustaining_through_the_full_duration_scores_perfect</code></li><li><code>test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble</code></li><li><code>test_releasing_fire_mid_sustain_deals_no_damage_in_practice_mode</code></li><li><code>test_aiming_away_mid_sustain_breaks_the_hold</code></li><li><code>test_engaged_hold_survives_well_past_its_original_target_time</code></li><li><code>test_camera_shake_system_decays_linearly_and_stops_at_zero</code></li><li><code>test_trigger_shake_takes_the_larger_of_overlapping_shakes</code></li></ul></details>
 <details><summary><code>test_hybrid_layers.py</code> — Perfil hybrid no jogo: fusao kick+vocal com prioridade do kick e roteamento por camada no Arcade. (5 testes)</summary><ul><li><code>test_merge_gives_kick_priority_and_keeps_order</code></li><li><code>test_merge_with_empty_layers</code></li><li><code>test_unquantized_selection_respects_gap_budget_and_window</code></li><li><code>test_lanes_mode_routes_kick_to_edges_and_vocal_to_center</code></li><li><code>test_single_layer_beatmap_keeps_timbre_lanes</code></li></ul></details>
 <details><summary><code>test_hybrid_mode.py</code> — Modo Hibrido: particao do beatmap por secao, dois spawners, juizes isolados por mode_tag. (5 testes)</summary><ul><li><code>test_beatmap_is_partitioned_by_music_section</code></li><li><code>test_both_kinds_of_threat_coexist_with_their_tags</code></li><li><code>test_defender_judge_never_touches_walls</code></li><li><code>test_radial_hit_works_normally_in_hybrid</code></li><li><code>test_results_requires_both_spawners_finished</code></li></ul></details>
 <details><summary><code>test_judgment_system.py</code> — JudgmentSystem: janelas PERFECT/GOOD/MISS, cone de mira 360 e placar zero-GC. (8 testes)</summary><ul><li><code>test_perfect_hit_within_50ms</code></li><li><code>test_good_hit_within_100ms</code></li><li><code>test_fire_outside_aim_cone_does_not_hit</code></li><li><code>test_fire_outside_time_window_does_not_hit</code></li><li><code>test_overdue_threat_becomes_miss_and_breaks_combo</code></li><li><code>test_misfire_outside_any_window_breaks_combo</code></li><li><code>test_misfire_with_empty_arena_also_breaks_combo</code></li><li><code>test_two_hits_build_combo_and_pick_closest_threat</code></li></ul></details>
@@ -310,6 +312,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
 <details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (14 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_user_song_mode_cycles_and_composes_chosen_mode</code></li><li><code>test_user_song_can_reach_the_polarity_and_holds_variants</code></li><li><code>test_user_song_holds_variant_enables_only_holds</code></li><li><code>test_a_curated_stage_is_never_affected_by_the_variant_cycle</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
 <details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (6 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_old_mapper_version_triggers_reanalysis</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
+<details><summary><code>test_parry_hitlag.py</code> — Defensor -- Juice Extremo de Parry (Hitlag Visual Simulado): congelamento de apresentacao + flash de retorno. (6 testes)</summary><ul><li><code>test_trigger_hitlag_takes_the_larger_freeze_and_always_arms_the_flash</code></li><li><code>test_camera_shake_system_decays_freeze_frames_by_one_per_update_not_by_delta_time</code></li><li><code>test_parry_perfect_triggers_hitlag_freeze_and_invert_flash</code></li><li><code>test_sync_hitlag_freezes_then_flashes_invert_exactly_on_the_return_frame</code></li><li><code>test_end_frame_applies_a_true_negative_color_filter_when_invert_pending</code></li><li><code>test_freeze_active_suspends_begin_frame_and_draw_batch</code></li></ul></details>
 <details><summary><code>test_percussive_extraction.py</code> — Estagio DSP anti-mascaramento: threshold puro, e HPSS+mel+PLP sobre audio sintetico REAL. (6 testes)</summary><ul><li><code>test_peak_selection_enforces_interval_and_amplitude</code></li><li><code>test_peak_selection_min_interval_merges_double_hits</code></li><li><code>test_bpm_from_pulses_is_median_robust</code></li><li><code>test_bpm_octave_ambiguity_is_folded_into_musical_range</code></li><li><code>test_pulse_grid_locks_to_kick_despite_loud_pad</code></li><li><code>test_extraction_feeds_quantized_beatmap_end_to_end</code></li></ul></details>
 <details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
 <details><summary><code>test_player_input_system.py</code> — PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia. (3 testes)</summary><ul><li><code>test_crosshair_orbits_exactly_on_the_judgment_ring</code></li><li><code>test_dash_cooldown_blocks_immediate_second_dash</code></li><li><code>test_output_latency_compensation_shifts_judgment_window</code></li></ul></details>
@@ -417,6 +420,18 @@ sobre todas as teclas de cada acao, mais os eixos de mira.</pre>
       (paredes de som da Sobrevivencia).
     - `tint_a == 0` oculta o sprite (usado pelo HUD para zeros a
       esquerda e palavras expiradas).
+    - Juice de Parry (Hitlag Visual Simulado, Defensor): `begin_frame`/
+      `draw_batch` viram NO-OP enquanto `set_freeze_active(True)`
+      estiver ligado -- a Surface simplesmente nao e tocada, entao o
+      ultimo frame desenhado continua na tela (&quot;congelado&quot;) sem
+      nenhum custo extra de copia. `end_frame` aplica um filtro de
+      cor invertida quando `set_color_invert(True)` -- publicado
+      pelo `HertzGameLoop` por EXATAMENTE 1 frame, no instante em
+      que o congelamento termina. `BLEND_RGB_SUB` em pygame calcula
+      `destino = destino - fonte` (nao o inverso), entao um negativo
+      de verdade (`resultado = 255 - original`) exige DOIS passos:
+      `scratch = branco - frame_atual` (SUB), depois `frame_atual =
+      scratch` (blit opaco simples) -- ver `_invert_surface`.
     - Screen Shake: `draw_batch` soma `self._cam_dx`/`self._cam_dy`
       a CADA posicao antes de desenhar -- campos JA EXISTENTES na
       `PygameRenderer` base (ROADMAP M1/M2, `set_camera_offset`,
@@ -468,6 +483,14 @@ nunca reconstruida por frame.</pre>
 `HertzGameLoop` a cada frame a partir de `GameState.is_blinded`
 (mesmo padrao de `set_flow_mode`/`set_overlay`: sincronizacao de
 apresentacao vive no game loop, nunca dentro de um `ISystem`).</pre>
+<h4><code>.set_freeze_active()</code></h4><pre class="doc">Juice de Parry (Hitlag): liga/desliga a suspensao de
+`begin_frame`/`draw_batch` -- publicado pelo `HertzGameLoop` a
+cada frame a partir de `GameState.visual_freeze_frames &gt; 0`.</pre>
+<h4><code>.set_color_invert()</code></h4><pre class="doc">Juice de Parry: arma o flash de cor invertida para o PROXIMO
+`end_frame` -- o `HertzGameLoop` so publica `True` por exatamente
+1 frame (o instante em que o congelamento termina), entao nao ha
+necessidade de auto-consumo aqui: o proximo `set_color_invert(False)`
+do frame seguinte ja desarma.</pre>
 <h4><code>.set_playfield()</code></h4><pre class="doc">Define a decoracao de arena do MODO ativo, desenhada a cada
 `begin_frame`. Chamado pelo `HertzGameLoop` a cada troca de fase:
 
@@ -684,6 +707,17 @@ disciplina Zero-GC do gameplay.</pre>
 `CameraShakeSystem` a cada `world.step`) num liga/desliga real
 via `IRenderer.set_blindness_active` -- mesma familia de
 sincronizacao apresentacao&lt;-estado de `_sync_camera_shake`.</pre>
+<h4><code>._sync_hitlag()</code></h4><pre class="doc">Juice de Parry (Hitlag Visual Simulado): traduz
+`GameState.visual_freeze_frames` (decaido pelo `CameraShakeSystem`
+a cada `world.step`, comum aos 3 modos) num liga/desliga real via
+`IRenderer.set_freeze_active` -- mesma familia de sincronizacao
+de `_sync_camera_shake`/`_sync_blindness`. A TRANSICAO de
+congelado-&gt;normal e detectada AQUI (`_was_frozen`, mesmo padrao
+ja usado por `_was_in_flow` no Flow State) para armar o flash de
+cor invertida por EXATAMENTE 1 frame -- o instante em que &quot;a
+tela volta&quot;. `GameState.invert_colors` e consumido (resetado a
+`False`) no exato momento em que o flash e armado, nunca por
+nenhum `ISystem`.</pre>
 <h4><code>._render_frame()</code></h4><pre class="doc">Override do `GameLoop` da engine: MESMA coleta SoA de
 `transform`+`sprite`, mas aplicando o Stutter Scroll (ruido
 visual em Y, Arcade 4K) so NESTE array temporario, no momento
@@ -853,6 +887,11 @@ mesmo criterio dos contadores internos da engine (ex.:
 <h4><code>.trigger_blindness()</code></h4><pre class="doc">Aciona/reforca a Cegueira Ritmica. Mesmo criterio de
 `trigger_shake`: usa `max()`, nao soma -- duas bombas seguidas
 nao empilham um tempo de cegueira absurdo.</pre>
+<h4><code>.in_overdrive()</code></h4><pre class="doc">Defensor (Ressonancia de Polaridade): True quando a corrente
+MONOCROMATICA atual atingiu o limiar de Overdrive -- disparos
+comuns de `resonance_color` viram &quot;perfurantes&quot; (abatem TODAS
+as candidatas validas do frame, nao so a melhor -- ver
+`JudgmentSystem._try_player_hit`).</pre>
 <h4><code>.in_fever()</code></h4><pre class="doc">True quando `fever_meter` esta cheio -- dobra a pontuacao de
 Graze/sobrevivencia enquanto durar.</pre>
 <h4><code>.register_judgment_feedback()</code></h4><pre class="doc">Atualiza o feedback visual de julgamento consumido pelo
@@ -861,6 +900,12 @@ Graze/sobrevivencia enquanto durar.</pre>
 tremores sobrepostos (ex.: um MISS de Hold bem no instante de uma
 parede letal) resultam no MAIOR dos dois, nao numa intensidade
 absurda que a soma produziria -- decai normalmente dali.</pre>
+<h4><code>.trigger_hitlag()</code></h4><pre class="doc">Aciona/reforca o Hitlag Visual do Parry. Mesmo criterio de
+`trigger_shake`/`trigger_blindness`: `max()`, nao soma -- dois
+Parries no mesmo instante nao dobram o congelamento. SEMPRE
+arma o flash de cor invertida (`invert_colors = True`) junto,
+mesmo se `freeze_frames` nao renovar o congelamento atual (um
+Parry novo continua merecendo o flash de retorno).</pre>
 </details>
 <details class="module" id="hertzbeats-lane_scratch_clustering"><summary><code>hertzbeats/lane_scratch_clustering.py</code> — Funde clusters de notas PESADAS (picos/drops) num unico evento de Scratch (nota longa) do Arcade 4K.</summary>
 <pre class="doc">Funde clusters de notas PESADAS (picos/drops) num unico evento de Scratch (nota longa) do Arcade 4K.</pre>
@@ -1118,7 +1163,13 @@ Tambem decai `GameState.blindness_timer_sec` (Vignette Flash,
 Arcade 4K -- Bombas): um contador de SEGUNDOS RESTANTES, nao uma
 intensidade, entao decresce por `delta_time` puro (nao por uma taxa
 configuravel) ate zero -- o mesmo criterio simples de
-`judgment_display_seconds_left`.</pre>
+`judgment_display_seconds_left`.
+
+E tambem decai `GameState.visual_freeze_frames` (Juice de Parry,
+Defensor): um contador de QUADROS de renderizacao, nao de segundos
+-- decresce 1 por `update` (1 `update` = 1 frame real de
+`world.step`), nunca por `delta_time`, entao o congelamento dura o
+mesmo numero de quadros independente do FPS real.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-convergence_ring_system"><summary><code>hertzbeats/systems/convergence_ring_system.py</code> — Aneis de Convergencia do Defensor: o aviso visual que encolhe ate o anel de julgamento no ms do hit.</summary>
 <pre class="doc">Aneis de Convergencia do Defensor: o aviso visual que encolhe ate o anel de julgamento no ms do hit.</pre>
@@ -1290,6 +1341,27 @@ continuaria com a camada/mascara ORIGINAL (ameaca x nucleo) e o
 `CollisionSystem` jamais geraria um par entre ele e outra ameaca
 pendente. O `ParryImpactSystem` cuida do resto: colisao com
 outras ameacas e expiracao ao sair da arena.</pre>
+<h4><code>._register_resonance()</code></h4><pre class="doc">Ressonancia de Polaridade (Combos Monocromaticos): destruir
+uma ameaca comum da MESMA cor da corrente atual estende a
+corrente; uma cor DIFERENTE reinicia em 1 (nao soma com a
+anterior -- a corrente e sempre de UMA cor so por vez).</pre>
+<h4><code>._register_piercing_kill()</code></h4><pre class="doc">Overdrive de Ressonancia: UM disparo abate TODAS as linhas em
+`pierce_rows` de uma vez (cada uma julgada PERFECT/GOOD pelo seu
+PROPRIO delta) -- ver a nota de reinterpretacao do &quot;perfurante&quot;
+hitscan em `_try_player_hit`. Laco escalar deliberado: o numero
+de candidatas simultaneas na MESMA janela+cone e tipicamente
+pequeno (poucas ameacas convergindo no mesmo instante), entao
+vetorizar aqui so complicaria sem ganho real de performance.</pre>
+<h4><code>._register_orbital_capture()</code></h4><pre class="doc">CAPTURA ORBITAL: em vez de refletir (Parry classico) ou
+destruir, a ameaca tipo &quot;orbit&quot; vira um ESCUDO ROTATIVO em
+torno do nucleo -- velocidade zerada (`OrbitalCaptureSystem`
+assume a posicao via seno/cosseno a partir daqui em diante),
+colisao trocada para `SHIELD_COLLISION_LAYER` (arma contra
+ameacas comuns, nunca contra o nucleo -- mesma logica de troca
+de camada do Parry) e `phase` marcada `PHASE_ORBITING` (reusa o
+campo do telegraph da Sobrevivencia, sem conflito de dono aqui
+no Defensor). `spawn_angle_rad` (so telemetria ate a captura)
+vira o OFFSET ANGULAR FIXO da orbita a partir deste instante.</pre>
 <h4><code>._register_hold_engage()</code></h4><pre class="doc">Notas Longas -- Fase 1 (Start): a candidata vencedora NAO e
 destruida. Zera sua velocidade (para junto ao anel em vez de
 atravessar) e DESARMA sua colisao com o nucleo
@@ -1312,7 +1384,11 @@ TODAS as linhas engajadas de uma vez via `out=`.</pre>
 placar/combo normais.</pre>
 <h4><code>._resolve_hold_break()</code></h4><pre class="doc">Soltou o gatilho ou desmirou antes do fim do Hold: MISS
 imediato (sem esperar a janela de miss generica), combo zerado,
-e o feedback fisico duplo que esta tarefa pediu -- Camera Shake
+dano INSTANTANEO no nucleo (mesmo guarda `practice_mode`/
+`health &gt; 0` do `CoreDamageSystem` -- Ameaca de Hold Radial e
+tao punitiva quanto deixar uma ameaca comum atingir o nucleo, so
+que pela quebra da sustentacao em vez de colisao), e o feedback
+fisico duplo que esta tarefa pediu -- Camera Shake
 (`GameState.trigger_shake`) e Haptics (`IInputProvider.set_rumble`,
 no-op silencioso sem controle conectado).</pre>
 </details>
@@ -1466,24 +1542,59 @@ Cinematica: `velocidade_y = (linha_julgamento - y_spawn) / tempo_restante`
 cai proporcionalmente mais rapido e cruza a linha na batida).</pre>
 <h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a nota do evento `row_index` na sua coluna.</pre>
 </details>
+<details class="module" id="hertzbeats-systems-orbital_capture_system"><summary><code>hertzbeats/systems/orbital_capture_system.py</code> — Captura Orbital: escudos capturados orbitam o nucleo via seno/cosseno, fora da jurisdicao do PhysicsSystem generico.</summary>
+<pre class="doc">Captura Orbital: escudos capturados orbitam o nucleo via seno/cosseno, fora da jurisdicao do PhysicsSystem generico.</pre>
+<h3>classe <code>OrbitalCaptureSystem</code></h3><pre class="doc">Move os Escudos Rotativos (Captura Orbital, Modo Defensor): a
+velocidade ja foi zerada por `JudgmentSystem._register_orbital_capture`
+no instante da captura, entao o `PhysicsSystem` generico da engine e
+um NO-OP para essas linhas -- este sistema, registrado ANTES dele,
+sobrescreve `position_x/y` DIRETAMENTE todo frame via seno/cosseno em
+torno do nucleo. Mesmo padrao ja usado por `LaneChoreographySystem`
+(Modchart Swap) e `ReverseScrollSystem` (Inversao de Gravidade) --
+evita tocar o `PhysicsSystem` da ENGINE (mudanca cross-repo).
+
+O angulo de cada escudo e `spawn_angle_rad` (o angulo de CAPTURA,
+congelado no momento do Parry -- campo que so servia de telemetria
+ate a captura) + `angular_speed_rad_per_sec * agora_efetivo`: todos
+os escudos giram JUNTOS na mesma velocidade angular, preservando o
+espacamento relativo entre capturas sucessivas sem precisar guardar
+nenhum estado extra por escudo.
+
+Zero-GC: vetorizado sobre TODAS as linhas `phase == PHASE_ORBITING`
+de uma vez (tipicamente 0-3 por partida) via mascara booleana e
+fancy indexing sobre buffers pre-alocados -- nenhum laco escalar,
+nenhum array transiente novo por frame.</pre>
+</details>
 <details class="module" id="hertzbeats-systems-parry_impact_system"><summary><code>hertzbeats/systems/parry_impact_system.py</code> — Parry Perfeito: o projetil refletido varre o caminho de volta, destruindo ameacas mais fracas.</summary>
 <pre class="doc">Parry Perfeito: o projetil refletido varre o caminho de volta, destruindo ameacas mais fracas.</pre>
-<p class='constants'>Constantes: <code>REFLECTED_COLLISION_LAYER</code></p>
+<p class='constants'>Constantes: <code>REFLECTED_COLLISION_LAYER</code>, <code>SHIELD_COLLISION_LAYER</code></p>
 <h3>classe <code>ParryImpactSystem</code></h3><pre class="doc">Metade &quot;de impacto&quot; do Parry Perfeito: o `JudgmentSystem`, ao
 detectar um acerto PERFECT numa ameaca pesada, inverte sua
 velocidade e troca sua camada de colisao para `REFLECTED_COLLISION_LAYER`
 (mascara = camada normal de ameacas) -- isso faz o `CollisionSystem`
 generico passar a gerar pares ENTRE o projetil refletido e as demais
-ameacas pendentes no seu caminho, sem tocar o nucleo.
+ameacas pendentes no seu caminho, sem tocar o nucleo. Captura Orbital
+(Escudos Rotativos): o MESMO `JudgmentSystem`, num acerto PERFECT
+numa ameaca tipo &quot;orbit&quot;, troca a camada para `SHIELD_COLLISION_LAYER`
+em vez de refletir -- um escudo e um &quot;atacante&quot; tao valido quanto um
+projetil refletido, so que PERMANENTE (nunca expira).
 
 Este sistema, registrado logo apos o `CollisionSystem`, consome
 esses pares (ignorando qualquer par que envolva o jogador -- esse e
 tratado pelo `CoreDamageSystem`) e destroi a ameaca mais fraca de
-cada par colidente, pontuando o jogador. O projetil refletido em si
-e destruido quando sai da arena (`spawn_radius` do centro).
+cada par colidente (o &quot;atacante&quot; -- refletido OU escudo -- nunca e
+destruido pela colisao), pontuando o jogador. O projetil refletido
+em si e destruido quando sai da arena (`spawn_radius` do centro);
+escudos orbitais NUNCA expiram por distancia (`is_reflected`
+permanece `False` neles, entao `_expire_out_of_bounds` os ignora
+naturalmente).
 
 Zero-GC: mesmo idioma do `CoreDamageSystem`/`SurvivalDamageSystem`
 -- laco escalar sobre os poucos pares do frame (tipicamente 0-2).</pre>
+<h4><code>._is_attacker()</code></h4><pre class="doc">Uma linha e &quot;atacante&quot; (colide com ameacas, nunca e vitima)
+se for um projetil refletido (`is_reflected`) OU um Escudo
+Rotativo capturado (`phase == PHASE_ORBITING`) -- os dois
+desfechos possiveis de um Parry Perfeito.</pre>
 <h4><code>._expire_out_of_bounds()</code></h4><pre class="doc">Destroi projeteis refletidos que ja saíram da arena (alem do
 raio de spawn do centro) -- sem isso, um refletido que nunca
 acerta nada viveria para sempre.</pre>

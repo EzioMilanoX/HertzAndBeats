@@ -70,7 +70,12 @@ from hertzbeats.systems.distraction_system import (
 )
 from hertzbeats.systems.graze_system import GrazeSystem
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
-from hertzbeats.systems.parry_impact_system import REFLECTED_COLLISION_LAYER, ParryImpactSystem
+from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
+from hertzbeats.systems.parry_impact_system import (
+    REFLECTED_COLLISION_LAYER,
+    SHIELD_COLLISION_LAYER,
+    ParryImpactSystem,
+)
 from hertzbeats.systems.scratch_judgment_system import ScratchJudgmentSystem
 from hertzbeats.systems.shockwave_system import SHOCKWAVE_DTYPE, ShockwaveSystem
 from hertzbeats.systems.wall_phase_system import WallPhaseSystem
@@ -253,6 +258,9 @@ def _compose_defender_mode(ctx: _ModeContext):
         ),
         hold_duration_seconds=config.hold_duration_seconds,
         polarity_enabled=config.polarity_enabled,
+        orbit_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
+        ),
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -292,9 +300,13 @@ def _compose_defender_mode(ctx: _ModeContext):
     # um UNICO flag liga as duas mecanicas -- reflete a decisao de design
     # de que sao inseparaveis no enunciado (o Parry E a defesa universal
     # contra pesadas justamente porque a Polaridade torna as basicas
-    # sensiveis a cor).
+    # sensiveis a cor). Captura Orbital (Escudos Rotativos) e Juice de
+    # Parry (Hitlag) sao expansoes DESSA mesma mecanica -- mesmo flag.
     heavy_threat_type_id = (
         config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
+    )
+    orbit_threat_type_id = (
+        config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
     )
     # Notas Longas (Hold, opt-in por fase, `holds_enabled`): mutuamente
     # exclusivo com Polaridade/Parry por convencao de fase (ambos reusam
@@ -336,8 +348,27 @@ def _compose_defender_mode(ctx: _ModeContext):
             rumble_duration_seconds=config.rumble_duration_seconds,
             hold_engage_sound_id=SFX_HOLD_ENGAGE,
             hold_break_sound_id=SFX_HOLD_BREAK,
+            practice_mode=config.practice_mode,
+            hitlag_freeze_frames=config.parry_hitlag_freeze_frames if config.polarity_enabled else 0,
+            orbit_threat_type_id=orbit_threat_type_id,
+            shield_collision_layer=SHIELD_COLLISION_LAYER if orbit_threat_type_id is not None else None,
+            shield_collision_mask=THREAT_COLLISION_LAYER if orbit_threat_type_id is not None else None,
         )
     )
+    if orbit_threat_type_id is not None:
+        # Mesmo padrao de `ReverseScrollSystem`/`LaneChoreographySystem`:
+        # sobrescreve `position_x/y` DIRETAMENTE, ANTES do `PhysicsSystem`
+        # generico (que e um no-op para essas linhas, ja com velocidade
+        # zerada pela captura) -- evita tocar a engine.
+        ctx.world.register_system(
+            OrbitalCaptureSystem(
+                audio_clock=ctx.audio_clock,
+                memory_manager=ctx.memory_manager,
+                center_xy=(center_x, center_y),
+                orbit_radius=config.orbit_radius,
+                angular_speed_rad_per_sec=config.orbit_angular_speed_rad_per_sec,
+            )
+        )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     ctx.world.register_system(collision_system)
     if config.polarity_enabled:
@@ -782,6 +813,9 @@ def _compose_hybrid_mode(ctx: _ModeContext):
         max_threats_per_frame=config.max_threats_per_frame,
         ring_archetype_name="convergence_ring",
         polarity_enabled=config.polarity_enabled,
+        orbit_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
+        ),
     )
     wall_spawner = SurvivalSpawnerSystem(
         audio_clock=ctx.audio_clock,
@@ -862,6 +896,9 @@ def _compose_hybrid_mode(ctx: _ModeContext):
     heavy_threat_type_id = (
         config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
     )
+    orbit_threat_type_id = (
+        config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
+    )
     ctx.world.register_system(
         JudgmentSystem(
             audio_clock=ctx.audio_clock,
@@ -888,8 +925,23 @@ def _compose_hybrid_mode(ctx: _ModeContext):
             parry_sound_id=SFX_PARRY,
             reflected_collision_layer=REFLECTED_COLLISION_LAYER if config.polarity_enabled else None,
             reflected_collision_mask=THREAT_COLLISION_LAYER if config.polarity_enabled else None,
+            practice_mode=config.practice_mode,
+            hitlag_freeze_frames=config.parry_hitlag_freeze_frames if config.polarity_enabled else 0,
+            orbit_threat_type_id=orbit_threat_type_id,
+            shield_collision_layer=SHIELD_COLLISION_LAYER if orbit_threat_type_id is not None else None,
+            shield_collision_mask=THREAT_COLLISION_LAYER if orbit_threat_type_id is not None else None,
         )
     )
+    if orbit_threat_type_id is not None:
+        ctx.world.register_system(
+            OrbitalCaptureSystem(
+                audio_clock=ctx.audio_clock,
+                memory_manager=ctx.memory_manager,
+                center_xy=(center_x, center_y),
+                orbit_radius=config.orbit_radius,
+                angular_speed_rad_per_sec=config.orbit_angular_speed_rad_per_sec,
+            )
+        )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     ctx.world.register_system(collision_system)
     ctx.world.register_system(
@@ -1076,6 +1128,7 @@ def compose_world(
     game_state = GameState(
         max_health=config.max_health,
         shield_charges=config.lane_shield_max_charges if config.holds_enabled else 0,
+        resonance_chain_threshold=config.resonance_chain_threshold,
     )
 
     # Entidades persistentes -----------------------------------------

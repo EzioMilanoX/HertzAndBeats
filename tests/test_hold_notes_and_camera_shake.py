@@ -122,6 +122,7 @@ def test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble(tmp_
     # num passo ISOLADO com dt=0.0 -- o `CameraShakeSystem` (comum,
     # registrado depois do `JudgmentSystem`) roda no MESMO step em que o
     # tremor e acionado, e decairia uma fracao se dt>0 aqui.
+    health_before = state.health
     _hold_and_advance(composed, null_clock, null_input, 3.2)
     null_input.set_action_held("fire", False)
     null_input.poll()
@@ -132,12 +133,35 @@ def test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble(tmp_
     assert state.combo_count == 0
     assert state.last_judgment == JUDGMENT_MISS
     assert state.perfect_count == 0
+    assert state.health == health_before - 1  # Ameaca de Hold Radial: dano instantaneo na quebra
 
     # feedback fisico duplo desta tarefa
     assert state.shake_intensity == config.hold_break_shake_px
     assert null_input._last_rumble == (
         config.rumble_low_freq, config.rumble_high_freq, config.rumble_duration_seconds
     )
+
+
+def test_releasing_fire_mid_sustain_deals_no_damage_in_practice_mode(tmp_path, null_input, null_clock):
+    composed, config = _compose_holds(
+        tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)],
+        hold_duration_seconds=1.0, practice_mode=True,
+    )
+    threat_pool = composed.memory_manager.get_pool("rhythm_threat")
+    state = composed.game_state
+    health_before = state.health
+
+    _advance_to(composed, null_clock, null_input, 2.98)
+    _fire_at(composed, null_clock, null_input, 2.99, 1.0, 0.0)
+    assert threat_pool.count == 1
+
+    _hold_and_advance(composed, null_clock, null_input, 3.2)
+    null_input.set_action_held("fire", False)
+    null_input.poll()
+    composed.world.step(0.0)
+
+    assert state.miss_count == 1
+    assert state.health == health_before  # Modo Treino: MISS conta, mas sem dano de vida
 
 
 def test_aiming_away_mid_sustain_breaks_the_hold(tmp_path, null_input, null_clock):

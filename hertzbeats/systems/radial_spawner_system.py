@@ -81,6 +81,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         hold_threat_type_id: int = None,
         hold_duration_seconds: float = 0.0,
         polarity_enabled: bool = False,
+        orbit_threat_type_id: int = None,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -130,6 +131,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._hold_threat_type_id = hold_threat_type_id
         self._hold_duration_seconds = float(hold_duration_seconds)
         self._polarity_enabled = bool(polarity_enabled)
+        self._orbit_threat_type_id = orbit_threat_type_id
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -215,12 +217,22 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         )
         sprite_row = self._sprite_pool.dense_row_of(entity_index)
         sprite_view = self._sprite_pool.active_view()
+        # Captura Orbital: tint ciano DISTINTO desde o spawn -- "isto e
+        # um alvo de Parry especial", antes mesmo da captura. Checado
+        # ANTES do ramo de Polaridade: um Escudo aceita QUALQUER cor (a
+        # janela PERFECT-apenas do `JudgmentSystem` ja cuida disso), seu
+        # visual nao deve trocar para azul/rosa por engano.
+        if self._orbit_threat_type_id is not None and threat_type == self._orbit_threat_type_id:
+            sprite_view["texture_id"][sprite_row] = base_texture_id
+            sprite_view["tint_r"][sprite_row] = 70
+            sprite_view["tint_g"][sprite_row] = 225
+            sprite_view["tint_b"][sprite_row] = 225
         # Polaridade: pesadas (Parry, aceitam QUALQUER cor) mantem o
         # visual heavy de sempre -- so as comuns (cuja cor IMPORTA para
         # o julgamento) ganham a forma+tint real azul/rosa. Acessibilidade
         # a daltonismo: a forma (triangulo/quadrado) nunca depende so do
         # tint -- ver `HBPygameRenderer.draw_batch`.
-        if self._polarity_enabled and base_texture_id != TEX_THREAT_HEAVY:
+        elif self._polarity_enabled and base_texture_id != TEX_THREAT_HEAVY:
             is_pink = int(threat_view["polarity_id"][threat_row]) == POLARITY_PINK
             sprite_view["texture_id"][sprite_row] = (
                 TEX_THREAT_POLARITY_PINK if is_pink else TEX_THREAT_POLARITY_BLUE
