@@ -255,7 +255,7 @@ pip install pytest
 python -m pytest
 ```
 
-Cobre (192 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold) nos 3 modos (Defensor em 2 fases, Arcade 4K + Shield, Sobrevivência + Safe Zone/Ancora) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, e os 4 itens de polimento: acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino.
+Cobre (193 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold) nos 3 modos (Defensor em 2 fases, Arcade 4K + Shield, Sobrevivência + Safe Zone/Ancora) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, e os 4 itens de polimento: acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino.
 
 ## Estrutura
 

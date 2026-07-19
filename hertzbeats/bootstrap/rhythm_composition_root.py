@@ -536,6 +536,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
         hold_end_by_row=hold_end_out,
         hold_threat_type_id=heavy_type_id if config.holds_enabled else None,
         hold_duration_seconds=config.hold_duration_seconds,
+        hold_visual_max_fraction=config.lane_hold_visual_max_fraction,
     )
 
     # nucleo e mira nao participam deste modo; receptores + rotulos de

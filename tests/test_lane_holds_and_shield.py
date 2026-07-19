@@ -82,6 +82,37 @@ def test_lone_heavy_note_becomes_a_classic_hold_with_duration(tmp_path, null_inp
     assert abs(float(view["duration_sec"][row]) - 1.0) < 1e-6
 
 
+def test_hold_visual_bar_is_capped_and_never_dominates_the_fall_column(tmp_path, null_input, null_clock):
+    """Bug real encontrado via smoke test: com `hold_duration_seconds`
+    comparavel a `approach_seconds` (o padrao de ambos, ~1.5-1.8s), a
+    barra caida SEM TETO cobria ~75% da altura da janela (a mesma
+    velocidade de queda da nota, por `duration_sec` inteiro) -- um
+    "bug" visual que fazia a nota longa parecer quebrada/gigante.
+    `lane_hold_visual_max_fraction` limita o COMPRIMENTO RENDERIZADO,
+    nunca a duracao exigida do jogador."""
+    composed, config = _compose_lane_holds(
+        tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)],
+        hold_duration_seconds=1.5, approach_seconds=1.8,
+    )
+    _advance_to(composed, null_clock, null_input, 1.5)
+    threat_pool = composed.memory_manager.get_pool("rhythm_threat")
+    assert threat_pool.count == 1
+    entity_index = int(threat_pool.active_entity_indices()[0])
+    transform_pool = composed.memory_manager.get_pool("transform")
+    t_row = transform_pool.dense_row_of(entity_index)
+    scale_y = float(transform_pool.active_view()["scale_y"][t_row])
+    rendered_height_px = scale_y * 16.0  # mesma conversao do HBPygameRenderer.draw_batch
+
+    judgment_line_y = config.window_height - config.judgment_line_offset
+    fall_distance_px = judgment_line_y - (-24.0)  # spawn_y fixo do modo Lanes
+    max_allowed_px = fall_distance_px * config.lane_hold_visual_max_fraction
+
+    assert rendered_height_px <= max_allowed_px + 1e-6
+    # ainda assim claramente mais longa que uma nota normal (nao veio a
+    # zero/desapareceu por causa do teto)
+    assert rendered_height_px > 100.0
+
+
 def test_pressing_the_lane_key_on_a_hold_note_engages_without_destroying(tmp_path, null_input, null_clock):
     composed, config = _compose_lane_holds(
         tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)], hold_duration_seconds=1.0

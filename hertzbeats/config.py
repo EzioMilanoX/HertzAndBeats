@@ -123,6 +123,13 @@ class HertzConfig:
     # -- Arcade 4K: Hold classico (tecla sustentada) + Shield --
     lane_shield_max_charges: int = 3
     lane_shield_depleted_shake_px: float = 35.0
+    # a barra caida representa `hold_duration_seconds` a MESMA velocidade
+    # de queda da nota -- sem teto, uma duracao comparavel a
+    # `approach_seconds` (o padrao de ambas, ~1.5-1.8s) produz uma barra
+    # que cobre quase a tela inteira. Fracao MAXIMA da distancia total de
+    # queda que a barra pode ocupar visualmente; a duracao real exigida
+    # do jogador (`hold_duration_seconds`) nunca muda, so o desenho.
+    lane_hold_visual_max_fraction: float = 0.35
 
     # -- Sobrevivencia: Safe Zone estacionaria + tecla Ancorar --
     safe_zone_radius: float = 70.0
@@ -218,6 +225,7 @@ class HertzConfig:
             hold_break_shake_px=raw.get("hold_break_shake_px", 22.0),
             lane_shield_max_charges=raw.get("lane_shield_max_charges", 3),
             lane_shield_depleted_shake_px=raw.get("lane_shield_depleted_shake_px", 35.0),
+            lane_hold_visual_max_fraction=raw.get("lane_hold_visual_max_fraction", 0.35),
             safe_zone_radius=raw.get("safe_zone_radius", 70.0),
             anchor_action_name=raw.get("anchor_action_name", "anchor"),
             safe_zone_break_shake_px=raw.get("safe_zone_break_shake_px", 40.0),

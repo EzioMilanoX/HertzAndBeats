@@ -60,6 +60,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         hold_end_by_row: np.ndarray = None,
         hold_threat_type_id: int = None,
         hold_duration_seconds: float = 0.0,
+        hold_visual_max_fraction: float = 0.35,
     ) -> None:
         """`lane_center_xs` (float64, len 4) e `lane_tints_rgb`
         (uint8, shape (4,3)) sao pre-computados na composicao.
@@ -78,6 +79,13 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         tecla sustentada (`duration_sec = hold_duration_seconds`), a
         interpretacao do Arcade 4K para o mesmo campo mode-agnostico que
         o Defensor ja usa para o Hold por fire+mira sustentados.
+
+        A barra caida representaria `hold_duration_seconds` na MESMA
+        velocidade de queda da nota -- sem teto, uma duracao comparavel
+        a `approach_seconds` cobriria quase a tela inteira.
+        `hold_visual_max_fraction` limita o comprimento RENDERIZADO da
+        barra a essa fracao da distancia total de queda; a duracao real
+        exigida do jogador nunca muda, so o desenho.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -104,6 +112,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         self._hold_end_by_row = hold_end_by_row
         self._hold_threat_type_id = hold_threat_type_id
         self._hold_duration_seconds = float(hold_duration_seconds)
+        self._hold_visual_max_px = (self._judgment_line_y - self._spawn_y) * float(hold_visual_max_fraction)
         # roteamento kick/vocal so faz sentido em beatmaps MULTI-camada;
         # num mapa de camada unica ele colapsaria tudo em 2 colunas
         self._route_by_layer = bool(np.any(scheduled_spawns["layer"] != 0)) if scheduled_spawns.shape[0] else False
@@ -176,7 +185,10 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
             transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
             transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
         elif is_classic_hold:
-            hold_span_px = (classic_hold_end - hit_time) * fall_speed
+            # teto de comprimento visual (ver docstring do construtor):
+            # a duracao exigida do jogador (`duration_sec`) nao muda,
+            # so o quanto da queda a barra ocupa na tela.
+            hold_span_px = min((classic_hold_end - hit_time) * fall_speed, self._hold_visual_max_px)
             transform_view["scale_x"][transform_row] = note_half * 1.1 / 8.0
             transform_view["scale_y"][transform_row] = max(note_half * 1.7, hold_span_px / 2.0) / 8.0
         else:
