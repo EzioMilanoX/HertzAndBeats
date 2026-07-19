@@ -61,6 +61,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         hold_threat_type_id: int = None,
         hold_duration_seconds: float = 0.0,
         hold_visual_max_fraction: float = 0.35,
+        bomb_threat_type_id: int = None,
     ) -> None:
         """`lane_center_xs` (float64, len 4) e `lane_tints_rgb`
         (uint8, shape (4,3)) sao pre-computados na composicao.
@@ -86,6 +87,13 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         `hold_visual_max_fraction` limita o comprimento RENDERIZADO da
         barra a essa fracao da distancia total de queda; a duracao real
         exigida do jogador nunca muda, so o desenho.
+
+        NOTA TOXICA (Bomba, opt-in via `bomb_threat_type_id`): mesmo
+        tratamento visual/cinematico de uma nota comum (tamanho normal,
+        sem stretch) -- so o tint muda (vermelho de perigo), a mesma
+        distincao puramente por cor ja usada por Scratch/Hold neste
+        modo. O `LaneJudgmentSystem` que decide a consequencia de
+        acerta-la.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -113,6 +121,7 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
         self._hold_threat_type_id = hold_threat_type_id
         self._hold_duration_seconds = float(hold_duration_seconds)
         self._hold_visual_max_px = (self._judgment_line_y - self._spawn_y) * float(hold_visual_max_fraction)
+        self._bomb_threat_type_id = bomb_threat_type_id
         # roteamento kick/vocal so faz sentido em beatmaps MULTI-camada;
         # num mapa de camada unica ele colapsaria tudo em 2 colunas
         self._route_by_layer = bool(np.any(scheduled_spawns["layer"] != 0)) if scheduled_spawns.shape[0] else False
@@ -225,6 +234,12 @@ class LaneNoteSpawnerSystem(RhythmSpawnerSystem):
             sprite_view["tint_r"][sprite_row] = 120
             sprite_view["tint_g"][sprite_row] = 230
             sprite_view["tint_b"][sprite_row] = 255
+        elif self._bomb_threat_type_id is not None and threat_type == self._bomb_threat_type_id:
+            # vermelho de perigo: distingue a Bomba de qualquer nota
+            # normal -- acerta-la pune ao inves de pontuar
+            sprite_view["tint_r"][sprite_row] = 235
+            sprite_view["tint_g"][sprite_row] = 35
+            sprite_view["tint_b"][sprite_row] = 35
         else:
             sprite_view["tint_r"][sprite_row] = self._lane_tints_rgb[lane, 0]
             sprite_view["tint_g"][sprite_row] = self._lane_tints_rgb[lane, 1]

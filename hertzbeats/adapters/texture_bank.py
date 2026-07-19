@@ -83,6 +83,35 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
         renderer.register_texture(TEX_KEY_LABEL_BASE + lane, surface)
 
 
+_VIGNETTE_COLOR = (5, 3, 10, 255)
+"""Cor opaca do Vignette Flash -- quase preto, mesmo tom base da arena
+(`begin_frame`) para nao criar um contraste artificial nas bordas."""
+
+_VIGNETTE_HOLE_FRACTION = 0.16
+"""Raio do buraco iluminado, como fracao do menor lado da janela."""
+
+
+def build_and_register_vignette_surface(renderer: HBPygameRenderer, config) -> None:
+    """Vignette Flash ("Cegueira Ritmica", Arcade 4K -- Notas Toxicas):
+    Surface do TAMANHO DA JANELA, opaca e quase preta, com um buraco
+    circular TOTALMENTE TRANSPARENTE focado na linha de julgamento do
+    Arcade 4K -- o jogador so consegue ler as notas dentro do circulo
+    iluminado enquanto `GameState.blindness_timer_sec > 0`.
+
+    Pre-renderizada UMA UNICA vez no carregamento (nunca por frame):
+    `pygame.draw.circle` com alfa 0 sobre uma Surface `SRCALPHA`
+    escreve os pixels diretamente (nao mescla), entao o circulo vira um
+    buraco de verdade -- nao um circulo "desenhado por cima"."""
+    width, height = config.window_width, config.window_height
+    judgment_y = config.window_height - config.judgment_line_offset
+
+    surface = pygame.Surface((width, height), pygame.SRCALPHA)
+    surface.fill(_VIGNETTE_COLOR)
+    hole_radius = int(min(width, height) * _VIGNETTE_HOLE_FRACTION)
+    pygame.draw.circle(surface, (0, 0, 0, 0), (width // 2, int(judgment_y)), hole_radius)
+    renderer.set_vignette_surface(surface.convert_alpha())
+
+
 _POLARITY_CONTROL_HINT = (
     "MOUSE mira  |  CLIQUE ESQ = AZUL, CLIQUE DIR = ROSA  |  PARRY em pesadas no tempo exato"
 )

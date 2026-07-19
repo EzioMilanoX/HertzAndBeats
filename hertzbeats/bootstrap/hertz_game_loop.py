@@ -6,7 +6,17 @@ import random
 import time
 from typing import Optional, Tuple
 
-from ouroboros.bootstrap.game_loop import GameLoop
+import numpy as np
+
+from ouroboros.bootstrap.game_loop import (
+    _EMPTY_F32,
+    _EMPTY_I16,
+    _EMPTY_RGBA,
+    _EMPTY_U32,
+    _EMPTY_XY,
+    GameLoop,
+)
+from ouroboros.core.memory.component_pool import intersect_entity_indices
 from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.audio_engine import IAudioEngine
 from ouroboros.interfaces.input_provider import IInputProvider
@@ -18,6 +28,7 @@ from hertzbeats.bootstrap.rhythm_composition_root import (
     compose_world,
     lane_center_positions,
 )
+from hertzbeats.components.schemas import MODE_TAG_LANES
 from hertzbeats.config import HertzConfig
 from hertzbeats.stages import StageDef, resolve_stage_config
 
@@ -195,6 +206,7 @@ class HertzGameLoop(GameLoop):
             tutorial_steps=stage.tutorial_steps,
             stage_ordinal=stage_index,
             audio_engine=self._audio_engine,
+            modchart_events=stage.modchart_events,
         )
         self._composed = composed
         self._stage_config = stage_config
@@ -236,6 +248,30 @@ class HertzGameLoop(GameLoop):
             )
         else:
             renderer.set_playfield(None)
+
+    def _sync_lane_playfield(self) -> None:
+        """Modcharts (Arcade 4K): mantem a decoracao de fundo das
+        colunas (`renderer.set_playfield("lanes", ...)`) em sincronia
+        com a posicao ATUAL calculada pelo `LaneChoreographySystem`
+        (Swap com Lerp + Pistas Dinamicas) -- sem isso, as colunas
+        desenhadas no fundo ficariam paradas enquanto as notas e os
+        receptores deslizam por cima delas. No-op fora do modo Arcade
+        4K ou com um renderer sem suporte a playfield (ex. NullRenderer)."""
+        if self._composed is None or self._stage_config.game_mode != "lanes":
+            return
+        choreography = self._composed.lane_choreography_system
+        renderer = getattr(self, "_renderer", None)
+        if choreography is None or renderer is None or not hasattr(renderer, "set_playfield"):
+            return
+        config = self._stage_config
+        renderer.set_playfield(
+            "lanes",
+            lane_xs=choreography.current_lane_xs.tolist(),
+            lane_half_width=config.lane_spacing * 0.42,
+            judgment_y=config.window_height - config.judgment_line_offset,
+            width=config.window_width,
+            height=config.window_height,
+        )
 
     def _flow_base_volume(self) -> float:
         """Volume 'normal' da faixa fora do Flow State: um pouco abaixo
@@ -473,6 +509,72 @@ class HertzGameLoop(GameLoop):
             random.uniform(-intensity, intensity), random.uniform(-intensity, intensity)
         )
 
+    def _sync_blindness(self) -> None:
+        """Vignette Flash: traduz `GameState.is_blinded` (decaido pelo
+        `CameraShakeSystem` a cada `world.step`) num liga/desliga real
+        via `IRenderer.set_blindness_active` -- mesma familia de
+        sincronizacao apresentacao<-estado de `_sync_camera_shake`."""
+        if not hasattr(self._renderer, "set_blindness_active") or self._composed is None:
+            return
+        self._renderer.set_blindness_active(self._composed.game_state.is_blinded)
+
+    def _render_frame(self) -> None:
+        """Override do `GameLoop` da engine: MESMA coleta SoA de
+        `transform`+`sprite`, mas aplicando o Stutter Scroll (ruido
+        visual em Y, Arcade 4K) so NESTE array temporario, no momento
+        do `draw_batch` -- `transform.position_y` (a fisica real que o
+        `PhysicsSystem`/`LaneJudgmentSystem` usam) nunca e escrito
+        aqui, entao nao ha deriva acumulada frame a frame (o mesmo
+        cuidado pedido para o efeito)."""
+        transform_pool = self._world.get_pool("transform")
+        sprite_pool = self._world.get_pool("sprite")
+        entity_indices = intersect_entity_indices(transform_pool, sprite_pool)
+        count = int(entity_indices.shape[0])
+
+        self._renderer.begin_frame()
+        if count == 0:
+            self._renderer.draw_batch(_EMPTY_XY, _EMPTY_F32, _EMPTY_XY, _EMPTY_U32, _EMPTY_RGBA, _EMPTY_I16, 0)
+        else:
+            t_rows = transform_pool.dense_rows_of(entity_indices)
+            s_rows = sprite_pool.dense_rows_of(entity_indices)
+            t_view = transform_pool.active_view()
+            s_view = sprite_pool.active_view()
+
+            positions_xy = np.stack([t_view["position_x"][t_rows], t_view["position_y"][t_rows]], axis=1)
+            stutter_offset = 0.0
+            if self._composed is not None:
+                stutter_offset = self._composed.game_state.lane_stutter_offset_y
+            if stutter_offset != 0.0:
+                self._apply_lane_stutter(positions_xy, entity_indices, stutter_offset)
+            rotations_rad = t_view["rotation_rad"][t_rows]
+            scales_xy = np.stack([t_view["scale_x"][t_rows], t_view["scale_y"][t_rows]], axis=1)
+            texture_ids = s_view["texture_id"][s_rows]
+            tint_rgba = np.stack(
+                [s_view["tint_r"][s_rows], s_view["tint_g"][s_rows], s_view["tint_b"][s_rows], s_view["tint_a"][s_rows]],
+                axis=1,
+            )
+            layer_z = s_view["layer_z"][s_rows]
+            self._renderer.draw_batch(positions_xy, rotations_rad, scales_xy, texture_ids, tint_rgba, layer_z, count)
+        self._renderer.end_frame()
+
+    def _apply_lane_stutter(self, positions_xy, entity_indices, stutter_offset: float) -> None:
+        """Soma `stutter_offset` na coluna Y so das entidades que SAO
+        notas do Arcade 4K (`rhythm_threat`, `mode_tag==MODE_TAG_LANES`)
+        dentro do batch de renderizacao -- HUD/receptores/nucleo ficam
+        de fora. `positions_xy` e o array TEMPORARIO montado por
+        `_render_frame` para este frame (nunca a pool)."""
+        threat_pool = self._world.get_pool("rhythm_threat")
+        active_count = threat_pool.count
+        if active_count == 0:
+            return
+        threat_view = threat_pool.active_view()
+        is_lanes = threat_view["mode_tag"] == MODE_TAG_LANES
+        if not np.any(is_lanes):
+            return
+        lanes_entity_indices = threat_pool.active_entity_indices()[is_lanes]
+        mask = np.isin(entity_indices, lanes_entity_indices)
+        positions_xy[mask, 1] += stutter_offset
+
     def run(self) -> None:
         """Mesmo timing do `GameLoop.run` da engine (perf_counter + cap
         de fps), com `advance_frame` no lugar do `world.step`
@@ -492,6 +594,8 @@ class HertzGameLoop(GameLoop):
             self.advance_frame(delta_time)
             self._sync_overlay()
             self._sync_camera_shake()
+            self._sync_blindness()
+            self._sync_lane_playfield()
             self._render_frame()
 
             elapsed = time.perf_counter() - now

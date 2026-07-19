@@ -39,6 +39,12 @@ class StageDef:
             escolhido no menu (A/D alternam) em vez de fixado por
             `overrides`; fases construidas do repositorio mantem a
             afinacao curada por modo.
+        modchart_events: eventos GLOBAIS de coreografia do Arcade 4K
+            (`{"type": "swap", "time_seconds", "duration_seconds",
+            "lane_a", "lane_b"}`, ordem livre -- `parse_swap_events` os
+            ordena por tempo). Dado 100% GAME-side (nao existe no
+            `beatmap.json` da engine): so o `LaneChoreographySystem` os
+            le, quando `game_mode == "lanes"`.
     """
 
     stage_id: str
@@ -51,6 +57,7 @@ class StageDef:
     overrides: Dict
     tutorial_steps: Tuple[Dict, ...] = ()
     selectable_mode: bool = False
+    modchart_events: Tuple[Dict, ...] = ()
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
@@ -70,6 +77,7 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
                 beatmap_params=dict(entry.get("beatmap", {})),
                 overrides=dict(entry.get("overrides", {})),
                 tutorial_steps=tuple(entry.get("tutorial_steps", ())),
+                modchart_events=tuple(entry.get("modchart_events", ())),
             )
         )
     if not stages:

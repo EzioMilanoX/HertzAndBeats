@@ -42,6 +42,7 @@ from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 
 from hertzbeats.audio.sfx_synth import (
+    SFX_BOMB,
     SFX_CANNON,
     SFX_CLICK,
     SFX_DEFLECT,
@@ -54,6 +55,7 @@ from hertzbeats.audio.sfx_synth import (
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
+from hertzbeats.modchart import parse_swap_events
 from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
 from hertzbeats.systems.convergence_ring_system import (
@@ -92,6 +94,7 @@ from hertzbeats.systems.survival_player_system import SurvivalPlayerSystem
 from hertzbeats.systems.survival_spawner_system import SurvivalSpawnerSystem
 from hertzbeats.systems.tutorial_system import TutorialSystem
 from hertzbeats.systems.ui_render_system import UIRenderSystem
+from hertzbeats.systems.visual_modifier_system import VisualModifierSystem
 
 PLAYER_COLLISION_LAYER = 1
 THREAT_COLLISION_LAYER = 4
@@ -117,6 +120,7 @@ class ComposedGame:
         "collision_system",
         "player_entity_index",
         "crosshair_entity_index",
+        "lane_choreography_system",
     )
 
     def __init__(
@@ -128,6 +132,7 @@ class ComposedGame:
         collision_system: CollisionSystem,
         player_entity_index: int,
         crosshair_entity_index: int,
+        lane_choreography_system=None,
     ) -> None:
         self.world = world
         self.memory_manager = memory_manager
@@ -136,6 +141,12 @@ class ComposedGame:
         self.collision_system = collision_system
         self.player_entity_index = player_entity_index
         self.crosshair_entity_index = crosshair_entity_index
+        self.lane_choreography_system = lane_choreography_system
+        """`LaneChoreographySystem` da fase (Modcharts + Pistas
+        Dinamicas) quando `game_mode == "lanes"`; `None` nos demais
+        modos. Exposto para o `HertzGameLoop` sincronizar a decoracao
+        de fundo (`renderer.set_playfield`) com a posicao ATUAL das
+        colunas a cada frame."""
 
     @property
     def spawner_system(self):
@@ -171,11 +182,21 @@ class _ModeContext:
         "threat_texture_by_type",
         "player_entity_index",
         "crosshair_entity_index",
+        "modchart_events",
+        "lane_choreography_system",
     )
+
+    _OPTIONAL_SLOTS = frozenset({"lane_choreography_system"})
+    """Slots preenchidos DEPOIS da construcao (pela propria estrategia
+    de modo, ex.: `_compose_lanes_mode` grava `lane_choreography_system`
+    de volta no `ctx`) -- unicos que podem faltar em `kwargs`."""
 
     def __init__(self, **kwargs) -> None:
         for name in self.__slots__:
-            setattr(self, name, kwargs[name])
+            if name in self._OPTIONAL_SLOTS:
+                setattr(self, name, kwargs.get(name))
+            else:
+                setattr(self, name, kwargs[name])
 
 
 def _hide_sprite(memory_manager: MemoryManager, entity_index: int) -> None:
@@ -502,6 +523,11 @@ def _compose_lanes_mode(ctx: _ModeContext):
     config = ctx.config
     judgment_line_y = config.window_height - config.judgment_line_offset
     lane_center_xs = lane_center_positions(config)
+    # buffer MUTAVEL compartilhado por IDENTIDADE com o spawner E o
+    # `LaneChoreographySystem` -- Modcharts/Pistas Dinamicas reescrevem
+    # este array por inteiro todo frame; `lane_center_xs` acima segue
+    # imutavel (a base para os calculos de offset).
+    current_lane_xs = lane_center_xs.copy()
     lane_tints_rgb = np.array(
         [[255, 214, 64], [64, 255, 214], [167, 139, 250], [255, 80, 96]], dtype=np.uint8
     )
@@ -519,6 +545,9 @@ def _compose_lanes_mode(ctx: _ModeContext):
         config.scratch_min_cluster_size,
         config.scratch_hold_tail_seconds,
     )
+    # Notas Toxicas (Bombas): opt-in por PRESENCA do tipo no beatmap/
+    # config (mesmo criterio de `rhythm_threat_heavy`), sem flag extra.
+    bomb_type_id = config.threat_type_ids.get("rhythm_threat_bomb")
 
     spawner_system = LaneNoteSpawnerSystem(
         audio_clock=ctx.audio_clock,
@@ -526,7 +555,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
         scheduled_spawns=scheduled_out,
         hit_times=hit_times_out,
         threat_archetype_name="rhythm_threat_radial",
-        lane_center_xs=lane_center_xs,
+        lane_center_xs=current_lane_xs,
         spawn_y=-24.0,
         judgment_line_y=judgment_line_y,
         note_half_by_type=ctx.threat_half_by_type,
@@ -537,12 +566,13 @@ def _compose_lanes_mode(ctx: _ModeContext):
         hold_threat_type_id=heavy_type_id if config.holds_enabled else None,
         hold_duration_seconds=config.hold_duration_seconds,
         hold_visual_max_fraction=config.lane_hold_visual_max_fraction,
+        bomb_threat_type_id=bomb_type_id,
     )
 
     # nucleo e mira nao participam deste modo; receptores + rotulos de
     # tecla marcam a linha de julgamento (entidades de HUD comuns) --
-    # os indices sao guardados para as "Pistas Dinamicas" reposicionarem
-    # a linha inteira junto com as colunas.
+    # os indices sao guardados para as "Pistas Dinamicas"/Modcharts
+    # reposicionarem a linha inteira junto com as colunas.
     _hide_sprite(ctx.memory_manager, ctx.player_entity_index)
     _hide_sprite(ctx.memory_manager, ctx.crosshair_entity_index)
     receptor_entity_indices = np.zeros(LANE_COUNT_4K, dtype=np.int64)
@@ -582,6 +612,10 @@ def _compose_lanes_mode(ctx: _ModeContext):
             hold_engage_sound_id=SFX_HOLD_ENGAGE,
             hold_break_sound_id=SFX_HOLD_BREAK,
             shield_break_sound_id=SFX_SHIELD_BREAK,
+            bomb_threat_type_id=bomb_type_id,
+            bomb_hit_shake_px=config.bomb_hit_shake_px,
+            bomb_blindness_seconds=config.bomb_blindness_seconds,
+            bomb_hit_sound_id=SFX_BOMB,
         )
     )
     ctx.world.register_system(
@@ -600,18 +634,29 @@ def _compose_lanes_mode(ctx: _ModeContext):
     # novo de beatmap, so reaproveita `hit_times_out` filtrado por
     # `is_hold_out`.
     trigger_times = hit_times_out[is_hold_out]
-    ctx.world.register_system(
-        LaneChoreographySystem(
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            lane_center_xs=lane_center_xs,
-            trigger_times=trigger_times,
-            amplitude_px=config.lane_sway_amplitude_px,
-            decay_per_second=config.lane_sway_decay_per_second,
-            receptor_entity_indices=receptor_entity_indices,
-            key_label_entity_indices=key_label_entity_indices,
-        )
+    choreography_system = LaneChoreographySystem(
+        audio_clock=ctx.audio_clock,
+        memory_manager=ctx.memory_manager,
+        base_lane_xs=lane_center_xs,
+        current_lane_xs=current_lane_xs,
+        trigger_times=trigger_times,
+        amplitude_px=config.lane_sway_amplitude_px,
+        decay_per_second=config.lane_sway_decay_per_second,
+        receptor_entity_indices=receptor_entity_indices,
+        key_label_entity_indices=key_label_entity_indices,
+        swap_events=parse_swap_events(ctx.modchart_events),
     )
+    ctx.world.register_system(choreography_system)
+    ctx.lane_choreography_system = choreography_system
+    if config.stutter_scroll_enabled:
+        ctx.world.register_system(
+            VisualModifierSystem(
+                audio_clock=ctx.audio_clock,
+                game_state=ctx.game_state,
+                frequency_hz=config.stutter_scroll_frequency_hz,
+                amplitude_px=config.stutter_scroll_amplitude_px,
+            )
+        )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
     return (spawner_system,), None
 
@@ -882,6 +927,7 @@ def compose_world(
     tutorial_steps: tuple = (),
     stage_ordinal: int = 0,
     audio_engine=None,
+    modchart_events: tuple = (),
 ) -> ComposedGame:
     """Composicao PURA (sem pygame): pools, arquetipos, entidades
     persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
@@ -891,6 +937,10 @@ def compose_world(
     `tutorial_steps` (da definicao da fase) liga o modo tutorial: cria o
     sprite-banner de instrucoes e registra o `TutorialSystem`;
     `stage_ordinal` enderessa a faixa de texturas de texto da fase.
+    `modchart_events` (da definicao da fase, `StageDef.modchart_events`)
+    liga os eventos de Modchart (troca de colunas com Lerp) no
+    `LaneChoreographySystem` quando `game_mode == "lanes"` -- dado
+    100% game-side, nao existe no `beatmap.json` da engine.
     """
     center_x, center_y = config.center_xy
 
@@ -983,6 +1033,7 @@ def compose_world(
         threat_texture_by_type=threat_texture_by_type,
         player_entity_index=player_entity_index,
         crosshair_entity_index=crosshair_entity_index,
+        modchart_events=modchart_events,
     )
     spawner_systems, collision_system = mode_composer(context)
     if tutorial_steps:
@@ -1036,6 +1087,7 @@ def compose_world(
         collision_system=collision_system,
         player_entity_index=player_entity_index,
         crosshair_entity_index=crosshair_entity_index,
+        lane_choreography_system=context.lane_choreography_system,
     )
 
 
@@ -1177,6 +1229,7 @@ class RhythmCompositionRoot:
             build_and_register_hud_textures,
             build_and_register_overlay_surfaces,
             build_and_register_tutorial_textures,
+            build_and_register_vignette_surface,
         )
         from hertzbeats.audio.demo_track_synth import ensure_track
         from hertzbeats.audio.sfx_synth import (
@@ -1230,7 +1283,7 @@ class RhythmCompositionRoot:
         ensure_sfx()
         for sound_id in (
             SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY, SFX_GRAZE,
-            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK,
+            SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB,
         ):
             audio_engine.preload_one_shot(sound_id)
 
@@ -1266,5 +1319,6 @@ class RhythmCompositionRoot:
         build_and_register_hud_textures(renderer)
         build_and_register_overlay_surfaces(renderer, stages)
         build_and_register_tutorial_textures(renderer, stages)
+        build_and_register_vignette_surface(renderer, config)
 
         return game_loop, audio_engine

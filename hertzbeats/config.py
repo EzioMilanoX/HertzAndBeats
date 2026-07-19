@@ -146,6 +146,17 @@ class HertzConfig:
     practice_mode: bool = False
     practice_density_keep_fraction: float = 0.5
 
+    # -- Arcade 4K: Notas Toxicas (Bombas) -- opt-in por presenca do
+    #    tipo "rhythm_threat_bomb" em `threat_type_ids` (sem flag extra,
+    #    mesmo criterio de `rhythm_threat_heavy`) --
+    bomb_hit_shake_px: float = 18.0
+    bomb_blindness_seconds: float = 1.2
+
+    # -- Arcade 4K: Stutter Scroll (gagueira visual, nao afeta a fisica) --
+    stutter_scroll_enabled: bool = False
+    stutter_scroll_amplitude_px: float = 10.0
+    stutter_scroll_frequency_hz: float = 9.0
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -235,6 +246,11 @@ class HertzConfig:
             parry_impact_shake_px=raw.get("parry_impact_shake_px", 10.0),
             practice_mode=raw.get("practice_mode", False),
             practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),
+            bomb_hit_shake_px=raw.get("bomb_hit_shake_px", 18.0),
+            bomb_blindness_seconds=raw.get("bomb_blindness_seconds", 1.2),
+            stutter_scroll_enabled=raw.get("stutter_scroll_enabled", False),
+            stutter_scroll_amplitude_px=raw.get("stutter_scroll_amplitude_px", 10.0),
+            stutter_scroll_frequency_hz=raw.get("stutter_scroll_frequency_hz", 9.0),
         )
 
 

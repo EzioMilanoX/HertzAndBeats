@@ -25,6 +25,7 @@ SFX_GRAZE = "data/sfx/graze.wav"
 SFX_HOLD_ENGAGE = "data/sfx/hold_engage.wav"
 SFX_HOLD_BREAK = "data/sfx/hold_break.wav"
 SFX_SHIELD_BREAK = "data/sfx/shield_break.wav"
+SFX_BOMB = "data/sfx/bomb.wav"
 
 
 def _cannon(sample_rate: int) -> np.ndarray:
@@ -126,6 +127,20 @@ def _shield_break(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _bomb(sample_rate: int) -> np.ndarray:
+    """Bomba (Arcade 4K): explosao curta e suja -- ruido grave
+    filtrado + thump abafado, claramente um erro (nao um acerto)."""
+    length = int(0.32 * sample_rate)
+    rng = np.random.RandomState(666)
+    noise = rng.uniform(-1.0, 1.0, size=length)
+    t = np.arange(length) / sample_rate
+    thump = np.exp(-t * 12.0) * np.sin(
+        2 * np.pi * np.cumsum(90.0 * np.exp(-t * 20.0) + 35.0) / sample_rate
+    )
+    mix = np.exp(-t * 10.0) * noise * 0.55 + thump * 0.7
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -139,6 +154,7 @@ def ensure_sfx() -> None:
         (SFX_HOLD_ENGAGE, _hold_engage),
         (SFX_HOLD_BREAK, _hold_break),
         (SFX_SHIELD_BREAK, _shield_break),
+        (SFX_BOMB, _bomb),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

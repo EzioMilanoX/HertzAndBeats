@@ -1,4 +1,4 @@
-"""Decai o tremor de tela global a cada frame -- comum aos 3 modos, independente de quem o acionou."""
+"""Decai o tremor de tela e a Cegueira Ritmica globais a cada frame -- comum a todos os modos, independente de quem os acionou."""
 from __future__ import annotations
 
 from ouroboros.core.systems.base_system import ISystem
@@ -25,7 +25,12 @@ class CameraShakeSystem(ISystem):
     Registrado INCONDICIONALMENTE em `compose_world` (como o
     `UIRenderSystem`) -- roda em todo modo, mesmo que nenhuma mecanica
     daquele modo dispare shake ainda.
-    """
+
+    Tambem decai `GameState.blindness_timer_sec` (Vignette Flash,
+    Arcade 4K -- Bombas): um contador de SEGUNDOS RESTANTES, nao uma
+    intensidade, entao decresce por `delta_time` puro (nao por uma taxa
+    configuravel) ate zero -- o mesmo criterio simples de
+    `judgment_display_seconds_left`."""
 
     def __init__(self, game_state: GameState, decay_per_second: float) -> None:
         self._game_state = game_state
@@ -34,6 +39,7 @@ class CameraShakeSystem(ISystem):
     def update(self, world: World, delta_time: float) -> None:
         del world
         state = self._game_state
-        if state.shake_intensity <= 0.0:
-            return
-        state.shake_intensity = max(0.0, state.shake_intensity - self._decay_per_second * delta_time)
+        if state.shake_intensity > 0.0:
+            state.shake_intensity = max(0.0, state.shake_intensity - self._decay_per_second * delta_time)
+        if state.blindness_timer_sec > 0.0:
+            state.blindness_timer_sec = max(0.0, state.blindness_timer_sec - delta_time)

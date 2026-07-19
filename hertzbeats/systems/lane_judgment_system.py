@@ -16,6 +16,7 @@ from hertzbeats.components.schemas import (
     JUDGMENT_MISS,
     JUDGMENT_PENDING,
     JUDGMENT_PERFECT,
+    JUDGMENT_SURVIVED,
     MODE_TAG_LANES,
 )
 from hertzbeats.game_state import GameState
@@ -55,6 +56,16 @@ class LaneJudgmentSystem(ISystem):
     enquanto houver carga (so tremor leve); esgotado, passa a custar
     vida de verdade -- a PRIMEIRA forma do Arcade 4K de chegar ao Game
     Over.
+
+    NOTAS TOXICAS / BOMBAS (opt-in via `bomb_threat_type_id`, presenca
+    do tipo "rhythm_threat_bomb" no beatmap): candidata como qualquer
+    outra na selecao por tempo+coluna, mas acerta-la NUNCA pontua --
+    zera o combo, custa vida e cega o jogador por um instante
+    (`GameState.trigger_blindness`, Vignette Flash). O jogo CORRETO e
+    NAO tocar: uma bomba que passa da linha sem ser pressionada e
+    destruida silenciosamente como SURVIVED (sem punicao nenhuma),
+    excluida da varredura generica de MISS pela mesma licao de exclusao
+    do Hold/Scratch.
     """
 
     def __init__(
@@ -82,6 +93,10 @@ class LaneJudgmentSystem(ISystem):
         hold_engage_sound_id: str = None,
         hold_break_sound_id: str = None,
         shield_break_sound_id: str = None,
+        bomb_threat_type_id: int = None,
+        bomb_hit_shake_px: float = 0.0,
+        bomb_blindness_seconds: float = 0.0,
+        bomb_hit_sound_id: str = None,
     ) -> None:
         """Buffers pre-alocados pela capacidade da pool (o update nunca
         aloca arrays)."""
@@ -108,6 +123,10 @@ class LaneJudgmentSystem(ISystem):
         self._hold_engage_sound_id = hold_engage_sound_id
         self._hold_break_sound_id = hold_break_sound_id
         self._shield_break_sound_id = shield_break_sound_id
+        self._bomb_threat_type_id = bomb_threat_type_id
+        self._bomb_hit_shake_px = float(bomb_hit_shake_px)
+        self._bomb_blindness_seconds = float(bomb_blindness_seconds)
+        self._bomb_hit_sound_id = bomb_hit_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -140,6 +159,8 @@ class LaneJudgmentSystem(ISystem):
         np.equal(threat_view["mode_tag"], MODE_TAG_LANES, out=owned)
 
         self._sweep_overdue_misses(world, threat_view, deltas, active_count)
+        if self._bomb_threat_type_id is not None:
+            self._sweep_overdue_bombs(world, threat_view, deltas, active_count)
         if self._holds_enabled:
             self._sweep_engaged_lane_holds(world, threat_view, active_count, now_effective)
 
@@ -177,6 +198,13 @@ class LaneJudgmentSystem(ISystem):
         not_engaged = self._engaged_mask[:active_count]
         np.logical_not(threat_view["is_hit"], out=not_engaged)
         np.logical_and(overdue, not_engaged, out=overdue)
+        # Bombas passam despercebidas de proposito -- destruidas
+        # silenciosamente por `_sweep_overdue_bombs`, NUNCA como MISS
+        # comum (o jogo CORRETO e nao tocar nelas).
+        if self._bomb_threat_type_id is not None:
+            not_bomb = self._not_hold_mask[:active_count]
+            np.not_equal(threat_view["threat_type"], self._bomb_threat_type_id, out=not_bomb)
+            np.logical_and(overdue, not_bomb, out=overdue)
 
         overdue_rows = np.flatnonzero(overdue)
         if overdue_rows.shape[0] == 0:
@@ -237,6 +265,15 @@ class LaneJudgmentSystem(ISystem):
         # `_sweep_engaged_lane_holds` assumir a Fase 2 (Sustain).
         if self._holds_enabled and float(threat_view["duration_sec"][best_row]) > 0.0:
             self._register_hold_engage(threat_view, best_row)
+            return
+
+        # Bomba: candidata como qualquer nota, mas NUNCA pontua --
+        # sempre pune (ver `_register_bomb_hit`).
+        if (
+            self._bomb_threat_type_id is not None
+            and int(threat_view["threat_type"][best_row]) == self._bomb_threat_type_id
+        ):
+            self._register_bomb_hit(world, threat_view, best_row)
             return
 
         judgment = (
@@ -357,3 +394,50 @@ class LaneJudgmentSystem(ISystem):
                 self._rumble_low_freq, self._rumble_high_freq, self._rumble_duration_seconds
             )
             self._play(self._shield_break_sound_id, 0.85)
+
+    def _sweep_overdue_bombs(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        deltas: np.ndarray,
+        active_count: int,
+    ) -> None:
+        """Bomba que passou da linha de julgamento SEM ser pressionada:
+        o jogo CORRETO -- destruida silenciosamente como SURVIVED, sem
+        nenhum efeito de combo/vida/tremor (o oposto do MISS comum)."""
+        overdue = self._candidate_mask[:active_count]
+        np.less(deltas, -self._miss_window, out=overdue)
+        pending = self._scratch_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(overdue, pending, out=overdue)
+        np.logical_and(overdue, self._owned_mask[:active_count], out=overdue)
+        is_bomb = self._not_hold_mask[:active_count]
+        np.equal(threat_view["threat_type"], self._bomb_threat_type_id, out=is_bomb)
+        np.logical_and(overdue, is_bomb, out=overdue)
+
+        overdue_rows = np.flatnonzero(overdue)
+        if overdue_rows.shape[0] == 0:
+            return
+        for row in overdue_rows:
+            row_int = int(row)
+            threat_view["judgment"][row_int] = JUDGMENT_SURVIVED
+            world.destroy_entity(int(threat_view["packed_handle"][row_int]))
+
+    def _register_bomb_hit(self, world: World, threat_view: np.ndarray, best_row: int) -> None:
+        """Pressionou a coluna de uma Bomba: NUNCA pontua -- combo
+        zerado, dano de vida (respeita Modo Treino), tremor, Haptics e
+        Vignette Flash (cegueira ritmica), reaproveitando o mesmo
+        veredito MISS (nao e um erro de tempo, mas termina a linha)."""
+        threat_view["is_hit"][best_row] = True
+        threat_view["judgment"][best_row] = JUDGMENT_MISS
+        world.destroy_entity(int(threat_view["packed_handle"][best_row]))
+
+        state = self._game_state
+        state.miss_count += 1
+        state.combo_count = 0
+        if not self._practice_mode and state.health > 0:
+            state.health -= 1
+        state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+        state.trigger_shake(self._bomb_hit_shake_px)
+        state.trigger_blindness(self._bomb_blindness_seconds)
+        self._play(self._bomb_hit_sound_id, 0.85)

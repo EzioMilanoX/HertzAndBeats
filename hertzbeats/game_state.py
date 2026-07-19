@@ -37,6 +37,8 @@ class GameState:
         "deflect_count",
         "shake_intensity",
         "shield_charges",
+        "blindness_timer_sec",
+        "lane_stutter_offset_y",
     )
 
     def __init__(self, max_health: int, shield_charges: int = 0) -> None:
@@ -83,6 +85,32 @@ class GameState:
         Inicializado por `_compose_lanes_mode` a partir de
         `HertzConfig.lane_shield_max_charges`; `0` nos demais modos
         (nunca lido/decrementado la)."""
+        self.blindness_timer_sec: float = 0.0
+        """Vignette Flash ("Cegueira Ritmica", Arcade 4K -- Bombas):
+        segundos restantes com a arena coberta por um overlay escuro
+        com um buraco focado na linha de julgamento. Decai a cada frame
+        (mesmo `CameraShakeSystem`/`shake_intensity`); o
+        `HBPygameRenderer` so desenha o overlay enquanto `> 0`."""
+        self.lane_stutter_offset_y: float = 0.0
+        """Stutter Scroll (Arcade 4K, opt-in `stutter_scroll_enabled`):
+        ruido visual ATUAL em Y (pixels), escrito todo frame pelo
+        `VisualModifierSystem` (`sin(now_seconds * freq) * amplitude`).
+        Lido pelo `HertzGameLoop._render_frame` (overrescrito) para
+        deslocar so a POSICAO RENDERIZADA das notas do Arcade 4K no
+        momento do `draw_batch` -- `transform.position_y` (a fisica
+        REAL, que o `LaneJudgmentSystem`/`PhysicsSystem` usam) nunca e
+        tocado, entao nao ha deriva acumulada frame a frame."""
+
+    @property
+    def is_blinded(self) -> bool:
+        """True enquanto o Vignette Flash estiver ativo."""
+        return self.blindness_timer_sec > 0.0
+
+    def trigger_blindness(self, seconds: float) -> None:
+        """Aciona/reforca a Cegueira Ritmica. Mesmo criterio de
+        `trigger_shake`: usa `max()`, nao soma -- duas bombas seguidas
+        nao empilham um tempo de cegueira absurdo."""
+        self.blindness_timer_sec = max(self.blindness_timer_sec, float(seconds))
 
     @property
     def in_fever(self) -> bool:

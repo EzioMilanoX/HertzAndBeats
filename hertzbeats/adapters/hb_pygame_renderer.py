@@ -80,6 +80,8 @@ class HBPygameRenderer(PygameRenderer):
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
         self._flow_tier: int = 0
+        self._vignette_surface: Optional[pygame.Surface] = None
+        self._blindness_active: bool = False
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
         """Registra `surface` (ja convertida com alpha) para `texture_id`.
@@ -135,6 +137,20 @@ class HBPygameRenderer(PygameRenderer):
         `HertzGameLoop` todo frame (nao so na transicao -- o tier muda
         DENTRO do Flow, sem cruzar o limiar de novo)."""
         self._flow_tier = int(tier)
+
+    def set_vignette_surface(self, surface: "pygame.Surface") -> None:
+        """Registra a Surface do Vignette Flash (preta, com um buraco
+        circular transparente focado na linha de julgamento) --
+        pre-renderizada UMA vez em `texture_bank.build_and_register_vignette_surface`,
+        nunca reconstruida por frame."""
+        self._vignette_surface = surface
+
+    def set_blindness_active(self, active: bool) -> None:
+        """Liga/desliga o blit do Vignette Flash -- publicado pelo
+        `HertzGameLoop` a cada frame a partir de `GameState.is_blinded`
+        (mesmo padrao de `set_flow_mode`/`set_overlay`: sincronizacao de
+        apresentacao vive no game loop, nunca dentro de um `ISystem`)."""
+        self._blindness_active = bool(active)
 
     def set_playfield(self, kind: Optional[str], **params) -> None:
         """Define a decoracao de arena do MODO ativo, desenhada a cada
@@ -231,6 +247,8 @@ class HBPygameRenderer(PygameRenderer):
         return tuple(min(255, int(channel * pulse)) for channel in base)
 
     def end_frame(self) -> None:
+        if self._blindness_active and self._vignette_surface is not None:
+            self._surface.blit(self._vignette_surface, (0, 0))
         if self._overlay_mode is not None:
             self._draw_overlay()
         if self._notice_key is not None:

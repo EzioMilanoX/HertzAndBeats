@@ -221,6 +221,17 @@ No menu, **T** liga/desliga o Modo Treino para a música selecionada — reduz a
 beatmap.json versionado) e suprime o dano de vida (o MISS continua contando e quebrando o combo — só
 a vida é poupada).
 
+## Modcharts e efeitos avançados (Arcade 4K)
+
+Quatro mecânicas novas, todas **opt-in por dados** (nenhuma exige tocar em `LaneJudgmentSystem`/`LaneNoteSpawnerSystem` de fora do jeito data-driven já estabelecido) e todas seguindo a mesma disciplina Zero-GC do resto do jogo:
+
+- **Notas Tóxicas (Bombas)** — o beatmap ganha um `threat_type` a mais, `rhythm_threat_bomb` (basta existir em `threat_type_ids`, o mesmo critério de opt-in de `rhythm_threat_heavy`). Uma Bomba é candidata a acerto como qualquer nota (mesma seleção por tempo+coluna), mas **acertá-la nunca pontua**: zera o combo, custa vida, treme a câmera e aciona o Vignette Flash. O jogo **correto** é não tocar — uma Bomba que passa da linha sem ser pressionada é destruída silenciosamente (SURVIVED), sem punição nenhuma, excluída da varredura genérica de MISS pela mesma lição de exclusão já usada para Scratch/Hold/Safe Zone.
+- **Modcharts (Swap com Lerp)** — `StageDef.modchart_events` (100% game-side, não existe no `beatmap.json` da engine) define eventos `{"type": "swap", "time_seconds", "duration_seconds", "lane_a", "lane_b"}`: duas colunas trocam de lugar suavemente (interpolação linear) ao longo de N segundos. O `LaneChoreographySystem` (já responsável pelas Pistas Dinâmicas) ganhou essa segunda responsabilidade: `lane_center_xs` deixou de ser um array estático — agora é um buffer **mutável**, reescrito por inteiro todo frame e compartilhado por identidade com o `LaneNoteSpawnerSystem`, então uma nota **já caindo** acompanha a curva do swap em tempo real, não só as recém-criadas. A decoração de fundo das colunas também é sincronizada a cada frame (`HertzGameLoop._sync_lane_playfield`).
+- **Stutter Scroll** — ruído visual senoidal em Y (`sin(now_seconds * frequência) * amplitude`, `VisualModifierSystem`) que confunde a leitura da queda das notas. A "gagueira" nunca toca `transform.position_y` (a física real que o `PhysicsSystem` integra e o julgamento por tempo nem olha): o `HertzGameLoop` sobrescreve `_render_frame` para somar o ruído só no array **temporário** de posições que vai para `draw_batch`, then descartado — sem deriva acumulada frame a frame.
+- **Vignette Flash ("Cegueira Rítmica")** — acionado ao acertar uma Bomba: `GameState.blindness_timer_sec` (decaído pelo `CameraShakeSystem`, mesmo padrão de `shake_intensity`) liga um overlay pré-renderizado **uma única vez** no carregamento (`texture_bank.build_and_register_vignette_surface`) — uma Surface do tamanho da janela, opaca, com um buraco circular **transparente de verdade** (`pygame.draw.circle` com alfa 0 sobre `SRCALPHA` escreve os pixels, não mescla) focado na linha de julgamento. O jogador só lê as notas dentro do círculo iluminado enquanto durar.
+
+Habilitar num `stages.json`: `"holds_enabled"`/`"stutter_scroll_enabled": true` nos `overrides`, um `rhythm_threat_bomb` no beatmap e/ou `"modchart_events": [...]` na definição da fase.
+
 ## Arquitetura
 
 Tudo é SoA (Structure of Arrays) sobre as `ComponentPool` da engine — nenhum objeto "HitEvent"/"Threat" Python é instanciado no loop de gameplay (Zero-GC).
@@ -255,7 +266,7 @@ pip install pytest
 python -m pytest
 ```
 
-Cobre (193 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold) nos 3 modos (Defensor em 2 fases, Arcade 4K + Shield, Sobrevivência + Safe Zone/Ancora) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, e os 4 itens de polimento: acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino.
+Cobre (212 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), as 7 mecânicas de Polaridade/Graze/Pulso de Impacto/Scratch/Pistas Dinâmicas/Flow State, Notas Longas (Hold) nos 3 modos (Defensor em 2 fases, Arcade 4K + Shield, Sobrevivência + Safe Zone/Ancora) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, os 4 itens de polimento (acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino), e os 4 Modcharts/efeitos do Arcade 4K: Notas Tóxicas (Bombas), Swap com Lerp entre colunas (nota já caindo acompanha em tempo real), Stutter Scroll (ruído visual isolado da física real) e Vignette Flash (overlay pré-renderizado com buraco transparente de verdade).
 
 ## Estrutura
 
