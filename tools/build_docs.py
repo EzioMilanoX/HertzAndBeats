@@ -263,7 +263,7 @@ cravados na batida em qualquer escala.</li>
 <tr><th>Ação</th><th>Controle</th></tr>
 <tr><td>Mira 360°</td><td>Mouse (direção a partir do núcleo; o marcador orbita <em>sobre</em> o anel de julgamento)</td></tr>
 <tr><td>Atirar Azul / Parry</td><td>Botão esquerdo do mouse</td></tr>
-<tr><td>Atirar Rosa (fase Polaridade)</td><td>Botão direito do mouse</td></tr>
+<tr><td>Atirar Rosa (modifier "polarity", fases Ikaruga/Clausura/Pesadelo)</td><td>Botão direito do mouse</td></tr>
 <tr><td>Dash (i-frames / Pulso de Impacto)</td><td>Espaço</td></tr>
 <tr><td>Scratch alternado (Arcade 4K)</td><td>Z/X alternados, ou a roda do mouse — alternativas ao mover o mouse continuamente</td></tr>
 <tr><td>Menu: escolher fase</td><td>Setas ↑/↓ · ENTER ou clique para jogar · ESC sai</td></tr>
@@ -322,7 +322,7 @@ python tools/make_beatmap.py --audio minha.mp3 --output data/beatmaps/minha.beat
 <code>RHYTHM_THREAT_DTYPE</code> compartilhado, mascaramento vetorizado por <code>mode_tag</code>/flag
 booleano, e sistemas dedicados que só tocam as linhas que lhes pertencem.</p>
 <h3>Defensor — Polaridade + Parry Perfeito</h3>
-<p>Opt-in via <code>polarity_enabled</code> (fase <span class="gold">Polaridade</span>): dois gatilhos
+<p>Opt-in via <code>"polarity"</code> em <code>active_modifiers</code> (fase <span class="gold">Ikaruga</span>): dois gatilhos
 com cor fixa (Azul = clique esquerdo, Rosa = clique direito, estilo <em>Ikaruga</em>). A cor de uma
 ameaça comum vem de graça do <strong>bucket de timbre</strong> que a IA já atribui à <code>lane</code>
 (metade grave = Rosa, metade aguda = Azul — zero análise extra). Cor errada no tempo/mira certos é um

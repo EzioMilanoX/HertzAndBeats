@@ -24,7 +24,7 @@ def _heavy(timestamp: float, lane: int = 0) -> dict:
 
 def _compose_polarity(tmp_path, null_input, null_clock, threats):
     beatmap_path = write_beatmap(tmp_path / "p.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), polarity_enabled=True)
+    config = dataclasses.replace(make_config(beatmap_path), active_modifiers=("telegraph_rings", "polarity"))
     return compose_world(config, null_input, null_clock), config
 
 
@@ -91,7 +91,9 @@ def test_core_shape_changes_to_blue_then_pink_on_fire(tmp_path, null_input, null
     # nucleo, nao o veredito do tiro em si.
     beatmap_path = write_beatmap(tmp_path / "p.beatmap.json", [_basic(99.0, lane=6)])
     config = dataclasses.replace(
-        make_config(beatmap_path), polarity_enabled=True, misfire_jam_seconds=0.0
+        make_config(beatmap_path),
+        active_modifiers=("telegraph_rings", "polarity"),
+        misfire_jam_seconds=0.0,
     )
     composed = compose_world(config, null_input, null_clock)
     sprite_pool = composed.memory_manager.get_pool("sprite")

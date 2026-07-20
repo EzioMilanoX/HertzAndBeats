@@ -92,7 +92,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         loop. `threat_half_by_type`/`threat_texture_by_type` sao arrays
         indexados por `threat_type` (afinacao data-driven ja resolvida).
 
-        Notas Longas (Holds, opt-in via `HertzConfig.holds_enabled`):
+        Notas Longas (Holds, opt-in via "holds" em `HertzConfig.active_modifiers`):
         `hold_threat_type_id` (quando fornecido) marca QUAL `threat_type`
         vira Hold -- reusa o mesmo id de "pesada" ja usado pelo Parry
         (`config.threat_type_ids["rhythm_threat_heavy"]`), nao um

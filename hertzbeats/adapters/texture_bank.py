@@ -156,9 +156,10 @@ _HOLDS_HINT_BY_MODE = {
     "defender": _HOLDS_CONTROL_HINT,
     "lanes": _LANES_HOLDS_CONTROL_HINT,
 }
-"""Cada modo interpreta `holds_enabled` de um jeito diferente (ver
-`HertzConfig.holds_enabled`) -- a dica de controles precisa acompanhar,
-por isso e escolhida pelo `game_mode` da fase e nao so pela flag."""
+"""Cada modo interpreta o modifier "holds" de um jeito diferente (ver
+`HertzConfig.active_modifiers`) -- a dica de controles precisa
+acompanhar, por isso e escolhida pelo `game_mode` da fase e nao so pelo
+modifier."""
 
 _MODE_CONTROL_HINTS = {
     "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
@@ -221,11 +222,11 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         register_text(f"stage_{i}", stage_font, label, _LABEL_COLOR)
         register_text(f"stage_{i}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
         stage_mode = stage.overrides.get("game_mode", "defender")
-        if stage.overrides.get("polarity_enabled", False):
+        if "polarity" in stage.active_modifiers:
             hint_text = _POLARITY_CONTROL_HINT
-        elif stage.overrides.get("holds_enabled", False):
+        elif "holds" in stage.active_modifiers:
             # cada modo interpreta Hold a sua maneira -- a dica segue o
-            # `game_mode` da fase, nao so a flag (ver `_HOLDS_HINT_BY_MODE`)
+            # `game_mode` da fase, nao so o modifier (ver `_HOLDS_HINT_BY_MODE`)
             hint_text = _HOLDS_HINT_BY_MODE.get(stage_mode, _HOLDS_CONTROL_HINT)
         else:
             hint_text = _MODE_CONTROL_HINTS.get(stage_mode, "")

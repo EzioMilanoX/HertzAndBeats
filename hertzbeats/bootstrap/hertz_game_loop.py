@@ -54,22 +54,24 @@ MODE_CYCLE = (
 )
 """Ordem em que A/D alternam o modo nas musicas do jogador. As variantes
 finais continuam sendo os modos base por baixo -- so acrescentam
-`polarity_enabled`/`holds_enabled` (ver `MODE_VARIANT_OVERRIDES`) --
-mesmas mecanicas das fases curadas."""
+mecanicas modulares via `active_modifiers` (ver `MODE_VARIANT_OVERRIDES`)
+-- mesmas mecanicas das fases curadas."""
 
 MODE_VARIANT_OVERRIDES = {
     "defender": {"game_mode": "defender"},
     "lanes": {"game_mode": "lanes"},
-    "polarity": {"game_mode": "defender", "polarity_enabled": True},
-    "holds": {"game_mode": "defender", "holds_enabled": True},
-    "lanes_holds": {"game_mode": "lanes", "holds_enabled": True},
+    "polarity": {"game_mode": "defender", "active_modifiers": ("telegraph_rings", "polarity")},
+    "holds": {"game_mode": "defender", "active_modifiers": ("telegraph_rings", "holds")},
+    "lanes_holds": {"game_mode": "lanes", "active_modifiers": ("holds",)},
 }
 """Campos de `HertzConfig` sobrescritos por variante escolhida no menu
 das musicas do jogador -- resolvido UMA vez por `_compose_stage`, o
 mesmo `dataclasses.replace` que as fases curadas usam via `overrides`
-de `stages.json`. `polarity_enabled`/`holds_enabled` nao aparecem nas
-variantes que nao os usam porque a config BASE ja os tem como `False`
-(nenhuma leva residual entre trocas: `stage_config` e reconstruida do
+de `stages.json`. `active_modifiers` (lista, nao dict) SUBSTITUI por
+completo a lista ja resolvida por `resolve_stage_config` (que para
+musicas do jogador comeca vazia -- `music_library.py` cria
+`StageDef(overrides={})` sem `active_modifiers` nenhum) -- nenhuma leva
+residual entre trocas de variante (`stage_config` e reconstruida do
 zero a cada `_compose_stage`). "lanes_holds": Hold classico + Shield no
 Arcade 4K, agora disponivel para QUALQUER musica sua."""
 

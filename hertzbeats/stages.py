@@ -45,8 +45,16 @@ class StageDef:
             `beatmap.json` da engine). Arcade 4K (`game_mode == "lanes"`):
             "swap"/"reverse_scroll"/"distraction". Defensor
             (`game_mode == "defender"`): "radius_collapse" (Colapso do
-            Anel de Julgamento, `JudgmentRadiusSystem`), sempre
-            registrado independente do tipo de evento presente.
+            Anel de Julgamento, `JudgmentRadiusSystem`), lido so quando
+            "radius_collapse" esta em `active_modifiers`.
+        active_modifiers: lista de Mecanicas Modulares ligadas nesta fase
+            (`{"polarity", "telegraph_rings", "orbital_shields",
+            "twin_threats", "orbital_eclipses", "overload",
+            "radius_collapse", "holds", "bombs", "heal", ...}` --
+            catalogo completo em `HertzConfig.active_modifiers`).
+            SUBSTITUI a lista inteira da fase base a cada
+            `resolve_stage_config` (nunca mesclada com nenhum default) --
+            uma fase que quer 3 mecanicas lista as 3 explicitamente.
     """
 
     stage_id: str
@@ -60,6 +68,7 @@ class StageDef:
     tutorial_steps: Tuple[Dict, ...] = ()
     selectable_mode: bool = False
     modchart_events: Tuple[Dict, ...] = ()
+    active_modifiers: Tuple[str, ...] = ()
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
@@ -80,6 +89,7 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
                 overrides=dict(entry.get("overrides", {})),
                 tutorial_steps=tuple(entry.get("tutorial_steps", ())),
                 modchart_events=tuple(entry.get("modchart_events", ())),
+                active_modifiers=tuple(entry.get("active_modifiers", ())),
             )
         )
     if not stages:
@@ -89,12 +99,16 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
 
 def resolve_stage_config(base_config: HertzConfig, stage: StageDef) -> HertzConfig:
     """Deriva a `HertzConfig` efetiva da fase: caminhos de beatmap/faixa
-    da fase + `overrides` aplicados sobre a configuracao base. Um campo
-    desconhecido em `overrides` e um erro de dados (TypeError), nunca
-    silenciosamente ignorado."""
+    da fase + `active_modifiers` da fase (substitui por completo o valor
+    base -- nunca mesclado) + `overrides` aplicados sobre a configuracao
+    base. Um campo desconhecido em `overrides` e um erro de dados
+    (TypeError), nunca silenciosamente ignorado. `overrides` NAO deve
+    conter `active_modifiers` (usar o campo dedicado da fase) -- faria
+    `dataclasses.replace` reclamar de argumento duplicado."""
     return dataclasses.replace(
         base_config,
         beatmap_path=stage.beatmap_path,
         track_path=stage.track_path,
+        active_modifiers=stage.active_modifiers,
         **stage.overrides,
     )

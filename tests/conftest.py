@@ -38,7 +38,12 @@ def write_beatmap(path: Path, threats: list, mapper_version: int = None) -> Path
 
 def make_config(beatmap_path: Path) -> HertzConfig:
     """`HertzConfig` deterministico de teste: mesma afinacao do jogo real,
-    latencia zero (clock manual) e caminhos apontando para o tmp."""
+    latencia zero (clock manual) e caminhos apontando para o tmp.
+    `active_modifiers` default so tem "telegraph_rings" -- MESMO
+    comportamento de antes da Arquitetura de Modificadores, quando
+    `ConvergenceRingSystem` era incondicional em todo Defensor; testes
+    de mecanicas especificas (Polaridade, Holds, ...) sobrescrevem a
+    lista inteira via `dataclasses.replace(make_config(...), active_modifiers=(...))`."""
     return HertzConfig(
         window_width=960,
         window_height=960,
@@ -76,6 +81,7 @@ def make_config(beatmap_path: Path) -> HertzConfig:
         dash_duration_seconds=0.25,
         dash_cooldown_seconds=0.8,
         output_latency_seconds=0.0,
+        active_modifiers=("telegraph_rings",),
     )
 
 

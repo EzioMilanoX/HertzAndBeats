@@ -81,7 +81,7 @@ class GameState:
         escrito diretamente (sempre por esse metodo, que decide o
         criterio de sobreposicao de tremores concorrentes)."""
         self.shield_charges: int = int(shield_charges)
-        """Arcade 4K -- Notas Longas classicas (opt-in, `holds_enabled`):
+        """Arcade 4K -- Notas Longas classicas (opt-in via "holds" em `active_modifiers`):
         quantas vezes o jogador pode QUEBRAR um Hold antes que passe a
         custar vida de verdade (o Arcade normalmente nao tira vida).
         Inicializado por `_compose_lanes_mode` a partir de

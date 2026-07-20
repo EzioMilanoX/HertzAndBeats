@@ -12,8 +12,8 @@ A IA dita o **tempo** (o mesmo `beatmap.json`); o modo dita a **interpretação 
 
 | Modo | Estilo | Como se joga |
 | --- | --- | --- |
-| **Defensor** | BPM / Metal: Hellsinger | Núcleo fixo, ameaças radiais 360º. Cada ameaça vem com um **anel de convergência** — um anel neon que encolhe matematicamente até coincidir com a sua mira exatamente no milissegundo do hit: atire quando os círculos se beijarem. Acerto no tempo dispara um **canhão pesado que vira percussão da trilha** (Gun Sync); atirar fora do tempo é **misfire** — clique seco, arma emperra por 0.5s e o combo zera. Na fase **Polaridade**, o núcleo ganha um segundo gatilho: **Azul** (esquerdo) e **Rosa** (direito), estilo *Ikaruga* — e ameaças pesadas viram um **Parry** perfeito em vez de morrer, com **Captura Orbital**, **Ressonância de Polaridade** e **Hitlag** aprofundando o combate (veja abaixo). |
-| **Arcade 4K** | FNF / VSRG | 4 colunas fixas (**A S W D**); notas caem até a linha de julgamento. Em beatmaps `hybrid`, a coreografia é automática: **kicks nas bordas** (A/D), **vocais no centro** (S/W) — o groove numa mão, a melodia na outra. **Ghost tapping**: batucar livre sem nota na janela não pune, só um tique suave para manter o balanço. Rajadas de picos viram **Notas de Scratch** (segure o mouse em movimento contínuo); durante um solo/glitch as colunas **balançam** (Pistas Dinâmicas); e 50 PERFECTs seguidos entram em **Flow State** — a interface some por completo até o primeiro erro. Na fase **Notas Longas**, pesadas isoladas viram Holds clássicos de tecla sustentada protegidos por um **Shield** (veja abaixo). |
+| **Defensor** | BPM / Metal: Hellsinger | Núcleo fixo, ameaças radiais 360º. Acerto no tempo dispara um **canhão pesado que vira percussão da trilha** (Gun Sync); atirar fora do tempo é **misfire** — clique seco, arma emperra por 0.5s e o combo zera. Todo o resto (anéis-aviso, Polaridade/Parry, Escudos Rotativos, Gêmeos, Eclipses, Overload, Colapso do Anel) é **modular** — ver [Arquitetura de Mecânicas Modulares](#modificadores) abaixo. |
+| **Arcade 4K** | FNF / VSRG | 4 colunas fixas (**A S W D**); notas caem até a linha de julgamento. Em beatmaps `hybrid`, a coreografia é automática: **kicks nas bordas** (A/D), **vocais no centro** (S/W) — o groove numa mão, a melodia na outra. **Ghost tapping**: batucar livre sem nota na janela não pune, só um tique suave para manter o balanço. Rajadas de picos viram **Notas de Scratch** (segure o mouse em movimento contínuo); durante um solo/glitch as colunas **balançam** (Pistas Dinâmicas); e 50 PERFECTs seguidos entram em **Flow State** — a interface some por completo até o primeiro erro. Notas Longas/Shield, Bombas e Cura também são modulares (veja abaixo). |
 
 ## Como jogar
 
@@ -39,24 +39,25 @@ O fluxo da partida: **menu de fases → jogando ⇄ pausado → GAME OVER** (vid
 
 ## Fases
 
-Um tutorial e três fases padrões, definidos em [data/stages/stages.json](data/stages/stages.json) (data-driven — adicione as suas):
+Um tutorial + a **campanha do Defensor** (5 fases de dificuldade progressiva) + Arcade 4K, definidos em [data/stages/stages.json](data/stages/stages.json) (data-driven — adicione as suas):
 
-| Fase | Modo | Faixa | Dificuldade |
-| --- | --- | --- | --- |
-| **Tutorial** | Defensor | 80 BPM, `calm` | Guiado por instruções na tela; 6 de vida, sem misfire |
-| **1 · Pulso Leve** | Defensor | 100 BPM, `calm` | Aproximação 2.4s, 4 de vida, cone de mira 40° |
-| **2 · Batida Franca** | Defensor | 128 BPM, `standard` | Afinação padrão (2.0s, 3 de vida, 35°) |
-| **3 · Sobrecarga** | Defensor | 150 BPM, `intense`, drops a cada 4 compassos | Aproximação 1.6s, cone 30° |
-| **4 · Arcade 4K** | Arcade | **mesmo beatmap da fase 2** | Notas D/F/J/K, queda em 1.8s |
-| **5 · Polaridade** | Defensor (Polaridade+Parry) | **mesmo beatmap da fase 3** | Aproximação 1.8s, cone 30°, `polarity_enabled: true`, 2 Eclipses Orbitais + Colapso do Anel de Julgamento no meio da música |
-| **6 · Notas Longas** | Defensor (Hold) | **mesmo beatmap da fase 1** | Aproximação 2.4s, 4 de vida, `holds_enabled: true` |
-| **7 · Arcade: Notas Longas** | Arcade 4K (Hold+Shield) | **mesmo beatmap da fase 2** | Aproximação 1.8s, `holds_enabled: true` |
+| Fase | Modo | Faixa | Dificuldade | `active_modifiers` |
+| --- | --- | --- | --- | --- |
+| **Tutorial** | Defensor | 80 BPM, `calm` | Guiado por instruções na tela; 6 de vida, sem misfire | `[]` |
+| **1 · Iniciação** | Defensor | 100 BPM, `calm` | Aproximação 2.8s, cone 45°, janelas bem largas (70/150/220 ms) | `[]` |
+| **2 · Despertar** | Defensor | 128 BPM, `standard` | Aproximação 2.0s, cone 38°, janelas 60/120/180 ms | `["telegraph_rings"]` |
+| **3 · Ikaruga** | Defensor | 150 BPM, `intense` (beatmap da fase 3) | Aproximação 1.8s, cone 32°, janelas 50/100/150 ms | `["telegraph_rings", "polarity"]` |
+| **4 · Clausura** | Defensor | 150 BPM (mesmo beatmap) | Aproximação 1.5s, cone 25°, janelas 45/90/130 ms | `[..., "orbital_shields"]` |
+| **5 · Pesadelo** | Defensor | 150 BPM (mesmo beatmap) | Aproximação 1.2s, cone 20°, janelas 35/70/100 ms (no limite humano) | `[..., "twin_threats", "orbital_eclipses", "overload", "radius_collapse"]` |
+| **6 · Arcade 4K** | Arcade | **mesmo beatmap da fase 2** | Notas D/F/J/K, queda em 1.8s | `[]` |
+| **7 · Notas Longas** | Defensor (Hold) | **mesmo beatmap da fase 1** | Aproximação 2.4s, 4 de vida | `["holds"]` |
+| **8 · Arcade: Notas Longas** | Arcade 4K (Hold+Shield) | **mesmo beatmap da fase 2** | Aproximação 1.8s | `["holds"]` |
 
-As fases 4, 5, 6 e 7 consomem **os mesmos `beatmap.json`** das fases 1, 2 e 3 — a demonstração literal da tese: o modo é só outra interpretação espacial do mesmo tempo extraído pela IA. Trocar o modo de uma fase é uma linha no JSON: `"overrides": { "game_mode": "lanes" }`.
+As fases 3-8 consomem **os mesmos 3 `beatmap.json`** das fases 1-3 (a IA nunca vê o modificador nem o modo — a demonstração literal da tese: o mesmo tempo extraído vira jogos diferentes só por dados de composição). A campanha do Defensor escala matematicamente (`approach_seconds`/`aim_tolerance_degrees`/janelas de julgamento cada vez mais apertadas) **e** mecanicamente (mais entradas em `active_modifiers` a cada fase, nunca menos) — ver [Arquitetura de Mecânicas Modulares](#modificadores) abaixo para o catálogo completo e como cada modifier liga sistemas extras na composição.
 
 O **tutorial** ensina jogando: faixas de instrução aparecem no topo da tela em sincronia com a música (mova a mira → atire quando a ameaça tocar o anel → janelas PERFECT/GOOD → uma onda de 3 ameaças simultâneas para aprender o Dash → sequência final). O beatmap do tutorial é **autoral** (timing didático, em [data/beatmaps/tutorial.beatmap.json](data/beatmaps/tutorial.beatmap.json)) — o `generate_stage_assets.py` preserva ele e só regenera os das fases via IA. Por baixo, é o mesmo motor: um `TutorialSystem` zero-GC avança um cursor de passos contra o `IAudioClock` (a mesma base de tempo do spawner) e troca a textura de um sprite-banner pré-renderizado; os passos vêm do JSON da fase (`tutorial_steps`), então qualquer fase pode virar um tutorial.
 
-Cada fase tem sua faixa sintetizada deterministicamente (o `.wav` não é versionado; é reconstruído bit a bit no primeiro uso) e seu beatmap extraído pela IA offline da engine — 107, 180 e 168 ameaças respectivamente. Para regenerar tudo: `python tools/generate_stage_assets.py --force` (requer `librosa`).
+Cada fase tem sua faixa sintetizada deterministicamente (o `.wav` não é versionado; é reconstruído bit a bit no primeiro uso) e seu beatmap extraído pela IA offline da engine — 107, 180 e 168 ameaças respectivamente (fases 1-3; as demais reusam esses 3 arquivos). Para regenerar tudo: `python tools/generate_stage_assets.py --force` (requer `librosa`).
 
 - **PERFECT** — tiro com \|delta\| ≤ 50 ms da batida (300 pts)
 - **GOOD** — \|delta\| ≤ 100 ms (100 pts)
@@ -94,7 +95,7 @@ Se o áudio parecer adiantado/atrasado, calibre a latência de saída: `python -
 
 **Jogue qualquer `.mp3`, `.ogg`, `.wav` ou `.flac` na pasta [`musicas/`](musicas/) e abra o jogo.** Na primeira abertura a IA analisa a faixa (alguns segundos, com aviso na tela) e ela aparece no fim do menu; o beatmap fica cacheado em `data/beatmaps/user/` — as próximas aberturas são instantâneas. Substituiu o arquivo? A análise refaz sozinha.
 
-Com a música selecionada no menu, **A/D (ou ←/→) escolhem o minigame** — O Defensor, Arcade 4K, **Defensor: Polaridade**, **Defensor: Notas Longas** ou **Arcade 4K: Notas Longas** — e ENTER joga. As três últimas variantes são os próprios modos base com `polarity_enabled`/`holds_enabled` ligados — as mesmas mecânicas das fases curadas 5, 6 e 7, agora disponíveis para qualquer música sua. O mesmo beatmap serve a todas as variantes.
+Com a música selecionada no menu, **A/D (ou ←/→) escolhem o minigame** — O Defensor, Arcade 4K, **Defensor: Polaridade**, **Defensor: Notas Longas** ou **Arcade 4K: Notas Longas** — e ENTER joga. As três últimas variantes são os próprios modos base com `active_modifiers` (`("telegraph_rings", "polarity")`/`("telegraph_rings", "holds")`/`("holds",)`, ver [Modificadores](#modificadores)) ligados via `MODE_VARIANT_OVERRIDES` — as mesmas mecânicas das fases curadas 3 e 7, agora disponíveis para qualquer música sua. O mesmo beatmap serve a todas as variantes.
 
 A análise requer `librosa` (`pip install librosa`); sem ele, músicas já analisadas continuam jogáveis e as novas são puladas com aviso no console. Para controle fino (densidade, espaçamento, lanes), o CLI continua disponível:
 
@@ -119,7 +120,7 @@ Todas seguem a mesma disciplina Zero-GC do resto do jogo: campos extras no `RHYT
 compartilhado, mascaramento vetorizado por `mode_tag`/flag booleano, e sistemas dedicados que só
 tocam as linhas que lhes pertencem — nenhum deles aloca por frame.
 
-**Defensor — Polaridade + Parry Perfeito** (opt-in via `polarity_enabled`, fase **Polaridade**):
+**Defensor — Polaridade + Parry Perfeito** (opt-in via `"polarity"` em `active_modifiers`, fase **Ikaruga**):
 o núcleo tem dois gatilhos, cada um com uma cor fixa (Azul = clique esquerdo, Rosa = clique
 direito, estilo *Ikaruga*). Uma ameaça comum só morre pela cor certa — a cor é derivada de graça
 do **bucket de timbre** que a IA já atribui à `lane` (metade grave dos buckets = Rosa, metade
@@ -150,15 +151,15 @@ efeito genuíno e audível, sem fingir um grave que o backend não pode produzir
 ## Game Feel: Notas Longas (Hold) nos 2 modos, Screen Shake e Haptics
 
 Um único campo mode-agnóstico, `duration_sec` (no `RHYTHM_THREAT_DTYPE` compartilhado), liga o Hold
-em `holds_enabled` — cada modo reinterpreta a sustentação à sua maneira ("a IA dita o tempo, o modo
+em `"holds"` (`active_modifiers`) — cada modo reinterpreta a sustentação à sua maneira ("a IA dita o tempo, o modo
 dita a interpretação", a mesma filosofia do resto do schema):
 
-- **Defensor** (fase **8 · Notas Longas**): ameaças pesadas viram um Hold em duas fases. Fase 1
+- **Defensor** (fase **7 · Notas Longas**): ameaças pesadas viram um Hold em duas fases. Fase 1
   (Start): um acerto na janela Good normal não destrói a ameaça — ela fica "engajada" (velocidade
   zerada, colisão com o núcleo desarmada). Fase 2 (Sustain): segure o gatilho **e** a mira sobre ela
   continuamente até `target_hit_time_sec + duration_sec` — soltar ou desmirar antes disso é MISS
   imediato (sem esperar o fim), sustentar até o fim é PERFECT.
-- **Arcade 4K** (fase **9 · Arcade: Notas Longas**): pesadas que **não** viraram um cluster de Scratch
+- **Arcade 4K** (fase **8 · Arcade: Notas Longas**): pesadas que **não** viraram um cluster de Scratch
   ganham `duration_sec` e um visual ciano distinto — apertar a coluna certa engaja o Hold sem destruir
   a nota (a barra segue caindo normalmente, mesmo idioma visual do Scratch); soltar a tecla antes do
   fim quebra. Um **Shield** (`GameState.shield_charges`, 3 cargas por padrão) absorve as primeiras
@@ -213,11 +214,11 @@ Oito mecânicas, todas **opt-in por dados** (nenhuma exige tocar em `LaneJudgmen
 - **Stutter Scroll** — ruído visual senoidal em Y (`sin(now_seconds * frequência) * amplitude`, `VisualModifierSystem`) que confunde a leitura da queda das notas. A "gagueira" nunca toca `transform.position_y` (a física real que o `PhysicsSystem` integra e o julgamento por tempo nem olha): o `HertzGameLoop` sobrescreve `_render_frame` para somar o ruído só no array **temporário** de posições que vai para `draw_batch`, e descartado a seguir — sem deriva acumulada frame a frame.
 - **Vignette Flash ("Cegueira Rítmica")** — acionado ao acertar uma Bomba: `GameState.blindness_timer_sec` (decaído pelo `CameraShakeSystem`, mesmo padrão de `shake_intensity`) liga um overlay pré-renderizado **uma única vez** no carregamento (`texture_bank.build_and_register_vignette_surface`) — uma Surface do tamanho da janela, opaca, com um buraco circular **transparente de verdade** (`pygame.draw.circle` com alfa 0 sobre `SRCALPHA` escreve os pixels, não mescla) focado na linha de julgamento. O jogador só lê as notas dentro do círculo iluminado enquanto durar.
 
-Habilitar num `stages.json`: `"holds_enabled"`/`"stutter_scroll_enabled"`/`"hidden_notes_enabled": true` nos `overrides`, um `rhythm_threat_bomb`/`rhythm_threat_heal` no beatmap e/ou `"modchart_events": [...]` (swap, reverse_scroll, distraction) na definição da fase.
+Habilitar num `stages.json`: `"holds"`/`"bombs"`/`"heal"` em `active_modifiers` (`"stutter_scroll_enabled"`/`"hidden_notes_enabled": true` continuam campos separados em `overrides` -- não migrados para a lista, ver [Modificadores](#modificadores)) e/ou `"modchart_events": [...]` (swap, reverse_scroll, distraction) na definição da fase.
 
 ## Defensor hardcore: Captura Orbital, Ressonância de Polaridade e Hitlag de Parry
 
-Quatro mecânicas que aprofundam o combate do Defensor **em cima** da Polaridade + Parry Perfeito já existente (tudo opt-in via `polarity_enabled`, sem tocar nos outros dois modos):
+Quatro mecânicas que aprofundam o combate do Defensor **em cima** da Polaridade + Parry Perfeito já existente (tudo opt-in via `"polarity"` em `active_modifiers`, sem tocar nos outros dois modos):
 
 - **Captura Orbital (Escudos Rotativos)** — um `threat_type` a mais, `rhythm_threat_orbit` (mesmo critério de opt-in de Bombas/Cura/pesadas). Um Parry Perfeito nesse tipo **não** reflete: `JudgmentSystem._register_orbital_capture` zera a velocidade, troca a camada de colisão para `SHIELD_COLLISION_LAYER` (arma contra ameaças comuns, nunca contra o núcleo — mesma técnica do Parry clássico) e grava `phase = PHASE_ORBITING` (reaproveita o campo `phase` já existente, sem precisar de um campo novo). O novo `OrbitalCaptureSystem` sobrescreve `position_x/y` diretamente todo frame via seno/cosseno em torno do núcleo — `spawn_angle_rad` (só telemetria até a captura) vira o offset angular fixo da órbita, então escudos capturados em momentos diferentes giram **juntos** preservando o espaçamento relativo. O `ParryImpactSystem` (já existente) passa a tratar `is_reflected` **ou** `phase == PHASE_ORBITING` como "atacante" — um escudo destrói qualquer ameaça comum que cruzar seu caminho, para sempre (nunca expira, ao contrário de um projétil refletido).
 - **Ressonância de Polaridade (Combos Monocromáticos)** — `GameState.resonance_color/resonance_chain` seguem a sequência de ameaças comuns destruídas: mesma cor estende a corrente, cor diferente reinicia em 1. Ao atingir `resonance_chain_threshold` (10 por padrão) o jogador entra em **Overdrive** daquela cor (`GameState.in_overdrive`) — reinterpretação honesta do "tiro perfurante" pedido para um modelo hitscan sem projétil físico (o Defensor não tem bala viajando): um único disparo em Overdrive abate **todas** as candidatas válidas da cor quente presentes no frame de uma vez (`_register_piercing_kill`), não só a melhor — pesadas/orbitais e Holds engajáveis ficam de fora, seguem suas próprias rotas mesmo durante o Overdrive.
@@ -233,7 +234,55 @@ O 3º e último pacote hardcore do Defensor, todo em cima da Polaridade já exis
 - **Overload do Núcleo (reaproveitamento do `ShockwaveSystem`)** — o `ShockwaveSystem` original (Pulso de Impacto da extinta Sobrevivência) foi restaurado e incorporado à composição do Defensor: mesmo pool fixo round-robin, mesmo crescimento exponencial de raio, mesma técnica de camada de colisão própria sobre o `CollisionSystem` genérico — só o **gatilho** muda. O `JudgmentSystem` detecta Dash (Espaço) acionado sobre uma batida viva (candidata comum dentro da janela Good) com a Ressonância de Polaridade **cheia** (`GameState.in_overdrive`) e chama `GameState.consume_overdrive_for_overload()` — arma `overload_requested` (pedido de um frame, pull-based, mesmo padrão de `invert_colors`) **e** zera a corrente de Ressonância na mesma chamada, o "custo" de ativar o Overload. O `ShockwaveSystem` consome o pedido no seu próprio `update()` e ativa o próximo slot do pool, centrado no núcleo; o `CollisionSystem` já varre as ameaças fracas que a onda tocar (pesadas/orbitais/refletidos/escudos resistem, como ao Parry).
 - **Colapso do Anel de Julgamento (Dynamic Radius)** — `judgment_radius` deixou de ser uma constante capturada no construtor: agora é `GameState.current_judgment_radius`, mutável. Um evento `{"type": "radius_collapse", "time_seconds", "duration_seconds", "target_radius"}` no `modchart_events` da fase dispara uma interpolação linear encadeada (`compute_collapsed_radius`, mesmo idioma de Lerp acumulado do `compute_scroll_flip_fraction` do Arcade 4K — cada evento parte de onde o anterior parou, permitindo sequências de colapso/expansão ao longo da música), calculada todo frame pelo novo `JudgmentRadiusSystem`. Três leitores consomem o mesmo valor mutável: o `RadialRhythmSpawnerSystem` (velocidade de ameaças **novas** — só as recém-nascidas sentem a mudança, as em voo mantêm sua velocidade original), o `PlayerInputSystem` (raio de órbita da mira) e o `HertzGameLoop._sync_defender_playfield` (o anel desenhado pelo `HBPygameRenderer`, publicado de novo a cada frame). Sem nenhum evento `radius_collapse` no beatmap da fase, o raio simplesmente permanece no valor base para sempre — mesma filosofia "sempre registrado, inofensivo por padrão" do `ReverseScrollSystem`.
 
-A fase **5 · Polaridade** ganhou 2 Eclipses Orbitais e um colapso do anel de julgamento (26→14px e de volta, em torno dos 20s de música) como demonstração curada; `rhythm_threat_twin` está disponível em qualquer fase/beatmap com `polarity_enabled: true`.
+A fase **5 · Pesadelo** liga os 4 modifiers acima de uma vez (3 Eclipses Orbitais + um colapso do anel de julgamento de 26→14px e de volta, em torno dos 20s de música) como demonstração curada — ver a tabela de fases e a seção [Modificadores](#modificadores) a seguir para como cada mecânica virou uma entrada de lista em vez de um flag fixo do `HertzConfig`.
+
+## Modificadores
+
+A partir desta revisão o jogo abandonou o conceito de "modos engessados" com um flag dedicado por mecânica (`polarity_enabled`, `holds_enabled`, ...). Em seu lugar, `HertzConfig.active_modifiers: Tuple[str, ...]` é uma lista aberta de strings — **qualquer** fase (curada ou música do jogador) pode combinar livremente as mecânicas do Defensor e do Arcade 4K, e `rhythm_composition_root.py` decide dinamicamente quais sistemas extras entram na composição.
+
+**De onde vem a lista.** `StageDef.active_modifiers` é um campo dedicado da fase (irmão de `overrides`, não um campo dentro dele — como `modchart_events`), lido direto do JSON:
+
+```json
+{ "stage_id": "...", "overrides": { "aim_tolerance_degrees": 25.0 }, "active_modifiers": ["polarity", "orbital_shields"] }
+```
+
+`resolve_stage_config` copia essa lista para `HertzConfig.active_modifiers` **substituindo por completo** o valor anterior — nunca mesclada com nenhum default residual, então uma fase que não lista um modifier simplesmente não o tem, mesmo que a fase anterior o tivesse (`stage_config` é reconstruída do zero a cada troca).
+
+**Como a composição lê a lista.** `_compose_defender_mode`/`_compose_lanes_mode` resolvem um único `frozenset(config.active_modifiers)` no topo da função e derivam booleanos locais — o resto do corpo só testa esses booleanos, exatamente como testava os antigos `config.polarity_enabled`/`config.holds_enabled`, só que agora a fonte de verdade é a presença na lista:
+
+```python
+modifiers = frozenset(config.active_modifiers)
+polarity_enabled = "polarity" in modifiers
+telegraph_rings_enabled = "telegraph_rings" in modifiers
+orbital_shields_enabled = "orbital_shields" in modifiers and polarity_enabled   # dependencia tecnica
+...
+if telegraph_rings_enabled:
+    ctx.world.register_system(ConvergenceRingSystem(...))
+if polarity_enabled:
+    ctx.world.register_system(ParryImpactSystem(...))
+if overload_enabled:                      # Overload exige Polaridade (a Ressonancia so existe com ela)
+    ctx.world.register_system(ShockwaveSystem(...))
+```
+
+Cada `if` registra um sistema **a mais** — a ORDEM de registro (PlayerInput → Spawner → Judgment → Physics → Collision → CoreDamage) nunca muda entre fases, só quantos sistemas extras entram nela. Zero-GC preservado: a resolução do `frozenset` e dos booleanos roda uma única vez na composição/carregamento da fase, nunca por frame — o hot-path (`update()` de cada sistema) nunca consulta `active_modifiers`.
+
+**Dependências técnicas degradam, nunca quebram.** Alguns modifiers pressupõem outro ativo (`orbital_shields`/`twin_threats`/`overload` exigem `polarity`, já que reusam sua cor/Ressonância/máquina de Parry). Uma fase mal curada que ligue `orbital_shields` sem `polarity` não lança erro — o booleano derivado (`orbital_shields_enabled = "orbital_shields" in modifiers and polarity_enabled`) simplesmente fica `False`, e nenhum sistema extra entra (testado em `test_active_modifiers.py::test_orbital_shields_without_polarity_degrades_to_no_op`).
+
+**Catálogo atual:**
+
+| Modifier | Sistema(s) ligado(s) | Depende de |
+| --- | --- | --- |
+| `telegraph_rings` | `ConvergenceRingSystem` (anéis-aviso) | — |
+| `polarity` | Disparo azul/rosa, Parry Perfeito, Ressonância/Overdrive, Hitlag | — |
+| `orbital_shields` | `OrbitalCaptureSystem` (Escudos Rotativos) | `polarity` |
+| `twin_threats` | Gêmeos de Polaridade (spawn duplo em `RadialRhythmSpawnerSystem`) | `polarity` |
+| `orbital_eclipses` | `OrbitalEclipseSystem` + `orbital_eclipse_count` obstáculos | — |
+| `overload` | `ShockwaveSystem` (reaproveitado) | `polarity` |
+| `radius_collapse` | `JudgmentRadiusSystem` (raio dinâmico) | — |
+| `holds` | Notas Longas (Defensor: fire+mira; Arcade: tecla+Shield) | mutuamente exclusivo com `polarity` (mesmo `threat_type`) |
+| `bombs` / `heal` | Notas Tóxicas / Notas de Cura (Arcade 4K) | — |
+
+**Gêmeos/Escudos Rotativos num beatmap real da IA.** O mapeador offline só conhece `basic`/`heavy` — nunca emite `rhythm_threat_twin`/`rhythm_threat_orbit`. Para que `twin_threats`/`orbital_shields` produzam algo visível em cima de um beatmap gerado pela IA (não só em testes com beatmap escrito à mão), `_reinterpret_scheduled_for_modifiers` (nova função pura em `rhythm_composition_root.py`) reescreve uma fração **determinística** (nunca por sorteio — a cada 5ª comum vira Gêmeos, a cada 3ª pesada vira Escudo) do array já agendado, sempre devolvendo uma cópia nova — o `beatmap.json` em disco nunca muda, mesma filosofia 100% game-side de Bombas/Cura/Scratch.
 
 ## Arquitetura
 
@@ -256,7 +305,7 @@ O **fluxo de partida** (menu/pausa/derrota/resultados) vive no `HertzGameLoop` �
 
 **Feedback sonoro é percussão real**: os SFX (canhão do Gun Sync, clique do misfire/dash-fora-do-tempo, tique do ghost tap, deflect e parry) são sintetizados deterministicamente (como as faixas) em `data/sfx/` e pré-carregados no build — nenhum atraso de I/O na primeira vez que tocam.
 
-Os **modos de jogo** são o `GameModeStrategy` da arquitetura, resolvido em tempo de composição: `MODE_COMPOSERS` mapeia `game_mode` → função que registra os sistemas do modo (`defender`: spawner radial + JudgmentSystem com misfire e Hold em 2 fases, mais `ParryImpactSystem`/`OrbitalCaptureSystem` quando `polarity_enabled`; `lanes`: spawner de notas + julgamento por tecla/coluna (Hold clássico + Shield quando `holds_enabled`) + `ScratchJudgmentSystem` + `LaneChoreographySystem`). Todos os spawners **são** o `RhythmSpawnerSystem` da engine (cursor monotônico e compensação de latência intactos) e todos consomem o mesmo `RHYTHM_THREAT_DTYPE` — o modo só muda a interpretação espacial dos campos (`lane` = setor angular ou coluna). Zero branch por evento no hot-path.
+Os **modos de jogo** são o `GameModeStrategy` da arquitetura, resolvido em tempo de composição: `MODE_COMPOSERS` mapeia `game_mode` → função que registra os sistemas BASE do modo (`defender`: spawner radial + JudgmentSystem com misfire e Hold em 2 fases; `lanes`: spawner de notas + julgamento por tecla/coluna + `ScratchJudgmentSystem` + `LaneChoreographySystem`). Todos os spawners **são** o `RhythmSpawnerSystem` da engine (cursor monotônico e compensação de latência intactos) e todos consomem o mesmo `RHYTHM_THREAT_DTYPE` — o modo só muda a interpretação espacial dos campos (`lane` = setor angular ou coluna). Zero branch por evento no hot-path. Por cima do modo, `active_modifiers` (ver [Modificadores](#modificadores)) decide QUAIS sistemas extras entram — `ParryImpactSystem`/`OrbitalCaptureSystem`/`ShockwaveSystem`/etc no Defensor, Hold+Shield/Bombas/Cura no Arcade 4K.
 
 ## Testes
 
@@ -267,7 +316,7 @@ pip install pytest
 python -m pytest
 ```
 
-Cobre (234 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), Polaridade + Parry Perfeito, Pistas Dinâmicas/Scratch/Flow State, Notas Longas (Hold) nos 2 modos (Defensor, Arcade 4K + Shield) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, os 4 itens de polimento (acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino), as 8 mecânicas/Modcharts avançados do Arcade 4K (Notas Tóxicas, Notas de Cura, Notas Fantasmas, Swap com Lerp, Inversão de Gravidade, Obstruções Visuais, Stutter Scroll, Vignette Flash), as 4 mecânicas hardcore do Defensor (Captura Orbital, Ressonância de Polaridade/Overdrive perfurante, dano instantâneo no Hold Radial e Hitlag Visual de Parry — renderer real com driver `dummy`, não só GameState), e o 3º pacote hardcore do Defensor (Gêmeos de Polaridade, Eclipses Orbitais bloqueando o refletido do Parry, Overload do Núcleo/Shockwave reaproveitado e Colapso do Anel de Julgamento, também validado com renderer real).
+Cobre (247 testes): spawn radial com impacto cravado na batida, janelas de julgamento e cone de mira, punição por colisão vs. janela de acerto tardio, dodge por i-frames, extração de dígitos do HUD, partida completa em autoplay perfeito, o fluxo inteiro de partida (menu → jogo ⇄ pausa → derrota → retry → vitória → próxima fase), Polaridade + Parry Perfeito, Pistas Dinâmicas/Scratch/Flow State, Notas Longas (Hold) nos 2 modos (Defensor, Arcade 4K + Shield) + Screen Shake (agora acionado por toda colisão/impacto do jogo) + Haptics, os 4 itens de polimento (acessibilidade de forma na Polaridade, as 3 fontes de `scratch_energy`, o tier do Flow State e o Modo Treino), as 8 mecânicas/Modcharts avançados do Arcade 4K (Notas Tóxicas, Notas de Cura, Notas Fantasmas, Swap com Lerp, Inversão de Gravidade, Obstruções Visuais, Stutter Scroll, Vignette Flash), as 4 mecânicas hardcore do Defensor (Captura Orbital, Ressonância de Polaridade/Overdrive perfurante, dano instantâneo no Hold Radial e Hitlag Visual de Parry — renderer real com driver `dummy`, não só GameState), o 3º pacote hardcore do Defensor (Gêmeos de Polaridade, Eclipses Orbitais bloqueando o refletido do Parry, Overload do Núcleo/Shockwave reaproveitado e Colapso do Anel de Julgamento, também validado com renderer real), e a Arquitetura de Mecânicas Modulares (`test_active_modifiers.py`: cada modifier liga/não liga o sistema certo, dependências técnicas degradam sem erro, `active_modifiers` nunca vaza entre fases, `_reinterpret_scheduled_for_modifiers` reatribui exatamente a fração determinística esperada).
 
 ## Estrutura
 

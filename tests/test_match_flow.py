@@ -271,9 +271,9 @@ def test_user_song_mode_cycles_and_composes_chosen_mode(tmp_path, null_input):
 
 def test_user_song_can_reach_the_polarity_and_holds_variants(tmp_path, null_input):
     """As duas variantes finais do ciclo ("polarity"/"holds") sao o
-    Defensor por baixo, com `polarity_enabled`/`holds_enabled` ligados
-    -- as MESMAS mecanicas das fases curadas 7/8, agora escolhiveis
-    para qualquer musica do jogador."""
+    Defensor por baixo, com os modifiers "polarity"/"holds" ligados via
+    `active_modifiers` -- as MESMAS mecanicas das fases curadas 7/8,
+    agora escolhiveis para qualquer musica do jogador."""
     beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
         {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
     ])
@@ -299,8 +299,8 @@ def test_user_song_can_reach_the_polarity_and_holds_variants(tmp_path, null_inpu
     assert loop.chosen_mode(0) == "polarity"
     _press(loop, null_input, "confirm")
     assert loop._stage_config.game_mode == "defender"
-    assert loop._stage_config.polarity_enabled is True
-    assert loop._stage_config.holds_enabled is False
+    assert "polarity" in loop._stage_config.active_modifiers
+    assert "holds" not in loop._stage_config.active_modifiers
 
 
 def test_user_song_holds_variant_enables_only_holds(tmp_path, null_input):
@@ -329,8 +329,8 @@ def test_user_song_holds_variant_enables_only_holds(tmp_path, null_input):
     assert loop.chosen_mode(0) == "holds"
     _press(loop, null_input, "confirm")
     assert loop._stage_config.game_mode == "defender"
-    assert loop._stage_config.holds_enabled is True
-    assert loop._stage_config.polarity_enabled is False
+    assert "holds" in loop._stage_config.active_modifiers
+    assert "polarity" not in loop._stage_config.active_modifiers
 
 
 def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_input):
@@ -351,8 +351,7 @@ def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_i
     )
     _press(loop, null_input, "confirm")
     assert loop._stage_config.game_mode == "lanes"
-    assert loop._stage_config.polarity_enabled is False
-    assert loop._stage_config.holds_enabled is False
+    assert loop._stage_config.active_modifiers == ()
     # e realmente o Arcade 4K: o spawner de notas de coluna, nao o radial
     from hertzbeats.systems.lane_note_spawner_system import LaneNoteSpawnerSystem
     assert any(isinstance(s, LaneNoteSpawnerSystem) for s in loop.composed.world._systems)

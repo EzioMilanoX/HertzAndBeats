@@ -19,7 +19,11 @@ def _basic(timestamp: float, lane: int = 0) -> dict:
 
 def _compose_defender(tmp_path, null_input, null_clock, threats, collapse_events, **overrides):
     beatmap_path = write_beatmap(tmp_path / "collapse.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), **overrides)
+    config = dataclasses.replace(
+        make_config(beatmap_path),
+        active_modifiers=("telegraph_rings", "radius_collapse"),
+        **overrides,
+    )
     return (
         compose_world(config, null_input, null_clock, modchart_events=collapse_events),
         config,

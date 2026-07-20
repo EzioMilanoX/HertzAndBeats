@@ -120,7 +120,7 @@ Campos:
         possa chamar `world.destroy_entity` sem instanciar
         `EntityHandle`.
     polarity_id: POLARITY_BLUE/POLARITY_PINK (Defensor, opt-in via
-        `polarity_enabled`). Derivada da METADE do bucket de timbre que
+        "polarity" em `active_modifiers`). Derivada da METADE do bucket de timbre que
         `assign_lanes` ja atribui a `lane` -- zero custo extra de
         analise: o mesmo dado que decide a cor no Arcade decide a
         polaridade no Defensor.
@@ -141,7 +141,7 @@ Campos:
         `threat_type` novo para isso -- o schema ja tem um
         (`threat_type`, int16, basic/heavy) desde a sessao anterior, e
         REUTILIZAMOS ele: Holds do Defensor sao ameacas HEAVY spawnadas
-        com `duration_sec>0` (opt-in via `HertzConfig.holds_enabled`),
+        com `duration_sec>0` (opt-in via "holds" em `HertzConfig.active_modifiers`),
         nao um terceiro tipo. Distinto do `is_hold` ja existente (notas
         de Scratch do Arcade 4K: sustentacao por ENERGIA CONTINUA de
         mouse, julgadas por `ScratchJudgmentSystem`) -- os dois campos

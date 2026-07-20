@@ -22,45 +22,105 @@
       ]
     },
     {
-      "stage_id": "stage1_pulso_leve",
-      "name": "1 - PULSO LEVE",
-      "subtitle": "100 BPM - aquecimento",
+      "stage_id": "defender_1_iniciacao",
+      "name": "1 - INICIACAO",
+      "subtitle": "100 BPM - so o basico do Defensor",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
       "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
       "beatmap": { "min_gap_seconds": 0.75, "min_start_seconds": 3.2, "target_density_per_second": 0.9 },
       "overrides": {
-        "approach_seconds": 2.4,
+        "approach_seconds": 2.8,
         "max_health": 4,
-        "aim_tolerance_degrees": 40.0
-      }
+        "aim_tolerance_degrees": 45.0,
+        "perfect_window_seconds": 0.07,
+        "good_window_seconds": 0.15,
+        "miss_window_seconds": 0.22
+      },
+      "active_modifiers": []
     },
     {
-      "stage_id": "stage2_batida_franca",
-      "name": "2 - BATIDA FRANCA",
-      "subtitle": "128 BPM - ritmo cheio",
+      "stage_id": "defender_2_despertar",
+      "name": "2 - DESPERTAR",
+      "subtitle": "128 BPM - os aneis-aviso entram em cena",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
       "beatmap": { "min_gap_seconds": 0.45, "min_start_seconds": 2.6, "target_density_per_second": 1.6 },
-      "overrides": {}
+      "overrides": {
+        "approach_seconds": 2.0,
+        "aim_tolerance_degrees": 38.0,
+        "perfect_window_seconds": 0.06,
+        "good_window_seconds": 0.12,
+        "miss_window_seconds": 0.18
+      },
+      "active_modifiers": ["telegraph_rings"]
     },
     {
-      "stage_id": "stage3_sobrecarga",
-      "name": "3 - SOBRECARGA",
-      "subtitle": "150 BPM - drops dobrados",
+      "stage_id": "defender_3_ikaruga",
+      "name": "3 - IKARUGA",
+      "subtitle": "150 BPM - azul/rosa + Parry Perfeito | beatmap da fase 3",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
       "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
       "beatmap": { "min_gap_seconds": 0.35, "min_start_seconds": 2.2, "target_density_per_second": 2.2 },
       "overrides": {
-        "approach_seconds": 1.6,
-        "aim_tolerance_degrees": 30.0
-      }
+        "approach_seconds": 1.8,
+        "aim_tolerance_degrees": 32.0,
+        "perfect_window_seconds": 0.05,
+        "good_window_seconds": 0.10,
+        "miss_window_seconds": 0.15
+      },
+      "active_modifiers": ["telegraph_rings", "polarity"]
+    },
+    {
+      "stage_id": "defender_4_clausura",
+      "name": "4 - CLAUSURA",
+      "subtitle": "150 BPM - Escudos Rotativos | beatmap da fase 3",
+      "track_path": "data/tracks/stage3_sobrecarga.wav",
+      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
+      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "overrides": {
+        "approach_seconds": 1.5,
+        "aim_tolerance_degrees": 25.0,
+        "perfect_window_seconds": 0.045,
+        "good_window_seconds": 0.09,
+        "miss_window_seconds": 0.13
+      },
+      "active_modifiers": ["telegraph_rings", "polarity", "orbital_shields"]
+    },
+    {
+      "stage_id": "defender_5_pesadelo",
+      "name": "5 - PESADELO",
+      "subtitle": "150 BPM - todas as mecanicas ligadas | beatmap da fase 3",
+      "track_path": "data/tracks/stage3_sobrecarga.wav",
+      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
+      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "overrides": {
+        "approach_seconds": 1.2,
+        "aim_tolerance_degrees": 20.0,
+        "perfect_window_seconds": 0.035,
+        "good_window_seconds": 0.07,
+        "miss_window_seconds": 0.10,
+        "orbital_eclipse_count": 3
+      },
+      "active_modifiers": [
+        "telegraph_rings",
+        "polarity",
+        "orbital_shields",
+        "twin_threats",
+        "orbital_eclipses",
+        "overload",
+        "radius_collapse"
+      ],
+      "modchart_events": [
+        { "type": "radius_collapse", "time_seconds": 20.0, "duration_seconds": 2.5, "target_radius": 14.0 },
+        { "type": "radius_collapse", "time_seconds": 34.0, "duration_seconds": 2.5, "target_radius": 26.0 }
+      ]
     },
     {
       "stage_id": "stage5_arcade_4k",
-      "name": "4 - ARCADE 4K",
+      "name": "6 - ARCADE 4K",
       "subtitle": "A S W D | beatmap da fase 2",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
@@ -71,49 +131,31 @@
       }
     },
     {
-      "stage_id": "stage_polaridade",
-      "name": "5 - POLARIDADE",
-      "subtitle": "azul/rosa + parry | beatmap da fase 3",
-      "track_path": "data/tracks/stage3_sobrecarga.wav",
-      "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
-      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
-      "overrides": {
-        "polarity_enabled": true,
-        "approach_seconds": 1.8,
-        "aim_tolerance_degrees": 30.0,
-        "orbital_eclipse_count": 2
-      },
-      "modchart_events": [
-        { "type": "radius_collapse", "time_seconds": 20.0, "duration_seconds": 2.5, "target_radius": 14.0 },
-        { "type": "radius_collapse", "time_seconds": 34.0, "duration_seconds": 2.5, "target_radius": 26.0 }
-      ]
-    },
-    {
       "stage_id": "stage_notas_longas",
-      "name": "6 - NOTAS LONGAS",
+      "name": "7 - NOTAS LONGAS",
       "subtitle": "segure o gatilho + a mira | beatmap da fase 1",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
       "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
       "overrides": {
-        "holds_enabled": true,
         "approach_seconds": 2.4,
         "max_health": 4,
         "aim_tolerance_degrees": 40.0
-      }
+      },
+      "active_modifiers": ["holds"]
     },
     {
       "stage_id": "stage9_arcade_notas_longas",
-      "name": "7 - ARCADE: NOTAS LONGAS",
+      "name": "8 - ARCADE: NOTAS LONGAS",
       "subtitle": "segure a coluna + Shield | beatmap da fase 2",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
       "overrides": {
         "game_mode": "lanes",
-        "holds_enabled": true,
         "approach_seconds": 1.8
-      }
+      },
+      "active_modifiers": ["holds"]
     }
   ]
 }

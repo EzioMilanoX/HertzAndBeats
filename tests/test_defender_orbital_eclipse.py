@@ -24,7 +24,7 @@ def _compose_with_eclipses(tmp_path, null_input, null_clock, threats, eclipse_co
     beatmap_path = write_beatmap(tmp_path / "eclipse.beatmap.json", threats)
     config = dataclasses.replace(
         make_config(beatmap_path),
-        polarity_enabled=True,
+        active_modifiers=("telegraph_rings", "polarity", "orbital_eclipses"),
         orbital_eclipse_count=eclipse_count,
         **overrides,
     )

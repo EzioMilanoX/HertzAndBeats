@@ -62,8 +62,40 @@ class HertzConfig:
     judgment_line_offset: float = 170.0
     misfire_jam_seconds: float = 0.5
 
-    # -- Polaridade + Parry Perfeito (Defensor, opt-in por fase) --
-    polarity_enabled: bool = False
+    # -- Mecanicas Modulares (Modifiers): substitui os antigos flags
+    #    rigidos por modo (`polarity_enabled`/`holds_enabled`) por uma
+    #    lista aberta de strings, lida por `rhythm_composition_root.py`
+    #    para decidir quais sistemas/campos EXTRA entram na composicao --
+    #    qualquer fase pode combinar livremente. Vem de `StageDef.
+    #    active_modifiers` (`resolve_stage_config` copia a lista da fase
+    #    inteira -- NAO e um dict de `overrides`, e substituida por
+    #    completo por fase, nunca herdada/mesclada com a base). Catalogo
+    #    atual (Defensor, exceto onde indicado):
+    #      "telegraph_rings"  -- ConvergenceRingSystem (aneis-aviso)
+    #      "polarity"         -- disparo azul/rosa + Parry Perfeito
+    #                            (fundacao de quase todos os outros)
+    #      "orbital_shields"  -- Captura Orbital (Escudos Rotativos);
+    #                            exige "polarity" tambem ativo
+    #      "twin_threats"     -- Gemeos de Polaridade; exige "polarity"
+    #      "orbital_eclipses" -- Eclipses Orbitais (independente)
+    #      "overload"         -- Overload do Nucleo/Shockwave; exige
+    #                            "polarity" (Ressonancia so existe com ela)
+    #      "radius_collapse"  -- Colapso do Anel de Julgamento (independente)
+    #      "holds"            -- Notas Longas (os 2 modos); MUTUAMENTE
+    #                            EXCLUSIVO com "polarity" por convencao de
+    #                            fase (os dois reusam o mesmo threat_type
+    #                            "pesada" com significados incompativeis)
+    #      "bombs"/"heal"     -- Arcade 4K, opt-in por presenca do tipo
+    #                            no beatmap (aqui so garante que o TIPO
+    #                            exista em `threat_type_ids`)
+    #    Um modifier cuja dependencia nao esta presente (ex.:
+    #    "orbital_shields" sem "polarity") degrada silenciosamente para
+    #    no-op -- nunca lanca erro (mesma filosofia de opt-in gracioso ja
+    #    usada por `orbit_threat_type_id`/`twin_threat_type_id`).
+    active_modifiers: Tuple[str, ...] = ()
+
+    # -- Polaridade + Parry Perfeito (Defensor, opt-in via "polarity" em
+    #    `active_modifiers`) --
     fire_alt_action_name: str = "fire_alt"
 
     # -- Pistas Dinamicas (Arcade 4K, sempre ativo) --
@@ -90,12 +122,11 @@ class HertzConfig:
     rumble_high_freq: float = 0.85
     rumble_duration_seconds: float = 0.25
 
-    # -- Notas Longas / Holds -- UM flag para os 2 modos, cada um
-    #    interpreta a sustentacao a sua maneira (Defensor: fire+mira;
-    #    Arcade: tecla da coluna + Shield) -- mesma filosofia de "a IA
-    #    dita o tempo, o modo dita a interpretacao" ja usada pelo resto
-    #    do schema. --
-    holds_enabled: bool = False
+    # -- Notas Longas / Holds -- UM modifier ("holds" em `active_modifiers`)
+    #    para os 2 modos, cada um interpreta a sustentacao a sua maneira
+    #    (Defensor: fire+mira; Arcade: tecla da coluna + Shield) -- mesma
+    #    filosofia de "a IA dita o tempo, o modo dita a interpretacao" ja
+    #    usada pelo resto do schema. --
     hold_duration_seconds: float = 1.5
 
     # -- Defensor: Hold por fire+mira sustentados --
@@ -149,28 +180,27 @@ class HertzConfig:
     # velocidade e uma constante interna do `ReverseScrollSystem`
     # (`_TIME_EPSILON_SECONDS`), nao uma afinacao de jogabilidade.
 
-    # -- Defensor: Captura Orbital (Escudos Rotativos) -- opt-in por
-    #    presenca do tipo "rhythm_threat_orbit" em `threat_type_ids`
-    #    (mesmo criterio de Bombas/Cura) --
+    # -- Defensor: Captura Orbital (Escudos Rotativos) -- opt-in via
+    #    "orbital_shields" em `active_modifiers` (exige "polarity" junto) --
     orbit_radius: float = 90.0
     orbit_angular_speed_rad_per_sec: float = 2.4
 
     # -- Defensor: Ressonancia de Polaridade (Combos Monocromaticos,
-    #    opt-in por `polarity_enabled` -- reusa a MESMA cor ja atribuida
-    #    a cada ameaca comum) --
+    #    automatica quando "polarity" esta em `active_modifiers` --
+    #    reusa a MESMA cor ja atribuida a cada ameaca comum) --
     resonance_chain_threshold: int = 10
 
     # -- Defensor: Juice Extremo de Parry (Hitlag Visual Simulado) --
     parry_hitlag_freeze_frames: int = 3
 
-    # -- Defensor: Gemeos de Polaridade -- opt-in por presenca do tipo
-    #    "rhythm_threat_twin" em `threat_type_ids` (mesmo criterio de
-    #    Bombas/Cura/Orbital); nenhum campo extra necessario aqui --
-    #    reusa `lane_count`/`polarity_enabled` ja existentes.
+    # -- Defensor: Gemeos de Polaridade -- opt-in via "twin_threats" em
+    #    `active_modifiers` (exige "polarity" junto); nenhum campo extra
+    #    necessario aqui -- reusa `lane_count` ja existente.
 
-    # -- Defensor: Eclipses Orbitais (Barreiras Dinamicas) -- opt-in por
-    #    `orbital_eclipse_count > 0` --
-    orbital_eclipse_count: int = 0
+    # -- Defensor: Eclipses Orbitais (Barreiras Dinamicas) -- opt-in via
+    #    "orbital_eclipses" em `active_modifiers`; `orbital_eclipse_count`
+    #    continua controlando QUANTOS obstaculos nascem --
+    orbital_eclipse_count: int = 3
     orbital_eclipse_radius: float = 150.0
     orbital_eclipse_rotation_speed_rad_per_sec: float = 1.2
     orbital_eclipse_half_width: float = 28.0
@@ -178,8 +208,9 @@ class HertzConfig:
 
     # -- Defensor: Overload do Nucleo (Dash + Ressonancia cheia sobre
     #    batida viva) -- reusa o `ShockwaveSystem` do Pulso de Impacto
-    #    da extinta Sobrevivencia, sempre ativo quando `polarity_enabled`
-    #    (a Ressonancia so existe com Polaridade) --
+    #    da extinta Sobrevivencia; opt-in via "overload" em
+    #    `active_modifiers` (exige "polarity" tambem -- a Ressonancia so
+    #    existe com ela) --
     shockwave_pool_size: int = 5
     shockwave_min_radius: float = 20.0
     shockwave_max_radius: float = 260.0
@@ -237,7 +268,7 @@ class HertzConfig:
             lane_spacing=raw.get("lane_spacing", 110.0),
             judgment_line_offset=raw.get("judgment_line_offset", 170.0),
             misfire_jam_seconds=raw.get("misfire_jam_seconds", 0.5),
-            polarity_enabled=raw.get("polarity_enabled", False),
+            active_modifiers=tuple(raw.get("active_modifiers", ())),
             fire_alt_action_name=raw.get("fire_alt_action_name", "fire_alt"),
             lane_sway_amplitude_px=raw.get("lane_sway_amplitude_px", 34.0),
             lane_sway_decay_per_second=raw.get("lane_sway_decay_per_second", 2.2),
@@ -252,7 +283,6 @@ class HertzConfig:
             rumble_low_freq=raw.get("rumble_low_freq", 0.35),
             rumble_high_freq=raw.get("rumble_high_freq", 0.85),
             rumble_duration_seconds=raw.get("rumble_duration_seconds", 0.25),
-            holds_enabled=raw.get("holds_enabled", False),
             hold_duration_seconds=raw.get("hold_duration_seconds", 1.5),
             hold_aim_tolerance_degrees=raw.get("hold_aim_tolerance_degrees", 50.0),
             hold_break_shake_px=raw.get("hold_break_shake_px", 22.0),
@@ -276,7 +306,7 @@ class HertzConfig:
             orbit_angular_speed_rad_per_sec=raw.get("orbit_angular_speed_rad_per_sec", 2.4),
             resonance_chain_threshold=raw.get("resonance_chain_threshold", 10),
             parry_hitlag_freeze_frames=raw.get("parry_hitlag_freeze_frames", 3),
-            orbital_eclipse_count=raw.get("orbital_eclipse_count", 0),
+            orbital_eclipse_count=raw.get("orbital_eclipse_count", 3),
             orbital_eclipse_radius=raw.get("orbital_eclipse_radius", 150.0),
             orbital_eclipse_rotation_speed_rad_per_sec=raw.get(
                 "orbital_eclipse_rotation_speed_rad_per_sec", 1.2

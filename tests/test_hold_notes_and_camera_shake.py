@@ -21,7 +21,9 @@ def _heavy(timestamp: float, lane: int = 0) -> dict:
 
 def _compose_holds(tmp_path, null_input, null_clock, threats, **overrides):
     beatmap_path = write_beatmap(tmp_path / "h.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), holds_enabled=True, **overrides)
+    config = dataclasses.replace(
+        make_config(beatmap_path), active_modifiers=("telegraph_rings", "holds"), **overrides
+    )
     return compose_world(config, null_input, null_clock), config
 
 

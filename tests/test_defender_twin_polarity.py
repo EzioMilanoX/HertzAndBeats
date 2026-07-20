@@ -29,9 +29,22 @@ def _basic(timestamp: float, lane: int) -> dict:
     }
 
 
+def _heavy(timestamp: float, lane: int) -> dict:
+    return {
+        "timestamp_seconds": timestamp,
+        "threat_type": "rhythm_threat_heavy",
+        "lane": lane,
+        "strength": 0.9,
+    }
+
+
 def _compose_polarity(tmp_path, null_input, null_clock, threats, **overrides):
     beatmap_path = write_beatmap(tmp_path / "twin.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), polarity_enabled=True, **overrides)
+    config = dataclasses.replace(
+        make_config(beatmap_path),
+        active_modifiers=("telegraph_rings", "polarity", "twin_threats"),
+        **overrides,
+    )
     return compose_world(config, null_input, null_clock), config
 
 
@@ -88,8 +101,13 @@ def test_twin_pair_has_opposite_polarities(tmp_path, null_input, null_clock):
 
 def test_non_twin_threat_type_still_spawns_a_single_entity(tmp_path, null_input, null_clock):
     """Regressao: o novo ramo de Gemeos so dispara para
-    `rhythm_threat_twin` -- uma ameaca comum continua nascendo sozinha."""
-    composed, config = _compose_polarity(tmp_path, null_input, null_clock, [_basic(3.0, lane=0)])
+    `rhythm_threat_twin` -- uma ameaca de outro tipo continua nascendo
+    sozinha. Usa uma PESADA (nao uma comum): com "twin_threats" ativo, a
+    composicao reinterpreta uma FRACAO das ameacas comuns em Gemeos
+    (`_reinterpret_scheduled_for_modifiers`) -- uma pesada nunca e
+    elegivel para essa reinterpretacao, entao isola de verdade o
+    comportamento do spawner."""
+    composed, config = _compose_polarity(tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)])
     threat_pool = composed.memory_manager.get_pool("rhythm_threat")
 
     _advance_to(composed, null_clock, null_input, 1.01)
@@ -97,12 +115,12 @@ def test_non_twin_threat_type_still_spawns_a_single_entity(tmp_path, null_input,
     assert threat_pool.count == 1
 
 
-def test_twin_type_is_inert_without_polarity_enabled(tmp_path, null_input, null_clock):
-    """Sem Polaridade, `twin_threat_type_id` nunca e resolvido (fica
-    `None` na composicao) -- um evento "twin" nasce como UMA ameaca so,
-    como qualquer outro tipo desconhecido do juiz."""
+def test_twin_type_is_inert_without_the_polarity_modifier(tmp_path, null_input, null_clock):
+    """Sem "polarity" em `active_modifiers`, `twin_threat_type_id` nunca
+    e resolvido (fica `None` na composicao) -- um evento "twin" nasce
+    como UMA ameaca so, como qualquer outro tipo desconhecido do juiz."""
     beatmap_path = write_beatmap(tmp_path / "twin_off.beatmap.json", [_twin(3.0, lane=0)])
-    config = make_config(beatmap_path)  # polarity_enabled=False (default)
+    config = make_config(beatmap_path)  # active_modifiers=("telegraph_rings",) default, sem "polarity"
     composed = compose_world(config, null_input, null_clock)
     threat_pool = composed.memory_manager.get_pool("rhythm_threat")
 

@@ -31,7 +31,7 @@ def _heavy(timestamp: float, lane: int = 0) -> dict:
 
 def _compose_polarity(tmp_path, null_input, null_clock, threats):
     beatmap_path = write_beatmap(tmp_path / "p.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), polarity_enabled=True)
+    config = dataclasses.replace(make_config(beatmap_path), active_modifiers=("telegraph_rings", "polarity"))
     return compose_world(config, null_input, null_clock), config
 
 

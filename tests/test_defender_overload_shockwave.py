@@ -18,7 +18,11 @@ def _basic(timestamp: float, lane: int = 0) -> dict:
 
 def _compose_polarity(tmp_path, null_input, null_clock, threats, **overrides):
     beatmap_path = write_beatmap(tmp_path / "overload.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), polarity_enabled=True, **overrides)
+    config = dataclasses.replace(
+        make_config(beatmap_path),
+        active_modifiers=("telegraph_rings", "polarity", "overload"),
+        **overrides,
+    )
     return compose_world(config, null_input, null_clock), config
 
 

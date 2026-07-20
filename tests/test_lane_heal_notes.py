@@ -18,7 +18,9 @@ def _heal(timestamp: float, lane: int = 0) -> dict:
 
 def _compose_lane_heal(tmp_path, null_input, null_clock, threats, **overrides):
     beatmap_path = write_beatmap(tmp_path / "heal.beatmap.json", threats)
-    config = dataclasses.replace(make_config(beatmap_path), game_mode="lanes", **overrides)
+    config = dataclasses.replace(
+        make_config(beatmap_path), game_mode="lanes", active_modifiers=("heal",), **overrides
+    )
     return compose_world(config, null_input, null_clock), config
 
 

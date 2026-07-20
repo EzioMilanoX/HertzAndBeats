@@ -85,7 +85,7 @@ cravados na batida em qualquer escala.</li>
 <tr><th>Ação</th><th>Controle</th></tr>
 <tr><td>Mira 360°</td><td>Mouse (direção a partir do núcleo; o marcador orbita <em>sobre</em> o anel de julgamento)</td></tr>
 <tr><td>Atirar Azul / Parry</td><td>Botão esquerdo do mouse</td></tr>
-<tr><td>Atirar Rosa (fase Polaridade)</td><td>Botão direito do mouse</td></tr>
+<tr><td>Atirar Rosa (modifier "polarity", fases Ikaruga/Clausura/Pesadelo)</td><td>Botão direito do mouse</td></tr>
 <tr><td>Dash (i-frames / Pulso de Impacto)</td><td>Espaço</td></tr>
 <tr><td>Scratch alternado (Arcade 4K)</td><td>Z/X alternados, ou a roda do mouse — alternativas ao mover o mouse continuamente</td></tr>
 <tr><td>Menu: escolher fase</td><td>Setas ↑/↓ · ENTER ou clique para jogar · ESC sai</td></tr>
@@ -127,13 +127,14 @@ para isso não acontecer em condições normais.</li>
 <table>
 <tr><th>Fase</th><th>Faixa (síntese)</th><th>Ameaças</th><th>Densidade</th><th>Gap mín.</th><th>Overrides</th><th>Tutorial</th></tr>
 <tr><td><strong>TUTORIAL</strong><br><small>80 BPM - aprenda o basico</small></td><td>80 BPM · 21 compassos · calm</td><td>19 (1 pesadas)</td><td>0.40/s</td><td>1.50s</td><td>approach_seconds=2.8, max_health=6, aim_tolerance_degrees=40.0, misfire_breaks_combo=False</td><td>5 passos</td></tr>
-<tr><td><strong>1 - PULSO LEVE</strong><br><small>100 BPM - aquecimento</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
-<tr><td><strong>2 - BATIDA FRANCA</strong><br><small>128 BPM - ritmo cheio</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>—</td><td>—</td></tr>
-<tr><td><strong>3 - SOBRECARGA</strong><br><small>150 BPM - drops dobrados</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.6, aim_tolerance_degrees=30.0</td><td>—</td></tr>
-<tr><td><strong>4 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
-<tr><td><strong>5 - POLARIDADE</strong><br><small>azul/rosa + parry | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>polarity_enabled=True, approach_seconds=1.8, aim_tolerance_degrees=30.0, orbital_eclipse_count=2</td><td>—</td></tr>
-<tr><td><strong>6 - NOTAS LONGAS</strong><br><small>segure o gatilho + a mira | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>holds_enabled=True, approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
-<tr><td><strong>7 - ARCADE: NOTAS LONGAS</strong><br><small>segure a coluna + Shield | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, holds_enabled=True, approach_seconds=1.8</td><td>—</td></tr>
+<tr><td><strong>1 - INICIACAO</strong><br><small>100 BPM - so o basico do Defensor</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>approach_seconds=2.8, max_health=4, aim_tolerance_degrees=45.0, perfect_window_seconds=0.07, good_window_seconds=0.15, miss_window_seconds=0.22</td><td>—</td></tr>
+<tr><td><strong>2 - DESPERTAR</strong><br><small>128 BPM - os aneis-aviso entram em cena</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>approach_seconds=2.0, aim_tolerance_degrees=38.0, perfect_window_seconds=0.06, good_window_seconds=0.12, miss_window_seconds=0.18</td><td>—</td></tr>
+<tr><td><strong>3 - IKARUGA</strong><br><small>150 BPM - azul/rosa + Parry Perfeito | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.8, aim_tolerance_degrees=32.0, perfect_window_seconds=0.05, good_window_seconds=0.1, miss_window_seconds=0.15</td><td>—</td></tr>
+<tr><td><strong>4 - CLAUSURA</strong><br><small>150 BPM - Escudos Rotativos | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.5, aim_tolerance_degrees=25.0, perfect_window_seconds=0.045, good_window_seconds=0.09, miss_window_seconds=0.13</td><td>—</td></tr>
+<tr><td><strong>5 - PESADELO</strong><br><small>150 BPM - todas as mecanicas ligadas | beatmap da fase 3</small></td><td>150 BPM · 28 compassos · intense</td><td>91 (8 pesadas)</td><td>2.23/s</td><td>0.39s</td><td>approach_seconds=1.2, aim_tolerance_degrees=20.0, perfect_window_seconds=0.035, good_window_seconds=0.07, miss_window_seconds=0.1, orbital_eclipse_count=3</td><td>—</td></tr>
+<tr><td><strong>6 - ARCADE 4K</strong><br><small>A S W D | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
+<tr><td><strong>7 - NOTAS LONGAS</strong><br><small>segure o gatilho + a mira | beatmap da fase 1</small></td><td>100 BPM · 16 compassos · calm</td><td>30 (3 pesadas)</td><td>0.90/s</td><td>0.88s</td><td>approach_seconds=2.4, max_health=4, aim_tolerance_degrees=40.0</td><td>—</td></tr>
+<tr><td><strong>8 - ARCADE: NOTAS LONGAS</strong><br><small>segure a coluna + Shield | beatmap da fase 2</small></td><td>128 BPM · 24 compassos · standard</td><td>66 (6 pesadas)</td><td>1.62/s</td><td>0.46s</td><td>game_mode=lanes, approach_seconds=1.8</td><td>—</td></tr>
 </table>
 <p>Definidas em <code>data/stages/stages.json</code>. A curadoria pós-IA (<code>select_onsets</code>) escolhe
 os onsets <strong>mais fortes</strong> da música até a densidade-alvo da fase, com espaçamento mínimo e
@@ -155,7 +156,7 @@ python tools/make_beatmap.py --audio minha.mp3 --output data/beatmaps/minha.beat
 <code>RHYTHM_THREAT_DTYPE</code> compartilhado, mascaramento vetorizado por <code>mode_tag</code>/flag
 booleano, e sistemas dedicados que só tocam as linhas que lhes pertencem.</p>
 <h3>Defensor — Polaridade + Parry Perfeito</h3>
-<p>Opt-in via <code>polarity_enabled</code> (fase <span class="gold">Polaridade</span>): dois gatilhos
+<p>Opt-in via <code>"polarity"</code> em <code>active_modifiers</code> (fase <span class="gold">Ikaruga</span>): dois gatilhos
 com cor fixa (Azul = clique esquerdo, Rosa = clique direito, estilo <em>Ikaruga</em>). A cor de uma
 ameaça comum vem de graça do <strong>bucket de timbre</strong> que a IA já atribui à <code>lane</code>
 (metade grave = Rosa, metade aguda = Azul — zero análise extra). Cor errada no tempo/mira certos é um
@@ -271,7 +272,8 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>234 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
+<p>Total: <strong>247 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (13 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_radius_collapse_off_never_registers_judgment_radius_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
 <details><summary><code>test_convergence_rings.py</code> — Aneis de Convergencia do Defensor: encolhem matematicamente ate o anel de julgamento no ms do hit. (4 testes)</summary><ul><li><code>test_ring_spawns_alongside_threat_at_spawn_radius</code></li><li><code>test_ring_radius_shrinks_linearly_to_the_judgment_ring</code></li><li><code>test_ring_self_destructs_at_the_hit_instant</code></li><li><code>test_ring_tint_matches_the_threat_it_warns_about</code></li></ul></details>
@@ -281,7 +283,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_defender_orbital_eclipse.py</code> — Defensor -- Eclipses Orbitais: barreiras dinamicas que giram ao redor do nucleo e bloqueiam o projetil refletido do Parry. (4 testes)</summary><ul><li><code>test_orbital_eclipse_count_creates_that_many_shield_layer_obstacles</code></li><li><code>test_zero_eclipse_count_creates_no_obstacles</code></li><li><code>test_orbital_eclipse_position_always_matches_its_own_integrated_rotation</code></li><li><code>test_orbital_eclipse_blocks_the_reflected_parry_projectile</code></li></ul></details>
 <details><summary><code>test_defender_overload_shockwave.py</code> — Defensor -- Overload do Nucleo: Dash em Overdrive sobre uma batida viva dispara o ShockwaveSystem reaproveitado. (4 testes)</summary><ul><li><code>test_dash_in_overdrive_on_a_live_beat_triggers_overload_and_resets_resonance</code></li><li><code>test_dash_without_overdrive_never_triggers_overload</code></li><li><code>test_dash_in_overdrive_without_a_live_beat_nearby_does_nothing</code></li><li><code>test_overload_shockwave_destroys_a_weak_threat_it_sweeps</code></li></ul></details>
 <details><summary><code>test_defender_polarity_resonance.py</code> — Defensor -- Ressonancia de Polaridade (Combos Monocromaticos): corrente por cor e Overdrive perfurante. (5 testes)</summary><ul><li><code>test_destroying_same_color_threats_in_sequence_builds_the_chain</code></li><li><code>test_destroying_a_different_color_threat_resets_the_chain_to_one</code></li><li><code>test_in_overdrive_becomes_true_only_at_the_configured_threshold</code></li><li><code>test_overdrive_shot_pierces_and_destroys_every_matching_color_candidate_at_once</code></li><li><code>test_overdrive_piercing_never_consumes_a_heavy_parry_candidate</code></li></ul></details>
-<details><summary><code>test_defender_twin_polarity.py</code> — Defensor -- Gemeos de Polaridade: um evento &quot;twin&quot; nasce como DUAS ameacas opostas no mesmo frame. (5 testes)</summary><ul><li><code>test_twin_event_spawns_two_entities_in_diametrically_opposite_lanes</code></li><li><code>test_twin_pair_shares_the_same_target_hit_time_and_opposite_angles</code></li><li><code>test_twin_pair_has_opposite_polarities</code></li><li><code>test_non_twin_threat_type_still_spawns_a_single_entity</code></li><li><code>test_twin_type_is_inert_without_polarity_enabled</code></li></ul></details>
+<details><summary><code>test_defender_twin_polarity.py</code> — Defensor -- Gemeos de Polaridade: um evento &quot;twin&quot; nasce como DUAS ameacas opostas no mesmo frame. (5 testes)</summary><ul><li><code>test_twin_event_spawns_two_entities_in_diametrically_opposite_lanes</code></li><li><code>test_twin_pair_shares_the_same_target_hit_time_and_opposite_angles</code></li><li><code>test_twin_pair_has_opposite_polarities</code></li><li><code>test_non_twin_threat_type_still_spawns_a_single_entity</code></li><li><code>test_twin_type_is_inert_without_the_polarity_modifier</code></li></ul></details>
 <details><summary><code>test_flow_state.py</code> — Flow State (&quot;vidro quebrado&quot;): 50 PERFECTs seguidos apaga o HUD; um Miss o restaura. (3 testes)</summary><ul><li><code>test_flow_combo_threshold_is_wired_only_for_lanes_mode</code></li><li><code>test_flow_state_hides_score_combo_and_labels_at_the_threshold</code></li><li><code>test_flow_state_restores_the_hud_after_a_miss_resets_combo</code></li></ul></details>
 <details><summary><code>test_flow_tier.py</code> — Flow State: o tier de 50 combos extras chega ao renderer TODO frame, nao so na transicao. (4 testes)</summary><ul><li><code>test_tier_is_zero_before_reaching_the_flow_threshold</code></li><li><code>test_tier_is_one_exactly_at_the_threshold</code></li><li><code>test_tier_advances_within_flow_without_leaving_and_re_entering</code></li><li><code>test_tier_resets_to_zero_after_a_miss_breaks_the_combo</code></li></ul></details>
 <details><summary><code>test_gun_sync_and_ghost_tap.py</code> — Gun Sync (canhao no acerto, clique no misfire) e Ghost Tapping (tap livre sem punicao) no Arcade. (4 testes)</summary><ul><li><code>test_hit_on_time_plays_the_cannon</code></li><li><code>test_misfire_plays_click_and_jams_the_gun</code></li><li><code>test_jammed_gun_ignores_trigger_until_it_clears</code></li><li><code>test_ghost_tap_plays_soft_tick_without_penalty</code></li></ul></details>
@@ -755,8 +757,32 @@ testes headless componham o jogo INTEIRO com backends Null.</pre>
 o que fica visivel: mira no Defensor, nada no Arcade, ...).</pre>
 <h4><code>_compose_defender_mode()</code></h4><pre class="doc">MODO 1 -- O Defensor (estilo BPM/Hellsinger): nucleo fixo no
 centro, ameacas radiais 360, mira livre + tiro na batida; misfire
-zera o combo. Ordem: PlayerInput -&gt; Spawner radial -&gt; Judgment -&gt;
-Physics -&gt; Collision -&gt; CoreDamage.</pre>
+zera o combo. Ordem: PlayerInput -&gt; Spawner radial -&gt; [TelegraphRings]
+-&gt; [JudgmentRadius] -&gt; Judgment -&gt; [OrbitalCapture] -&gt; Physics -&gt;
+[OrbitalEclipse] -&gt; Collision -&gt; [ParryImpact] -&gt; [Shockwave] -&gt;
+CoreDamage.
+
+MECANICAS MODULARES: `config.active_modifiers` (lista de strings da
+fase, ver catalogo em `HertzConfig`) e resolvido num UNICO
+`frozenset` aqui no topo -- o resto da funcao so testa
+`&quot;x&quot; in modifiers` (ou os booleanos locais derivados dele), igual a
+testar um antigo `config.polarity_enabled`/`config.holds_enabled`,
+so que agora e a PRESENCA na lista que decide, nao um campo fixo do
+dataclass. Cada `if` abaixo registra um sistema A MAIS (nunca troca
+um sistema por outro) -- a ORDEM de registro nunca muda entre fases,
+so QUANTOS sistemas entram nela. Zero-GC preservado: nenhuma
+resolucao de modifier aloca por FRAME (tudo aqui roda uma unica vez,
+na composicao/carregamento da fase).</pre>
+<h4><code>_reinterpret_scheduled_for_modifiers()</code></h4><pre class="doc">Gemeos de Polaridade (&quot;twin_threats&quot;) e Escudos Rotativos
+(&quot;orbital_shields&quot;) nunca sao emitidos pelo mapeador OFFLINE da IA
+(vocabulario so tem &quot;basic&quot;/&quot;heavy&quot;) -- mesma reinterpretacao 100%
+GAME-side ja usada por Notas Toxicas/Cura/Scratch: o `beatmap.json`
+em disco nunca muda, so a INTERPRETACAO do `threat_type` de algumas
+linhas ja agendadas. Reescreve uma fracao DETERMINISTICA (a cada
+Nesima ocorrencia, nunca por sorteio) do array recebido -- devolve
+SEMPRE uma copia nova, nunca muta `scheduled` (compartilhado com
+`ctx.hit_times` por indice de linha) mesmo quando nenhum modifier
+relevante esta ativo.</pre>
 <h4><code>_create_shockwave_pool()</code></h4><pre class="doc">Pre-cria `pool_size` entidades de onda de choque (Overload do
 Nucleo), inicialmente INATIVAS (hitbox/sprite zerados pelo proprio
 `MemoryManager` -- camada/mascara 0 e alfa 0 sao o &quot;invisivel/sem
@@ -1105,9 +1131,12 @@ paralelos linha a linha.</pre>
 <pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>
 <h4><code>load_stages()</code></h4><pre class="doc">Carrega a lista ordenada de fases de `stages_path` (JSON).</pre>
 <h4><code>resolve_stage_config()</code></h4><pre class="doc">Deriva a `HertzConfig` efetiva da fase: caminhos de beatmap/faixa
-da fase + `overrides` aplicados sobre a configuracao base. Um campo
-desconhecido em `overrides` e um erro de dados (TypeError), nunca
-silenciosamente ignorado.</pre>
+da fase + `active_modifiers` da fase (substitui por completo o valor
+base -- nunca mesclado) + `overrides` aplicados sobre a configuracao
+base. Um campo desconhecido em `overrides` e um erro de dados
+(TypeError), nunca silenciosamente ignorado. `overrides` NAO deve
+conter `active_modifiers` (usar o campo dedicado da fase) -- faria
+`dataclasses.replace` reclamar de argumento duplicado.</pre>
 <h3>classe <code>StageDef</code></h3><pre class="doc">Definicao imutavel de UMA fase, carregada de `stages.json`.
 
 Atributos:
@@ -1141,8 +1170,16 @@ Atributos:
         `beatmap.json` da engine). Arcade 4K (`game_mode == &quot;lanes&quot;`):
         &quot;swap&quot;/&quot;reverse_scroll&quot;/&quot;distraction&quot;. Defensor
         (`game_mode == &quot;defender&quot;`): &quot;radius_collapse&quot; (Colapso do
-        Anel de Julgamento, `JudgmentRadiusSystem`), sempre
-        registrado independente do tipo de evento presente.</pre>
+        Anel de Julgamento, `JudgmentRadiusSystem`), lido so quando
+        &quot;radius_collapse&quot; esta em `active_modifiers`.
+    active_modifiers: lista de Mecanicas Modulares ligadas nesta fase
+        (`{&quot;polarity&quot;, &quot;telegraph_rings&quot;, &quot;orbital_shields&quot;,
+        &quot;twin_threats&quot;, &quot;orbital_eclipses&quot;, &quot;overload&quot;,
+        &quot;radius_collapse&quot;, &quot;holds&quot;, &quot;bombs&quot;, &quot;heal&quot;, ...}` --
+        catalogo completo em `HertzConfig.active_modifiers`).
+        SUBSTITUI a lista inteira da fase base a cada
+        `resolve_stage_config` (nunca mesclada com nenhum default) --
+        uma fase que quer 3 mecanicas lista as 3 explicitamente.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-camera_shake_system"><summary><code>hertzbeats/systems/camera_shake_system.py</code> — Decai o tremor de tela e a Cegueira Ritmica globais a cada frame -- comum a todos os modos, independente de quem os acionou.</summary>
 <pre class="doc">Decai o tremor de tela e a Cegueira Ritmica globais a cada frame -- comum a todos os modos, independente de quem os acionou.</pre>

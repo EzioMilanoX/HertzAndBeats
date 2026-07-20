@@ -232,15 +232,49 @@ def _hide_sprite(memory_manager: MemoryManager, entity_index: int) -> None:
 def _compose_defender_mode(ctx: _ModeContext):
     """MODO 1 -- O Defensor (estilo BPM/Hellsinger): nucleo fixo no
     centro, ameacas radiais 360, mira livre + tiro na batida; misfire
-    zera o combo. Ordem: PlayerInput -> Spawner radial -> Judgment ->
-    Physics -> Collision -> CoreDamage."""
+    zera o combo. Ordem: PlayerInput -> Spawner radial -> [TelegraphRings]
+    -> [JudgmentRadius] -> Judgment -> [OrbitalCapture] -> Physics ->
+    [OrbitalEclipse] -> Collision -> [ParryImpact] -> [Shockwave] ->
+    CoreDamage.
+
+    MECANICAS MODULARES: `config.active_modifiers` (lista de strings da
+    fase, ver catalogo em `HertzConfig`) e resolvido num UNICO
+    `frozenset` aqui no topo -- o resto da funcao so testa
+    `"x" in modifiers` (ou os booleanos locais derivados dele), igual a
+    testar um antigo `config.polarity_enabled`/`config.holds_enabled`,
+    so que agora e a PRESENCA na lista que decide, nao um campo fixo do
+    dataclass. Cada `if` abaixo registra um sistema A MAIS (nunca troca
+    um sistema por outro) -- a ORDEM de registro nunca muda entre fases,
+    so QUANTOS sistemas entram nela. Zero-GC preservado: nenhuma
+    resolucao de modifier aloca por FRAME (tudo aqui roda uma unica vez,
+    na composicao/carregamento da fase)."""
     config = ctx.config
     center_x, center_y = config.center_xy
+
+    modifiers = frozenset(config.active_modifiers)
+    polarity_enabled = "polarity" in modifiers
+    telegraph_rings_enabled = "telegraph_rings" in modifiers
+    # Dependencias tecnicas: um modifier que precisa de "polarity" mas a
+    # fase esqueceu de liga-la degrada para no-op silencioso (nunca
+    # lanca erro) -- mesma filosofia graciosa de `orbit_threat_type_id`
+    # de antes desta refatoracao.
+    orbital_shields_enabled = "orbital_shields" in modifiers and polarity_enabled
+    twin_threats_enabled = "twin_threats" in modifiers and polarity_enabled
+    overload_enabled = "overload" in modifiers and polarity_enabled
+    orbital_eclipses_enabled = "orbital_eclipses" in modifiers and config.orbital_eclipse_count > 0
+    radius_collapse_enabled = "radius_collapse" in modifiers
+    # Notas Longas (Hold): MUTUAMENTE EXCLUSIVO com Polaridade/Parry por
+    # convencao de fase (ambos reusam o mesmo threat_type "pesada", cada
+    # fase liga so UM dos dois -- nunca validado em runtime, e uma
+    # responsabilidade de curadoria do `stages.json`).
+    holds_enabled = "holds" in modifiers
+
+    scheduled = _reinterpret_scheduled_for_modifiers(ctx.scheduled, config, modifiers)
 
     spawner_system = RadialRhythmSpawnerSystem(
         audio_clock=ctx.audio_clock,
         memory_manager=ctx.memory_manager,
-        scheduled_spawns=ctx.scheduled,
+        scheduled_spawns=scheduled,
         hit_times=ctx.hit_times,
         threat_archetype_name="rhythm_threat_radial",
         center_xy=(center_x, center_y),
@@ -254,15 +288,15 @@ def _compose_defender_mode(ctx: _ModeContext):
         max_threats_per_frame=config.max_threats_per_frame,
         ring_archetype_name="convergence_ring",
         hold_threat_type_id=(
-            config.threat_type_ids.get("rhythm_threat_heavy") if config.holds_enabled else None
+            config.threat_type_ids.get("rhythm_threat_heavy") if holds_enabled else None
         ),
         hold_duration_seconds=config.hold_duration_seconds,
-        polarity_enabled=config.polarity_enabled,
+        polarity_enabled=polarity_enabled,
         orbit_threat_type_id=(
-            config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
+            config.threat_type_ids.get("rhythm_threat_orbit") if orbital_shields_enabled else None
         ),
         twin_threat_type_id=(
-            config.threat_type_ids.get("rhythm_threat_twin") if config.polarity_enabled else None
+            config.threat_type_ids.get("rhythm_threat_twin") if twin_threats_enabled else None
         ),
     )
     collision_system = CollisionSystem(
@@ -291,44 +325,46 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
     )
     ctx.world.register_system(spawner_system)
-    ctx.world.register_system(
-        ConvergenceRingSystem(
-            audio_clock=ctx.audio_clock,
-            memory_manager=ctx.memory_manager,
-            spawn_radius=config.spawn_radius,
-            judgment_ring_radius=judgment_ring_radius,
+    # Aneis de Convergencia ("telegraph_rings"): SO decoracao-aviso, zero
+    # impacto no julgamento -- opt-in explicito agora (antes era
+    # incondicional em todo Defensor); uma fase sem o modifier so nao
+    # ganha o anel neon, o resto do combate e identico.
+    if telegraph_rings_enabled:
+        ctx.world.register_system(
+            ConvergenceRingSystem(
+                audio_clock=ctx.audio_clock,
+                memory_manager=ctx.memory_manager,
+                spawn_radius=config.spawn_radius,
+                judgment_ring_radius=judgment_ring_radius,
+            )
         )
-    )
-    # Colapso do Anel de Julgamento: sempre registrado (mesma filosofia
-    # do `ReverseScrollSystem` -- sem nenhum evento `radius_collapse` no
-    # beatmap da fase, o raio so permanece em `judgment_ring_radius`
-    # para sempre, no-op). `GameState.current_judgment_radius` ja
-    # comeca com esse MESMO valor (ver `compose_world`).
-    ctx.world.register_system(
-        JudgmentRadiusSystem(
-            audio_clock=ctx.audio_clock,
-            game_state=ctx.game_state,
-            base_radius=judgment_ring_radius,
-            collapse_events=parse_radius_collapse_events(ctx.modchart_events),
+    # Colapso do Anel de Julgamento ("radius_collapse"): sem o modifier,
+    # `GameState.current_judgment_radius` fica parado no valor BASE pra
+    # sempre (ja e o valor com que `compose_world` inicializou o
+    # GameState) -- registrar o sistema so muda algo se houver eventos
+    # `radius_collapse` no `modchart_events` da fase.
+    if radius_collapse_enabled:
+        ctx.world.register_system(
+            JudgmentRadiusSystem(
+                audio_clock=ctx.audio_clock,
+                game_state=ctx.game_state,
+                base_radius=judgment_ring_radius,
+                collapse_events=parse_radius_collapse_events(ctx.modchart_events),
+            )
         )
-    )
-    # Polaridade + Parry Perfeito (opt-in por fase, `polarity_enabled`):
-    # um UNICO flag liga as duas mecanicas -- reflete a decisao de design
-    # de que sao inseparaveis no enunciado (o Parry E a defesa universal
-    # contra pesadas justamente porque a Polaridade torna as basicas
-    # sensiveis a cor). Captura Orbital (Escudos Rotativos) e Juice de
-    # Parry (Hitlag) sao expansoes DESSA mesma mecanica -- mesmo flag.
+    # Polaridade + Parry Perfeito ("polarity"): disparo azul/rosa,
+    # pesadas viram Parry em vez de destruidas, Ressonancia/Overdrive e
+    # Juice de Hitlag -- tudo automatico junto deste UNICO modifier (sao
+    # inseparaveis: o Parry E a defesa universal contra pesadas
+    # justamente porque a Polaridade torna as comuns sensiveis a cor).
     heavy_threat_type_id = (
-        config.threat_type_ids.get("rhythm_threat_heavy") if config.polarity_enabled else None
+        config.threat_type_ids.get("rhythm_threat_heavy") if polarity_enabled else None
     )
     orbit_threat_type_id = (
-        config.threat_type_ids.get("rhythm_threat_orbit") if config.polarity_enabled else None
+        config.threat_type_ids.get("rhythm_threat_orbit") if orbital_shields_enabled else None
     )
-    # Notas Longas (Hold, opt-in por fase, `holds_enabled`): mutuamente
-    # exclusivo com Polaridade/Parry por convencao de fase (ambos reusam
-    # o mesmo threat_type "pesada", mas cada fase liga so UM dos dois).
     hold_threat_type_id = (
-        config.threat_type_ids.get("rhythm_threat_heavy") if config.holds_enabled else None
+        config.threat_type_ids.get("rhythm_threat_heavy") if holds_enabled else None
     )
     ctx.world.register_system(
         JudgmentSystem(
@@ -349,13 +385,13 @@ def _compose_defender_mode(ctx: _ModeContext):
             audio_engine=ctx.audio_engine,
             shot_sound_id=SFX_CANNON,
             jam_sound_id=SFX_CLICK,
-            polarity_enabled=config.polarity_enabled,
+            polarity_enabled=polarity_enabled,
             fire_alt_action_name=config.fire_alt_action_name,
             heavy_threat_type_id=heavy_threat_type_id,
             deflect_sound_id=SFX_DEFLECT,
             parry_sound_id=SFX_PARRY,
-            reflected_collision_layer=REFLECTED_COLLISION_LAYER if config.polarity_enabled else None,
-            reflected_collision_mask=THREAT_COLLISION_LAYER if config.polarity_enabled else None,
+            reflected_collision_layer=REFLECTED_COLLISION_LAYER if polarity_enabled else None,
+            reflected_collision_mask=THREAT_COLLISION_LAYER if polarity_enabled else None,
             hold_threat_type_id=hold_threat_type_id,
             hold_aim_tolerance_rad=math.radians(config.hold_aim_tolerance_degrees),
             hold_break_shake_px=config.hold_break_shake_px,
@@ -365,17 +401,18 @@ def _compose_defender_mode(ctx: _ModeContext):
             hold_engage_sound_id=SFX_HOLD_ENGAGE,
             hold_break_sound_id=SFX_HOLD_BREAK,
             practice_mode=config.practice_mode,
-            hitlag_freeze_frames=config.parry_hitlag_freeze_frames if config.polarity_enabled else 0,
+            hitlag_freeze_frames=config.parry_hitlag_freeze_frames if polarity_enabled else 0,
             orbit_threat_type_id=orbit_threat_type_id,
             shield_collision_layer=SHIELD_COLLISION_LAYER if orbit_threat_type_id is not None else None,
             shield_collision_mask=THREAT_COLLISION_LAYER if orbit_threat_type_id is not None else None,
         )
     )
-    if orbit_threat_type_id is not None:
-        # Mesmo padrao de `ReverseScrollSystem`/`LaneChoreographySystem`:
-        # sobrescreve `position_x/y` DIRETAMENTE, ANTES do `PhysicsSystem`
-        # generico (que e um no-op para essas linhas, ja com velocidade
-        # zerada pela captura) -- evita tocar a engine.
+    # Captura Orbital ("orbital_shields"): mesmo padrao de
+    # `ReverseScrollSystem`/`LaneChoreographySystem` -- sobrescreve
+    # `position_x/y` DIRETAMENTE, ANTES do `PhysicsSystem` generico (que
+    # e um no-op para essas linhas, ja com velocidade zerada pela
+    # captura) -- evita tocar a engine.
+    if orbital_shields_enabled:
         ctx.world.register_system(
             OrbitalCaptureSystem(
                 audio_clock=ctx.audio_clock,
@@ -387,13 +424,13 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
 
-    # Eclipses Orbitais (Barreiras Dinamicas, opt-in por `orbital_eclipse_count`):
-    # ao CONTRARIO da Captura Orbital acima, aqui a rotacao passa PELO
-    # `PhysicsSystem` generico (`velocity.angular` constante ->
-    # `rotation_rad` integrado de graca) -- entao o `OrbitalEclipseSystem`
-    # (conversao angulo->posicao) precisa rodar DEPOIS dele, nao antes.
+    # Eclipses Orbitais ("orbital_eclipses"): ao CONTRARIO da Captura
+    # Orbital acima, aqui a rotacao passa PELO `PhysicsSystem` generico
+    # (`velocity.angular` constante -> `rotation_rad` integrado de
+    # graca) -- entao o `OrbitalEclipseSystem` (conversao angulo->posicao)
+    # precisa rodar DEPOIS dele, nao antes.
     eclipse_entity_indices = None
-    if config.orbital_eclipse_count > 0:
+    if orbital_eclipses_enabled:
         eclipse_entity_indices = _create_orbital_eclipse_entities(ctx.world, ctx.memory_manager, config)
         ctx.world.register_system(
             OrbitalEclipseSystem(
@@ -405,7 +442,7 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
 
     ctx.world.register_system(collision_system)
-    if config.polarity_enabled:
+    if polarity_enabled:
         ctx.world.register_system(
             ParryImpactSystem(
                 collision_system=collision_system,
@@ -419,10 +456,11 @@ def _compose_defender_mode(ctx: _ModeContext):
                 eclipse_entity_indices=eclipse_entity_indices,
             )
         )
-        # Overload do Nucleo: reaproveita o ShockwaveSystem do Pulso de
-        # Impacto (extinta Sobrevivencia) -- so faz sentido com
-        # Polaridade, ja que a Ressonancia (o "combustivel" do Overload)
-        # so existe entao.
+    # Overload do Nucleo ("overload"): reaproveita o ShockwaveSystem do
+    # Pulso de Impacto (extinta Sobrevivencia) -- MODIFIER PROPRIO agora
+    # (antes vinha de graca dentro do bloco de Polaridade); ainda exige
+    # "polarity" (a Ressonancia, seu "combustivel", so existe entao).
+    if overload_enabled:
         shockwave_entity_indices = _create_shockwave_pool(
             ctx.world, ctx.memory_manager, config.shockwave_pool_size
         )
@@ -456,6 +494,43 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
     )
     return (spawner_system,), collision_system
+
+
+def _reinterpret_scheduled_for_modifiers(scheduled: np.ndarray, config: HertzConfig, modifiers) -> np.ndarray:
+    """Gemeos de Polaridade ("twin_threats") e Escudos Rotativos
+    ("orbital_shields") nunca sao emitidos pelo mapeador OFFLINE da IA
+    (vocabulario so tem "basic"/"heavy") -- mesma reinterpretacao 100%
+    GAME-side ja usada por Notas Toxicas/Cura/Scratch: o `beatmap.json`
+    em disco nunca muda, so a INTERPRETACAO do `threat_type` de algumas
+    linhas ja agendadas. Reescreve uma fracao DETERMINISTICA (a cada
+    Nesima ocorrencia, nunca por sorteio) do array recebido -- devolve
+    SEMPRE uma copia nova, nunca muta `scheduled` (compartilhado com
+    `ctx.hit_times` por indice de linha) mesmo quando nenhum modifier
+    relevante esta ativo."""
+    orbital_shields_enabled = "orbital_shields" in modifiers and "polarity" in modifiers
+    twin_threats_enabled = "twin_threats" in modifiers and "polarity" in modifiers
+    if not orbital_shields_enabled and not twin_threats_enabled:
+        return scheduled
+
+    scheduled = scheduled.copy()
+    threat_type_ids = config.threat_type_ids
+    threat_type_col = scheduled["threat_type"]
+
+    if orbital_shields_enabled:
+        orbit_id = threat_type_ids.get("rhythm_threat_orbit")
+        heavy_id = threat_type_ids.get("rhythm_threat_heavy")
+        if orbit_id is not None and heavy_id is not None:
+            heavy_rows = np.flatnonzero(threat_type_col == heavy_id)
+            threat_type_col[heavy_rows[::3]] = orbit_id  # a cada 3a pesada vira Escudo
+
+    if twin_threats_enabled:
+        twin_id = threat_type_ids.get("rhythm_threat_twin")
+        basic_id = threat_type_ids.get("rhythm_threat_basic")
+        if twin_id is not None and basic_id is not None:
+            basic_rows = np.flatnonzero(threat_type_col == basic_id)
+            threat_type_col[basic_rows[::5]] = twin_id  # a cada 5a comum vira Gemeos
+
+    return scheduled
 
 
 def _create_shockwave_pool(world: World, memory_manager: MemoryManager, pool_size: int) -> np.ndarray:
@@ -559,6 +634,8 @@ def _compose_lanes_mode(ctx: _ModeContext):
     Sem CollisionSystem: o julgamento e temporal por coluna. Ordem:
     Spawner de notas -> LaneJudgment -> Physics."""
     config = ctx.config
+    modifiers = frozenset(config.active_modifiers)
+    holds_enabled = "holds" in modifiers
     base_spawn_y = -24.0
     judgment_line_y = config.window_height - config.judgment_line_offset
     lane_center_xs = lane_center_positions(config)
@@ -588,11 +665,12 @@ def _compose_lanes_mode(ctx: _ModeContext):
         config.scratch_min_cluster_size,
         config.scratch_hold_tail_seconds,
     )
-    # Notas Toxicas (Bombas) e Notas de Cura: opt-in por PRESENCA do tipo
-    # no beatmap/config (mesmo criterio de `rhythm_threat_heavy`), sem
-    # flag extra.
-    bomb_type_id = config.threat_type_ids.get("rhythm_threat_bomb")
-    heal_type_id = config.threat_type_ids.get("rhythm_threat_heal")
+    # Notas Toxicas (Bombas) e Notas de Cura: opt-in via "bombs"/"heal"
+    # em `active_modifiers` (antes era so presenca do tipo em
+    # `threat_type_ids`, que e GLOBAL e portanto sempre verdadeiro --
+    # agora o modifier e o que de fato liga/desliga por fase).
+    bomb_type_id = config.threat_type_ids.get("rhythm_threat_bomb") if "bombs" in modifiers else None
+    heal_type_id = config.threat_type_ids.get("rhythm_threat_heal") if "heal" in modifiers else None
 
     spawner_system = LaneNoteSpawnerSystem(
         audio_clock=ctx.audio_clock,
@@ -607,7 +685,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
         max_threats_per_frame=config.max_threats_per_frame,
         is_hold_by_row=is_hold_out,
         hold_end_by_row=hold_end_out,
-        hold_threat_type_id=heavy_type_id if config.holds_enabled else None,
+        hold_threat_type_id=heavy_type_id if holds_enabled else None,
         hold_duration_seconds=config.hold_duration_seconds,
         hold_visual_max_fraction=config.lane_hold_visual_max_fraction,
         bomb_threat_type_id=bomb_type_id,
@@ -647,7 +725,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
             audio_engine=ctx.audio_engine,
             ghost_tap_sound_id=SFX_TAP,
-            holds_enabled=config.holds_enabled,
+            holds_enabled=holds_enabled,
             practice_mode=config.practice_mode,
             hold_break_shake_px=config.hold_break_shake_px,
             lane_shield_depleted_shake_px=config.lane_shield_depleted_shake_px,
@@ -836,7 +914,7 @@ def compose_world(
 
     game_state = GameState(
         max_health=config.max_health,
-        shield_charges=config.lane_shield_max_charges if config.holds_enabled else 0,
+        shield_charges=config.lane_shield_max_charges if "holds" in config.active_modifiers else 0,
         resonance_chain_threshold=config.resonance_chain_threshold,
         # Colapso do Anel de Julgamento: valor BASE, igual ao raio fixo
         # de sempre (nucleo + meio-tamanho da ameaca comum) -- so o

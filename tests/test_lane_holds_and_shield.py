@@ -28,7 +28,7 @@ def _basic(timestamp: float, lane: int = 0) -> dict:
 def _compose_lane_holds(tmp_path, null_input, null_clock, threats, **overrides):
     beatmap_path = write_beatmap(tmp_path / "lh.beatmap.json", threats)
     config = dataclasses.replace(
-        make_config(beatmap_path), game_mode="lanes", holds_enabled=True, **overrides
+        make_config(beatmap_path), game_mode="lanes", active_modifiers=("holds",), **overrides
     )
     return compose_world(config, null_input, null_clock), config
 
