@@ -152,6 +152,30 @@ _LANES_HOLDS_CONTROL_HINT = (
 """Dica dedicada do Arcade 4K com Notas Longas: a tecla precisa
 continuar pressionada, nao e mais um toque instantaneo."""
 
+# -- 3o pacote hardcore do Defensor (Gemeos/Eclipses/Overload/Escudos):
+#    nenhum deles introduz um controle NOVO alem do que a Polaridade ja
+#    usa (clique esq/dir + Parry no tempo certo) -- cada dica so ACRESCE
+#    a frase de Polaridade com o que aquele modifier muda no campo de
+#    batalha, nunca a substitui por completo (perder a mencao a
+#    "CLIQUE ESQ=AZUL, DIR=ROSA" numa fase que ainda tem Polaridade
+#    ativa seria uma regressao de informacao, nao uma dica mais focada).
+_ORBITAL_SHIELDS_CONTROL_HINT = (
+    "CLIQUE ESQ/DIR  |  PARRY em ameaca CIANO vira Escudo Rotativo permanente"
+)
+_TWIN_THREATS_CONTROL_HINT = (
+    "MOUSE mira  |  CLIQUE ESQ/DIR  |  ameacas nascem em PARES opostos -- cubra os dois lados"
+)
+_ORBITAL_ECLIPSES_CONTROL_HINT = (
+    "CLIQUE ESQ/DIR  |  barreiras ROXAS orbitam o nucleo e bloqueiam seu Parry refletido"
+)
+_OVERLOAD_CONTROL_HINT = (
+    "CLIQUE ESQ/DIR enche a Ressonancia  |  ESPACO (Dash) com a barra cheia = Overload"
+)
+"""4 hints acima medidos com `pygame.font.Font(None, 28).size(...)` contra
+a largura padrao da janela (960px) -- todos abaixo de ~910px (mesma faixa
+dos hints ja existentes, 886-894px) para nunca estourar as bordas do
+`_blit_centered` (que so centraliza, nunca quebra linha nem escala)."""
+
 _HOLDS_HINT_BY_MODE = {
     "defender": _HOLDS_CONTROL_HINT,
     "lanes": _LANES_HOLDS_CONTROL_HINT,
@@ -167,11 +191,23 @@ _MODE_CONTROL_HINTS = {
     "polarity": _POLARITY_CONTROL_HINT,
     "holds": _HOLDS_CONTROL_HINT,
     "lanes_holds": _LANES_HOLDS_CONTROL_HINT,
+    "orbital_shields": _ORBITAL_SHIELDS_CONTROL_HINT,
+    "twin_threats": _TWIN_THREATS_CONTROL_HINT,
+    "orbital_eclipses": _ORBITAL_ECLIPSES_CONTROL_HINT,
+    "overload": _OVERLOAD_CONTROL_HINT,
+    # "nightmare" liga os 4 modifiers acima ao mesmo tempo -- o Overload
+    # e o unico que muda um CONTROLE de verdade (uso do Dash), entao a
+    # dica mais completa/util e a dele, nao uma lista das 4 mecanicas.
+    "nightmare": _OVERLOAD_CONTROL_HINT,
 }
 """Dica de controles exibida no menu para o MODO/variante da fase
-selecionada -- "polarity"/"holds"/"lanes_holds" reusam a MESMA dica das
-fases curadas equivalentes (mesmas mecanicas, agora tambem escolhiveis
-para musicas do jogador via A/D)."""
+selecionada -- "polarity"/"holds"/"lanes_holds"/etc reusam a MESMA dica
+das fases curadas equivalentes (mesmas mecanicas, agora tambem
+escolhiveis para musicas do jogador via A/D). Toda chave de
+`MODE_CYCLE` (`hertz_game_loop.py`) PRECISA aparecer aqui -- o loop de
+registro (`build_and_register_overlay_surfaces`) indexa este dict
+DIRETO (sem `.get`), entao uma variante nova sem entrada aqui e
+`KeyError` no carregamento do jogo, nao um bug silencioso em runtime."""
 
 _MODE_DISPLAY_NAMES = {
     "defender": "O DEFENSOR",
@@ -179,8 +215,20 @@ _MODE_DISPLAY_NAMES = {
     "polarity": "DEFENSOR: POLARIDADE",
     "holds": "DEFENSOR: NOTAS LONGAS",
     "lanes_holds": "ARCADE 4K: NOTAS LONGAS",
+    "orbital_shields": "DEFENSOR: ESCUDOS ROTATIVOS",
+    "twin_threats": "DEFENSOR: GEMEOS DE POLARIDADE",
+    "orbital_eclipses": "DEFENSOR: ECLIPSES ORBITAIS",
+    "overload": "DEFENSOR: OVERLOAD DO NUCLEO",
+    "nightmare": "DEFENSOR: PESADELO",
 }
-"""Nome exibido no seletor de minigame das musicas do jogador."""
+"""Nome exibido no seletor de minigame das musicas do jogador. Este dict
+(nao `MODE_CYCLE`) e quem dirige o loop de registro das texturas
+`modename_*`/`modectl_*` -- uma chave de `MODE_CYCLE` ausente aqui
+simplesmente nunca gera textura (linha em branco no menu ao chegar
+nessa variante), sem erro; por isso as duas listas (aqui e em
+`_MODE_CONTROL_HINTS`) precisam ser mantidas em sincronia manualmente
+com `MODE_CYCLE` -- ver `test_match_flow.py` para o teste de
+consistencia entre os tres."""
 
 
 def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> None:
@@ -222,7 +270,21 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         register_text(f"stage_{i}", stage_font, label, _LABEL_COLOR)
         register_text(f"stage_{i}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
         stage_mode = stage.overrides.get("game_mode", "defender")
-        if "polarity" in stage.active_modifiers:
+        # Prioridade do mais especifico/novo pro mais generico -- uma
+        # fase pode ter VARIOS modifiers ao mesmo tempo (ex.: "5 -
+        # Pesadelo" tem todos), mas so ha espaco pra UMA linha de dica;
+        # Overload vence porque e o UNICO que muda um controle de
+        # verdade (uso do Dash), os demais so mudam o que acontece no
+        # campo de batalha em cima do mesmo clique esq/dir de Polaridade.
+        if "overload" in stage.active_modifiers:
+            hint_text = _OVERLOAD_CONTROL_HINT
+        elif "orbital_shields" in stage.active_modifiers:
+            hint_text = _ORBITAL_SHIELDS_CONTROL_HINT
+        elif "twin_threats" in stage.active_modifiers:
+            hint_text = _TWIN_THREATS_CONTROL_HINT
+        elif "orbital_eclipses" in stage.active_modifiers:
+            hint_text = _ORBITAL_ECLIPSES_CONTROL_HINT
+        elif "polarity" in stage.active_modifiers:
             hint_text = _POLARITY_CONTROL_HINT
         elif "holds" in stage.active_modifiers:
             # cada modo interpreta Hold a sua maneira -- a dica segue o

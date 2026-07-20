@@ -333,6 +333,98 @@ def test_user_song_holds_variant_enables_only_holds(tmp_path, null_input):
     assert "polarity" not in loop._stage_config.active_modifiers
 
 
+def test_user_song_mode_cycle_visits_every_entry_in_order_and_wraps(tmp_path, null_input):
+    """A/D percorrem `MODE_CYCLE` inteiro, na ordem, sem pular nenhuma
+    entrada -- prova que o indice modulo `len(MODE_CYCLE)` continua
+    coerente mesmo com o ciclo estendido pelo 3o pacote hardcore do
+    Defensor (`orbital_shields`/`twin_threats`/`orbital_eclipses`/
+    `overload`/`nightmare`, acrescentados no FIM da tupla)."""
+    from hertzbeats.bootstrap.hertz_game_loop import MODE_CYCLE
+
+    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [_basic(3.0)])
+    song = StageDef(
+        stage_id="user_song", name="SONG", subtitle="sua musica",
+        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
+        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
+        tutorial_steps=(), selectable_mode=True,
+    )
+    audio_engine = NullAudioEngine()
+    loop = HertzGameLoop(
+        base_config=make_config(beatmap_path), stages=(song,), renderer=NullRenderer(),
+        input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
+    )
+
+    assert loop.chosen_mode(0) == MODE_CYCLE[0]
+    for expected in MODE_CYCLE[1:]:
+        _press(loop, null_input, "menu_right")
+        assert loop.chosen_mode(0) == expected
+    _press(loop, null_input, "menu_right")  # um passo alem do fim -- enrola de volta
+    assert loop.chosen_mode(0) == MODE_CYCLE[0]
+    _press(loop, null_input, "menu_left")  # e o inverso tambem enrola
+    assert loop.chosen_mode(0) == MODE_CYCLE[-1]
+
+
+@pytest.mark.parametrize(
+    "mode_name,expected_modifiers",
+    [
+        ("orbital_shields", {"telegraph_rings", "polarity", "orbital_shields"}),
+        ("twin_threats", {"telegraph_rings", "polarity", "twin_threats"}),
+        ("orbital_eclipses", {"telegraph_rings", "polarity", "orbital_eclipses"}),
+        ("overload", {"telegraph_rings", "polarity", "overload"}),
+        (
+            "nightmare",
+            {"telegraph_rings", "polarity", "orbital_shields", "twin_threats", "orbital_eclipses", "overload"},
+        ),
+    ],
+)
+def test_user_song_can_reach_each_new_hardcore_variant(tmp_path, null_input, mode_name, expected_modifiers):
+    """As 5 variantes novas do 3o pacote hardcore do Defensor sao
+    escolhiveis pra qualquer musica do jogador, cada uma compondo com
+    exatamente os modifiers esperados (sempre com "polarity" junto --
+    todas dependem dela)."""
+    from hertzbeats.bootstrap.hertz_game_loop import MODE_CYCLE
+
+    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    song = StageDef(
+        stage_id="user_song", name="SONG", subtitle="sua musica",
+        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
+        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
+        tutorial_steps=(), selectable_mode=True,
+    )
+    audio_engine = NullAudioEngine()
+    loop = HertzGameLoop(
+        base_config=make_config(beatmap_path), stages=(song,), renderer=NullRenderer(),
+        input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
+    )
+
+    for _ in range(MODE_CYCLE.index(mode_name)):
+        _press(loop, null_input, "menu_right")
+    assert loop.chosen_mode(0) == mode_name
+
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.game_mode == "defender"
+    assert set(loop._stage_config.active_modifiers) == expected_modifiers
+
+
+def test_every_mode_cycle_entry_has_an_override_display_name_and_hint():
+    """Toda entrada de `MODE_CYCLE` PRECISA de uma chave correspondente
+    em `MODE_VARIANT_OVERRIDES` (senao `KeyError` em `_compose_stage` ao
+    confirmar) e em `_MODE_DISPLAY_NAMES`/`_MODE_CONTROL_HINTS` (senao
+    nome/dica em branco, ou `KeyError` no carregamento do jogo) --
+    consistencia entre `hertz_game_loop.py` e `texture_bank.py` que
+    nenhum teste de composicao pega sozinho (usam `NullRenderer`, que
+    nunca toca essas texturas)."""
+    from hertzbeats.adapters.texture_bank import _MODE_CONTROL_HINTS, _MODE_DISPLAY_NAMES
+    from hertzbeats.bootstrap.hertz_game_loop import MODE_CYCLE, MODE_VARIANT_OVERRIDES
+
+    for mode_name in MODE_CYCLE:
+        assert mode_name in MODE_VARIANT_OVERRIDES, f"{mode_name!r} sem override em MODE_VARIANT_OVERRIDES"
+        assert mode_name in _MODE_DISPLAY_NAMES, f"{mode_name!r} sem nome em _MODE_DISPLAY_NAMES"
+        assert mode_name in _MODE_CONTROL_HINTS, f"{mode_name!r} sem dica em _MODE_CONTROL_HINTS"
+
+
 def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_input):
     """Fases curadas (`selectable_mode=False`) ignoram `MODE_VARIANT_OVERRIDES`
     por completo -- so usam os `overrides` do proprio `stages.json`."""

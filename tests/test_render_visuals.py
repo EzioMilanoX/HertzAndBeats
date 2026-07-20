@@ -72,3 +72,58 @@ def test_digit_texture_has_glyph_holes(renderer):
 def test_hidden_sprite_paints_nothing(renderer):
     painted_ratio = _draw_texture(renderer, TEX_WORD_MISS, alpha=0)
     assert painted_ratio == 0.0
+
+
+def test_mode_hint_and_display_name_texts_fit_within_the_default_window_width():
+    """Achado real ao adicionar os hints do 3o pacote hardcore do
+    Defensor (Escudos Rotativos/Gemeos/Eclipses/Overload) ao seletor de
+    minigame: um texto comprido demais estoura as bordas da janela,
+    porque `HBPygameRenderer._blit_centered` so centraliza uma Surface
+    JA PRONTA -- nunca quebra linha nem escala pra caber. Mede a largura
+    RENDERIZADA (mesma fonte/tamanho usados de verdade em
+    `build_and_register_overlay_surfaces`) de todo hint/nome de
+    `texture_bank.py` contra a largura padrao da janela real."""
+    from hertzbeats.adapters.texture_bank import _MODE_CONTROL_HINTS, _MODE_DISPLAY_NAMES
+    from hertzbeats.config import HertzConfig
+
+    config = HertzConfig.from_json("data/config/hertz_beats.config.json")
+    if not pygame.font.get_init():
+        pygame.font.init()
+    hint_font = pygame.font.Font(None, 28)
+    name_font = pygame.font.Font(None, 44)
+
+    for mode, hint_text in _MODE_CONTROL_HINTS.items():
+        width, _ = hint_font.size(hint_text)
+        assert width < config.window_width, (
+            f"hint de {mode!r} estoura a janela: {width}px >= {config.window_width}px"
+        )
+
+    for mode, display_name in _MODE_DISPLAY_NAMES.items():
+        width, _ = name_font.size(f"<  MODO: {display_name}  >")
+        assert width < config.window_width, (
+            f"nome de {mode!r} estoura a janela: {width}px >= {config.window_width}px"
+        )
+
+
+def test_curated_stage_labels_fit_within_the_default_window_width():
+    """Mesmo achado do teste anterior, mas para os rotulos de fase
+    (`stage.name` + `stage.subtitle`) do `stages.json` REAL -- achado ao
+    redesenhar a campanha do Defensor (3 rotulos estouravam a janela: 2
+    novos de subtitulos compridos demais e 1 pre-existente, "8 - Arcade:
+    Notas Longas"). O rotulo SELECIONADO (com os marcadores "> ... <")
+    e sempre mais largo que o normal, entao e o que precisa caber."""
+    from hertzbeats.config import HertzConfig
+    from hertzbeats.stages import load_stages
+
+    config = HertzConfig.from_json("data/config/hertz_beats.config.json")
+    stages = load_stages(config.stages_path)
+    if not pygame.font.get_init():
+        pygame.font.init()
+    stage_font = pygame.font.Font(None, 40)
+
+    for stage in stages:
+        label = f"{stage.name}   {stage.subtitle}" if stage.subtitle else stage.name
+        width, _ = stage_font.size(f"> {label} <")
+        assert width < config.window_width, (
+            f"rotulo de {stage.stage_id!r} estoura a janela: {width}px >= {config.window_width}px"
+        )

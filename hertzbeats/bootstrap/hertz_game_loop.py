@@ -51,11 +51,31 @@ MODE_CYCLE = (
     "polarity",
     "holds",
     "lanes_holds",
+    "orbital_shields",
+    "twin_threats",
+    "orbital_eclipses",
+    "overload",
+    "nightmare",
 )
 """Ordem em que A/D alternam o modo nas musicas do jogador. As variantes
 finais continuam sendo os modos base por baixo -- so acrescentam
 mecanicas modulares via `active_modifiers` (ver `MODE_VARIANT_OVERRIDES`)
--- mesmas mecanicas das fases curadas."""
+-- mesmas mecanicas das fases curadas. Entradas SEMPRE ACRESCENTADAS NO
+FIM (nunca inseridas no meio): `tests/test_match_flow.py` navega ate
+cada variante contando um numero FIXO de `menu_right`, entao inserir no
+meio desloca a posicao de toda variante seguinte. Toda entrada nova
+aqui PRECISA de uma chave correspondente em `MODE_VARIANT_OVERRIDES`
+(`KeyError` em `_compose_stage` na hora de confirmar, se faltar) e em
+`texture_bank._MODE_DISPLAY_NAMES`/`_MODE_CONTROL_HINTS` (nome/dica em
+branco ou `KeyError` no carregamento, ver docstring de
+`build_and_register_overlay_surfaces`).
+
+"radius_collapse", "bombs" e "heal" NAO entraram no ciclo: seu efeito
+depende de dado especifico da fase que uma musica de jogador nunca tem
+("radius_collapse" precisa de eventos `modchart_events` curados;
+bombas/cura de ameacas desses tipos no beatmap, que o mapeador offline
+da IA nunca emite) -- ligar so o modifier aqui seria um item de menu
+que nao faz NADA visivel, pior que nao oferecer a opcao."""
 
 MODE_VARIANT_OVERRIDES = {
     "defender": {"game_mode": "defender"},
@@ -63,6 +83,29 @@ MODE_VARIANT_OVERRIDES = {
     "polarity": {"game_mode": "defender", "active_modifiers": ("telegraph_rings", "polarity")},
     "holds": {"game_mode": "defender", "active_modifiers": ("telegraph_rings", "holds")},
     "lanes_holds": {"game_mode": "lanes", "active_modifiers": ("holds",)},
+    "orbital_shields": {
+        "game_mode": "defender",
+        "active_modifiers": ("telegraph_rings", "polarity", "orbital_shields"),
+    },
+    "twin_threats": {
+        "game_mode": "defender",
+        "active_modifiers": ("telegraph_rings", "polarity", "twin_threats"),
+    },
+    "orbital_eclipses": {
+        "game_mode": "defender",
+        "active_modifiers": ("telegraph_rings", "polarity", "orbital_eclipses"),
+    },
+    "overload": {
+        "game_mode": "defender",
+        "active_modifiers": ("telegraph_rings", "polarity", "overload"),
+    },
+    "nightmare": {
+        "game_mode": "defender",
+        "active_modifiers": (
+            "telegraph_rings", "polarity", "orbital_shields", "twin_threats",
+            "orbital_eclipses", "overload",
+        ),
+    },
 }
 """Campos de `HertzConfig` sobrescritos por variante escolhida no menu
 das musicas do jogador -- resolvido UMA vez por `_compose_stage`, o
@@ -73,7 +116,13 @@ musicas do jogador comeca vazia -- `music_library.py` cria
 `StageDef(overrides={})` sem `active_modifiers` nenhum) -- nenhuma leva
 residual entre trocas de variante (`stage_config` e reconstruida do
 zero a cada `_compose_stage`). "lanes_holds": Hold classico + Shield no
-Arcade 4K, agora disponivel para QUALQUER musica sua."""
+Arcade 4K, agora disponivel para QUALQUER musica sua. As 4 variantes
+"orbital_shields"/"twin_threats"/"orbital_eclipses"/"overload" expoem,
+uma de cada vez, os modifiers do 3o pacote hardcore do Defensor
+(sempre com "polarity" junto -- todos dependem dela); "nightmare" liga
+os 4 ao mesmo tempo, o mesmo pacote da fase curada "5 - Pesadelo" (sem
+"radius_collapse", que so faz algo com `modchart_events` curados que
+uma musica do jogador nunca tem)."""
 
 
 class HertzGameLoop(GameLoop):
