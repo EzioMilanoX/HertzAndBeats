@@ -69,7 +69,12 @@ def test_twin_event_spawns_two_entities_in_diametrically_opposite_lanes(tmp_path
     assert lanes == [0, _LANE_COUNT // 2]
 
 
-def test_twin_pair_shares_the_same_target_hit_time_and_opposite_angles(tmp_path, null_input, null_clock):
+def test_twin_pair_shares_the_same_target_hit_time_and_is_30_degrees_adjacent(tmp_path, null_input, null_clock):
+    """Tolerancia Organica -- Arco de Varredura: a gemea NAO nasce mais
+    diametralmente oposta (180 graus, um "swipe" entre dois pontos
+    opostos do mouse SIMULTANEAMENTE -- limite fisico/biologico humano
+    real). Nasce ADJACENTE, a PI/6 rad (30 graus) da original -- um
+    swipe rapido mas continuo."""
     composed, config = _compose_polarity(tmp_path, null_input, null_clock, [_twin(3.0, lane=1)])
     threat_pool = composed.memory_manager.get_pool("rhythm_threat")
 
@@ -81,10 +86,12 @@ def test_twin_pair_shares_the_same_target_hit_time_and_opposite_angles(tmp_path,
     assert hit_times[0] == hit_times[1] == 3.0
 
     angles = sorted(float(view["spawn_angle_rad"][row]) for row in range(2))
-    expected_a = _TAU * 1 / _LANE_COUNT
-    expected_b = expected_a + math.pi
-    assert abs(angles[0] - expected_a) < 1e-5
-    assert abs(angles[1] - expected_b) < 1e-5
+    expected_original = _TAU * 1 / _LANE_COUNT
+    expected_twin = (expected_original + math.pi / 6.0) % _TAU
+    assert abs(angles[0] - expected_original) < 1e-5
+    assert abs(angles[1] - expected_twin) < 1e-5
+    # nunca mais diametralmente opostas
+    assert abs((angles[1] - angles[0]) - math.pi) > 0.1
 
 
 def test_twin_pair_has_opposite_polarities(tmp_path, null_input, null_clock):

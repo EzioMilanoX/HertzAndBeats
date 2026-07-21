@@ -9,11 +9,11 @@ from hertzbeats.bootstrap.rhythm_composition_root import (
 )
 from hertzbeats.stages import StageDef, resolve_stage_config
 from hertzbeats.systems.convergence_ring_system import ConvergenceRingSystem
-from hertzbeats.systems.judgment_radius_system import JudgmentRadiusSystem
 from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
 from hertzbeats.systems.orbital_eclipse_system import OrbitalEclipseSystem
 from hertzbeats.systems.parry_impact_system import ParryImpactSystem
 from hertzbeats.systems.shockwave_system import ShockwaveSystem
+from hertzbeats.systems.vision_tunnel_system import VisionTunnelSystem
 
 from tests.conftest import make_config, write_beatmap
 
@@ -124,9 +124,16 @@ def test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count(tmp_pa
     assert _has_system(composed_both, OrbitalEclipseSystem)
 
 
-def test_radius_collapse_off_never_registers_judgment_radius_system(tmp_path, null_input, null_clock):
+def test_vision_tunnel_off_never_registers_vision_tunnel_system(tmp_path, null_input, null_clock):
     composed, _ = _compose(tmp_path, null_input, null_clock, [], active_modifiers=())
-    assert not _has_system(composed, JudgmentRadiusSystem)
+    assert not _has_system(composed, VisionTunnelSystem)
+
+
+def test_vision_tunnel_on_registers_vision_tunnel_system(tmp_path, null_input, null_clock):
+    composed, _ = _compose(
+        tmp_path, null_input, null_clock, [], active_modifiers=("vision_tunnel",)
+    )
+    assert _has_system(composed, VisionTunnelSystem)
 
 
 def test_active_modifiers_never_leaks_between_stages(tmp_path):

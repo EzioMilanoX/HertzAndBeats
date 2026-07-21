@@ -37,6 +37,10 @@ class CoreDamageSystem(ISystem):
           temporal, a colisao roubaria da janela GOOD do jogador.
         - I-frames de Dash ativos -> DODGED: destroi a ameaca sem dano
           e sem quebrar o combo ("atravessou o anel no ritmo certo").
+          Auditoria de Game Design (Tolerancia Organica): tambem ganha
+          feedback de verdade agora (palavra "DODGE" + som reaproveitado
+          do Deflect) -- antes disso, um Dash bem-sucedido nao dava
+          NENHUM sinal, indistinguivel de um glitch.
         - Caso contrario -> dano no nucleo, combo zerado e feedback de
           MISS.
 
@@ -57,6 +61,8 @@ class CoreDamageSystem(ISystem):
         judgment_display_seconds: float,
         practice_mode: bool = False,
         damage_shake_px: float = 0.0,
+        audio_engine=None,
+        dodge_sound_id: str = None,
     ) -> None:
         """Guarda a referencia ao `CollisionSystem` ja registrado (fonte
         dos pares do frame) e resolve as pools uma unica vez.
@@ -77,6 +83,15 @@ class CoreDamageSystem(ISystem):
         self._judgment_display_seconds = float(judgment_display_seconds)
         self._practice_mode = bool(practice_mode)
         self._damage_shake_px = float(damage_shake_px)
+        self._audio_engine = audio_engine
+        self._dodge_sound_id = dodge_sound_id
+
+    def _play(self, sound_id, volume: float) -> None:
+        """Dispara um SFX se houver backend e som configurados (testes
+        headless injetam NullAudioEngine ou nada) -- mesmo helper
+        duplicado em `JudgmentSystem`."""
+        if self._audio_engine is not None and sound_id is not None:
+            self._audio_engine.play_one_shot(sound_id, volume)
 
     def update(self, world: World, delta_time: float) -> None:
         """Processa os pares de colisao do frame corrente (ver regras na
@@ -125,6 +140,12 @@ class CoreDamageSystem(ISystem):
             if iframes_active:
                 threat_view["judgment"][threat_row] = JUDGMENT_DODGED
                 state.dodge_count += 1
+                # Auditoria de Game Design: sem isto, `last_judgment`
+                # nunca vira DODGED -- a palavra "DODGE" registrada em
+                # `texture_bank.py` jamais apareceria, e um Dash
+                # bem-sucedido ficava indistinguivel de um glitch.
+                state.register_judgment_feedback(JUDGMENT_DODGED, self._judgment_display_seconds)
+                self._play(self._dodge_sound_id, 0.5)
             else:
                 threat_view["judgment"][threat_row] = JUDGMENT_MISS
                 state.miss_count += 1

@@ -115,16 +115,16 @@ def compute_scroll_flip_fraction(
     return fraction
 
 
-def parse_radius_collapse_events(raw_events: Sequence[Dict]) -> Tuple[Tuple[float, float, float], ...]:
+def parse_vision_tunnel_events(raw_events: Sequence[Dict]) -> Tuple[Tuple[float, float, float], ...]:
     """Normaliza a lista crua de `stages.json`
-    (`{"type": "radius_collapse", "time_seconds", "duration_seconds",
+    (`{"type": "vision_tunnel", "time_seconds", "duration_seconds",
     "target_radius"}`) em tuplas `(time_seconds, duration_seconds,
     target_radius)` ORDENADAS por tempo. Eventos de outro tipo (swap,
     reverse_scroll, distraction) sao ignorados aqui -- cada feature
     filtra so o que lhe interessa da MESMA lista de `modchart_events`."""
     events = []
     for raw in raw_events:
-        if raw.get("type") != "radius_collapse":
+        if raw.get("type") != "vision_tunnel":
             continue
         events.append(
             (
@@ -137,12 +137,13 @@ def parse_radius_collapse_events(raw_events: Sequence[Dict]) -> Tuple[Tuple[floa
     return tuple(events)
 
 
-def compute_collapsed_radius(
+def compute_tunnel_radius(
     now_effective: float,
     base_radius: float,
     collapse_events: Tuple[Tuple[float, float, float], ...],
 ) -> float:
-    """Raio ATUAL (px) do Anel de Julgamento do Defensor. MESMO idioma
+    """Raio ATUAL (px) do campo de luz do Colapso de Visao (Defensor,
+    puramente cosmetico -- ver `GameState.tunnel_radius`). MESMO idioma
     de encadeamento de `compute_scroll_flip_fraction`: cada evento faz
     um Lerp a partir de onde o raio ACUMULADO dos eventos anteriores
     parou ate `target_radius` (nao entre dois valores fixos), ao longo

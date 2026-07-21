@@ -1,5 +1,5 @@
 """CoreDamageSystem: punicao via CollisionSystem quando a ameaca passa do ponto; Dash com i-frames."""
-from hertzbeats.components.schemas import JUDGMENT_MISS
+from hertzbeats.components.schemas import JUDGMENT_DODGED, JUDGMENT_MISS
 
 
 def _basic(timestamp: float, lane: int = 0) -> dict:
@@ -85,3 +85,6 @@ def test_dash_iframes_dodge_without_damage_or_combo_break(compose, null_clock, n
     assert state.miss_count == 0
     assert state.combo_count == 5
     assert composed.memory_manager.get_pool("rhythm_threat").count == 0
+    # Auditoria de Game Design (Tolerancia Organica): antes, um dodge nao
+    # dava NENHUM feedback -- `last_judgment` nunca virava DODGED.
+    assert state.last_judgment == JUDGMENT_DODGED

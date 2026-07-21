@@ -44,13 +44,13 @@ class StageDef:
             proprio tipo por tempo). Dado 100% GAME-side (nao existe no
             `beatmap.json` da engine). Arcade 4K (`game_mode == "lanes"`):
             "swap"/"reverse_scroll"/"distraction". Defensor
-            (`game_mode == "defender"`): "radius_collapse" (Colapso do
-            Anel de Julgamento, `JudgmentRadiusSystem`), lido so quando
-            "radius_collapse" esta em `active_modifiers`.
+            (`game_mode == "defender"`): "vision_tunnel" (Colapso de
+            Visao, puramente cosmetico, `VisionTunnelSystem`), lido so
+            quando "vision_tunnel" esta em `active_modifiers`.
         active_modifiers: lista de Mecanicas Modulares ligadas nesta fase
             (`{"polarity", "telegraph_rings", "orbital_shields",
             "twin_threats", "orbital_eclipses", "overload",
-            "radius_collapse", "holds", "bombs", "heal", ...}` --
+            "vision_tunnel", "holds", "bombs", "heal", ...}` --
             catalogo completo em `HertzConfig.active_modifiers`).
             SUBSTITUI a lista inteira da fase base a cada
             `resolve_stage_config` (nunca mesclada com nenhum default) --

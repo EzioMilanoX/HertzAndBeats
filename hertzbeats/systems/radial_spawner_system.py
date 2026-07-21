@@ -101,22 +101,34 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         `JudgmentSystem`); as demais nascem com `duration_sec = 0.0`
         (default de pool zerada, nota comum).
 
-        COLAPSO DO ANEL DE JULGAMENTO: `game_state` substitui o antigo
-        `core_half_extent` fixo -- a distancia de viagem de CADA ameaca
-        nova e calculada contra `game_state.current_judgment_radius`
-        (mutavel, ver `JudgmentRadiusSystem`), nunca uma constante
-        capturada no construtor. So ameacas NOVAS sentem uma mudanca de
-        raio (a velocidade e calculada uma unica vez no spawn); ameacas
-        ja em voo mantem sua velocidade original.
+        RAIO DE JULGAMENTO: a distancia de viagem de CADA ameaca nova e
+        calculada contra `game_state.current_judgment_radius`, lido do
+        `GameState` (nao uma constante capturada no construtor) por
+        conveniencia -- mas o valor em si e FIXO desde a composicao,
+        nunca mutado por nenhum sistema depois (Tolerancia Organica: ja
+        existiu um "Colapso do Anel de Julgamento" que mutava este raio
+        em tempo real e foi revertido, porque mudar a distancia de
+        viagem no meio da fase quebrava a velocidade ja calculada de
+        ameacas em voo -- ver `GameState.current_judgment_radius` e
+        `VisionTunnelSystem` para o substituto cosmetico).
 
         GEMEOS DE POLARIDADE (opt-in via `twin_threat_type_id`): um
         evento do beatmap com esse `threat_type` materializa DUAS
-        entidades no MESMO frame, mesmo `target_hit_time_sec`, em lanes
-        DIAMETRALMENTE OPOSTAS (`lane` e `lane + lane_count/2`) -- como
-        a polaridade e derivada da METADE do bucket de timbre de `lane`
-        (ver `_materialize_threat`), a lane espelhada cai SEMPRE no
-        bucket oposto, entao as duas nascem automaticamente em cores
-        opostas sem nenhuma logica extra de cor.
+        entidades no MESMO frame, mesmo `target_hit_time_sec` -- uma na
+        `lane` original, outra numa lane ESPELHADA (`lane + lane_count/2`)
+        so para fins de POLARIDADE (a cor e derivada da METADE do bucket
+        de timbre de `lane` -- ver `_materialize_threat` -- entao a lane
+        espelhada cai SEMPRE no bucket oposto, garantindo cores opostas
+        sem logica extra de cor).
+
+        TOLERANCIA ORGANICA -- ARCO DE VARREDURA: apesar da lane espelhada
+        (para a cor), a POSICAO/ANGULO de nascimento da gemea NAO fica
+        mais diametralmente oposta (180 graus) -- isso exigia um "swipe"
+        entre dois pontos opostos do mouse SIMULTANEAMENTE, um limite
+        fisico/biologico humano real. A gemea nasce ADJACENTE, a
+        `PI/6` rad (30 graus) do angulo da original (`angle_override` em
+        `_materialize_threat`) -- o jogador faz um swipe RAPIDO mas
+        continuo entre as duas, nunca um alongamento impossivel de mao.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -162,8 +174,13 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         GEMEOS DE POLARIDADE: se o `threat_type` desta linha e
         `twin_threat_type_id`, uma SEGUNDA entidade e criada aqui mesmo
         (fora do cursor monotonico da base class -- este evento do
-        beatmap continua contando como UM disparo so) numa lane
-        DIAMETRALMENTE OPOSTA, com o MESMO `target_hit_time_sec`.
+        beatmap continua contando como UM disparo so) com o MESMO
+        `target_hit_time_sec`. A `lane` da gemea e espelhada (garante a
+        cor oposta), mas seu ANGULO de nascimento (posicao/velocidade)
+        e sobrescrito para ficar so `PI/6` (30 graus) adiante da
+        original (Tolerancia Organica -- Arco de Varredura: ver
+        `angle_override` em `_materialize_threat`), nunca diametralmente
+        oposto.
         """
         packed = super()._create_threat_entity(world, row_index)
         entity_index = unpack_index(packed)
@@ -179,6 +196,9 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
 
         if self._twin_threat_type_id is not None and threat_type == self._twin_threat_type_id:
             mirror_lane = (lane + self._lane_count // 2) % self._lane_count
+            original_angle = _TAU * (lane % self._lane_count) / self._lane_count
+            twin_angle = (original_angle + (math.pi / 6.0)) % _TAU
+
             twin_packed = world.create_entity(self._threat_archetype_name)
             twin_index = unpack_index(twin_packed)
             twin_row = self._threat_pool.dense_row_of(twin_index)
@@ -186,7 +206,8 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
             twin_view["lane"][twin_row] = mirror_lane
             twin_view["threat_type"][twin_row] = threat_type
             self._materialize_threat(
-                world, twin_index, twin_packed, twin_row, mirror_lane, threat_type, hit_time, strength
+                world, twin_index, twin_packed, twin_row, mirror_lane, threat_type, hit_time, strength,
+                angle_override=twin_angle,
             )
 
         return packed
@@ -201,14 +222,22 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         threat_type: int,
         hit_time: float,
         strength: float,
+        angle_override: float = None,
     ) -> None:
         """Materializa UMA ameaca radial ja criada (posicao na borda,
         velocidade em direcao ao nucleo, hitbox/sprite por tipo, e os
         campos ritmicos consumidos por `JudgmentSystem`/`CoreDamageSystem`)
         -- extraido de `_create_threat_entity` para ser chamado DUAS
         vezes no mesmo frame pelos Gemeos de Polaridade, uma por
-        entidade, cada uma com sua PROPRIA `lane` (e portanto seu
-        proprio angulo/polaridade)."""
+        entidade, cada uma com sua PROPRIA `lane` (e portanto sua
+        propria polaridade).
+
+        `angle_override` (Gemeos de Polaridade -- Arco de Varredura):
+        quando fornecido, desacopla o ANGULO de nascimento/velocidade da
+        `lane` (que continua decidindo so a POLARIDADE) -- e assim que a
+        gemea nasce a `PI/6` rad da original em vez de na lane espelhada
+        inteira (que cairia a 180 graus, um "swipe" biologicamente
+        impossivel entre dois pontos opostos do mouse ao mesmo tempo)."""
         time_remaining = hit_time - self._compute_effective_time()
         if time_remaining < self._min_travel_seconds:
             time_remaining = self._min_travel_seconds
@@ -221,7 +250,10 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         travel_distance = self._spawn_radius - self._game_state.current_judgment_radius
         speed = travel_distance / time_remaining
 
-        angle = _TAU * (lane % self._lane_count) / self._lane_count
+        angle = (
+            angle_override if angle_override is not None
+            else _TAU * (lane % self._lane_count) / self._lane_count
+        )
         direction_x = math.cos(angle)
         direction_y = math.sin(angle)
         spawn_x = self._center_x + direction_x * self._spawn_radius
@@ -247,6 +279,11 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
             if (self._hold_threat_type_id is not None and threat_type == self._hold_threat_type_id)
             else 0.0
         )
+        # Hold Forgiveness (Coyote Time): sempre explicito, mesmo ja
+        # zerado por padrao na pool -- uma linha densa REUSADA por um
+        # swap-remove anterior nao pode carregar um timer de graca de
+        # um Hold antigo para este novo ocupante.
+        threat_view["hold_grace_timer_sec"][threat_row] = 0.0
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
         threat_view["spawn_angle_rad"][threat_row] = angle

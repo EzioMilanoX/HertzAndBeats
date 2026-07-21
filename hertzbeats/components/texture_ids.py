@@ -58,12 +58,18 @@ TEX_WORD_MISS: int = 112
 TEX_LABEL_SCORE: int = 113
 TEX_LABEL_COMBO: int = 114
 TEX_HEALTH_PIP: int = 115
+TEX_WORD_DODGE: int = 116
+"""Auditoria de Game Design (Tolerancia Organica): antes desta palavra
+existir, um Dash que atravessava uma ameaca durante os i-frames
+(`JUDGMENT_DODGED`) nao dava NENHUM feedback -- indistinguivel de um
+glitch. Reusa o mesmo padrao das outras palavras de julgamento."""
 
-JUDGMENT_WORD_TEXTURES: tuple = (0, TEX_WORD_PERFECT, TEX_WORD_GOOD, TEX_WORD_MISS, 0, 0)
+JUDGMENT_WORD_TEXTURES: tuple = (0, TEX_WORD_PERFECT, TEX_WORD_GOOD, TEX_WORD_MISS, TEX_WORD_DODGE, 0)
 """Mapeia `JUDGMENT_*` (indice) -> textura da palavra correspondente.
-Indices PENDING/DODGED/SURVIVED nao tem palavra (0 = sem textura). Tupla
-criada uma unica vez no carregamento do modulo, indexada por inteiro no
-loop."""
+Indice PENDING nao tem palavra (0 = sem textura); SURVIVED (Arcade 4K --
+Bombas) tambem fica em 0 DE PROPOSITO -- e o "jogo correto" silencioso
+por design (ver `JUDGMENT_SURVIVED`), nao um esquecimento. Tupla criada
+uma unica vez no carregamento do modulo, indexada por inteiro no loop."""
 
 TEX_DISTRACTION_SPLAT: int = 16
 """Obstrucao visual (jumpscare) do Arcade 4K: mancha de tinta

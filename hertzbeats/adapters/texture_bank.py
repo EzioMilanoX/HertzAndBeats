@@ -23,6 +23,7 @@ from hertzbeats.components.texture_ids import (
     TEX_LABEL_SCORE,
     TEX_LANE_RECEPTOR,
     TEX_TUTORIAL_BASE,
+    TEX_WORD_DODGE,
     TEX_WORD_GOOD,
     TEX_WORD_MISS,
     TEX_WORD_PERFECT,
@@ -42,6 +43,9 @@ _LABEL_COLOR = (130, 125, 170)
 _PERFECT_COLOR = (255, 214, 64)
 _GOOD_COLOR = (64, 255, 214)
 _MISS_COLOR = (255, 80, 96)
+_DODGE_COLOR = (70, 225, 225)
+"""Mesmo ciano da Captura Orbital (tint de escudo) -- "defesa habilidosa",
+distinto tanto do dourado de PERFECT quanto do vermelho de MISS."""
 
 
 def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
@@ -62,6 +66,7 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
     renderer.register_texture(TEX_WORD_PERFECT, word_font.render("PERFECT", True, _PERFECT_COLOR).convert_alpha())
     renderer.register_texture(TEX_WORD_GOOD, word_font.render("GOOD", True, _GOOD_COLOR).convert_alpha())
     renderer.register_texture(TEX_WORD_MISS, word_font.render("MISS", True, _MISS_COLOR).convert_alpha())
+    renderer.register_texture(TEX_WORD_DODGE, word_font.render("DODGE", True, _DODGE_COLOR).convert_alpha())
     renderer.register_texture(TEX_LABEL_SCORE, label_font.render("SCORE", True, _LABEL_COLOR).convert_alpha())
     renderer.register_texture(TEX_LABEL_COMBO, label_font.render("COMBO", True, _LABEL_COLOR).convert_alpha())
 

@@ -1,4 +1,4 @@
-"""Defensor -- Eclipses Orbitais: barreiras dinamicas que giram ao redor do nucleo e bloqueiam o projetil refletido do Parry."""
+"""Defensor -- Eclipses Orbitais: barreiras dinamicas que giram ao redor do nucleo, PERMEAVEIS ao projetil refletido do Parry (Tolerancia Organica)."""
 import dataclasses
 import math
 
@@ -118,7 +118,14 @@ def test_orbital_eclipse_position_always_matches_its_own_integrated_rotation(tmp
         assert abs(float(view["position_y"][row]) - expected_y) < 1e-3
 
 
-def test_orbital_eclipse_blocks_the_reflected_parry_projectile(tmp_path, null_input, null_clock):
+def test_orbital_eclipse_no_longer_blocks_the_reflected_parry_projectile(tmp_path, null_input, null_clock):
+    """Tolerancia Organica -- Eclipses Permeaveis: um Parry so pode
+    nascer DENTRO da janela PERFECT (ver a janela restrita a `is_special`
+    em `JudgmentSystem._try_player_hit`) -- deixar um Eclipse (que gira
+    por conta propria, fora do controle do jogador) anular esse tiro
+    flawless seria um softlock de habilidade contra sorte de
+    posicionamento. O projetil refletido agora atravessa Eclipses
+    livremente, mesmo colidindo exatamente com um deles."""
     composed, config = _compose_with_eclipses(
         tmp_path, null_input, null_clock, [_heavy(3.0, lane=2)], eclipse_count=2
     )
@@ -149,7 +156,9 @@ def test_orbital_eclipse_blocks_the_reflected_parry_projectile(tmp_path, null_in
     null_input.poll()
     composed.world.step(0.0)
 
-    assert threat_pool.count == 0  # o refletido foi bloqueado/destruido
-    assert composed.game_state.score == score_before  # bloqueio nao pontua
-    assert composed.game_state.miss_count == 0  # nem pune como erro do jogador
+    assert threat_pool.count == 1  # o refletido SOBREVIVE, atravessa o Eclipse
+    reflected_row = threat_pool.dense_row_of(reflected_index)
+    assert bool(threat_pool.active_view()["is_reflected"][reflected_row])
+    assert composed.game_state.score == score_before  # atravessar nao pontua sozinho
+    assert composed.game_state.miss_count == 0
     assert len(_find_eclipse_entity_indices(composed)) == 2  # os Eclipses sobrevivem, permanentes

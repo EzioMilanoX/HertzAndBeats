@@ -80,7 +80,11 @@ class HertzConfig:
     #      "orbital_eclipses" -- Eclipses Orbitais (independente)
     #      "overload"         -- Overload do Nucleo/Shockwave; exige
     #                            "polarity" (Ressonancia so existe com ela)
-    #      "radius_collapse"  -- Colapso do Anel de Julgamento (independente)
+    #      "vision_tunnel"    -- Colapso de Visao (independente): NUNCA
+    #                            muda `current_judgment_radius` (fisico,
+    #                            fixo desde a composicao) -- so o raio
+    #                            COSMETICO do campo de luz (`GameState.
+    #                            tunnel_radius`), ver `VisionTunnelSystem`
     #      "holds"            -- Notas Longas (os 2 modos); MUTUAMENTE
     #                            EXCLUSIVO com "polarity" por convencao de
     #                            fase (os dois reusam o mesmo threat_type
@@ -132,6 +136,12 @@ class HertzConfig:
     # -- Defensor: Hold por fire+mira sustentados --
     hold_aim_tolerance_degrees: float = 50.0
     hold_break_shake_px: float = 22.0
+    # Tolerancia Organica -- Hold Forgiveness ("Coyote Time" para
+    # micro-tremores de mao): segundos de graca ANTES de quebrar um Hold
+    # engajado quando a mira escapa do cone ou o gatilho e solto -- ver
+    # `RHYTHM_THREAT_DTYPE.hold_grace_timer_sec` e
+    # `JudgmentSystem._sweep_engaged_holds`.
+    hold_grace_seconds: float = 0.15
 
     # -- Arcade 4K: Hold classico (tecla sustentada) + Shield --
     lane_shield_max_charges: int = 3
@@ -217,12 +227,20 @@ class HertzConfig:
     shockwave_duration_seconds: float = 0.2
     shockwave_trigger_shake_px: float = 8.0
 
-    # -- Defensor: Colapso do Anel de Julgamento (Dynamic Radius) --
-    # nenhum campo extra necessario: o raio BASE reusa
-    # `core_half_extent`/`threat_half_extents`, e os eventos de colapso
-    # vem de `StageDef.modchart_events` (`{"type": "radius_collapse",
-    # "time_seconds", "duration_seconds", "target_radius"}`), mesmo
-    # dado 100% game-side ja usado por Swap/Reverse Scroll/Distraction.
+    # -- Defensor: Colapso de Visao (Visual Tunnel) -- opt-in via
+    #    "vision_tunnel" em `active_modifiers`. Tolerancia Organica:
+    #    substitui o antigo "Colapso do Anel de Julgamento", que mutava
+    #    `current_judgment_radius` (FISICO -- usado no calculo de
+    #    velocidade das ameacas e na orbita da mira) e por isso quebrava
+    #    a fisica ja calculada no spawn de ameacas em voo. Agora so um
+    #    raio COSMETICO (`GameState.tunnel_radius`, campo de luz
+    #    desenhado pelo renderer) encolhe -- nenhum numero de jogabilidade
+    #    muda. Nenhum campo extra necessario aqui: o raio BASE (campo
+    #    "totalmente aberto") e a diagonal centro->canto da janela,
+    #    calculada na composicao; os eventos vem de `StageDef.
+    #    modchart_events` (`{"type": "vision_tunnel", "time_seconds",
+    #    "duration_seconds", "target_radius"}`), mesmo dado 100%
+    #    game-side ja usado por Swap/Reverse Scroll/Distraction. --
 
     @property
     def center_xy(self) -> Tuple[float, float]:
@@ -286,6 +304,7 @@ class HertzConfig:
             hold_duration_seconds=raw.get("hold_duration_seconds", 1.5),
             hold_aim_tolerance_degrees=raw.get("hold_aim_tolerance_degrees", 50.0),
             hold_break_shake_px=raw.get("hold_break_shake_px", 22.0),
+            hold_grace_seconds=raw.get("hold_grace_seconds", 0.15),
             lane_shield_max_charges=raw.get("lane_shield_max_charges", 3),
             lane_shield_depleted_shake_px=raw.get("lane_shield_depleted_shake_px", 35.0),
             lane_hold_visual_max_fraction=raw.get("lane_hold_visual_max_fraction", 0.35),

@@ -89,6 +89,7 @@ class JudgmentSystem(ISystem):
         hold_threat_type_id: int = None,
         hold_aim_tolerance_rad: float = None,
         hold_break_shake_px: float = 0.0,
+        hold_grace_seconds: float = 0.15,
         rumble_low_freq: float = 0.0,
         rumble_high_freq: float = 0.0,
         rumble_duration_seconds: float = 0.0,
@@ -128,11 +129,20 @@ class JudgmentSystem(ISystem):
         `_sweep_engaged_holds` assume o resto do ciclo de vida a cada
         frame: Fase 2 (Sustain) exige `fire` segurado E mira dentro de
         `hold_aim_tolerance_rad` continuamente ate
-        `target_hit_time_sec + duration_sec`; soltar OU desmirar antes
-        disso e MISS imediato (`hold_break_shake_px` de Camera Shake +
-        `set_rumble` do `IInputProvider`), sustentar ate o fim e
-        PERFECT (dano instantaneo no nucleo em caso de quebra, mesmo
-        guarda `practice_mode` do `CoreDamageSystem`).
+        `target_hit_time_sec + duration_sec`.
+
+        TOLERANCIA ORGANICA -- HOLD FORGIVENESS ("Coyote Time" para
+        micro-tremores de mao): soltar OU desmirar NAO e mais MISS
+        instantaneo -- humanos nao conseguem manter mira+gatilho
+        perfeitamente estaticos por segundos continuos. Cada frame
+        "quebrado" acumula `delta_time` em `hold_grace_timer_sec` (campo
+        na propria linha da ameaca); voltar a segurar corretamente antes
+        de estourar `hold_grace_seconds` (0.15s por padrao) zera o timer
+        sem penalidade. So passar desse limiar SEM retomar e MISS de
+        verdade (`hold_break_shake_px` de Camera Shake + `set_rumble` do
+        `IInputProvider`). Sustentar ate o fim e PERFECT (dano
+        instantaneo no nucleo em caso de quebra, mesmo guarda
+        `practice_mode` do `CoreDamageSystem`).
 
         CAPTURA ORBITAL (ativo quando `orbit_threat_type_id` e
         fornecido): MESMA janela PERFECT-apenas do Parry, mas o desfecho
@@ -192,6 +202,7 @@ class JudgmentSystem(ISystem):
         self._hold_threat_type_id = hold_threat_type_id
         self._hold_aim_tolerance_rad = hold_aim_tolerance_rad
         self._hold_break_shake_px = float(hold_break_shake_px)
+        self._hold_grace_seconds = float(hold_grace_seconds)
         self._rumble_low_freq = float(rumble_low_freq)
         self._rumble_high_freq = float(rumble_high_freq)
         self._rumble_duration_seconds = float(rumble_duration_seconds)
@@ -226,10 +237,12 @@ class JudgmentSystem(ISystem):
         """Executa o julgamento do frame: (1) varre MISSes vencidos,
         (2) se "fire" foi pressionado neste frame, tenta converter a
         melhor candidata em PERFECT/GOOD. `delta_time` e ignorado para
-        decisoes ritmicas -- a fonte de verdade e o `IAudioClock`.
+        decisoes ritmicas (a fonte de verdade e o `IAudioClock`) EXCETO
+        pelo timer de graca do Hold Forgiveness (`_sweep_engaged_holds`)
+        -- esse e "game feel" de tremor de mao, nao um evento ritmico,
+        mesmo criterio dos timers de i-frame/cooldown do
+        `PlayerInputSystem`.
         """
-        del delta_time
-
         player_row = self._player_pool.dense_row_of(self._player_entity_index)
         gun_jammed = float(self._player_pool.active_view()["gun_jam_sec"][player_row]) > 0.0
 
@@ -327,7 +340,7 @@ class JudgmentSystem(ISystem):
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
         if self._hold_threat_type_id is not None:
-            self._sweep_engaged_holds(world, threat_view, active_count, now_effective)
+            self._sweep_engaged_holds(world, threat_view, active_count, now_effective, delta_time)
 
         for polarity in triggered_polarities:
             self._try_player_hit(world, threat_view, deltas, active_count, polarity)
@@ -759,16 +772,25 @@ class JudgmentSystem(ISystem):
         threat_view: np.ndarray,
         active_count: int,
         now_effective: float,
+        delta_time: float,
     ) -> None:
         """Notas Longas -- Fase 2 (Sustain), vetorizada sobre TODAS as
         linhas engajadas (tipicamente 0-1 por vez, mas nao ha razao para
         um laco escalar): uma linha completa com sucesso quando
-        `agora_efetivo >= target_hit_time_sec + duration_sec`; quebra
-        (MISS imediato) se `fire` nao estiver segurado OU a mira sair de
-        `hold_aim_tolerance_rad` -- o que vier primeiro no frame, sem
-        esperar o fim da janela. `fire_held`/`aim_angle` sao leituras
-        ESCALARES (um unico gatilho, uma unica mira) comparadas contra
-        TODAS as linhas engajadas de uma vez via `out=`.
+        `agora_efetivo >= target_hit_time_sec + duration_sec`. `fire_held`/
+        `aim_angle` sao leituras ESCALARES (um unico gatilho, uma unica
+        mira) comparadas contra TODAS as linhas engajadas de uma vez via
+        `out=`.
+
+        TOLERANCIA ORGANICA -- HOLD FORGIVENESS: `fire` solto OU mira
+        fora de `hold_aim_tolerance_rad` ("quebrado" neste frame) NAO e
+        mais MISS instantaneo -- acumula `delta_time` em
+        `hold_grace_timer_sec` (Coyote Time); retomar a sustentacao
+        correta zera o timer da linha. So vira MISS de verdade
+        (`_resolve_hold_break`) quando o timer ultrapassa
+        `hold_grace_seconds` SEM ter sido zerado antes -- humanos nao
+        conseguem manter mira+gatilho perfeitamente estaticos por
+        segundos continuos.
         """
         owned = self._owned_mask[:active_count]
         np.equal(threat_view["mode_tag"], MODE_TAG_DEFENDER, out=owned)
@@ -807,9 +829,25 @@ class JudgmentSystem(ISystem):
         np.logical_and(broken, engaged, out=broken)
         np.logical_and(broken, np.logical_not(completed), out=broken)  # completar tem prioridade
 
+        # Hold Forgiveness: linhas "quebradas" neste frame acumulam
+        # delta_time no timer de graca; linhas engajadas que retomaram a
+        # sustentacao correta (engaged AND NOT broken) zeram o timer --
+        # ambas fatiadas do MESMO array de trabalho (`grace_timer`), a
+        # escrita por mascara booleana e in-place (mesmo idioma ja usado
+        # por `window[is_special] = ...`/`selection[rejected] = np.inf`).
+        grace_timer = threat_view["hold_grace_timer_sec"]
+        still_holding = self._scratch_mask[:active_count]
+        np.logical_and(engaged, np.logical_not(broken), out=still_holding)
+        grace_timer[still_holding] = 0.0
+        grace_timer[broken] += delta_time
+
+        past_grace = self._duration_mask[:active_count]
+        np.greater(grace_timer, self._hold_grace_seconds, out=past_grace)
+        np.logical_and(past_grace, broken, out=past_grace)
+
         for row in np.flatnonzero(completed):
             self._resolve_hold_success(world, threat_view, int(row))
-        for row in np.flatnonzero(broken):
+        for row in np.flatnonzero(past_grace):
             self._resolve_hold_break(world, threat_view, int(row))
 
     def _resolve_hold_success(self, world: World, threat_view: np.ndarray, row: int) -> None:

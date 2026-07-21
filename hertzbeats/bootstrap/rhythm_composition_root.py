@@ -56,9 +56,9 @@ from hertzbeats.audio.sfx_synth import (
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
 from hertzbeats.modchart import (
-    parse_radius_collapse_events,
     parse_reverse_scroll_events,
     parse_swap_events,
+    parse_vision_tunnel_events,
 )
 from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
@@ -71,7 +71,6 @@ from hertzbeats.systems.distraction_system import (
     DistractionSystem,
     parse_distraction_events,
 )
-from hertzbeats.systems.judgment_radius_system import JudgmentRadiusSystem
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
 from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
 from hertzbeats.systems.orbital_eclipse_system import OrbitalEclipseSystem
@@ -106,6 +105,7 @@ from hertzbeats.systems.radial_spawner_system import RadialRhythmSpawnerSystem
 from hertzbeats.systems.reverse_scroll_system import ReverseScrollSystem
 from hertzbeats.systems.tutorial_system import TutorialSystem
 from hertzbeats.systems.ui_render_system import UIRenderSystem
+from hertzbeats.systems.vision_tunnel_system import VisionTunnelSystem
 from hertzbeats.systems.visual_modifier_system import VisualModifierSystem
 
 PLAYER_COLLISION_LAYER = 1
@@ -262,7 +262,7 @@ def _compose_defender_mode(ctx: _ModeContext):
     twin_threats_enabled = "twin_threats" in modifiers and polarity_enabled
     overload_enabled = "overload" in modifiers and polarity_enabled
     orbital_eclipses_enabled = "orbital_eclipses" in modifiers and config.orbital_eclipse_count > 0
-    radius_collapse_enabled = "radius_collapse" in modifiers
+    vision_tunnel_enabled = "vision_tunnel" in modifiers
     # Notas Longas (Hold): MUTUAMENTE EXCLUSIVO com Polaridade/Parry por
     # convencao de fase (ambos reusam o mesmo threat_type "pesada", cada
     # fase liga so UM dos dois -- nunca validado em runtime, e uma
@@ -338,18 +338,23 @@ def _compose_defender_mode(ctx: _ModeContext):
                 judgment_ring_radius=judgment_ring_radius,
             )
         )
-    # Colapso do Anel de Julgamento ("radius_collapse"): sem o modifier,
-    # `GameState.current_judgment_radius` fica parado no valor BASE pra
-    # sempre (ja e o valor com que `compose_world` inicializou o
-    # GameState) -- registrar o sistema so muda algo se houver eventos
-    # `radius_collapse` no `modchart_events` da fase.
-    if radius_collapse_enabled:
+    # Colapso de Visao ("vision_tunnel", Tolerancia Organica): sem o
+    # modifier, `GameState.tunnel_radius` fica parado no valor BASE
+    # (campo totalmente aberto) pra sempre -- registrar o sistema so
+    # muda algo se houver eventos `vision_tunnel` no `modchart_events`
+    # da fase. Puramente COSMETICO: NUNCA usa `judgment_ring_radius`
+    # (fisico) como base -- a diagonal centro->canto da janela garante
+    # que o campo "aberto" cobre a tela inteira, nada escondido.
+    if vision_tunnel_enabled:
         ctx.world.register_system(
-            JudgmentRadiusSystem(
+            VisionTunnelSystem(
                 audio_clock=ctx.audio_clock,
                 game_state=ctx.game_state,
-                base_radius=judgment_ring_radius,
-                collapse_events=parse_radius_collapse_events(ctx.modchart_events),
+                # a mesma diagonal centro->canto ja usada para
+                # inicializar `GameState.tunnel_radius` -- reusada aqui
+                # em vez de recalculada, um so lugar de verdade.
+                base_radius=ctx.game_state.tunnel_radius,
+                collapse_events=parse_vision_tunnel_events(ctx.modchart_events),
             )
         )
     # Polaridade + Parry Perfeito ("polarity"): disparo azul/rosa,
@@ -395,6 +400,7 @@ def _compose_defender_mode(ctx: _ModeContext):
             hold_threat_type_id=hold_threat_type_id,
             hold_aim_tolerance_rad=math.radians(config.hold_aim_tolerance_degrees),
             hold_break_shake_px=config.hold_break_shake_px,
+            hold_grace_seconds=config.hold_grace_seconds,
             rumble_low_freq=config.rumble_low_freq,
             rumble_high_freq=config.rumble_high_freq,
             rumble_duration_seconds=config.rumble_duration_seconds,
@@ -453,7 +459,6 @@ def _compose_defender_mode(ctx: _ModeContext):
                 spawn_radius=config.spawn_radius,
                 score_per_kill=config.score_good,
                 impact_shake_px=config.parry_impact_shake_px,
-                eclipse_entity_indices=eclipse_entity_indices,
             )
         )
     # Overload do Nucleo ("overload"): reaproveita o ShockwaveSystem do
@@ -491,6 +496,8 @@ def _compose_defender_mode(ctx: _ModeContext):
             judgment_display_seconds=config.judgment_display_seconds,
             practice_mode=config.practice_mode,
             damage_shake_px=config.core_damage_shake_px,
+            audio_engine=ctx.audio_engine,
+            dodge_sound_id=SFX_DEFLECT,
         )
     )
     return (spawner_system,), collision_system
@@ -916,11 +923,20 @@ def compose_world(
         max_health=config.max_health,
         shield_charges=config.lane_shield_max_charges if "holds" in config.active_modifiers else 0,
         resonance_chain_threshold=config.resonance_chain_threshold,
-        # Colapso do Anel de Julgamento: valor BASE, igual ao raio fixo
-        # de sempre (nucleo + meio-tamanho da ameaca comum) -- so o
-        # Defensor o muta depois (`JudgmentRadiusSystem`); nos demais
-        # modos fica parado neste valor, nunca lido.
+        # Raio FIXO de sempre (nucleo + meio-tamanho da ameaca comum),
+        # nunca mutado depois (ver docstring de `GameState.
+        # current_judgment_radius`); nos modos fora do Defensor fica
+        # parado neste valor, nunca lido.
         judgment_radius=config.core_half_extent + config.threat_half_extents.get("rhythm_threat_basic", 10.0),
+        # Colapso de Visao: valor BASE "campo totalmente aberto" -- a
+        # diagonal INTEIRA da janela (folgada o bastante para cobrir
+        # qualquer canto partindo do centro, sem risco de arredondamento
+        # deixar frestas pretas nos cantos), SEMPRE passado (nao so
+        # quando "vision_tunnel" esta ativo) para que o renderer nunca
+        # veja um raio pequeno demais (o que enegreceria parte da arena)
+        # numa fase sem o modifier; so o `VisionTunnelSystem` (opt-in) o
+        # encolhe de verdade.
+        tunnel_radius=math.hypot(config.window_width, config.window_height),
     )
 
     # Entidades persistentes -----------------------------------------

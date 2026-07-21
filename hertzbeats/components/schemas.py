@@ -72,6 +72,7 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("is_reflected", np.bool_),
         ("is_hold", np.bool_),
         ("duration_sec", np.float32),
+        ("hold_grace_timer_sec", np.float32),
     ]
 )
 """Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
@@ -149,6 +150,18 @@ Campos:
         (uma por eixo continuo, a outra por press+hold de acao/mira)
         julgadas por sistemas diferentes; ver o `JudgmentSystem` do
         Defensor para o ciclo Start/Sustain/Break do `duration_sec`.
+    hold_grace_timer_sec: Tolerancia Organica -- Hold Forgiveness ("Coyote
+        Time" para micro-tremores de mao): so relevante numa linha
+        ENGAJADA (`duration_sec>0`, Fase 2/Sustain). Acumula `delta_time`
+        de FRAME (nao o `IAudioClock`, e "game feel" -- mesmo criterio
+        dos timers de i-frame/cooldown do `PlayerInputSystem`) a cada
+        frame em que a mira escapa do cone `hold_aim_tolerance_rad` OU o
+        gatilho e solto; volta a `0.0` no frame seguinte em que a
+        sustentacao correta e retomada. So vira MISS de verdade (quebra
+        do Hold) se ultrapassar `HertzConfig.hold_grace_seconds` (0.15s
+        por padrao) SEM retomar -- humanos nao conseguem manter mira+
+        gatilho perfeitamente estaticos por segundos continuos; ver
+        `JudgmentSystem._sweep_engaged_holds`.
 """
 
 PLAYER_STATE_DTYPE: np.dtype = np.dtype(

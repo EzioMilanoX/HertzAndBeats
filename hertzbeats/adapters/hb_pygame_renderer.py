@@ -39,6 +39,11 @@ opcoes (as 2 primeiras sao multipla escolha -- Defensor/Arcade 4K e
 Nenhuma/Polaridade/Holds -- a ultima e o botao de Acao "Iniciar Fase")
 e desenha-las SEM quadrado de marcar."""
 
+_TUNNEL_COLOR = (2, 1, 6, 255)
+"""Cor opaca do overlay do Colapso de Visao -- mesmo tom base da arena
+(`begin_frame`, modo Defensor fora do Flow State) para nao criar um
+contraste artificial nas bordas do campo de luz."""
+
 _CHECKBOX_SIZE = 18
 _CHECKBOX_GAP = 12
 _CHECKBOX_COLOR = (250, 250, 255)
@@ -117,6 +122,7 @@ class HBPygameRenderer(PygameRenderer):
         self._flow_tier: int = 0
         self._vignette_surface: Optional[pygame.Surface] = None
         self._blindness_active: bool = False
+        self._tunnel_surface: Optional[pygame.Surface] = None
         self._freeze_active: bool = False
         self._color_invert_pending: bool = False
         self._invert_surface: Optional[pygame.Surface] = None
@@ -212,7 +218,9 @@ class HBPygameRenderer(PygameRenderer):
         `begin_frame`. Chamado pelo `HertzGameLoop` a cada troca de fase:
 
             "radial" -- aneis-guia do Defensor (spawn + anel de julgamento):
-                center_x, center_y, spawn_radius, judgment_radius
+                center_x, center_y, spawn_radius, judgment_radius,
+                tunnel_radius (Colapso de Visao -- opcional, `None`/
+                ausente = sem overlay, ver `_draw_vision_tunnel`)
             "lanes"  -- colunas + linha de julgamento do Arcade 4K:
                 lane_xs (iteravel), lane_half_width, judgment_y, height
             None     -- sem decoracao.
@@ -240,6 +248,12 @@ class HBPygameRenderer(PygameRenderer):
         # preencher de branco e SUBTRAIR o frame atual (a ordem inversa
         # do que se poderia supor) -- ver `end_frame`.
         self._invert_surface = pygame.Surface((width, height))
+        # Colapso de Visao: ao contrario do Vignette Flash (buraco de
+        # tamanho FIXO, pre-renderizado uma vez), o raio do campo de luz
+        # interpola continuamente -- precisa ser redesenhado (fill +
+        # circulo transparente) a CADA frame sobre esta Surface
+        # persistente (nunca uma nova por frame).
+        self._tunnel_surface = pygame.Surface((width, height), pygame.SRCALPHA).convert_alpha()
 
     def show_loading_message(self, message: str) -> None:
         """Tela de carregamento imediata (ex.: 'analisando musica nova').
@@ -308,6 +322,7 @@ class HBPygameRenderer(PygameRenderer):
             self._invert_surface.fill((255, 255, 255))
             self._invert_surface.blit(self._surface, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
             self._surface.blit(self._invert_surface, (0, 0))
+        self._draw_vision_tunnel()
         if self._blindness_active and self._vignette_surface is not None:
             self._surface.blit(self._vignette_surface, (0, 0))
         if self._overlay_mode is not None:
@@ -315,6 +330,33 @@ class HBPygameRenderer(PygameRenderer):
         if self._notice_key is not None:
             self._blit_centered(self._notice_key, self._width // 2, 64)
         super().end_frame()
+
+    def _draw_vision_tunnel(self) -> None:
+        """Colapso de Visao (Defensor -- "vision_tunnel", Tolerancia
+        Organica): cobre a arena com um overlay opaco quase-preto, com
+        um furo circular TOTALMENTE TRANSPARENTE (raio = `tunnel_radius`
+        publicado via `set_playfield`, reinterpolado todo frame pelo
+        `VisionTunnelSystem`) centrado no nucleo -- esconde o spawn de
+        ameacas fora do campo de luz sem tocar NENHUMA fisica/velocidade
+        (essas continuam lendo `GameState.current_judgment_radius`, fixo
+        desde a composicao). Redesenhado a cada frame sobre a Surface
+        persistente `_tunnel_surface` (nunca uma nova por frame) porque,
+        ao contrario do Vignette Flash de tamanho fixo, o raio aqui
+        interpola continuamente -- nao da pra pre-renderizar uma vez so.
+        No-op fora do playfield radial, sem `tunnel_radius` publicado, ou
+        quando o campo ja cobre a janela inteira (nada a esconder)."""
+        if self._playfield_kind != "radial":
+            return
+        radius = self._playfield_params.get("tunnel_radius")
+        if radius is None or radius >= max(self._width, self._height):
+            return
+        params = self._playfield_params
+        surface = self._tunnel_surface
+        surface.fill(_TUNNEL_COLOR)
+        pygame.draw.circle(
+            surface, (0, 0, 0, 0), (int(params["center_x"]), int(params["center_y"])), int(radius)
+        )
+        self._surface.blit(surface, (0, 0))
 
     def _blit_centered(self, key: str, center_x: int, y: int) -> int:
         """Blita a superficie `key` centrada horizontalmente em

@@ -86,7 +86,7 @@ LANES_MODIFIER_ROWS = ()
 """Linhas de modifier BOOLEANO (checkbox) mostradas por `game_mode`,
 ENTRE `HEAVY_MECHANIC_ROW` e `START_ROW` -- "holds"/"polarity" NAO
 aparecem aqui (viraram a multipla escolha `HEAVY_MECHANIC_ROW`).
-"radius_collapse", "bombs" e "heal" ficam de fora: so fazem algo
+"vision_tunnel", "bombs" e "heal" ficam de fora: so fazem algo
 visivel em cima de dado especifico de fase CURADA (eventos
 `modchart_events`; ameacas desses tipos no beatmap) que uma musica do
 jogador nunca tem (`music_library.py` sempre cria
@@ -368,13 +368,17 @@ class HertzGameLoop(GameLoop):
             renderer.set_playfield(None)
 
     def _sync_defender_playfield(self) -> None:
-        """Colapso do Anel de Julgamento (Defensor): mantem o anel
-        desenhado (`renderer.set_playfield("radial", ...)`) em sincronia
-        com `GameState.current_judgment_radius` -- sem isso, o anel
-        ficaria parado no raio ORIGINAL enquanto a mira/velocidade das
-        ameacas novas ja reagem ao colapso. Mesma familia de
-        `_sync_lane_playfield` (Modcharts do Arcade 4K). No-op fora do
-        Defensor ou com um renderer sem suporte a playfield."""
+        """Colapso de Visao (Defensor, "vision_tunnel"): mantem o campo
+        de luz desenhado (`renderer.set_playfield("radial", ...,
+        tunnel_radius=...)`) em sincronia com `GameState.tunnel_radius`
+        -- sem isso, o overlay ficaria parado no raio ORIGINAL enquanto
+        o Colapso ja encolheu o campo de verdade. `judgment_radius`
+        continua publicado aqui tambem por conveniencia (identico ao
+        valor FIXO desde a composicao -- ver `GameState.
+        current_judgment_radius`, que nenhum sistema muta mais). Mesma
+        familia de `_sync_lane_playfield` (Modcharts do Arcade 4K).
+        No-op fora do Defensor ou com um renderer sem suporte a
+        playfield."""
         if self._composed is None or self._stage_config.game_mode != "defender":
             return
         renderer = getattr(self, "_renderer", None)
@@ -388,6 +392,7 @@ class HertzGameLoop(GameLoop):
             center_y=center_y,
             spawn_radius=config.spawn_radius,
             judgment_radius=self._composed.game_state.current_judgment_radius,
+            tunnel_radius=self._composed.game_state.tunnel_radius,
             width=config.window_width,
             height=config.window_height,
         )

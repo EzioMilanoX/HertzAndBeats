@@ -44,6 +44,7 @@ class GameState:
         "invert_colors",
         "current_judgment_radius",
         "overload_requested",
+        "tunnel_radius",
     )
 
     def __init__(
@@ -52,6 +53,7 @@ class GameState:
         shield_charges: int = 0,
         resonance_chain_threshold: int = 10,
         judgment_radius: float = 0.0,
+        tunnel_radius: float = 0.0,
     ) -> None:
         self.score: int = 0
         self.combo_count: int = 0
@@ -138,15 +140,20 @@ class GameState:
         nunca lido/escrito por nenhum `ISystem`, mesma familia de
         `is_blinded`/`set_blindness_active`."""
         self.current_judgment_radius: float = float(judgment_radius)
-        """Defensor -- Colapso do Anel de Julgamento: raio ATUAL (px) do
-        anel onde o hit e esperado, MUTAVEL (o valor de composicao e so
-        o ponto de partida). O `JudgmentRadiusSystem` interpola este
-        valor conforme os eventos `radius_collapse` do beatmap;
-        `RadialRhythmSpawnerSystem` o le no SPAWN de cada nova ameaca
-        (calculo de velocidade), `PlayerInputSystem` o le TODO frame
-        (orbita da mira) e o `HertzGameLoop` o publica no
-        `HBPygameRenderer` (`_sync_defender_playfield`) para o anel
-        desenhado acompanhar visualmente."""
+        """Defensor: raio (px) do anel onde o hit e esperado -- FIXO
+        desde a composicao (nucleo + meio-tamanho da ameaca comum), NUNCA
+        mutado por nenhum sistema depois disso. `RadialRhythmSpawnerSystem`
+        o le no SPAWN de cada nova ameaca (calculo de velocidade),
+        `PlayerInputSystem` o le TODO frame (orbita da mira) e o
+        `HertzGameLoop` o publica no `HBPygameRenderer`
+        (`_sync_defender_playfield`) para o anel desenhado.
+
+        Historico (Tolerancia Organica): ja existiu um "Colapso do Anel
+        de Julgamento" que MUTAVA este valor em tempo real via beatmap
+        -- foi revertido porque mudar o raio FISICO no meio da fase
+        quebra a velocidade ja calculada das ameacas em voo (calculada
+        UMA vez no spawn contra o raio do instante). Ver `tunnel_radius`
+        para o substituto puramente COSMETICO (Colapso de Visao)."""
         self.overload_requested: bool = False
         """Defensor -- Overload do Nucleo: pedido de UM frame para o
         `ShockwaveSystem` disparar o proximo slot do seu pool fixo,
@@ -154,6 +161,18 @@ class GameState:
         frame em que age -- mesmo padrao pull-based de
         `invert_colors`/`is_blinded`, nunca lido por mais de um
         sistema."""
+        self.tunnel_radius: float = float(tunnel_radius)
+        """Defensor -- Colapso de Visao ("vision_tunnel", Tolerancia
+        Organica): raio (px) do campo de luz PURAMENTE COSMETICO ao
+        redor do nucleo -- fora dele, o `HBPygameRenderer` cobre a arena
+        com um overlay preto, escondendo o spawn de ameacas ate entrarem
+        no circulo iluminado. MUTAVEL (o valor de composicao, a
+        diagonal centro->canto da janela, e so o ponto de partida "campo
+        totalmente aberto"): o `VisionTunnelSystem` o interpola conforme
+        os eventos `vision_tunnel` do beatmap. Nenhuma FISICA/velocidade
+        le este campo -- ao contrario do extinto Colapso do Anel de
+        Julgamento (ver `current_judgment_radius`), encolher a visao
+        nunca quebra o calculo ja feito de nenhuma ameaca em voo."""
 
     def consume_overdrive_for_overload(self) -> None:
         """Defensor -- Overload do Nucleo: o `JudgmentSystem` chama isto

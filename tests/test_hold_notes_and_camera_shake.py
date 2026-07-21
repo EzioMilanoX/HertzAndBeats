@@ -108,7 +108,11 @@ def test_sustaining_through_the_full_duration_scores_perfect(tmp_path, null_inpu
     assert state.miss_count == 0
 
 
-def test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble(tmp_path, null_input, null_clock):
+def test_releasing_fire_mid_sustain_breaks_the_hold_after_the_grace_window(tmp_path, null_input, null_clock):
+    """Tolerancia Organica -- Hold Forgiveness: soltar o gatilho NAO e
+    mais MISS instantaneo (humanos tem micro-tremores de mao) -- so
+    depois de ultrapassar `hold_grace_seconds` (Coyote Time) SEM retomar
+    a sustentacao."""
     composed, config = _compose_holds(
         tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)], hold_duration_seconds=1.0
     )
@@ -120,28 +124,94 @@ def test_releasing_fire_mid_sustain_is_immediate_miss_with_shake_and_rumble(tmp_
     _fire_at(composed, null_clock, null_input, 2.99, 1.0, 0.0)
     assert threat_pool.count == 1
 
-    # sustenta um pouco (bem antes do fim em 4.0), depois SOLTA o gatilho
-    # num passo ISOLADO com dt=0.0 -- o `CameraShakeSystem` (comum,
-    # registrado depois do `JudgmentSystem`) roda no MESMO step em que o
-    # tremor e acionado, e decairia uma fracao se dt>0 aqui.
     health_before = state.health
     _hold_and_advance(composed, null_clock, null_input, 3.2)
     null_input.set_action_held("fire", False)
     null_input.poll()
-    composed.world.step(0.0)
 
-    assert threat_pool.count == 0  # MISS imediato -- nao esperou o fim
+    # Acumula quase toda a graca em passos PEQUENOS (ainda nao quebrou)...
+    _advance_to(composed, null_clock, null_input, 3.2 + config.hold_grace_seconds - 0.01)
+    assert threat_pool.count == 1  # ainda dentro da graca
+
+    # ...e um ULTIMO passo pequeno que finalmente ultrapassa o limiar -- o
+    # tremor e acionado NESTE frame; um dt pequeno mantem o decaimento do
+    # MESMO passo (`CameraShakeSystem` roda com o MESMO dt) dentro da
+    # tolerancia da asserção abaixo.
+    dt = 0.02
+    null_clock.advance(dt)
+    null_input.poll()
+    composed.world.step(dt)
+
+    assert threat_pool.count == 0  # MISS -- ultrapassou a graca sem retomar
     assert state.miss_count == 1
     assert state.combo_count == 0
     assert state.last_judgment == JUDGMENT_MISS
     assert state.perfect_count == 0
     assert state.health == health_before - 1  # Ameaca de Hold Radial: dano instantaneo na quebra
 
-    # feedback fisico duplo desta tarefa
-    assert state.shake_intensity == config.hold_break_shake_px
+    # feedback fisico duplo desta tarefa (tolerancia ao decaimento minimo do MESMO passo)
+    assert abs(state.shake_intensity - config.hold_break_shake_px) < 1.5
     assert null_input._last_rumble == (
         config.rumble_low_freq, config.rumble_high_freq, config.rumble_duration_seconds
     )
+
+
+def test_briefly_releasing_fire_within_the_grace_window_does_not_break_the_hold(tmp_path, null_input, null_clock):
+    """Coyote Time: soltar o gatilho por MENOS que `hold_grace_seconds` e
+    retomar antes disso nao quebra o Hold -- o micro-tremor tolerado."""
+    composed, config = _compose_holds(
+        tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)], hold_duration_seconds=1.0
+    )
+    threat_pool = composed.memory_manager.get_pool("rhythm_threat")
+
+    _advance_to(composed, null_clock, null_input, 2.98)
+    _fire_at(composed, null_clock, null_input, 2.99, 1.0, 0.0)
+    assert threat_pool.count == 1
+
+    _hold_and_advance(composed, null_clock, null_input, 3.2)
+    null_input.set_action_held("fire", False)
+    null_input.poll()
+    # solta por BEM MENOS que a graca (0.05s < 0.15s)...
+    null_clock.advance(0.05)
+    null_input.poll()
+    composed.world.step(0.05)
+    assert threat_pool.count == 1  # ainda vivo -- dentro da graca
+
+    # ...e retoma a sustentacao correta antes do limiar estourar.
+    _hold_and_advance(composed, null_clock, null_input, 4.02)  # ate passar de target(3.0)+duration(1.0)
+
+    state = composed.game_state
+    assert threat_pool.count == 0
+    assert state.perfect_count == 1  # sustentou ate o fim -- sucesso, nao MISS
+    assert state.miss_count == 0
+
+
+def test_grace_timer_resets_when_sustain_resumes_so_it_never_accumulates_across_gaps(tmp_path, null_input, null_clock):
+    """Duas soltadas breves (cada uma < graca), com retomada entre elas,
+    NUNCA devem somar para quebrar o Hold -- o timer zera a cada retomada,
+    nao acumula ao longo da vida inteira do Hold."""
+    composed, config = _compose_holds(
+        tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)], hold_duration_seconds=2.0
+    )
+    threat_pool = composed.memory_manager.get_pool("rhythm_threat")
+
+    _advance_to(composed, null_clock, null_input, 2.98)
+    _fire_at(composed, null_clock, null_input, 2.99, 1.0, 0.0)
+    assert threat_pool.count == 1
+
+    for _ in range(4):  # 4x soltar 0.1s (< graca) + retomar -- soma 0.4s > graca, mas NUNCA de uma vez
+        _hold_and_advance(composed, null_clock, null_input, null_clock.now_seconds() + 0.2)
+        null_input.set_action_held("fire", False)
+        null_input.poll()
+        null_clock.advance(0.1)
+        null_input.poll()
+        composed.world.step(0.1)
+        assert threat_pool.count == 1  # sobrevive toda vez -- o timer zera ao retomar
+
+    _hold_and_advance(composed, null_clock, null_input, 5.02)  # ate passar de target(3.0)+duration(2.0)
+    assert threat_pool.count == 0
+    assert composed.game_state.perfect_count == 1
+    assert composed.game_state.miss_count == 0
 
 
 def test_releasing_fire_mid_sustain_deals_no_damage_in_practice_mode(tmp_path, null_input, null_clock):
@@ -160,13 +230,17 @@ def test_releasing_fire_mid_sustain_deals_no_damage_in_practice_mode(tmp_path, n
     _hold_and_advance(composed, null_clock, null_input, 3.2)
     null_input.set_action_held("fire", False)
     null_input.poll()
-    composed.world.step(0.0)
+    # ultrapassa a graca (Tolerancia Organica -- Hold Forgiveness) antes
+    # de checar o veredito -- soltar por si so nao quebra mais instantaneo.
+    _advance_to(composed, null_clock, null_input, 3.2 + config.hold_grace_seconds + 0.02)
 
     assert state.miss_count == 1
     assert state.health == health_before  # Modo Treino: MISS conta, mas sem dano de vida
 
 
-def test_aiming_away_mid_sustain_breaks_the_hold(tmp_path, null_input, null_clock):
+def test_aiming_away_mid_sustain_breaks_the_hold_after_the_grace_window(tmp_path, null_input, null_clock):
+    """Tolerancia Organica -- Hold Forgiveness: desmirar tambem so quebra
+    depois de ultrapassar `hold_grace_seconds` sem retomar a mira."""
     composed, config = _compose_holds(
         tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)], hold_duration_seconds=1.0
     )
@@ -182,10 +256,35 @@ def test_aiming_away_mid_sustain_breaks_the_hold(tmp_path, null_input, null_cloc
     null_input.set_axis("aim_x", math.cos(math.pi / 2.0))
     null_input.set_axis("aim_y", math.sin(math.pi / 2.0))
     null_input.set_action_held("fire", True)
-    _advance_to(composed, null_clock, null_input, 3.21)
+    _advance_to(composed, null_clock, null_input, 3.2 + config.hold_grace_seconds + 0.02)
 
     assert threat_pool.count == 0
     assert composed.game_state.miss_count == 1
+
+
+def test_briefly_aiming_away_within_the_grace_window_does_not_break_the_hold(tmp_path, null_input, null_clock):
+    """Coyote Time: desmirar por MENOS que a graca e voltar a mirar
+    corretamente antes disso nao quebra o Hold."""
+    composed, config = _compose_holds(
+        tmp_path, null_input, null_clock, [_heavy(3.0, lane=0)], hold_duration_seconds=1.0
+    )
+    threat_pool = composed.memory_manager.get_pool("rhythm_threat")
+
+    _advance_to(composed, null_clock, null_input, 2.98)
+    _fire_at(composed, null_clock, null_input, 2.99, 1.0, 0.0)
+    assert threat_pool.count == 1
+
+    _hold_and_advance(composed, null_clock, null_input, 3.2)
+    null_input.set_axis("aim_x", math.cos(math.pi / 2.0))
+    null_input.set_axis("aim_y", math.sin(math.pi / 2.0))
+    null_input.set_action_held("fire", True)
+    _advance_to(composed, null_clock, null_input, 3.25)  # 0.05s desmirado -- bem dentro da graca
+    assert threat_pool.count == 1
+
+    _hold_and_advance(composed, null_clock, null_input, 4.02)  # retoma a mira certa ate o fim
+    assert threat_pool.count == 0
+    assert composed.game_state.perfect_count == 1
+    assert composed.game_state.miss_count == 0
 
 
 def test_engaged_hold_survives_well_past_its_original_target_time(tmp_path, null_input, null_clock):

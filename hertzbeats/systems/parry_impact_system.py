@@ -25,11 +25,18 @@ SHIELD_COLLISION_LAYER = 64
 proprio, distinto de `REFLECTED_COLLISION_LAYER` (32): um escudo e um
 "atacante" permanente (nunca expira/sai da arena como um refletido).
 
-Reaproveitada tambem pelos Eclipses Orbitais (Barreiras Dinamicas,
-arquetipo `orbital_eclipse`): la, o `collision_mask` e
-`REFLECTED_COLLISION_LAYER` (nao `THREAT_COLLISION_LAYER`) -- um
-Eclipse bloqueia o PROJETIL REFLETIDO do Parry (o unico "tiro" que de
-fato viaja pelo espaco no Defensor hitscan), nao ameacas comuns."""
+Tambem usada pelos Eclipses Orbitais (Barreiras Dinamicas, arquetipo
+`orbital_eclipse`): la, o `collision_mask` e `REFLECTED_COLLISION_LAYER`
+(nao `THREAT_COLLISION_LAYER`) -- geometricamente, o `CollisionSystem`
+generico ainda DETECTA pares entre um Eclipse e o projetil refletido do
+Parry. TOLERANCIA ORGANICA -- ECLIPSES PERMEAVEIS: esses pares nao sao
+mais CONSUMIDOS por nenhum sistema (ver `ParryImpactSystem`) -- um
+Eclipse rotaciona por conta propria, fora do controle do jogador; deixa-lo
+anular um Parry Perfeito (que, pela janela de candidatura do
+`JudgmentSystem`, so pode nascer DENTRO de `perfect_window_seconds`)
+seria um softlock de habilidade contra sorte de posicionamento, nao um
+desafio justo. O projetil refletido atravessa Eclipses livremente e
+continua destruindo o que estiver alem deles."""
 
 
 class ParryImpactSystem(ISystem):
@@ -55,16 +62,15 @@ class ParryImpactSystem(ISystem):
     permanece `False` neles, entao `_expire_out_of_bounds` os ignora
     naturalmente).
 
-    Eclipses Orbitais (opt-in via `eclipse_entity_indices`): um par
-    entre um projetil refletido e um Eclipse e tratado ANTES da logica
-    de atacante/vitima acima -- aqui o Eclipse e quem "vence": o
-    projetil e destruido (sem pontuar, sem `miss_count`/combo -- so
-    "bloqueado") e o Eclipse, obstaculo permanente, segue orbitando.
+    Eclipses Orbitais: TOLERANCIA ORGANICA -- ECLIPSES PERMEAVEIS (ver
+    `SHIELD_COLLISION_LAYER`) -- um par entre o projetil refletido e um
+    Eclipse simplesmente NAO gera nenhum efeito aqui (nem destruicao, nem
+    pontuacao): cai no mesmo guard de `INVALID_DENSE_ROW` do laço
+    principal, ja que um Eclipse nunca vive na pool `rhythm_threat`. Um
+    Parry Perfeito atravessa Eclipses livremente.
 
     Zero-GC: mesmo idioma do `CoreDamageSystem` -- laco escalar sobre
-    os poucos pares do frame (tipicamente 0-2); `eclipse_entity_indices`
-    e guardado como `frozenset` (montado UMA vez no construtor) para
-    checagem de pertencimento O(1) sem alocar por frame.
+    os poucos pares do frame (tipicamente 0-2).
     """
 
     def __init__(
@@ -77,7 +83,6 @@ class ParryImpactSystem(ISystem):
         spawn_radius: float,
         score_per_kill: int,
         impact_shake_px: float = 0.0,
-        eclipse_entity_indices=None,
     ) -> None:
         self._collision_system = collision_system
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
@@ -88,9 +93,6 @@ class ParryImpactSystem(ISystem):
         self._spawn_radius_sq = float(spawn_radius) ** 2
         self._score_per_kill = int(score_per_kill)
         self._impact_shake_px = float(impact_shake_px)
-        self._eclipse_index_set = (
-            frozenset(int(i) for i in eclipse_entity_indices) if eclipse_entity_indices is not None else frozenset()
-        )
 
     def update(self, world: World, delta_time: float) -> None:
         del delta_time
@@ -117,13 +119,13 @@ class ParryImpactSystem(ISystem):
             if index_a == player_index or index_b == player_index:
                 continue  # par nucleo x ameaca: e do CoreDamageSystem
 
-            if self._eclipse_index_set and (index_a in self._eclipse_index_set or index_b in self._eclipse_index_set):
-                self._block_reflected_shot(world, threat_view, index_a, index_b)
-                continue
-
             row_a = threat_pool.dense_row_of(index_a)
             row_b = threat_pool.dense_row_of(index_b)
             if row_a == INVALID_DENSE_ROW or row_b == INVALID_DENSE_ROW:
+                # Eclipses Permeaveis: um Eclipse nunca vive na pool
+                # `rhythm_threat`, entao um par com ele cai aqui e nao
+                # produz nenhum efeito -- o projetil refletido atravessa
+                # livremente (Tolerancia Organica, ver SHIELD_COLLISION_LAYER).
                 continue
             if int(threat_view["mode_tag"][row_a]) != MODE_TAG_DEFENDER:
                 continue
@@ -151,25 +153,6 @@ class ParryImpactSystem(ISystem):
             self._game_state.score += self._score_per_kill
             if self._impact_shake_px > 0.0:
                 self._game_state.trigger_shake(self._impact_shake_px)
-
-    def _block_reflected_shot(self, world: World, threat_view, index_a: int, index_b: int) -> None:
-        """Eclipse Orbital: um dos dois lados do par e um Eclipse (o
-        outro, se for um projetil refletido PENDING, e o "tiro do
-        jogador" que o Eclipse bloqueia -- destruido sem pontuar, sem
-        `miss_count`/combo, so removido da arena). Se o outro lado nao
-        for um refletido valido (ex.: dois Eclipses se cruzando, ou o
-        par ja foi resolvido neste frame), e um no-op silencioso."""
-        threat_pool = self._threat_pool
-        other_index = index_b if index_a in self._eclipse_index_set else index_a
-        row = threat_pool.dense_row_of(other_index)
-        if row == INVALID_DENSE_ROW:
-            return
-        if not bool(threat_view["is_reflected"][row]):
-            return
-        if int(threat_view["judgment"][row]) != JUDGMENT_PENDING:
-            return
-        threat_view["judgment"][row] = JUDGMENT_MISS
-        world.destroy_entity(int(threat_view["packed_handle"][row]))
 
     @staticmethod
     def _is_attacker(threat_view, row: int) -> bool:

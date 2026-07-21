@@ -111,11 +111,11 @@
         "twin_threats",
         "orbital_eclipses",
         "overload",
-        "radius_collapse"
+        "vision_tunnel"
       ],
       "modchart_events": [
-        { "type": "radius_collapse", "time_seconds": 20.0, "duration_seconds": 2.5, "target_radius": 14.0 },
-        { "type": "radius_collapse", "time_seconds": 34.0, "duration_seconds": 2.5, "target_radius": 26.0 }
+        { "type": "vision_tunnel", "time_seconds": 20.0, "duration_seconds": 2.5, "target_radius": 140.0 },
+        { "type": "vision_tunnel", "time_seconds": 34.0, "duration_seconds": 2.5, "target_radius": 90.0 }
       ]
     },
     {
