@@ -45,84 +45,53 @@ _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
 
-MODE_CYCLE = (
-    "defender",
-    "lanes",
+GAME_MODE_ROW = "game_mode"
+"""Sentinela: SEMPRE a primeira linha do painel de checkboxes do
+seletor de minigame (`modifier_rows_for_game_mode`) -- alterna
+Defensor/Arcade 4K em vez de ligar/desligar um modifier. Nao e uma
+string de `HertzConfig.active_modifiers` de verdade (nunca aparece
+dentro de `chosen_modifiers(...)`), so um marcador de linha consumido
+por `_advance_menu`/`hb_pygame_renderer._draw_overlay` -- os dois
+precisam concordar no MESMO literal (`hb_pygame_renderer.py` nao
+importa este modulo pra evitar dependencia invertida adapter->loop, so
+duplica a string com um comentario cruzado)."""
+
+DEFENDER_MODIFIER_ROWS = (
+    "telegraph_rings",
     "polarity",
-    "holds",
-    "lanes_holds",
     "orbital_shields",
     "twin_threats",
     "orbital_eclipses",
     "overload",
-    "nightmare",
+    "holds",
 )
-"""Ordem em que A/D alternam o modo nas musicas do jogador. As variantes
-finais continuam sendo os modos base por baixo -- so acrescentam
-mecanicas modulares via `active_modifiers` (ver `MODE_VARIANT_OVERRIDES`)
--- mesmas mecanicas das fases curadas. Entradas SEMPRE ACRESCENTADAS NO
-FIM (nunca inseridas no meio): `tests/test_match_flow.py` navega ate
-cada variante contando um numero FIXO de `menu_right`, entao inserir no
-meio desloca a posicao de toda variante seguinte. Toda entrada nova
-aqui PRECISA de uma chave correspondente em `MODE_VARIANT_OVERRIDES`
-(`KeyError` em `_compose_stage` na hora de confirmar, se faltar) e em
-`texture_bank._MODE_DISPLAY_NAMES`/`_MODE_CONTROL_HINTS` (nome/dica em
-branco ou `KeyError` no carregamento, ver docstring de
-`build_and_register_overlay_surfaces`).
+LANES_MODIFIER_ROWS = ("holds",)
+"""Linhas de modifier mostradas por `game_mode` no painel de checkboxes
+das musicas do jogador -- "holds" e compartilhado pelos 2 (cada modo
+interpreta a sustentacao a sua maneira, mesmo criterio de
+`HertzConfig.active_modifiers`). "radius_collapse", "bombs" e "heal"
+ficam de fora: so fazem algo visivel em cima de dado especifico de fase
+CURADA (eventos `modchart_events`; ameacas desses tipos no beatmap) que
+uma musica do jogador nunca tem (`music_library.py` sempre cria
+`StageDef(modchart_events=())` e o mapeador offline nunca emite
+`rhythm_threat_bomb`/`rhythm_threat_heal`) -- ligar so o modifier seria
+um checkbox que nao muda NADA na tela."""
 
-"radius_collapse", "bombs" e "heal" NAO entraram no ciclo: seu efeito
-depende de dado especifico da fase que uma musica de jogador nunca tem
-("radius_collapse" precisa de eventos `modchart_events` curados;
-bombas/cura de ameacas desses tipos no beatmap, que o mapeador offline
-da IA nunca emite) -- ligar so o modifier aqui seria um item de menu
-que nao faz NADA visivel, pior que nao oferecer a opcao."""
+_HOLDS_POLARITY_CONFLICT = frozenset({"holds", "polarity"})
+"""Notas Longas e Polaridade sao MUTUAMENTE EXCLUSIVAS -- reusam o
+mesmo `threat_type` "pesada" com significados incompativeis (Hold-Start
+vs Parry), e o `JudgmentSystem` checa Hold ANTES de Parry, entao ligar
+os dois ao mesmo tempo faria toda pesada virar Hold silenciosamente,
+nunca Parry. `_toggle_modifier` desliga o outro automaticamente ao
+ligar um dos dois -- nunca deixa os dois marcados juntos."""
 
-MODE_VARIANT_OVERRIDES = {
-    "defender": {"game_mode": "defender"},
-    "lanes": {"game_mode": "lanes"},
-    "polarity": {"game_mode": "defender", "active_modifiers": ("telegraph_rings", "polarity")},
-    "holds": {"game_mode": "defender", "active_modifiers": ("telegraph_rings", "holds")},
-    "lanes_holds": {"game_mode": "lanes", "active_modifiers": ("holds",)},
-    "orbital_shields": {
-        "game_mode": "defender",
-        "active_modifiers": ("telegraph_rings", "polarity", "orbital_shields"),
-    },
-    "twin_threats": {
-        "game_mode": "defender",
-        "active_modifiers": ("telegraph_rings", "polarity", "twin_threats"),
-    },
-    "orbital_eclipses": {
-        "game_mode": "defender",
-        "active_modifiers": ("telegraph_rings", "polarity", "orbital_eclipses"),
-    },
-    "overload": {
-        "game_mode": "defender",
-        "active_modifiers": ("telegraph_rings", "polarity", "overload"),
-    },
-    "nightmare": {
-        "game_mode": "defender",
-        "active_modifiers": (
-            "telegraph_rings", "polarity", "orbital_shields", "twin_threats",
-            "orbital_eclipses", "overload",
-        ),
-    },
-}
-"""Campos de `HertzConfig` sobrescritos por variante escolhida no menu
-das musicas do jogador -- resolvido UMA vez por `_compose_stage`, o
-mesmo `dataclasses.replace` que as fases curadas usam via `overrides`
-de `stages.json`. `active_modifiers` (lista, nao dict) SUBSTITUI por
-completo a lista ja resolvida por `resolve_stage_config` (que para
-musicas do jogador comeca vazia -- `music_library.py` cria
-`StageDef(overrides={})` sem `active_modifiers` nenhum) -- nenhuma leva
-residual entre trocas de variante (`stage_config` e reconstruida do
-zero a cada `_compose_stage`). "lanes_holds": Hold classico + Shield no
-Arcade 4K, agora disponivel para QUALQUER musica sua. As 4 variantes
-"orbital_shields"/"twin_threats"/"orbital_eclipses"/"overload" expoem,
-uma de cada vez, os modifiers do 3o pacote hardcore do Defensor
-(sempre com "polarity" junto -- todos dependem dela); "nightmare" liga
-os 4 ao mesmo tempo, o mesmo pacote da fase curada "5 - Pesadelo" (sem
-"radius_collapse", que so faz algo com `modchart_events` curados que
-uma musica do jogador nunca tem)."""
+
+def modifier_rows_for_game_mode(game_mode: str) -> Tuple[str, ...]:
+    """Linhas do painel de checkboxes para o `game_mode` dado: SEMPRE
+    comeca com `GAME_MODE_ROW` (o alternador Defensor/Arcade 4K), depois
+    os modifiers relevantes daquele modo."""
+    rows = LANES_MODIFIER_ROWS if game_mode == "lanes" else DEFENDER_MODIFIER_ROWS
+    return (GAME_MODE_ROW,) + rows
 
 
 class HertzGameLoop(GameLoop):
@@ -179,7 +148,9 @@ class HertzGameLoop(GameLoop):
         self._results_grace = 0.0
         self._notice_key: Optional[str] = None
         self._notice_timer = 0.0
-        self._chosen_mode_index = {}  # fase selectable_mode -> indice em MODE_CYCLE
+        self._chosen_game_mode: dict = {}  # fase selectable_mode -> "defender"/"lanes"
+        self._chosen_modifiers: dict = {}  # fase selectable_mode -> frozenset de modifiers ligados
+        self._modifier_cursor: dict = {}  # fase selectable_mode -> indice da linha em foco no painel
         self._practice_mode: dict = {}  # fase selectable_mode -> Modo Treino ligado?
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
@@ -217,10 +188,45 @@ class HertzGameLoop(GameLoop):
 
     # -- carga/troca de fase (fase de carregamento: alocacao permitida) --
 
-    def chosen_mode(self, stage_index: int) -> str:
-        """Modo escolhido no menu para uma fase `selectable_mode` (as
-        musicas do jogador); fases curadas usam o modo dos overrides."""
-        return MODE_CYCLE[self._chosen_mode_index.get(stage_index, 0) % len(MODE_CYCLE)]
+    def chosen_game_mode(self, stage_index: int) -> str:
+        """Modo (Defensor/Arcade 4K) escolhido no menu pra uma fase
+        `selectable_mode` (as musicas do jogador); fases curadas usam o
+        modo dos `overrides` do `stages.json`. Default "defender"."""
+        return self._chosen_game_mode.get(stage_index, "defender")
+
+    def chosen_modifiers(self, stage_index: int) -> frozenset:
+        """Modifiers ligados (checkboxes marcados) pro seletor de
+        minigame de uma fase `selectable_mode`. Default vazio -- toda
+        musica comeca sem NENHUM modifier ligado, o jogador monta a
+        propria combinacao."""
+        return self._chosen_modifiers.get(stage_index, frozenset())
+
+    def modifier_rows(self, stage_index: int) -> Tuple[str, ...]:
+        """Linhas do painel de checkboxes pro `game_mode` ATUAL dessa
+        fase (muda se o jogador alternar Defensor/Arcade 4K)."""
+        return modifier_rows_for_game_mode(self.chosen_game_mode(stage_index))
+
+    def modifier_cursor(self, stage_index: int) -> int:
+        """Indice da linha em foco no painel de checkboxes (0 =
+        `GAME_MODE_ROW`), sempre dentro dos limites da lista ATUAL de
+        linhas (que pode ter encolhido se o jogador acabou de trocar
+        pra Arcade 4K, com menos modifiers que o Defensor)."""
+        rows = self.modifier_rows(stage_index)
+        return self._modifier_cursor.get(stage_index, 0) % len(rows)
+
+    def _toggle_modifier(self, stage_index: int, modifier_name: str) -> None:
+        """Liga/desliga UM modifier no checkbox de `stage_index`.
+        Notas Longas e Polaridade sao mutuamente exclusivas
+        (`_HOLDS_POLARITY_CONFLICT`) -- ligar um desliga o outro
+        automaticamente, nunca deixa os dois marcados juntos."""
+        current = set(self.chosen_modifiers(stage_index))
+        if modifier_name in current:
+            current.discard(modifier_name)
+        else:
+            current.add(modifier_name)
+            if modifier_name in _HOLDS_POLARITY_CONFLICT:
+                current -= _HOLDS_POLARITY_CONFLICT - {modifier_name}
+        self._chosen_modifiers[stage_index] = frozenset(current)
 
     def practice_mode_on(self, stage_index: int) -> bool:
         """Modo Treino ligado para uma fase `selectable_mode` (musicas
@@ -238,7 +244,8 @@ class HertzGameLoop(GameLoop):
             stage_config = dataclasses.replace(
                 stage_config,
                 practice_mode=self._practice_mode.get(stage_index, False),
-                **MODE_VARIANT_OVERRIDES[self.chosen_mode(stage_index)],
+                game_mode=self.chosen_game_mode(stage_index),
+                active_modifiers=tuple(self.chosen_modifiers(stage_index)),
             )
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
@@ -432,18 +439,39 @@ class HertzGameLoop(GameLoop):
         if inp.is_action_pressed("menu_up"):
             self._selected_stage = (self._selected_stage - 1) % stage_count
 
-        # musicas do jogador: A/D (ou setas) alternam o minigame; T liga/
-        # desliga o Modo Treino (densidade reduzida + sem dano de vida --
-        # util para uma fase recem-mapeada pela IA e ainda desconhecida).
+        # musicas do jogador: A/D (ou setas) percorrem o CURSOR do painel
+        # de checkboxes (GAME_MODE_ROW + modifiers do modo atual); C
+        # liga/desliga a linha em foco (troca Defensor<->Arcade 4K se for
+        # GAME_MODE_ROW, ou o modifier daquela linha); T liga/desliga o
+        # Modo Treino (densidade reduzida + sem dano de vida -- util pra
+        # uma fase recem-mapeada pela IA e ainda desconhecida).
         if self._stages[self._selected_stage].selectable_mode:
+            stage_index = self._selected_stage
+            rows = self.modifier_rows(stage_index)
+            cursor = self.modifier_cursor(stage_index)
             direction = 0
             if inp.is_action_pressed("menu_right"):
                 direction = 1
             if inp.is_action_pressed("menu_left"):
                 direction = -1
             if direction != 0:
-                current = self._chosen_mode_index.get(self._selected_stage, 0)
-                self._chosen_mode_index[self._selected_stage] = (current + direction) % len(MODE_CYCLE)
+                cursor = (cursor + direction) % len(rows)
+                self._modifier_cursor[stage_index] = cursor
+            if inp.is_action_pressed("toggle_modifier"):
+                row = rows[cursor]
+                if row == GAME_MODE_ROW:
+                    # so alcancavel com o cursor JA em GAME_MODE_ROW
+                    # (indice 0, presente nas 2 listas) -- nunca precisa
+                    # reenquadrar aqui: `modifier_cursor()` ja aplica
+                    # `% len(rows)` a cada leitura, entao um cursor
+                    # armazenado continua valido mesmo que a lista de
+                    # linhas encolha (Arcade 4K tem menos modifiers que
+                    # o Defensor) quando o jogador navegar de novo.
+                    self._chosen_game_mode[stage_index] = (
+                        "lanes" if self.chosen_game_mode(stage_index) == "defender" else "defender"
+                    )
+                else:
+                    self._toggle_modifier(stage_index, row)
             if inp.is_action_pressed("toggle_practice"):
                 self._practice_mode[self._selected_stage] = not self.practice_mode_on(self._selected_stage)
 
@@ -551,11 +579,19 @@ class HertzGameLoop(GameLoop):
         if hasattr(self._renderer, "set_overlay"):
             overlay_mode = None if self._flow == FLOW_PLAYING else self._flow
             is_selectable = self._stages[self._selected_stage].selectable_mode
-            selected_mode = self.chosen_mode(self._selected_stage) if is_selectable else None
+            modifier_panel = None
+            if is_selectable:
+                stage_index = self._selected_stage
+                modifier_panel = {
+                    "game_mode": self.chosen_game_mode(stage_index),
+                    "modifiers": self.chosen_modifiers(stage_index),
+                    "rows": self.modifier_rows(stage_index),
+                    "cursor": self.modifier_cursor(stage_index),
+                }
             practice_enabled = self.practice_mode_on(self._selected_stage) if is_selectable else None
             self._renderer.set_overlay(
                 overlay_mode, self._selected_stage, len(self._stages),
-                selected_mode=selected_mode, practice_enabled=practice_enabled,
+                modifier_panel=modifier_panel, practice_enabled=practice_enabled,
             )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)

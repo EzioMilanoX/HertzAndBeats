@@ -234,200 +234,171 @@ def test_live_latency_calibration_with_plus_minus(flow_game, null_input):
     assert loop._notice_timer <= 0.0
 
 
-def test_user_song_mode_cycles_and_composes_chosen_mode(tmp_path, null_input):
-    """Musica do jogador: A/D alternam o minigame no menu e a fase
-    compoe com o modo escolhido (o MESMO beatmap, outra interpretacao)."""
-    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
-        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5},
-    ])
+def _make_selectable_song(tmp_path, threats):
+    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", threats)
     song = StageDef(
         stage_id="user_song", name="SONG", subtitle="sua musica",
         track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
         synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
         tutorial_steps=(), selectable_mode=True,
     )
+    return song, beatmap_path
+
+
+def _make_loop(song, beatmap_path, null_input):
     audio_engine = NullAudioEngine()
-    loop = HertzGameLoop(
-        base_config=make_config(beatmap_path),
-        stages=(song,),
-        renderer=NullRenderer(),
-        input_provider=null_input,
-        audio_engine=audio_engine,
-        audio_clock=audio_engine.get_clock(),
+    return HertzGameLoop(
+        base_config=make_config(beatmap_path), stages=(song,), renderer=NullRenderer(),
+        input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
     )
 
-    assert loop.chosen_mode(0) == "defender"
-    _press(loop, null_input, "menu_right")
-    assert loop.chosen_mode(0) == "lanes"
-    _press(loop, null_input, "menu_right")
-    assert loop.chosen_mode(0) == "polarity"
-    _press(loop, null_input, "menu_left")
-    assert loop.chosen_mode(0) == "lanes"
+
+def test_user_song_starts_with_no_modifiers_checked_and_defender_mode(tmp_path, null_input):
+    """Musica do jogador: painel de checkboxes (Mecanicas Modulares)
+    comeca no Defensor SEM nenhum modifier ligado -- o jogador monta a
+    propria combinacao a partir do zero."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+
+    assert loop.chosen_game_mode(0) == "defender"
+    assert loop.chosen_modifiers(0) == frozenset()
+    assert loop.modifier_cursor(0) == 0
 
     _press(loop, null_input, "confirm")
     assert loop.flow == FLOW_PLAYING
-    assert loop._stage_config.game_mode == "lanes"
-
-
-def test_user_song_can_reach_the_polarity_and_holds_variants(tmp_path, null_input):
-    """As duas variantes finais do ciclo ("polarity"/"holds") sao o
-    Defensor por baixo, com os modifiers "polarity"/"holds" ligados via
-    `active_modifiers` -- as MESMAS mecanicas das fases curadas 7/8,
-    agora escolhiveis para qualquer musica do jogador."""
-    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
-        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
-    ])
-    song = StageDef(
-        stage_id="user_song", name="SONG", subtitle="sua musica",
-        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
-        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
-        tutorial_steps=(), selectable_mode=True,
-    )
-    audio_engine = NullAudioEngine()
-    loop = HertzGameLoop(
-        base_config=make_config(beatmap_path),
-        stages=(song,),
-        renderer=NullRenderer(),
-        input_provider=null_input,
-        audio_engine=audio_engine,
-        audio_clock=audio_engine.get_clock(),
-    )
-
-    # defender -> lanes -> polarity (2 passos)
-    for _ in range(2):
-        _press(loop, null_input, "menu_right")
-    assert loop.chosen_mode(0) == "polarity"
-    _press(loop, null_input, "confirm")
     assert loop._stage_config.game_mode == "defender"
-    assert "polarity" in loop._stage_config.active_modifiers
-    assert "holds" not in loop._stage_config.active_modifiers
+    assert loop._stage_config.active_modifiers == ()
 
 
-def test_user_song_holds_variant_enables_only_holds(tmp_path, null_input):
-    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
-        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
-    ])
-    song = StageDef(
-        stage_id="user_song", name="SONG", subtitle="sua musica",
-        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
-        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
-        tutorial_steps=(), selectable_mode=True,
-    )
-    audio_engine = NullAudioEngine()
-    loop = HertzGameLoop(
-        base_config=make_config(beatmap_path),
-        stages=(song,),
-        renderer=NullRenderer(),
-        input_provider=null_input,
-        audio_engine=audio_engine,
-        audio_clock=audio_engine.get_clock(),
-    )
+def test_cursor_visits_every_row_in_order_and_wraps(tmp_path, null_input):
+    """A/D percorrem o painel de checkboxes inteiro, na ordem, sem
+    pular nenhuma linha, e enrolam nas duas pontas."""
+    from hertzbeats.bootstrap.hertz_game_loop import DEFENDER_MODIFIER_ROWS, GAME_MODE_ROW
 
-    # defender -> lanes -> polarity -> holds (3 passos)
-    for _ in range(3):
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+    rows = (GAME_MODE_ROW,) + DEFENDER_MODIFIER_ROWS
+    assert loop.modifier_rows(0) == rows
+
+    assert loop.modifier_cursor(0) == 0
+    for i, _ in enumerate(rows[1:], start=1):
         _press(loop, null_input, "menu_right")
-    assert loop.chosen_mode(0) == "holds"
-    _press(loop, null_input, "confirm")
-    assert loop._stage_config.game_mode == "defender"
-    assert "holds" in loop._stage_config.active_modifiers
-    assert "polarity" not in loop._stage_config.active_modifiers
-
-
-def test_user_song_mode_cycle_visits_every_entry_in_order_and_wraps(tmp_path, null_input):
-    """A/D percorrem `MODE_CYCLE` inteiro, na ordem, sem pular nenhuma
-    entrada -- prova que o indice modulo `len(MODE_CYCLE)` continua
-    coerente mesmo com o ciclo estendido pelo 3o pacote hardcore do
-    Defensor (`orbital_shields`/`twin_threats`/`orbital_eclipses`/
-    `overload`/`nightmare`, acrescentados no FIM da tupla)."""
-    from hertzbeats.bootstrap.hertz_game_loop import MODE_CYCLE
-
-    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [_basic(3.0)])
-    song = StageDef(
-        stage_id="user_song", name="SONG", subtitle="sua musica",
-        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
-        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
-        tutorial_steps=(), selectable_mode=True,
-    )
-    audio_engine = NullAudioEngine()
-    loop = HertzGameLoop(
-        base_config=make_config(beatmap_path), stages=(song,), renderer=NullRenderer(),
-        input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
-    )
-
-    assert loop.chosen_mode(0) == MODE_CYCLE[0]
-    for expected in MODE_CYCLE[1:]:
-        _press(loop, null_input, "menu_right")
-        assert loop.chosen_mode(0) == expected
+        assert loop.modifier_cursor(0) == i
     _press(loop, null_input, "menu_right")  # um passo alem do fim -- enrola de volta
-    assert loop.chosen_mode(0) == MODE_CYCLE[0]
+    assert loop.modifier_cursor(0) == 0
     _press(loop, null_input, "menu_left")  # e o inverso tambem enrola
-    assert loop.chosen_mode(0) == MODE_CYCLE[-1]
+    assert loop.modifier_cursor(0) == len(rows) - 1
 
 
-@pytest.mark.parametrize(
-    "mode_name,expected_modifiers",
-    [
-        ("orbital_shields", {"telegraph_rings", "polarity", "orbital_shields"}),
-        ("twin_threats", {"telegraph_rings", "polarity", "twin_threats"}),
-        ("orbital_eclipses", {"telegraph_rings", "polarity", "orbital_eclipses"}),
-        ("overload", {"telegraph_rings", "polarity", "overload"}),
-        (
-            "nightmare",
-            {"telegraph_rings", "polarity", "orbital_shields", "twin_threats", "orbital_eclipses", "overload"},
-        ),
-    ],
-)
-def test_user_song_can_reach_each_new_hardcore_variant(tmp_path, null_input, mode_name, expected_modifiers):
-    """As 5 variantes novas do 3o pacote hardcore do Defensor sao
-    escolhiveis pra qualquer musica do jogador, cada uma compondo com
-    exatamente os modifiers esperados (sempre com "polarity" junto --
-    todas dependem dela)."""
-    from hertzbeats.bootstrap.hertz_game_loop import MODE_CYCLE
+def _move_cursor_to(loop, null_input, row_name: str) -> None:
+    target = loop.modifier_rows(0).index(row_name)
+    while loop.modifier_cursor(0) != target:
+        _press(loop, null_input, "menu_right")
 
-    beatmap_path = write_beatmap(tmp_path / "song.beatmap.json", [
+
+def test_toggle_modifier_checks_and_unchecks_the_focused_row(tmp_path, null_input):
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+
+    _move_cursor_to(loop, null_input, "polarity")
+    _press(loop, null_input, "toggle_modifier")
+    assert "polarity" in loop.chosen_modifiers(0)
+
+    _press(loop, null_input, "toggle_modifier")
+    assert "polarity" not in loop.chosen_modifiers(0)
+
+
+def test_toggling_the_game_mode_row_switches_between_defender_and_lanes(tmp_path, null_input):
+    """A linha `GAME_MODE_ROW` (sempre a primeira, indice 0) alterna
+    Defensor<->Arcade 4K -- so alcancavel com o cursor JA nela (toggle
+    em qualquer outra linha liga/desliga um modifier, nao o modo).
+    Arcade 4K tem BEM menos linhas (so "holds"); o cursor (sempre 0
+    neste fluxo) continua valido nas duas listas."""
+    from hertzbeats.bootstrap.hertz_game_loop import DEFENDER_MODIFIER_ROWS, GAME_MODE_ROW, LANES_MODIFIER_ROWS
+
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+
+    assert loop.modifier_cursor(0) == 0  # GAME_MODE_ROW, default
+    _press(loop, null_input, "toggle_modifier")
+    assert loop.chosen_game_mode(0) == "lanes"
+    assert loop.modifier_rows(0) == (GAME_MODE_ROW,) + LANES_MODIFIER_ROWS
+
+    # a lista encolheu pra 2 linhas -- andar 2x pra direita enrola de
+    # volta na propria GAME_MODE_ROW
+    _press(loop, null_input, "menu_right")
+    assert loop.modifier_cursor(0) == 1  # "holds"
+    _press(loop, null_input, "menu_right")
+    assert loop.modifier_cursor(0) == 0  # enrolou
+
+    _press(loop, null_input, "toggle_modifier")
+    assert loop.chosen_game_mode(0) == "defender"
+    assert loop.modifier_rows(0) == (GAME_MODE_ROW,) + DEFENDER_MODIFIER_ROWS
+
+
+def test_holds_and_polarity_are_mutually_exclusive(tmp_path, null_input):
+    """Ligar "holds" desliga "polarity" automaticamente e vice-versa --
+    os dois reusam o mesmo `threat_type` "pesada" com significados
+    incompativeis (Hold-Start vs Parry)."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [
         {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
     ])
-    song = StageDef(
-        stage_id="user_song", name="SONG", subtitle="sua musica",
-        track_path=str(tmp_path / "song.wav"), beatmap_path=str(beatmap_path),
-        synth={"bpm": 120.0, "bars": 1}, beatmap_params={}, overrides={},
-        tutorial_steps=(), selectable_mode=True,
-    )
-    audio_engine = NullAudioEngine()
-    loop = HertzGameLoop(
-        base_config=make_config(beatmap_path), stages=(song,), renderer=NullRenderer(),
-        input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
-    )
+    loop = _make_loop(song, beatmap_path, null_input)
 
-    for _ in range(MODE_CYCLE.index(mode_name)):
-        _press(loop, null_input, "menu_right")
-    assert loop.chosen_mode(0) == mode_name
+    _move_cursor_to(loop, null_input, "polarity")
+    _press(loop, null_input, "toggle_modifier")
+    assert loop.chosen_modifiers(0) == frozenset({"polarity"})
+
+    _move_cursor_to(loop, null_input, "holds")
+    _press(loop, null_input, "toggle_modifier")
+    assert loop.chosen_modifiers(0) == frozenset({"holds"})  # polarity foi desligada
+
+    _press(loop, null_input, "toggle_modifier")  # desliga holds de novo
+    _move_cursor_to(loop, null_input, "polarity")
+    _press(loop, null_input, "toggle_modifier")
+    _move_cursor_to(loop, null_input, "holds")
+    _press(loop, null_input, "toggle_modifier")
+    assert "polarity" not in loop.chosen_modifiers(0)  # o sentido inverso tambem exclui
+
+
+def test_composing_confirms_with_exactly_the_checked_modifiers(tmp_path, null_input):
+    song, beatmap_path = _make_selectable_song(tmp_path, [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    loop = _make_loop(song, beatmap_path, null_input)
+
+    for row_name in ("telegraph_rings", "polarity", "orbital_shields"):
+        _move_cursor_to(loop, null_input, row_name)
+        _press(loop, null_input, "toggle_modifier")
 
     _press(loop, null_input, "confirm")
     assert loop._stage_config.game_mode == "defender"
-    assert set(loop._stage_config.active_modifiers) == expected_modifiers
+    assert set(loop._stage_config.active_modifiers) == {"telegraph_rings", "polarity", "orbital_shields"}
 
 
-def test_every_mode_cycle_entry_has_an_override_display_name_and_hint():
-    """Toda entrada de `MODE_CYCLE` PRECISA de uma chave correspondente
-    em `MODE_VARIANT_OVERRIDES` (senao `KeyError` em `_compose_stage` ao
-    confirmar) e em `_MODE_DISPLAY_NAMES`/`_MODE_CONTROL_HINTS` (senao
-    nome/dica em branco, ou `KeyError` no carregamento do jogo) --
-    consistencia entre `hertz_game_loop.py` e `texture_bank.py` que
-    nenhum teste de composicao pega sozinho (usam `NullRenderer`, que
-    nunca toca essas texturas)."""
-    from hertzbeats.adapters.texture_bank import _MODE_CONTROL_HINTS, _MODE_DISPLAY_NAMES
-    from hertzbeats.bootstrap.hertz_game_loop import MODE_CYCLE, MODE_VARIANT_OVERRIDES
+def test_every_modifier_row_has_a_registered_label_texture():
+    """Toda linha possivel do painel (`GAME_MODE_ROW` + cada modifier de
+    `DEFENDER_MODIFIER_ROWS`/`LANES_MODIFIER_ROWS`) PRECISA de uma
+    textura `modifier_row_*` registrada em `texture_bank.py` -- senao
+    `_blit_centered`/`_draw_modifier_row` desenham a linha em BRANCO
+    silenciosamente (nenhum teste de composicao pega isso sozinho, usam
+    `NullRenderer`, que nunca toca essas texturas)."""
+    from hertzbeats.adapters.texture_bank import _GAME_MODE_ROW_LABELS, _MODIFIER_ROW_LABELS
+    from hertzbeats.bootstrap.hertz_game_loop import (
+        DEFENDER_MODIFIER_ROWS,
+        LANES_MODIFIER_ROWS,
+    )
 
-    for mode_name in MODE_CYCLE:
-        assert mode_name in MODE_VARIANT_OVERRIDES, f"{mode_name!r} sem override em MODE_VARIANT_OVERRIDES"
-        assert mode_name in _MODE_DISPLAY_NAMES, f"{mode_name!r} sem nome em _MODE_DISPLAY_NAMES"
-        assert mode_name in _MODE_CONTROL_HINTS, f"{mode_name!r} sem dica em _MODE_CONTROL_HINTS"
+    assert "defender" in _GAME_MODE_ROW_LABELS
+    assert "lanes" in _GAME_MODE_ROW_LABELS
+    for row_name in set(DEFENDER_MODIFIER_ROWS) | set(LANES_MODIFIER_ROWS):
+        assert row_name in _MODIFIER_ROW_LABELS, f"{row_name!r} sem rotulo em _MODIFIER_ROW_LABELS"
 
 
-def test_a_curated_stage_is_never_affected_by_the_variant_cycle(tmp_path, null_input):
-    """Fases curadas (`selectable_mode=False`) ignoram `MODE_VARIANT_OVERRIDES`
-    por completo -- so usam os `overrides` do proprio `stages.json`."""
+def test_a_curated_stage_is_never_affected_by_the_modifier_panel(tmp_path, null_input):
+    """Fases curadas (`selectable_mode=False`) ignoram o painel de
+    checkboxes por completo -- so usam os `overrides`/`active_modifiers`
+    do proprio `stages.json`."""
     beatmap_path = write_beatmap(tmp_path / "curated.beatmap.json", [
         {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_basic", "lane": 0, "strength": 0.5},
     ])

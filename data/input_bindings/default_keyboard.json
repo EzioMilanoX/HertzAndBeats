@@ -8,6 +8,7 @@
   "menu_left": ["KEY_LEFT", "KEY_A"],
   "menu_right": ["KEY_RIGHT", "KEY_D"],
   "confirm": ["KEY_RETURN", "KEY_SPACE"],
+  "toggle_modifier": "KEY_C",
   "retry": "KEY_R",
   "to_menu": ["KEY_M", "KEY_BACKSPACE"],
   "lane_0": "KEY_A",

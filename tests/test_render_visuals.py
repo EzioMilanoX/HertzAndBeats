@@ -74,34 +74,39 @@ def test_hidden_sprite_paints_nothing(renderer):
     assert painted_ratio == 0.0
 
 
-def test_mode_hint_and_display_name_texts_fit_within_the_default_window_width():
+def test_modifier_row_labels_fit_within_the_default_window_width():
     """Achado real ao adicionar os hints do 3o pacote hardcore do
     Defensor (Escudos Rotativos/Gemeos/Eclipses/Overload) ao seletor de
     minigame: um texto comprido demais estoura as bordas da janela,
-    porque `HBPygameRenderer._blit_centered` so centraliza uma Surface
-    JA PRONTA -- nunca quebra linha nem escala pra caber. Mede a largura
-    RENDERIZADA (mesma fonte/tamanho usados de verdade em
-    `build_and_register_overlay_surfaces`) de todo hint/nome de
-    `texture_bank.py` contra a largura padrao da janela real."""
-    from hertzbeats.adapters.texture_bank import _MODE_CONTROL_HINTS, _MODE_DISPLAY_NAMES
+    porque `HBPygameRenderer._draw_modifier_row`/`_blit_centered` so
+    centralizam uma Surface JA PRONTA -- nunca quebram linha nem
+    escalam pra caber. Mede a largura RENDERIZADA (mesma fonte/tamanho
+    usados de verdade em `build_and_register_overlay_surfaces`) de cada
+    rotulo do painel de checkboxes -- as linhas de modifier tambem
+    somam o espaco do quadrado de marcar (`_CHECKBOX_SIZE +
+    _CHECKBOX_GAP`, nunca desenhado como texto, mas ocupa largura de
+    verdade na tela) -- contra a largura padrao da janela real."""
+    from hertzbeats.adapters.hb_pygame_renderer import _CHECKBOX_GAP, _CHECKBOX_SIZE
+    from hertzbeats.adapters.texture_bank import _GAME_MODE_ROW_LABELS, _MODIFIER_ROW_LABELS
     from hertzbeats.config import HertzConfig
 
     config = HertzConfig.from_json("data/config/hertz_beats.config.json")
     if not pygame.font.get_init():
         pygame.font.init()
     hint_font = pygame.font.Font(None, 28)
-    name_font = pygame.font.Font(None, 44)
+    checkbox_span = _CHECKBOX_SIZE + _CHECKBOX_GAP
 
-    for mode, hint_text in _MODE_CONTROL_HINTS.items():
-        width, _ = hint_font.size(hint_text)
+    for game_mode, label in _GAME_MODE_ROW_LABELS.items():
+        width, _ = hint_font.size(label)
         assert width < config.window_width, (
-            f"hint de {mode!r} estoura a janela: {width}px >= {config.window_width}px"
+            f"rotulo do modo {game_mode!r} estoura a janela: {width}px >= {config.window_width}px"
         )
 
-    for mode, display_name in _MODE_DISPLAY_NAMES.items():
-        width, _ = name_font.size(f"<  MODO: {display_name}  >")
-        assert width < config.window_width, (
-            f"nome de {mode!r} estoura a janela: {width}px >= {config.window_width}px"
+    for modifier_name, label in _MODIFIER_ROW_LABELS.items():
+        width, _ = hint_font.size(label)
+        total_width = width + checkbox_span
+        assert total_width < config.window_width, (
+            f"linha de {modifier_name!r} estoura a janela: {total_width}px >= {config.window_width}px"
         )
 
 

@@ -185,50 +185,43 @@ _HOLDS_HINT_BY_MODE = {
 acompanhar, por isso e escolhida pelo `game_mode` da fase e nao so pelo
 modifier."""
 
-_MODE_CONTROL_HINTS = {
+_GENERIC_GAME_MODE_HINTS = {
     "defender": "MOUSE mira  |  CLIQUE atira na batida  |  ESPACO dash",
     "lanes": "A S W D nas colunas, no ritmo das notas",
-    "polarity": _POLARITY_CONTROL_HINT,
-    "holds": _HOLDS_CONTROL_HINT,
-    "lanes_holds": _LANES_HOLDS_CONTROL_HINT,
-    "orbital_shields": _ORBITAL_SHIELDS_CONTROL_HINT,
-    "twin_threats": _TWIN_THREATS_CONTROL_HINT,
-    "orbital_eclipses": _ORBITAL_ECLIPSES_CONTROL_HINT,
-    "overload": _OVERLOAD_CONTROL_HINT,
-    # "nightmare" liga os 4 modifiers acima ao mesmo tempo -- o Overload
-    # e o unico que muda um CONTROLE de verdade (uso do Dash), entao a
-    # dica mais completa/util e a dele, nao uma lista das 4 mecanicas.
-    "nightmare": _OVERLOAD_CONTROL_HINT,
 }
-"""Dica de controles exibida no menu para o MODO/variante da fase
-selecionada -- "polarity"/"holds"/"lanes_holds"/etc reusam a MESMA dica
-das fases curadas equivalentes (mesmas mecanicas, agora tambem
-escolhiveis para musicas do jogador via A/D). Toda chave de
-`MODE_CYCLE` (`hertz_game_loop.py`) PRECISA aparecer aqui -- o loop de
-registro (`build_and_register_overlay_surfaces`) indexa este dict
-DIRETO (sem `.get`), entao uma variante nova sem entrada aqui e
-`KeyError` no carregamento do jogo, nao um bug silencioso em runtime."""
+"""Dica-fallback para uma fase CURADA sem nenhum modifier ligado (so o
+`game_mode` puro) -- usada pelo loop de `stage_{i}_hint` abaixo. O
+seletor de minigame das musicas do jogador (painel de checkboxes) tem
+seu PROPRIO texto por linha, ver `_MODIFIER_ROW_LABELS` e
+`_GAME_MODE_ROW_LABELS`."""
 
-_MODE_DISPLAY_NAMES = {
-    "defender": "O DEFENSOR",
-    "lanes": "ARCADE 4K",
-    "polarity": "DEFENSOR: POLARIDADE",
-    "holds": "DEFENSOR: NOTAS LONGAS",
-    "lanes_holds": "ARCADE 4K: NOTAS LONGAS",
-    "orbital_shields": "DEFENSOR: ESCUDOS ROTATIVOS",
-    "twin_threats": "DEFENSOR: GEMEOS DE POLARIDADE",
-    "orbital_eclipses": "DEFENSOR: ECLIPSES ORBITAIS",
-    "overload": "DEFENSOR: OVERLOAD DO NUCLEO",
-    "nightmare": "DEFENSOR: PESADELO",
+_MODIFIER_ROW_LABELS = {
+    "telegraph_rings": "Aneis de Convergencia",
+    "polarity": "Polaridade (azul/rosa + Parry)",
+    "orbital_shields": "Escudos Rotativos (exige Polaridade)",
+    "twin_threats": "Gemeos de Polaridade (exige Polaridade)",
+    "orbital_eclipses": "Eclipses Orbitais",
+    "overload": "Overload do Nucleo (exige Polaridade)",
+    "holds": "Notas Longas (Hold)",
 }
-"""Nome exibido no seletor de minigame das musicas do jogador. Este dict
-(nao `MODE_CYCLE`) e quem dirige o loop de registro das texturas
-`modename_*`/`modectl_*` -- uma chave de `MODE_CYCLE` ausente aqui
-simplesmente nunca gera textura (linha em branco no menu ao chegar
-nessa variante), sem erro; por isso as duas listas (aqui e em
-`_MODE_CONTROL_HINTS`) precisam ser mantidas em sincronia manualmente
-com `MODE_CYCLE` -- ver `test_match_flow.py` para o teste de
-consistencia entre os tres."""
+"""Rotulo de CADA linha do painel de checkboxes do seletor de minigame
+-- um por modifier de `hertz_game_loop.DEFENDER_MODIFIER_ROWS`/
+`LANES_MODIFIER_ROWS` (`"holds"` e compartilhado, um so rotulo serve
+aos 2 modos). Nao inclui o glifo de caixinha (marcado/desmarcado) --
+isso e desenhado em TEMPO REAL por `HBPygameRenderer` (mesmo padrao de
+`_draw_inner_square`/`_draw_inner_triangle`, um retangulo simples nao
+precisa de font.render). Modifiers que dependem de "polarity"
+("orbital_shields"/"twin_threats"/"overload") dizem isso no proprio
+rotulo -- mais simples que uma segunda textura "desabilitado"."""
+
+_GAME_MODE_ROW_LABELS = {
+    "defender": "<  DEFENSOR  >",
+    "lanes": "<  ARCADE 4K  >",
+}
+"""Rotulo da linha ESPECIAL `GAME_MODE_ROW` (sempre a primeira do
+painel) -- alterna Defensor/Arcade 4K em vez de ligar um modifier, por
+isso usa o estilo de seta "< X >" (like o antigo seletor de preset) em
+vez de um checkbox."""
 
 
 def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> None:
@@ -291,7 +284,7 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
             # `game_mode` da fase, nao so o modifier (ver `_HOLDS_HINT_BY_MODE`)
             hint_text = _HOLDS_HINT_BY_MODE.get(stage_mode, _HOLDS_CONTROL_HINT)
         else:
-            hint_text = _MODE_CONTROL_HINTS.get(stage_mode, "")
+            hint_text = _GENERIC_GAME_MODE_HINTS.get(stage_mode, "")
         register_text(f"stage_{i}_hint", hint_font, hint_text, _GOOD_COLOR)
 
     # calibracao de latencia ao vivo: um aviso por valor (passos de 10 ms)
@@ -302,11 +295,13 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
             _PERFECT_COLOR,
         )
 
-    # seletor de minigame das musicas do jogador + indicadores de rolagem
-    mode_font = pygame.font.Font(None, 44)
-    for mode, mode_name in _MODE_DISPLAY_NAMES.items():
-        register_text(f"modename_{mode}", mode_font, f"<  MODO: {mode_name}  >", _PERFECT_COLOR)
-        register_text(f"modectl_{mode}", hint_font, _MODE_CONTROL_HINTS[mode], _GOOD_COLOR)
+    # seletor de minigame das musicas do jogador: painel de checkboxes
+    # (uma linha por modifier + a linha especial de game_mode) + indicadores
+    # de rolagem da lista de fases.
+    for game_mode, label in _GAME_MODE_ROW_LABELS.items():
+        register_text(f"modifier_row_game_mode_{game_mode}", hint_font, label, _PERFECT_COLOR)
+    for modifier_name, label in _MODIFIER_ROW_LABELS.items():
+        register_text(f"modifier_row_{modifier_name}", hint_font, label, _GOOD_COLOR)
     register_text("scroll_up", hint_font, "^ ^ ^", _LABEL_COLOR)
     register_text("scroll_down", hint_font, "v v v", _LABEL_COLOR)
 

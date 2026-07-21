@@ -28,6 +28,25 @@ _FLOW_TIER_PALETTE = (
 """Paleta ciclica da linha de julgamento no Flow State -- cada tier de
 50 combos extras avanca uma cor (`tier % len(paleta)`)."""
 
+_GAME_MODE_ROW = "game_mode"
+"""Mesmo literal de `hertzbeats.bootstrap.hertz_game_loop.GAME_MODE_ROW`
+-- duplicado de proposito (este adapter nao importa o game loop, seria
+o sentido INVERSO de dependencia adapter->orquestracao) pra reconhecer
+a linha especial de Defensor/Arcade 4K do painel de checkboxes e
+desenha-la SEM quadrado de marcar."""
+
+_CHECKBOX_SIZE = 18
+_CHECKBOX_GAP = 12
+_CHECKBOX_COLOR = (250, 250, 255)
+_CURSOR_HIGHLIGHT_COLOR = (255, 214, 64)
+_CURSOR_HIGHLIGHT_PADDING = 10
+"""Painel de checkboxes do seletor de minigame (Mecanicas Modulares):
+o quadrado de marcar e o retangulo de destaque da linha em foco sao
+desenhados em TEMPO REAL (`pygame.draw.rect`), nunca pre-renderizados
+-- mesmo criterio de `_draw_inner_square`/`_draw_inner_triangle` (um
+retangulo simples nao precisa de `font.render`, so o ROTULO de texto de
+cada linha e uma Surface pronta)."""
+
 
 class HBPygameRenderer(PygameRenderer):
     """
@@ -86,7 +105,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_mode: Optional[str] = None
         self._overlay_selected: int = 0
         self._overlay_stage_count: int = 0
-        self._overlay_selected_mode: Optional[str] = None
+        self._overlay_modifier_panel: Optional[dict] = None
         self._overlay_practice_enabled: Optional[bool] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
@@ -114,20 +133,23 @@ class HBPygameRenderer(PygameRenderer):
         mode: Optional[str],
         selected_index: int = 0,
         stage_count: int = 0,
-        selected_mode: Optional[str] = None,
+        modifier_panel: Optional[dict] = None,
         practice_enabled: Optional[bool] = None,
     ) -> None:
         """Publica o estado de fluxo a desenhar sobre o frame: `None`
         (jogando, sem overlay), "menu", "paused", "game_over" ou
-        "results". `selected_mode` (fases de musica do jogador) troca a
-        dica fixa da fase pelo seletor de minigame; `practice_enabled`
-        (`None` em fases curadas, `True`/`False` nas musicas do jogador)
-        mostra o estado do Modo Treino junto do seletor. Chamado pelo
+        "results". `modifier_panel` (fases de musica do jogador, `None`
+        em fases curadas) troca a dica fixa da fase pelo painel de
+        checkboxes do seletor de minigame -- um dict
+        `{"game_mode", "modifiers", "rows", "cursor"}` (ver
+        `HertzGameLoop._sync_overlay`). `practice_enabled` (`None` em
+        fases curadas, `True`/`False` nas musicas do jogador) mostra o
+        estado do Modo Treino junto do painel. Chamado pelo
         `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_selected = int(selected_index)
         self._overlay_stage_count = int(stage_count)
-        self._overlay_selected_mode = selected_mode
+        self._overlay_modifier_panel = modifier_panel
         self._overlay_practice_enabled = practice_enabled
 
     def set_notice(self, key: Optional[str]) -> None:
@@ -300,6 +322,44 @@ class HBPygameRenderer(PygameRenderer):
         self._surface.blit(surface, (center_x - surface.get_width() // 2, y))
         return surface.get_height()
 
+    def _draw_modifier_row(self, label_key: str, checked, is_cursor: bool, center_x: int, y: int) -> int:
+        """Desenha UMA linha do painel de checkboxes do seletor de
+        minigame (Mecanicas Modulares): um pequeno quadrado desenhado em
+        TEMPO REAL (preenchido se `checked`, so contorno se nao -- mesmo
+        padrao de `_draw_inner_square`, nenhum `font.render`) a esquerda
+        do rotulo pre-renderizado `label_key`. `checked=None` (linha
+        especial `_GAME_MODE_ROW`) omite o quadrado -- o rotulo ja vem
+        com as setas "< DEFENSOR >"/"< ARCADE 4K >" prontas. A linha em
+        FOCO (`is_cursor`) ganha um retangulo de destaque ao redor.
+        Retorna a altura consumida (0 se o rotulo nao foi registrado),
+        mesmo contrato de `_blit_centered`, pra encadear no `y` do
+        chamador."""
+        surface = self._overlay_surfaces.get(label_key)
+        if surface is None:
+            return 0
+        label_width = surface.get_width()
+        height = surface.get_height()
+        has_checkbox = checked is not None
+        box_span = (_CHECKBOX_SIZE + _CHECKBOX_GAP) if has_checkbox else 0
+        total_width = label_width + box_span
+        left = center_x - total_width // 2
+
+        if has_checkbox:
+            box_rect = pygame.Rect(left, y + height // 2 - _CHECKBOX_SIZE // 2, _CHECKBOX_SIZE, _CHECKBOX_SIZE)
+            pygame.draw.rect(self._surface, _CHECKBOX_COLOR, box_rect, 0 if checked else 2)
+            label_x = left + box_span
+        else:
+            label_x = left
+        self._surface.blit(surface, (label_x, y))
+
+        if is_cursor:
+            highlight_rect = pygame.Rect(
+                left - _CURSOR_HIGHLIGHT_PADDING, y - _CURSOR_HIGHLIGHT_PADDING // 2,
+                total_width + _CURSOR_HIGHLIGHT_PADDING * 2, height + _CURSOR_HIGHLIGHT_PADDING,
+            )
+            pygame.draw.rect(self._surface, _CURSOR_HIGHLIGHT_COLOR, highlight_rect, 2)
+        return height
+
     def _draw_overlay(self) -> None:
         """Desenha o overlay do estado publicado por `set_overlay` usando
         apenas superficies pre-renderizadas (nenhum font.render aqui)."""
@@ -326,11 +386,20 @@ class HBPygameRenderer(PygameRenderer):
             if first + MAX_VISIBLE < count:
                 y += self._blit_centered("scroll_down", center_x, y) + 8
 
-            # fase de musica do jogador: seletor de minigame + Modo Treino;
-            # fase curada: dica fixa de controles do modo dela
-            if self._overlay_selected_mode is not None:
-                y += self._blit_centered(f"modename_{self._overlay_selected_mode}", center_x, y + 14) + 6
-                y += self._blit_centered(f"modectl_{self._overlay_selected_mode}", center_x, y + 8) + 6
+            # fase de musica do jogador: painel de checkboxes (Mecanicas
+            # Modulares) + Modo Treino; fase curada: dica fixa de
+            # controles do modo dela
+            panel = self._overlay_modifier_panel
+            if panel is not None:
+                y += 14
+                for i, row_name in enumerate(panel["rows"]):
+                    is_cursor = i == panel["cursor"]
+                    if row_name == _GAME_MODE_ROW:
+                        label_key = f"modifier_row_game_mode_{panel['game_mode']}"
+                        y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
+                    else:
+                        checked = row_name in panel["modifiers"]
+                        y += self._draw_modifier_row(f"modifier_row_{row_name}", checked, is_cursor, center_x, y) + 6
                 practice_key = "practice_on" if self._overlay_practice_enabled else "practice_off"
                 self._blit_centered(practice_key, center_x, y + 6)
             else:
