@@ -46,52 +46,76 @@ _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
 
 GAME_MODE_ROW = "game_mode"
-"""Sentinela: SEMPRE a primeira linha do painel de checkboxes do
-seletor de minigame (`modifier_rows_for_game_mode`) -- alterna
-Defensor/Arcade 4K em vez de ligar/desligar um modifier. Nao e uma
+"""Sentinela: SEMPRE a PRIMEIRA linha do menu de opcoes do seletor de
+minigame (`modifier_rows_for_game_mode`) -- linha de MULTIPLA ESCOLHA
+(A/D alternam Defensor/Arcade 4K), nao um modifier booleano. Nao e uma
 string de `HertzConfig.active_modifiers` de verdade (nunca aparece
 dentro de `chosen_modifiers(...)`), so um marcador de linha consumido
-por `_advance_menu`/`hb_pygame_renderer._draw_overlay` -- os dois
-precisam concordar no MESMO literal (`hb_pygame_renderer.py` nao
+por `_advance_menu_options`/`hb_pygame_renderer._draw_overlay` -- os
+dois precisam concordar no MESMO literal (`hb_pygame_renderer.py` nao
 importa este modulo pra evitar dependencia invertida adapter->loop, so
 duplica a string com um comentario cruzado)."""
 
+HEAVY_MECHANIC_ROW = "heavy_mechanic"
+"""Sentinela: SEMPRE a SEGUNDA linha -- outra de MULTIPLA ESCOLHA (A/D
+alternam `HEAVY_MECHANIC_VALUES_BY_GAME_MODE[game_mode]`). Substitui os
+antigos checkboxes independentes "polarity"/"holds": as duas mecanicas
+sao MUTUAMENTE EXCLUSIVAS (reusam o mesmo `threat_type` "pesada" com
+significados incompativeis -- Hold-Start vs Parry -- e o
+`JudgmentSystem` checa Hold ANTES de Parry, entao os dois ligados ao
+mesmo tempo fariam toda pesada virar Hold silenciosamente, nunca Parry)
+-- uma multipla escolha de 3 valores torna a exclusividade estrutural
+(nunca dá pra escolher os dois), em vez de dois booleanos com logica de
+"desliga o outro" escondida."""
+
+START_ROW = "start"
+"""Sentinela: SEMPRE a ULTIMA linha -- o botao de ACAO "Iniciar Fase".
+So inicia a fase (`_start_stage`) quando ESPACO/ENTER e pressionado com
+o cursor EXATAMENTE aqui -- em qualquer outra linha, ESPACO/ENTER agem
+sobre AQUELA linha (liga/desliga um modifier booleano; nas linhas de
+multipla escolha, ESPACO/ENTER nao fazem nada, so A/D alteram o valor)."""
+
 DEFENDER_MODIFIER_ROWS = (
     "telegraph_rings",
-    "polarity",
     "orbital_shields",
     "twin_threats",
     "orbital_eclipses",
     "overload",
-    "holds",
 )
-LANES_MODIFIER_ROWS = ("holds",)
-"""Linhas de modifier mostradas por `game_mode` no painel de checkboxes
-das musicas do jogador -- "holds" e compartilhado pelos 2 (cada modo
-interpreta a sustentacao a sua maneira, mesmo criterio de
-`HertzConfig.active_modifiers`). "radius_collapse", "bombs" e "heal"
-ficam de fora: so fazem algo visivel em cima de dado especifico de fase
-CURADA (eventos `modchart_events`; ameacas desses tipos no beatmap) que
-uma musica do jogador nunca tem (`music_library.py` sempre cria
+LANES_MODIFIER_ROWS = ()
+"""Linhas de modifier BOOLEANO (checkbox) mostradas por `game_mode`,
+ENTRE `HEAVY_MECHANIC_ROW` e `START_ROW` -- "holds"/"polarity" NAO
+aparecem aqui (viraram a multipla escolha `HEAVY_MECHANIC_ROW`).
+"radius_collapse", "bombs" e "heal" ficam de fora: so fazem algo
+visivel em cima de dado especifico de fase CURADA (eventos
+`modchart_events`; ameacas desses tipos no beatmap) que uma musica do
+jogador nunca tem (`music_library.py` sempre cria
 `StageDef(modchart_events=())` e o mapeador offline nunca emite
 `rhythm_threat_bomb`/`rhythm_threat_heal`) -- ligar so o modifier seria
-um checkbox que nao muda NADA na tela."""
+um checkbox que nao muda NADA na tela. Arcade 4K nao tem NENHUM
+modifier booleano hoje (so `GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`/
+`START_ROW`)."""
 
-_HOLDS_POLARITY_CONFLICT = frozenset({"holds", "polarity"})
-"""Notas Longas e Polaridade sao MUTUAMENTE EXCLUSIVAS -- reusam o
-mesmo `threat_type` "pesada" com significados incompativeis (Hold-Start
-vs Parry), e o `JudgmentSystem` checa Hold ANTES de Parry, entao ligar
-os dois ao mesmo tempo faria toda pesada virar Hold silenciosamente,
-nunca Parry. `_toggle_modifier` desliga o outro automaticamente ao
-ligar um dos dois -- nunca deixa os dois marcados juntos."""
+HEAVY_MECHANIC_VALUES_BY_GAME_MODE = {
+    "defender": ("none", "polarity", "holds"),
+    "lanes": ("none", "holds"),
+}
+"""Valores ciclaveis (A/D) de `HEAVY_MECHANIC_ROW` por `game_mode` --
+"polarity" so existe no Defensor (Arcade 4K nunca teve a mecanica)."""
+
+_HEAVY_MECHANIC_DISPLAY_ORDER = ("none", "polarity", "holds")
+"""Ordem FIXA de ciclagem (independente do `game_mode` atual) -- usada
+por `_cycle_heavy_mechanic` pra sempre andar na mesma direcao logica
+(Nenhuma -> Polaridade -> Holds -> Nenhuma), mesmo quando o subconjunto
+valido do modo atual pula "polarity" (Arcade 4K)."""
 
 
 def modifier_rows_for_game_mode(game_mode: str) -> Tuple[str, ...]:
-    """Linhas do painel de checkboxes para o `game_mode` dado: SEMPRE
-    comeca com `GAME_MODE_ROW` (o alternador Defensor/Arcade 4K), depois
-    os modifiers relevantes daquele modo."""
+    """Linhas do menu de opcoes pro `game_mode` dado: SEMPRE
+    `GAME_MODE_ROW`, `HEAVY_MECHANIC_ROW`, os modifiers booleanos
+    daquele modo, e por fim `START_ROW`."""
     rows = LANES_MODIFIER_ROWS if game_mode == "lanes" else DEFENDER_MODIFIER_ROWS
-    return (GAME_MODE_ROW,) + rows
+    return (GAME_MODE_ROW, HEAVY_MECHANIC_ROW) + rows + (START_ROW,)
 
 
 class HertzGameLoop(GameLoop):
@@ -149,8 +173,10 @@ class HertzGameLoop(GameLoop):
         self._notice_key: Optional[str] = None
         self._notice_timer = 0.0
         self._chosen_game_mode: dict = {}  # fase selectable_mode -> "defender"/"lanes"
-        self._chosen_modifiers: dict = {}  # fase selectable_mode -> frozenset de modifiers ligados
-        self._modifier_cursor: dict = {}  # fase selectable_mode -> indice da linha em foco no painel
+        self._chosen_heavy_mechanic: dict = {}  # fase selectable_mode -> "none"/"polarity"/"holds"
+        self._chosen_modifiers: dict = {}  # fase selectable_mode -> frozenset dos modifiers booleanos ligados
+        self._menu_cursor_index: dict = {}  # fase selectable_mode -> indice da linha em foco no menu de opcoes
+        self._options_focused: dict = {}  # fase selectable_mode -> cursor esta DENTRO do menu de opcoes?
         self._practice_mode: dict = {}  # fase selectable_mode -> Modo Treino ligado?
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
@@ -194,38 +220,83 @@ class HertzGameLoop(GameLoop):
         modo dos `overrides` do `stages.json`. Default "defender"."""
         return self._chosen_game_mode.get(stage_index, "defender")
 
+    def chosen_heavy_mechanic(self, stage_index: int) -> str:
+        """Valor ATUAL da multipla escolha `HEAVY_MECHANIC_ROW":
+        "none"/"polarity"/"holds". Default "none" -- nenhuma mecanica
+        pesada ligada."""
+        return self._chosen_heavy_mechanic.get(stage_index, "none")
+
     def chosen_modifiers(self, stage_index: int) -> frozenset:
-        """Modifiers ligados (checkboxes marcados) pro seletor de
-        minigame de uma fase `selectable_mode`. Default vazio -- toda
-        musica comeca sem NENHUM modifier ligado, o jogador monta a
-        propria combinacao."""
-        return self._chosen_modifiers.get(stage_index, frozenset())
+        """`active_modifiers` efetivos pro seletor de minigame: os
+        modifiers booleanos marcados MAIS o que `chosen_heavy_mechanic`
+        resolver (se nao for "none") -- a leitura publica ja funde os 2,
+        `_compose_stage` nao precisa saber que "polarity"/"holds" vem de
+        uma multipla escolha em vez de um checkbox independente."""
+        modifiers = set(self._chosen_modifiers.get(stage_index, frozenset()))
+        heavy_mechanic = self.chosen_heavy_mechanic(stage_index)
+        if heavy_mechanic != "none":
+            modifiers.add(heavy_mechanic)
+        return frozenset(modifiers)
 
     def modifier_rows(self, stage_index: int) -> Tuple[str, ...]:
-        """Linhas do painel de checkboxes pro `game_mode` ATUAL dessa
-        fase (muda se o jogador alternar Defensor/Arcade 4K)."""
+        """Linhas do menu de opcoes pro `game_mode` ATUAL dessa fase
+        (muda se o jogador alternar Defensor/Arcade 4K)."""
         return modifier_rows_for_game_mode(self.chosen_game_mode(stage_index))
 
-    def modifier_cursor(self, stage_index: int) -> int:
-        """Indice da linha em foco no painel de checkboxes (0 =
+    def menu_cursor_index(self, stage_index: int) -> int:
+        """Indice da linha em foco no menu de opcoes (0 =
         `GAME_MODE_ROW`), sempre dentro dos limites da lista ATUAL de
-        linhas (que pode ter encolhido se o jogador acabou de trocar
-        pra Arcade 4K, com menos modifiers que o Defensor)."""
+        linhas (que pode ter menos linhas no Arcade 4K que no Defensor)
+        -- o `% len(rows)` AQUI e a unica reenquadracao necessaria, ja
+        que so e possivel trocar de `game_mode` com o cursor JA em
+        `GAME_MODE_ROW` (indice 0, presente em qualquer lista)."""
         rows = self.modifier_rows(stage_index)
-        return self._modifier_cursor.get(stage_index, 0) % len(rows)
+        return self._menu_cursor_index.get(stage_index, 0) % len(rows)
+
+    def options_focused(self, stage_index: int) -> bool:
+        """True quando o cursor esta DENTRO do menu de opcoes dessa fase
+        (W/S navegam as linhas do menu, A/D alteram a linha focada,
+        ESPACO/ENTER agem sobre ela) -- False enquanto o jogador ainda
+        so navega a LISTA de fases/musicas (W/S trocam de fase,
+        ESPACO/ENTER entram no menu de opcoes ou iniciam uma fase
+        curada direto)."""
+        return self._options_focused.get(stage_index, False)
+
+    def _cycle_game_mode(self, stage_index: int, direction: int) -> None:
+        """A/D na linha `GAME_MODE_ROW`: alterna Defensor<->Arcade 4K.
+        Se a mecanica pesada escolhida deixar de existir no modo novo
+        (ex.: "polarity" nao existe no Arcade 4K), reseta pra "none" --
+        nunca deixa `chosen_heavy_mechanic` num valor invalido pro modo
+        atual."""
+        modes = ("defender", "lanes")
+        current = modes.index(self.chosen_game_mode(stage_index))
+        new_mode = modes[(current + direction) % len(modes)]
+        self._chosen_game_mode[stage_index] = new_mode
+        if self.chosen_heavy_mechanic(stage_index) not in HEAVY_MECHANIC_VALUES_BY_GAME_MODE[new_mode]:
+            self._chosen_heavy_mechanic[stage_index] = "none"
+
+    def _cycle_heavy_mechanic(self, stage_index: int, direction: int) -> None:
+        """A/D na linha `HEAVY_MECHANIC_ROW`: percorre so os valores
+        validos pro `game_mode` ATUAL (`_HEAVY_MECHANIC_DISPLAY_ORDER`
+        filtrada), entao "polarity" nunca aparece ciclando no Arcade
+        4K."""
+        stage_index_mode = self.chosen_game_mode(stage_index)
+        order = [v for v in _HEAVY_MECHANIC_DISPLAY_ORDER if v in HEAVY_MECHANIC_VALUES_BY_GAME_MODE[stage_index_mode]]
+        current = self.chosen_heavy_mechanic(stage_index)
+        if current not in order:
+            current = order[0]
+        index = order.index(current)
+        self._chosen_heavy_mechanic[stage_index] = order[(index + direction) % len(order)]
 
     def _toggle_modifier(self, stage_index: int, modifier_name: str) -> None:
-        """Liga/desliga UM modifier no checkbox de `stage_index`.
-        Notas Longas e Polaridade sao mutuamente exclusivas
-        (`_HOLDS_POLARITY_CONFLICT`) -- ligar um desliga o outro
-        automaticamente, nunca deixa os dois marcados juntos."""
-        current = set(self.chosen_modifiers(stage_index))
+        """Liga/desliga UM modifier booleano (nunca "polarity"/"holds",
+        que agora sao a multipla escolha `HEAVY_MECHANIC_ROW` -- ver
+        `_cycle_heavy_mechanic`)."""
+        current = set(self._chosen_modifiers.get(stage_index, frozenset()))
         if modifier_name in current:
             current.discard(modifier_name)
         else:
             current.add(modifier_name)
-            if modifier_name in _HOLDS_POLARITY_CONFLICT:
-                current -= _HOLDS_POLARITY_CONFLICT - {modifier_name}
         self._chosen_modifiers[stage_index] = frozenset(current)
 
     def practice_mode_on(self, stage_index: int) -> bool:
@@ -432,53 +503,80 @@ class HertzGameLoop(GameLoop):
             self._advance_results()
 
     def _advance_menu(self) -> None:
+        """Padrao universal de Arcade/RPG: W/S sempre no eixo VERTICAL,
+        A/D sempre alteram uma opcao de multipla escolha,
+        ESPACO/ENTER sempre e o botao de "Acao" da linha focada -- o
+        SIGNIFICADO exato depende de ONDE o cursor esta:
+          - Fora do menu de opcoes (`options_focused()` False):
+            W/S trocam a FASE/musica selecionada; ESPACO/ENTER numa
+            fase curada inicia direto, numa musica do jogador ENTRA no
+            menu de opcoes dela.
+          - Dentro do menu de opcoes (`options_focused()` True):
+            delega pra `_advance_menu_options` -- W/S navegam as
+            linhas do menu, A/D alteram a linha de multipla escolha
+            focada, ESPACO/ENTER agem sobre a linha focada (liga/desliga
+            um modifier booleano, ou inicia a fase se for `START_ROW`).
+            ESC sai do menu de opcoes de volta pra lista de fases (nunca
+            encerra o jogo enquanto o cursor estiver aqui dentro)."""
         inp = self._input_provider
+        stage_index = self._selected_stage
+        current_stage = self._stages[stage_index]
+
+        if current_stage.selectable_mode and inp.is_action_pressed("toggle_practice"):
+            self._practice_mode[stage_index] = not self.practice_mode_on(stage_index)
+
+        if current_stage.selectable_mode and self.options_focused(stage_index):
+            self._advance_menu_options(stage_index)
+            return
+
         stage_count = len(self._stages)
         if inp.is_action_pressed("menu_down"):
             self._selected_stage = (self._selected_stage + 1) % stage_count
         if inp.is_action_pressed("menu_up"):
             self._selected_stage = (self._selected_stage - 1) % stage_count
 
-        # musicas do jogador: A/D (ou setas) percorrem o CURSOR do painel
-        # de checkboxes (GAME_MODE_ROW + modifiers do modo atual); C
-        # liga/desliga a linha em foco (troca Defensor<->Arcade 4K se for
-        # GAME_MODE_ROW, ou o modifier daquela linha); T liga/desliga o
-        # Modo Treino (densidade reduzida + sem dano de vida -- util pra
-        # uma fase recem-mapeada pela IA e ainda desconhecida).
-        if self._stages[self._selected_stage].selectable_mode:
-            stage_index = self._selected_stage
-            rows = self.modifier_rows(stage_index)
-            cursor = self.modifier_cursor(stage_index)
-            direction = 0
-            if inp.is_action_pressed("menu_right"):
-                direction = 1
-            if inp.is_action_pressed("menu_left"):
-                direction = -1
-            if direction != 0:
-                cursor = (cursor + direction) % len(rows)
-                self._modifier_cursor[stage_index] = cursor
-            if inp.is_action_pressed("toggle_modifier"):
-                row = rows[cursor]
-                if row == GAME_MODE_ROW:
-                    # so alcancavel com o cursor JA em GAME_MODE_ROW
-                    # (indice 0, presente nas 2 listas) -- nunca precisa
-                    # reenquadrar aqui: `modifier_cursor()` ja aplica
-                    # `% len(rows)` a cada leitura, entao um cursor
-                    # armazenado continua valido mesmo que a lista de
-                    # linhas encolha (Arcade 4K tem menos modifiers que
-                    # o Defensor) quando o jogador navegar de novo.
-                    self._chosen_game_mode[stage_index] = (
-                        "lanes" if self.chosen_game_mode(stage_index) == "defender" else "defender"
-                    )
-                else:
-                    self._toggle_modifier(stage_index, row)
-            if inp.is_action_pressed("toggle_practice"):
-                self._practice_mode[self._selected_stage] = not self.practice_mode_on(self._selected_stage)
+        if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+            if current_stage.selectable_mode:
+                self._options_focused[stage_index] = True  # entra no menu de opcoes
+            else:
+                self._start_stage(stage_index)
+        elif inp.is_action_pressed("pause"):
+            self.stop()  # ESC fora do menu de opcoes encerra o jogo
+
+    def _advance_menu_options(self, stage_index: int) -> None:
+        """W/S navegam as linhas do menu de opcoes; A/D alteram a linha
+        de multipla escolha focada (`GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`,
+        nao fazem nada nas demais); ESPACO/ENTER agem sobre a linha
+        focada (liga/desliga um modifier booleano, ou inicia a fase se
+        for `START_ROW` -- SO nesse caso, nunca em outra linha); ESC
+        volta pra lista de fases sem iniciar nada."""
+        inp = self._input_provider
+        rows = self.modifier_rows(stage_index)
+
+        if inp.is_action_pressed("menu_down"):
+            self._menu_cursor_index[stage_index] = (self.menu_cursor_index(stage_index) + 1) % len(rows)
+        if inp.is_action_pressed("menu_up"):
+            self._menu_cursor_index[stage_index] = (self.menu_cursor_index(stage_index) - 1) % len(rows)
+
+        row = rows[self.menu_cursor_index(stage_index)]
+        direction = 0
+        if inp.is_action_pressed("menu_right"):
+            direction = 1
+        if inp.is_action_pressed("menu_left"):
+            direction = -1
+        if direction != 0:
+            if row == GAME_MODE_ROW:
+                self._cycle_game_mode(stage_index, direction)
+            elif row == HEAVY_MECHANIC_ROW:
+                self._cycle_heavy_mechanic(stage_index, direction)
 
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
-            self._start_stage(self._selected_stage)
+            if row == START_ROW:
+                self._start_stage(stage_index)
+            elif row not in (GAME_MODE_ROW, HEAVY_MECHANIC_ROW):
+                self._toggle_modifier(stage_index, row)
         elif inp.is_action_pressed("pause"):
-            self.stop()  # ESC no menu encerra o jogo
+            self._options_focused[stage_index] = False  # ESC sai do menu de opcoes, sem iniciar nada
 
     def _advance_playing(self, delta_time: float) -> None:
         inp = self._input_provider
@@ -584,9 +682,11 @@ class HertzGameLoop(GameLoop):
                 stage_index = self._selected_stage
                 modifier_panel = {
                     "game_mode": self.chosen_game_mode(stage_index),
+                    "heavy_mechanic": self.chosen_heavy_mechanic(stage_index),
                     "modifiers": self.chosen_modifiers(stage_index),
                     "rows": self.modifier_rows(stage_index),
-                    "cursor": self.modifier_cursor(stage_index),
+                    "cursor": self.menu_cursor_index(stage_index),
+                    "focused": self.options_focused(stage_index),
                 }
             practice_enabled = self.practice_mode_on(self._selected_stage) if is_selectable else None
             self._renderer.set_overlay(

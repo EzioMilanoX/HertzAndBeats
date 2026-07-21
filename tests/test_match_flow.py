@@ -253,144 +253,241 @@ def _make_loop(song, beatmap_path, null_input):
     )
 
 
-def test_user_song_starts_with_no_modifiers_checked_and_defender_mode(tmp_path, null_input):
-    """Musica do jogador: painel de checkboxes (Mecanicas Modulares)
-    comeca no Defensor SEM nenhum modifier ligado -- o jogador monta a
-    propria combinacao a partir do zero."""
+def test_user_song_starts_unfocused_with_no_modifiers_and_defender_mode(tmp_path, null_input):
+    """Musica do jogador: comeca fora do menu de opcoes (so navegando a
+    lista de fases), no Defensor, mecanica pesada "Nenhuma" e sem
+    nenhum modifier booleano ligado -- o jogador monta a propria
+    combinacao a partir do zero."""
     song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
     loop = _make_loop(song, beatmap_path, null_input)
 
+    assert loop.options_focused(0) is False
     assert loop.chosen_game_mode(0) == "defender"
+    assert loop.chosen_heavy_mechanic(0) == "none"
     assert loop.chosen_modifiers(0) == frozenset()
-    assert loop.modifier_cursor(0) == 0
+    assert loop.menu_cursor_index(0) == 0
+
+
+def test_confirm_on_a_selectable_song_enters_the_options_menu_without_starting(tmp_path, null_input):
+    """ESPACO/ENTER numa musica do jogador (fora do menu de opcoes)
+    ENTRA no menu -- nunca inicia a fase direto (so `START_ROW` faz
+    isso, ver `test_start_row_only_starts_from_the_exact_row`)."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
 
     _press(loop, null_input, "confirm")
-    assert loop.flow == FLOW_PLAYING
-    assert loop._stage_config.game_mode == "defender"
-    assert loop._stage_config.active_modifiers == ()
+    assert loop.options_focused(0) is True
+    assert loop.flow == FLOW_MENU
+    assert loop.menu_cursor_index(0) == 0  # GAME_MODE_ROW
+
+
+def _enter_options(loop, null_input, stage_index: int = 0) -> None:
+    _press(loop, null_input, "confirm")
+    assert loop.options_focused(stage_index) is True
+
+
+def _move_cursor_to(loop, null_input, row_name: str, stage_index: int = 0) -> None:
+    target = loop.modifier_rows(stage_index).index(row_name)
+    while loop.menu_cursor_index(stage_index) != target:
+        _press(loop, null_input, "menu_down")
 
 
 def test_cursor_visits_every_row_in_order_and_wraps(tmp_path, null_input):
-    """A/D percorrem o painel de checkboxes inteiro, na ordem, sem
-    pular nenhuma linha, e enrolam nas duas pontas."""
-    from hertzbeats.bootstrap.hertz_game_loop import DEFENDER_MODIFIER_ROWS, GAME_MODE_ROW
+    """Dentro do menu de opcoes, W/S (menu_up/menu_down) percorrem TODAS
+    as linhas na ordem, sem pular nenhuma, e enrolam nas duas pontas."""
+    from hertzbeats.bootstrap.hertz_game_loop import DEFENDER_MODIFIER_ROWS, GAME_MODE_ROW, HEAVY_MECHANIC_ROW, START_ROW
 
     song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
     loop = _make_loop(song, beatmap_path, null_input)
-    rows = (GAME_MODE_ROW,) + DEFENDER_MODIFIER_ROWS
+    _enter_options(loop, null_input)
+    rows = (GAME_MODE_ROW, HEAVY_MECHANIC_ROW) + DEFENDER_MODIFIER_ROWS + (START_ROW,)
     assert loop.modifier_rows(0) == rows
 
-    assert loop.modifier_cursor(0) == 0
+    assert loop.menu_cursor_index(0) == 0
     for i, _ in enumerate(rows[1:], start=1):
-        _press(loop, null_input, "menu_right")
-        assert loop.modifier_cursor(0) == i
-    _press(loop, null_input, "menu_right")  # um passo alem do fim -- enrola de volta
-    assert loop.modifier_cursor(0) == 0
-    _press(loop, null_input, "menu_left")  # e o inverso tambem enrola
-    assert loop.modifier_cursor(0) == len(rows) - 1
+        _press(loop, null_input, "menu_down")
+        assert loop.menu_cursor_index(0) == i
+    _press(loop, null_input, "menu_down")  # um passo alem do fim -- enrola de volta
+    assert loop.menu_cursor_index(0) == 0
+    _press(loop, null_input, "menu_up")  # e o inverso tambem enrola
+    assert loop.menu_cursor_index(0) == len(rows) - 1
 
 
-def _move_cursor_to(loop, null_input, row_name: str) -> None:
-    target = loop.modifier_rows(0).index(row_name)
-    while loop.modifier_cursor(0) != target:
-        _press(loop, null_input, "menu_right")
+def test_left_right_do_nothing_outside_the_options_menu(tmp_path, null_input):
+    """A/D so tem efeito DENTRO do menu de opcoes (alterando a linha de
+    multipla escolha focada) -- fora dele (so navegando a lista de
+    fases), nao fazem nada."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+
+    _press(loop, null_input, "menu_right")
+    _press(loop, null_input, "menu_left")
+    assert loop.chosen_game_mode(0) == "defender"
+    assert loop.options_focused(0) is False
 
 
 def test_toggle_modifier_checks_and_unchecks_the_focused_row(tmp_path, null_input):
+    """ESPACO/ENTER numa linha de modifier BOOLEANO (nao numa de
+    multipla escolha) liga/desliga aquele modifier."""
     song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
     loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
 
-    _move_cursor_to(loop, null_input, "polarity")
-    _press(loop, null_input, "toggle_modifier")
-    assert "polarity" in loop.chosen_modifiers(0)
-
-    _press(loop, null_input, "toggle_modifier")
-    assert "polarity" not in loop.chosen_modifiers(0)
-
-
-def test_toggling_the_game_mode_row_switches_between_defender_and_lanes(tmp_path, null_input):
-    """A linha `GAME_MODE_ROW` (sempre a primeira, indice 0) alterna
-    Defensor<->Arcade 4K -- so alcancavel com o cursor JA nela (toggle
-    em qualquer outra linha liga/desliga um modifier, nao o modo).
-    Arcade 4K tem BEM menos linhas (so "holds"); o cursor (sempre 0
-    neste fluxo) continua valido nas duas listas."""
-    from hertzbeats.bootstrap.hertz_game_loop import DEFENDER_MODIFIER_ROWS, GAME_MODE_ROW, LANES_MODIFIER_ROWS
-
-    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
-    loop = _make_loop(song, beatmap_path, null_input)
-
-    assert loop.modifier_cursor(0) == 0  # GAME_MODE_ROW, default
-    _press(loop, null_input, "toggle_modifier")
-    assert loop.chosen_game_mode(0) == "lanes"
-    assert loop.modifier_rows(0) == (GAME_MODE_ROW,) + LANES_MODIFIER_ROWS
-
-    # a lista encolheu pra 2 linhas -- andar 2x pra direita enrola de
-    # volta na propria GAME_MODE_ROW
-    _press(loop, null_input, "menu_right")
-    assert loop.modifier_cursor(0) == 1  # "holds"
-    _press(loop, null_input, "menu_right")
-    assert loop.modifier_cursor(0) == 0  # enrolou
-
-    _press(loop, null_input, "toggle_modifier")
-    assert loop.chosen_game_mode(0) == "defender"
-    assert loop.modifier_rows(0) == (GAME_MODE_ROW,) + DEFENDER_MODIFIER_ROWS
-
-
-def test_holds_and_polarity_are_mutually_exclusive(tmp_path, null_input):
-    """Ligar "holds" desliga "polarity" automaticamente e vice-versa --
-    os dois reusam o mesmo `threat_type` "pesada" com significados
-    incompativeis (Hold-Start vs Parry)."""
-    song, beatmap_path = _make_selectable_song(tmp_path, [
-        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
-    ])
-    loop = _make_loop(song, beatmap_path, null_input)
-
-    _move_cursor_to(loop, null_input, "polarity")
-    _press(loop, null_input, "toggle_modifier")
-    assert loop.chosen_modifiers(0) == frozenset({"polarity"})
-
-    _move_cursor_to(loop, null_input, "holds")
-    _press(loop, null_input, "toggle_modifier")
-    assert loop.chosen_modifiers(0) == frozenset({"holds"})  # polarity foi desligada
-
-    _press(loop, null_input, "toggle_modifier")  # desliga holds de novo
-    _move_cursor_to(loop, null_input, "polarity")
-    _press(loop, null_input, "toggle_modifier")
-    _move_cursor_to(loop, null_input, "holds")
-    _press(loop, null_input, "toggle_modifier")
-    assert "polarity" not in loop.chosen_modifiers(0)  # o sentido inverso tambem exclui
-
-
-def test_composing_confirms_with_exactly_the_checked_modifiers(tmp_path, null_input):
-    song, beatmap_path = _make_selectable_song(tmp_path, [
-        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
-    ])
-    loop = _make_loop(song, beatmap_path, null_input)
-
-    for row_name in ("telegraph_rings", "polarity", "orbital_shields"):
-        _move_cursor_to(loop, null_input, row_name)
-        _press(loop, null_input, "toggle_modifier")
+    _move_cursor_to(loop, null_input, "telegraph_rings")
+    _press(loop, null_input, "confirm")
+    assert "telegraph_rings" in loop.chosen_modifiers(0)
 
     _press(loop, null_input, "confirm")
+    assert "telegraph_rings" not in loop.chosen_modifiers(0)
+
+
+def test_confirm_does_nothing_on_multiple_choice_rows(tmp_path, null_input):
+    """ESPACO/ENTER numa linha de MULTIPLA ESCOLHA (`GAME_MODE_ROW`/
+    `HEAVY_MECHANIC_ROW`) nao faz nada -- so A/D alteram o valor
+    dessas linhas."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+
+    assert loop.menu_cursor_index(0) == 0  # GAME_MODE_ROW
+    _press(loop, null_input, "confirm")
+    assert loop.chosen_game_mode(0) == "defender"  # intocado
+    assert loop.flow == FLOW_MENU  # nao iniciou a fase
+
+
+def test_left_right_cycle_the_game_mode_row(tmp_path, null_input):
+    from hertzbeats.bootstrap.hertz_game_loop import DEFENDER_MODIFIER_ROWS, GAME_MODE_ROW, HEAVY_MECHANIC_ROW, START_ROW
+
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+
+    assert loop.menu_cursor_index(0) == 0  # GAME_MODE_ROW
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_game_mode(0) == "lanes"
+    assert loop.modifier_rows(0) == (GAME_MODE_ROW, HEAVY_MECHANIC_ROW, START_ROW)  # sem modifiers booleanos
+
+    _press(loop, null_input, "menu_left")
+    assert loop.chosen_game_mode(0) == "defender"
+    assert loop.modifier_rows(0) == (GAME_MODE_ROW, HEAVY_MECHANIC_ROW) + DEFENDER_MODIFIER_ROWS + (START_ROW,)
+
+
+def test_left_right_cycle_the_heavy_mechanic_row_through_none_polarity_holds(tmp_path, null_input):
+    """A "Mecanica Pesada" e uma MULTIPLA ESCOLHA de 3 valores --
+    Polaridade e Holds nunca podem estar ligadas ao mesmo tempo por
+    CONSTRUCAO (nao ha 2 checkboxes independentes que precisem de logica
+    de exclusao)."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+    _move_cursor_to(loop, null_input, "heavy_mechanic")
+
+    assert loop.chosen_heavy_mechanic(0) == "none"
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_heavy_mechanic(0) == "polarity"
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_heavy_mechanic(0) == "holds"
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_heavy_mechanic(0) == "none"  # enrolou
+
+    _press(loop, null_input, "menu_left")
+    assert loop.chosen_heavy_mechanic(0) == "holds"  # o inverso tambem enrola
+
+
+def test_switching_to_lanes_resets_an_invalid_heavy_mechanic(tmp_path, null_input):
+    """"polarity" nao existe no Arcade 4K -- trocar pra "lanes" com
+    "polarity" escolhida reseta a mecanica pesada pra "none" (nunca
+    deixa um valor invalido pro modo atual)."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+    _move_cursor_to(loop, null_input, "heavy_mechanic")
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_heavy_mechanic(0) == "polarity"
+
+    _move_cursor_to(loop, null_input, "game_mode")
+    _press(loop, null_input, "menu_right")
+    assert loop.chosen_game_mode(0) == "lanes"
+    assert loop.chosen_heavy_mechanic(0) == "none"
+
+
+def test_start_row_only_starts_from_the_exact_row(tmp_path, null_input):
+    """ESPACO/ENTER so inicia a fase com o cursor EXATAMENTE em
+    `START_ROW` -- em qualquer outra linha do menu de opcoes, so age
+    sobre AQUELA linha (ou nao faz nada, nas de multipla escolha)."""
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+
+    _move_cursor_to(loop, null_input, "telegraph_rings")
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_MENU  # so ligou o modifier, nao iniciou
+
+    _move_cursor_to(loop, null_input, "start")
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_PLAYING
     assert loop._stage_config.game_mode == "defender"
-    assert set(loop._stage_config.active_modifiers) == {"telegraph_rings", "polarity", "orbital_shields"}
+    assert loop._stage_config.active_modifiers == ("telegraph_rings",)
 
 
-def test_every_modifier_row_has_a_registered_label_texture():
-    """Toda linha possivel do painel (`GAME_MODE_ROW` + cada modifier de
-    `DEFENDER_MODIFIER_ROWS`/`LANES_MODIFIER_ROWS`) PRECISA de uma
-    textura `modifier_row_*` registrada em `texture_bank.py` -- senao
-    `_blit_centered`/`_draw_modifier_row` desenham a linha em BRANCO
-    silenciosamente (nenhum teste de composicao pega isso sozinho, usam
-    `NullRenderer`, que nunca toca essas texturas)."""
-    from hertzbeats.adapters.texture_bank import _GAME_MODE_ROW_LABELS, _MODIFIER_ROW_LABELS
+def test_esc_backs_out_of_the_options_menu_without_starting_or_quitting(tmp_path, null_input):
+    song, beatmap_path = _make_selectable_song(tmp_path, [_basic(3.0)])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+
+    _press(loop, null_input, "pause")
+    assert loop.options_focused(0) is False
+    assert loop.flow == FLOW_MENU  # nao encerrou o jogo, so saiu do menu de opcoes
+
+
+def test_composing_confirms_with_exactly_the_checked_modifiers_and_heavy_mechanic(tmp_path, null_input):
+    song, beatmap_path = _make_selectable_song(tmp_path, [
+        {"timestamp_seconds": 3.0, "threat_type": "rhythm_threat_heavy", "lane": 0, "strength": 0.9},
+    ])
+    loop = _make_loop(song, beatmap_path, null_input)
+    _enter_options(loop, null_input)
+
+    for row_name in ("telegraph_rings", "orbital_shields"):
+        _move_cursor_to(loop, null_input, row_name)
+        _press(loop, null_input, "confirm")
+    _move_cursor_to(loop, null_input, "heavy_mechanic")
+    _press(loop, null_input, "menu_right")  # -> "polarity"
+
+    _move_cursor_to(loop, null_input, "start")
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.game_mode == "defender"
+    assert set(loop._stage_config.active_modifiers) == {"telegraph_rings", "orbital_shields", "polarity"}
+
+
+def test_every_menu_row_has_a_registered_label_texture():
+    """Toda linha possivel do menu de opcoes (`GAME_MODE_ROW`,
+    `HEAVY_MECHANIC_ROW` com seus 3 valores, cada modifier booleano de
+    `DEFENDER_MODIFIER_ROWS`/`LANES_MODIFIER_ROWS`, e `START_ROW`)
+    PRECISA de uma textura `modifier_row_*` registrada em
+    `texture_bank.py` -- senao `_blit_centered`/`_draw_modifier_row`
+    desenham a linha em BRANCO silenciosamente (nenhum teste de
+    composicao pega isso sozinho, usam `NullRenderer`, que nunca toca
+    essas texturas)."""
+    from hertzbeats.adapters.texture_bank import (
+        _GAME_MODE_ROW_LABELS,
+        _HEAVY_MECHANIC_ROW_LABELS,
+        _MODIFIER_ROW_LABELS,
+    )
     from hertzbeats.bootstrap.hertz_game_loop import (
         DEFENDER_MODIFIER_ROWS,
+        HEAVY_MECHANIC_VALUES_BY_GAME_MODE,
         LANES_MODIFIER_ROWS,
     )
 
     assert "defender" in _GAME_MODE_ROW_LABELS
     assert "lanes" in _GAME_MODE_ROW_LABELS
+    for values in HEAVY_MECHANIC_VALUES_BY_GAME_MODE.values():
+        for value in values:
+            assert value in _HEAVY_MECHANIC_ROW_LABELS, f"{value!r} sem rotulo em _HEAVY_MECHANIC_ROW_LABELS"
     for row_name in set(DEFENDER_MODIFIER_ROWS) | set(LANES_MODIFIER_ROWS):
         assert row_name in _MODIFIER_ROW_LABELS, f"{row_name!r} sem rotulo em _MODIFIER_ROW_LABELS"
 

@@ -29,11 +29,15 @@ _FLOW_TIER_PALETTE = (
 50 combos extras avanca uma cor (`tier % len(paleta)`)."""
 
 _GAME_MODE_ROW = "game_mode"
-"""Mesmo literal de `hertzbeats.bootstrap.hertz_game_loop.GAME_MODE_ROW`
--- duplicado de proposito (este adapter nao importa o game loop, seria
-o sentido INVERSO de dependencia adapter->orquestracao) pra reconhecer
-a linha especial de Defensor/Arcade 4K do painel de checkboxes e
-desenha-la SEM quadrado de marcar."""
+_HEAVY_MECHANIC_ROW = "heavy_mechanic"
+_START_ROW = "start"
+"""Mesmos literais de `hertzbeats.bootstrap.hertz_game_loop.GAME_MODE_ROW`/
+`HEAVY_MECHANIC_ROW`/`START_ROW` -- duplicados de proposito (este
+adapter nao importa o game loop, seria o sentido INVERSO de dependencia
+adapter->orquestracao) pra reconhecer as 3 linhas especiais do menu de
+opcoes (as 2 primeiras sao multipla escolha -- Defensor/Arcade 4K e
+Nenhuma/Polaridade/Holds -- a ultima e o botao de Acao "Iniciar Fase")
+e desenha-las SEM quadrado de marcar."""
 
 _CHECKBOX_SIZE = 18
 _CHECKBOX_GAP = 12
@@ -386,17 +390,26 @@ class HBPygameRenderer(PygameRenderer):
             if first + MAX_VISIBLE < count:
                 y += self._blit_centered("scroll_down", center_x, y) + 8
 
-            # fase de musica do jogador: painel de checkboxes (Mecanicas
-            # Modulares) + Modo Treino; fase curada: dica fixa de
-            # controles do modo dela
+            # fase de musica do jogador: menu de opcoes (Mecanicas
+            # Modulares, padrao Arcade/RPG) + Modo Treino; fase curada:
+            # dica fixa de controles do modo dela
             panel = self._overlay_modifier_panel
             if panel is not None:
                 y += 14
                 for i, row_name in enumerate(panel["rows"]):
-                    is_cursor = i == panel["cursor"]
+                    # o destaque da linha em foco SO aparece com o
+                    # cursor DENTRO do menu de opcoes (`panel["focused"]`)
+                    # -- fora dele, o jogador ainda so navega a lista de
+                    # fases, nenhuma linha do menu esta "em edicao".
+                    is_cursor = panel["focused"] and i == panel["cursor"]
                     if row_name == _GAME_MODE_ROW:
                         label_key = f"modifier_row_game_mode_{panel['game_mode']}"
                         y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
+                    elif row_name == _HEAVY_MECHANIC_ROW:
+                        label_key = f"modifier_row_heavy_mechanic_{panel['heavy_mechanic']}"
+                        y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
+                    elif row_name == _START_ROW:
+                        y += self._draw_modifier_row("modifier_row_start", None, is_cursor, center_x, y) + 6
                     else:
                         checked = row_name in panel["modifiers"]
                         y += self._draw_modifier_row(f"modifier_row_{row_name}", checked, is_cursor, center_x, y) + 6

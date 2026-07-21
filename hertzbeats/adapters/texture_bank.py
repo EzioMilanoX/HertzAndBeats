@@ -197,20 +197,23 @@ seu PROPRIO texto por linha, ver `_MODIFIER_ROW_LABELS` e
 
 _MODIFIER_ROW_LABELS = {
     "telegraph_rings": "Aneis de Convergencia",
-    "polarity": "Polaridade (azul/rosa + Parry)",
     "orbital_shields": "Escudos Rotativos (exige Polaridade)",
     "twin_threats": "Gemeos de Polaridade (exige Polaridade)",
     "orbital_eclipses": "Eclipses Orbitais",
     "overload": "Overload do Nucleo (exige Polaridade)",
-    "holds": "Notas Longas (Hold)",
 }
-"""Rotulo de CADA linha do painel de checkboxes do seletor de minigame
--- um por modifier de `hertz_game_loop.DEFENDER_MODIFIER_ROWS`/
-`LANES_MODIFIER_ROWS` (`"holds"` e compartilhado, um so rotulo serve
-aos 2 modos). Nao inclui o glifo de caixinha (marcado/desmarcado) --
-isso e desenhado em TEMPO REAL por `HBPygameRenderer` (mesmo padrao de
-`_draw_inner_square`/`_draw_inner_triangle`, um retangulo simples nao
-precisa de font.render). Modifiers que dependem de "polarity"
+"""Rotulo de CADA linha BOOLEANA (checkbox) do menu de opcoes do
+seletor de minigame -- um por modifier de
+`hertz_game_loop.DEFENDER_MODIFIER_ROWS`/`LANES_MODIFIER_ROWS`. NAO
+inclui "polarity"/"holds" -- viraram a multipla escolha
+`HEAVY_MECHANIC_ROW` (ver `_HEAVY_MECHANIC_ROW_LABELS`), mutuamente
+exclusivas por natureza da propria estrutura (nunca dá pra escolher as
+duas ao mesmo tempo, ao contrario de 2 checkboxes independentes com
+logica de "desliga o outro" escondida). Nao inclui o glifo de caixinha
+(marcado/desmarcado) -- isso e desenhado em TEMPO REAL por
+`HBPygameRenderer` (mesmo padrao de `_draw_inner_square`/
+`_draw_inner_triangle`, um retangulo simples nao precisa de
+font.render). Modifiers que dependem de "polarity"
 ("orbital_shields"/"twin_threats"/"overload") dizem isso no proprio
 rotulo -- mais simples que uma segunda textura "desabilitado"."""
 
@@ -218,10 +221,30 @@ _GAME_MODE_ROW_LABELS = {
     "defender": "<  DEFENSOR  >",
     "lanes": "<  ARCADE 4K  >",
 }
-"""Rotulo da linha ESPECIAL `GAME_MODE_ROW` (sempre a primeira do
-painel) -- alterna Defensor/Arcade 4K em vez de ligar um modifier, por
-isso usa o estilo de seta "< X >" (like o antigo seletor de preset) em
-vez de um checkbox."""
+"""Rotulo da linha ESPECIAL `GAME_MODE_ROW` (sempre a 1a do menu de
+opcoes) -- multipla escolha (A/D alternam Defensor/Arcade 4K), por isso
+o estilo de seta "< X >" em vez de um checkbox."""
+
+_HEAVY_MECHANIC_ROW_LABELS = {
+    "none": "<  Nenhuma  >",
+    "polarity": "<  Polaridade  >",
+    "holds": "<  Holds  >",
+}
+"""Rotulo da linha ESPECIAL `HEAVY_MECHANIC_ROW` (sempre a 2a do menu de
+opcoes) -- outra multipla escolha (A/D alternam Nenhuma/Polaridade/
+Holds), mesmo estilo de seta de `_GAME_MODE_ROW_LABELS`. Substitui os
+antigos checkboxes independentes "polarity"/"holds" -- as duas
+mecanicas sao mutuamente exclusivas (mesmo `threat_type` "pesada"), uma
+multipla escolha de 3 valores torna isso estrutural."""
+
+_START_ROW_LABEL = ">>>  INICIAR FASE  <<<"
+"""Rotulo da linha ESPECIAL `START_ROW` (sempre a ULTIMA do menu de
+opcoes) -- o UNICO lugar onde ESPACO/ENTER de fato inicia a fase de uma
+musica do jogador (ver `HertzGameLoop._advance_menu_options`). ASCII
+puro de proposito: os glifos Unicode de "play"/triangulo (▶ U+25B6, ◀
+U+25C0) viram um quadrado vazio ("tofu") na fonte PADRAO do pygame
+(`pygame.font.Font(None, ...)`, sem arquivo de fonte custom) --
+verificado empiricamente antes de escolher este rotulo."""
 
 
 def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> None:
@@ -295,11 +318,14 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
             _PERFECT_COLOR,
         )
 
-    # seletor de minigame das musicas do jogador: painel de checkboxes
-    # (uma linha por modifier + a linha especial de game_mode) + indicadores
-    # de rolagem da lista de fases.
+    # seletor de minigame das musicas do jogador: menu de opcoes
+    # (GAME_MODE_ROW + HEAVY_MECHANIC_ROW de multipla escolha, modifiers
+    # booleanos e START_ROW) + indicadores de rolagem da lista de fases.
     for game_mode, label in _GAME_MODE_ROW_LABELS.items():
         register_text(f"modifier_row_game_mode_{game_mode}", hint_font, label, _PERFECT_COLOR)
+    for heavy_mechanic, label in _HEAVY_MECHANIC_ROW_LABELS.items():
+        register_text(f"modifier_row_heavy_mechanic_{heavy_mechanic}", hint_font, label, _PERFECT_COLOR)
+    register_text("modifier_row_start", hint_font, _START_ROW_LABEL, _PERFECT_COLOR)
     for modifier_name, label in _MODIFIER_ROW_LABELS.items():
         register_text(f"modifier_row_{modifier_name}", hint_font, label, _GOOD_COLOR)
     register_text("scroll_up", hint_font, "^ ^ ^", _LABEL_COLOR)

@@ -272,7 +272,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>253 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (13 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_radius_collapse_off_never_registers_judgment_radius_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<p>Total: <strong>259 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (13 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_radius_collapse_off_never_registers_judgment_radius_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
 <details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
@@ -301,7 +301,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_lane_scratch_clustering.py</code> — Clustering puro de pesadas -&gt; notas de Scratch (fusao game-side, sem tocar o beatmap.json). (5 testes)</summary><ul><li><code>test_cluster_of_three_or_more_consecutive_heavies_becomes_one_scratch_note</code></li><li><code>test_cluster_smaller_than_minimum_stays_as_individual_notes</code></li><li><code>test_gap_larger_than_threshold_splits_into_two_clusters</code></li><li><code>test_non_heavy_notes_pass_through_unchanged</code></li><li><code>test_basic_notes_around_a_cluster_preserve_temporal_order</code></li></ul></details>
 <details><summary><code>test_lane_stutter_scroll.py</code> — Stutter Scroll (Arcade 4K): ruido visual em Y so no draw_batch -- a fisica real (transform.position_y) nunca muda. (3 testes)</summary><ul><li><code>test_compute_stutter_offset_y_is_a_pure_sine_wave</code></li><li><code>test_apply_lane_stutter_only_offsets_lanes_mode_threat_entities</code></li><li><code>test_real_physics_position_is_unaffected_by_stutter_over_many_frames</code></li></ul></details>
 <details><summary><code>test_lanes_mode.py</code> — Modo Arcade 4K: notas nas colunas certas, julgamento por tecla, ghost tap livre, MISS por varredura. (5 testes)</summary><ul><li><code>test_note_spawns_in_its_lane_and_reaches_judgment_line_on_beat</code></li><li><code>test_correct_lane_key_on_beat_scores_perfect</code></li><li><code>test_wrong_lane_key_is_a_ghost_tap_without_penalty</code></li><li><code>test_two_simultaneous_lanes_need_two_keys</code></li><li><code>test_unpressed_note_becomes_miss_and_breaks_combo</code></li></ul></details>
-<details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (18 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_user_song_starts_with_no_modifiers_checked_and_defender_mode</code></li><li><code>test_cursor_visits_every_row_in_order_and_wraps</code></li><li><code>test_toggle_modifier_checks_and_unchecks_the_focused_row</code></li><li><code>test_toggling_the_game_mode_row_switches_between_defender_and_lanes</code></li><li><code>test_holds_and_polarity_are_mutually_exclusive</code></li><li><code>test_composing_confirms_with_exactly_the_checked_modifiers</code></li><li><code>test_every_modifier_row_has_a_registered_label_texture</code></li><li><code>test_a_curated_stage_is_never_affected_by_the_modifier_panel</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
+<details><summary><code>test_match_flow.py</code> — HertzGameLoop: menu de fases -&gt; jogando &lt;-&gt; pausa -&gt; derrota/resultados, tudo headless. (24 testes)</summary><ul><li><code>test_menu_navigation_wraps_and_confirm_starts_stage</code></li><li><code>test_esc_in_menu_stops_the_loop</code></li><li><code>test_pause_freezes_simulation_and_resumes</code></li><li><code>test_pause_to_menu_returns_to_menu</code></li><li><code>test_health_zero_triggers_game_over_and_retry_restarts_fresh</code></li><li><code>test_clearing_stage_reaches_results_then_next_stage</code></li><li><code>test_music_end_with_leftover_threats_still_reaches_results</code></li><li><code>test_live_latency_calibration_with_plus_minus</code></li><li><code>test_user_song_starts_unfocused_with_no_modifiers_and_defender_mode</code></li><li><code>test_confirm_on_a_selectable_song_enters_the_options_menu_without_starting</code></li><li><code>test_cursor_visits_every_row_in_order_and_wraps</code></li><li><code>test_left_right_do_nothing_outside_the_options_menu</code></li><li><code>test_toggle_modifier_checks_and_unchecks_the_focused_row</code></li><li><code>test_confirm_does_nothing_on_multiple_choice_rows</code></li><li><code>test_left_right_cycle_the_game_mode_row</code></li><li><code>test_left_right_cycle_the_heavy_mechanic_row_through_none_polarity_holds</code></li><li><code>test_switching_to_lanes_resets_an_invalid_heavy_mechanic</code></li><li><code>test_start_row_only_starts_from_the_exact_row</code></li><li><code>test_esc_backs_out_of_the_options_menu_without_starting_or_quitting</code></li><li><code>test_composing_confirms_with_exactly_the_checked_modifiers_and_heavy_mechanic</code></li><li><code>test_every_menu_row_has_a_registered_label_texture</code></li><li><code>test_a_curated_stage_is_never_affected_by_the_modifier_panel</code></li><li><code>test_saved_latency_roundtrip</code></li><li><code>test_game_over_to_menu</code></li></ul></details>
 <details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (6 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_old_mapper_version_triggers_reanalysis</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
 <details><summary><code>test_parry_hitlag.py</code> — Defensor -- Juice Extremo de Parry (Hitlag Visual Simulado): congelamento de apresentacao + flash de retorno. (6 testes)</summary><ul><li><code>test_trigger_hitlag_takes_the_larger_freeze_and_always_arms_the_flash</code></li><li><code>test_camera_shake_system_decays_freeze_frames_by_one_per_update_not_by_delta_time</code></li><li><code>test_parry_perfect_triggers_hitlag_freeze_and_invert_flash</code></li><li><code>test_sync_hitlag_freezes_then_flashes_invert_exactly_on_the_return_frame</code></li><li><code>test_end_frame_applies_a_true_negative_color_filter_when_invert_pending</code></li><li><code>test_freeze_active_suspends_begin_frame_and_draw_batch</code></li></ul></details>
 <details><summary><code>test_percussive_extraction.py</code> — Estagio DSP anti-mascaramento: threshold puro, e HPSS+mel+PLP sobre audio sintetico REAL. (6 testes)</summary><ul><li><code>test_peak_selection_enforces_interval_and_amplitude</code></li><li><code>test_peak_selection_min_interval_merges_double_hits</code></li><li><code>test_bpm_from_pulses_is_median_robust</code></li><li><code>test_bpm_octave_ambiguity_is_folded_into_musical_range</code></li><li><code>test_pulse_grid_locks_to_kick_despite_loud_pad</code></li><li><code>test_extraction_feeds_quantized_beatmap_end_to_end</code></li></ul></details>
@@ -393,7 +393,7 @@ sobre todas as teclas de cada acao, mais os eixos de mira.</pre>
 </details>
 <details class="module" id="hertzbeats-adapters-hb_pygame_renderer"><summary><code>hertzbeats/adapters/hb_pygame_renderer.py</code> — PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</summary>
 <pre class="doc">PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</pre>
-<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code></p>
+<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code></p>
 <h3>classe <code>HBPygameRenderer</code></h3><pre class="doc">`PygameRenderer` da engine estendido para o Hertz &amp; Beats com:
 
     - `register_texture(texture_id, surface)`: associa um inteiro de
@@ -531,7 +531,7 @@ digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
 registradas no renderer UMA unica vez. Nenhum `font.render` acontece
 depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
 aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
-<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_ORBITAL_SHIELDS_CONTROL_HINT</code>, <code>_TWIN_THREATS_CONTROL_HINT</code>, <code>_ORBITAL_ECLIPSES_CONTROL_HINT</code>, <code>_OVERLOAD_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_GENERIC_GAME_MODE_HINTS</code>, <code>_MODIFIER_ROW_LABELS</code>, <code>_GAME_MODE_ROW_LABELS</code></p>
+<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_ORBITAL_SHIELDS_CONTROL_HINT</code>, <code>_TWIN_THREATS_CONTROL_HINT</code>, <code>_ORBITAL_ECLIPSES_CONTROL_HINT</code>, <code>_OVERLOAD_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_GENERIC_GAME_MODE_HINTS</code>, <code>_MODIFIER_ROW_LABELS</code>, <code>_GAME_MODE_ROW_LABELS</code>, <code>_HEAVY_MECHANIC_ROW_LABELS</code>, <code>_START_ROW_LABEL</code></p>
 <h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
 composicao, depois de `renderer.initialize` (precisa do display
 ativo para `convert_alpha`).</pre>
@@ -615,10 +615,10 @@ primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
-<p class='constants'>Constantes: <code>FLOW_MENU</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>GAME_MODE_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>_HOLDS_POLARITY_CONFLICT</code></p>
-<h4><code>modifier_rows_for_game_mode()</code></h4><pre class="doc">Linhas do painel de checkboxes para o `game_mode` dado: SEMPRE
-comeca com `GAME_MODE_ROW` (o alternador Defensor/Arcade 4K), depois
-os modifiers relevantes daquele modo.</pre>
+<p class='constants'>Constantes: <code>FLOW_MENU</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
+<h4><code>modifier_rows_for_game_mode()</code></h4><pre class="doc">Linhas do menu de opcoes pro `game_mode` dado: SEMPRE
+`GAME_MODE_ROW`, `HEAVY_MECHANIC_ROW`, os modifiers booleanos
+daquele modo, e por fim `START_ROW`.</pre>
 <h3>classe <code>HertzGameLoop</code></h3><pre class="doc">`GameLoop` da engine estendido com a maquina de estados da partida:
 
     MENU -&gt; (confirmar) -&gt; PLAYING &lt;-&gt; PAUSED
@@ -654,20 +654,40 @@ sem apresentacao.</pre>
 <h4><code>.chosen_game_mode()</code></h4><pre class="doc">Modo (Defensor/Arcade 4K) escolhido no menu pra uma fase
 `selectable_mode` (as musicas do jogador); fases curadas usam o
 modo dos `overrides` do `stages.json`. Default &quot;defender&quot;.</pre>
-<h4><code>.chosen_modifiers()</code></h4><pre class="doc">Modifiers ligados (checkboxes marcados) pro seletor de
-minigame de uma fase `selectable_mode`. Default vazio -- toda
-musica comeca sem NENHUM modifier ligado, o jogador monta a
-propria combinacao.</pre>
-<h4><code>.modifier_rows()</code></h4><pre class="doc">Linhas do painel de checkboxes pro `game_mode` ATUAL dessa
-fase (muda se o jogador alternar Defensor/Arcade 4K).</pre>
-<h4><code>.modifier_cursor()</code></h4><pre class="doc">Indice da linha em foco no painel de checkboxes (0 =
+<h4><code>.chosen_heavy_mechanic()</code></h4><pre class="doc">Valor ATUAL da multipla escolha `HEAVY_MECHANIC_ROW&quot;:
+&quot;none&quot;/&quot;polarity&quot;/&quot;holds&quot;. Default &quot;none&quot; -- nenhuma mecanica
+pesada ligada.</pre>
+<h4><code>.chosen_modifiers()</code></h4><pre class="doc">`active_modifiers` efetivos pro seletor de minigame: os
+modifiers booleanos marcados MAIS o que `chosen_heavy_mechanic`
+resolver (se nao for &quot;none&quot;) -- a leitura publica ja funde os 2,
+`_compose_stage` nao precisa saber que &quot;polarity&quot;/&quot;holds&quot; vem de
+uma multipla escolha em vez de um checkbox independente.</pre>
+<h4><code>.modifier_rows()</code></h4><pre class="doc">Linhas do menu de opcoes pro `game_mode` ATUAL dessa fase
+(muda se o jogador alternar Defensor/Arcade 4K).</pre>
+<h4><code>.menu_cursor_index()</code></h4><pre class="doc">Indice da linha em foco no menu de opcoes (0 =
 `GAME_MODE_ROW`), sempre dentro dos limites da lista ATUAL de
-linhas (que pode ter encolhido se o jogador acabou de trocar
-pra Arcade 4K, com menos modifiers que o Defensor).</pre>
-<h4><code>._toggle_modifier()</code></h4><pre class="doc">Liga/desliga UM modifier no checkbox de `stage_index`.
-Notas Longas e Polaridade sao mutuamente exclusivas
-(`_HOLDS_POLARITY_CONFLICT`) -- ligar um desliga o outro
-automaticamente, nunca deixa os dois marcados juntos.</pre>
+linhas (que pode ter menos linhas no Arcade 4K que no Defensor)
+-- o `% len(rows)` AQUI e a unica reenquadracao necessaria, ja
+que so e possivel trocar de `game_mode` com o cursor JA em
+`GAME_MODE_ROW` (indice 0, presente em qualquer lista).</pre>
+<h4><code>.options_focused()</code></h4><pre class="doc">True quando o cursor esta DENTRO do menu de opcoes dessa fase
+(W/S navegam as linhas do menu, A/D alteram a linha focada,
+ESPACO/ENTER agem sobre ela) -- False enquanto o jogador ainda
+so navega a LISTA de fases/musicas (W/S trocam de fase,
+ESPACO/ENTER entram no menu de opcoes ou iniciam uma fase
+curada direto).</pre>
+<h4><code>._cycle_game_mode()</code></h4><pre class="doc">A/D na linha `GAME_MODE_ROW`: alterna Defensor&lt;-&gt;Arcade 4K.
+Se a mecanica pesada escolhida deixar de existir no modo novo
+(ex.: &quot;polarity&quot; nao existe no Arcade 4K), reseta pra &quot;none&quot; --
+nunca deixa `chosen_heavy_mechanic` num valor invalido pro modo
+atual.</pre>
+<h4><code>._cycle_heavy_mechanic()</code></h4><pre class="doc">A/D na linha `HEAVY_MECHANIC_ROW`: percorre so os valores
+validos pro `game_mode` ATUAL (`_HEAVY_MECHANIC_DISPLAY_ORDER`
+filtrada), entao &quot;polarity&quot; nunca aparece ciclando no Arcade
+4K.</pre>
+<h4><code>._toggle_modifier()</code></h4><pre class="doc">Liga/desliga UM modifier booleano (nunca &quot;polarity&quot;/&quot;holds&quot;,
+que agora sao a multipla escolha `HEAVY_MECHANIC_ROW` -- ver
+`_cycle_heavy_mechanic`).</pre>
 <h4><code>.practice_mode_on()</code></h4><pre class="doc">Modo Treino ligado para uma fase `selectable_mode` (musicas
 do jogador) -- densidade de onsets reduzida e sem dano de vida.
 Fases curadas do repositorio nunca tem Modo Treino (so a fase
@@ -703,6 +723,27 @@ O novo valor vale imediatamente (spawner/julgamento leem o
 relogio compensado) e e persistido ao sair do jogo.</pre>
 <h4><code>.advance_frame()</code></h4><pre class="doc">Um frame do fluxo: trata as acoes de meta-jogo do estado atual
 e, apenas em PLAYING, avanca a simulacao (`world.step`).</pre>
+<h4><code>._advance_menu()</code></h4><pre class="doc">Padrao universal de Arcade/RPG: W/S sempre no eixo VERTICAL,
+A/D sempre alteram uma opcao de multipla escolha,
+ESPACO/ENTER sempre e o botao de &quot;Acao&quot; da linha focada -- o
+SIGNIFICADO exato depende de ONDE o cursor esta:
+  - Fora do menu de opcoes (`options_focused()` False):
+    W/S trocam a FASE/musica selecionada; ESPACO/ENTER numa
+    fase curada inicia direto, numa musica do jogador ENTRA no
+    menu de opcoes dela.
+  - Dentro do menu de opcoes (`options_focused()` True):
+    delega pra `_advance_menu_options` -- W/S navegam as
+    linhas do menu, A/D alteram a linha de multipla escolha
+    focada, ESPACO/ENTER agem sobre a linha focada (liga/desliga
+    um modifier booleano, ou inicia a fase se for `START_ROW`).
+    ESC sai do menu de opcoes de volta pra lista de fases (nunca
+    encerra o jogo enquanto o cursor estiver aqui dentro).</pre>
+<h4><code>._advance_menu_options()</code></h4><pre class="doc">W/S navegam as linhas do menu de opcoes; A/D alteram a linha
+de multipla escolha focada (`GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`,
+nao fazem nada nas demais); ESPACO/ENTER agem sobre a linha
+focada (liga/desliga um modifier booleano, ou inicia a fase se
+for `START_ROW` -- SO nesse caso, nunca em outra linha); ESC
+volta pra lista de fases sem iniciar nada.</pre>
 <h4><code>._advance_flow_state()</code></h4><pre class="doc">Flow State (&quot;vidro quebrado&quot;, Arcade 4K): detecta a
 TRANSICAO de combo cruzando `flow_combo_threshold` (o
 `UIRenderSystem` ja decide isso por conta propria a cada frame

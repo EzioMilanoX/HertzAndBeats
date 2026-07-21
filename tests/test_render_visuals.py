@@ -87,7 +87,12 @@ def test_modifier_row_labels_fit_within_the_default_window_width():
     _CHECKBOX_GAP`, nunca desenhado como texto, mas ocupa largura de
     verdade na tela) -- contra a largura padrao da janela real."""
     from hertzbeats.adapters.hb_pygame_renderer import _CHECKBOX_GAP, _CHECKBOX_SIZE
-    from hertzbeats.adapters.texture_bank import _GAME_MODE_ROW_LABELS, _MODIFIER_ROW_LABELS
+    from hertzbeats.adapters.texture_bank import (
+        _GAME_MODE_ROW_LABELS,
+        _HEAVY_MECHANIC_ROW_LABELS,
+        _MODIFIER_ROW_LABELS,
+        _START_ROW_LABEL,
+    )
     from hertzbeats.config import HertzConfig
 
     config = HertzConfig.from_json("data/config/hertz_beats.config.json")
@@ -101,6 +106,17 @@ def test_modifier_row_labels_fit_within_the_default_window_width():
         assert width < config.window_width, (
             f"rotulo do modo {game_mode!r} estoura a janela: {width}px >= {config.window_width}px"
         )
+
+    for heavy_mechanic, label in _HEAVY_MECHANIC_ROW_LABELS.items():
+        width, _ = hint_font.size(label)
+        assert width < config.window_width, (
+            f"rotulo da mecanica pesada {heavy_mechanic!r} estoura a janela: {width}px >= {config.window_width}px"
+        )
+
+    start_width, _ = hint_font.size(_START_ROW_LABEL)
+    assert start_width < config.window_width, (
+        f"rotulo de START_ROW estoura a janela: {start_width}px >= {config.window_width}px"
+    )
 
     for modifier_name, label in _MODIFIER_ROW_LABELS.items():
         width, _ = hint_font.size(label)
