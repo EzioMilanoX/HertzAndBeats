@@ -21,5 +21,6 @@
   "latency_down": "KEY_-",
   "cycle_view_next": ["KEY_TAB", "KEY_E"],
   "cycle_view_prev": "KEY_Q",
-  "toggle_bot_mode": "KEY_F12"
+  "toggle_bot_mode": "KEY_F12",
+  "cheat_unlock_all": "KEY_F9"
 }

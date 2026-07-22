@@ -52,6 +52,12 @@ _DODGE_COLOR = (70, 225, 225)
 """Mesmo ciano da Captura Orbital (tint de escudo) -- "defesa habilidosa",
 distinto tanto do dourado de PERFECT quanto do vermelho de MISS."""
 
+_PINK_COLOR = (255, 105, 180)
+"""Developer Tools -- badge "[ DEV ]" LIGADO (rosa) -- distinto do
+dourado (`_PERFECT_COLOR`, foco de menu/PERFECT) e do verde
+(`_GOOD_COLOR`, cheat ATIVO no painel lateral), sem overlap semantico
+com nenhuma outra cor ja estabelecida."""
+
 _RANK_COLORS = {
     "SS": (255, 235, 120), "S": _PERFECT_COLOR, "A": _GOOD_COLOR,
     "B": (140, 160, 255), "C": (255, 170, 90), "D": _MISS_COLOR, "-": _LABEL_COLOR,
@@ -426,6 +432,27 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     exibido durante FLOW_PLAYING enquanto `GameState.bot_mode` estiver
     ligado (`HBPygameRenderer.end_frame`, mesmo criterio de piscar de
     `press_space` -- alfa em seno sobre o relogio de parede)."""
+
+    # Developer Tools -- gate mestre dos cheats: badge "[ DEV ]" (SEMPRE
+    # visivel, cor conforme ligado/desligado), flashes de confirmacao
+    # (`_notice_key`, mesmo mecanismo de "stage_locked") e o painel
+    # lateral listando os 3 cheats -- 2 variantes por linha (normal/
+    # ATIVA em verde) so' pras 2 que tem um estado persistente pra
+    # destacar (Auto-Play/Unlock All); Reset de Save e' uma acao unica,
+    # sem "ligado/desligado" pra destacar.
+    register_text("dev_badge_on", hint_font, "[ DEV ]", _PINK_COLOR)
+    register_text("dev_badge_off", hint_font, "[ DEV ]", _LABEL_COLOR)
+    register_text("dev_mode_on_notice", hint_font, "MODO DEV ATIVADO", _PERFECT_COLOR)
+    register_text("dev_mode_off_notice", hint_font, "MODO DEV DESATIVADO", _LABEL_COLOR)
+    register_text("cheat_unlock_all_notice", hint_font, "CHEAT ATIVADO", _PERFECT_COLOR)
+    register_text("cheat_wipe_save_notice", hint_font, "SAVE APAGADO", _MISS_COLOR)
+    register_text("dev_panel_title", hint_font, "CHEATS DISPONIVEIS", _DIGIT_COLOR)
+    register_text("dev_panel_bot_mode", hint_font, "F12: Auto-Play (Modo Deus)", _LABEL_COLOR)
+    register_text("dev_panel_bot_mode_active", hint_font, "F12: Auto-Play (Modo Deus)", _GOOD_COLOR)
+    register_text("dev_panel_unlock_all", hint_font, "F9: Desbloquear Tudo", _LABEL_COLOR)
+    register_text("dev_panel_unlock_all_active", hint_font, "F9: Desbloquear Tudo", _GOOD_COLOR)
+    register_text("dev_panel_wipe_save", hint_font, "CTRL+SHIFT+DEL: Reset de Save", _LABEL_COLOR)
+
     register_text("slash", stage_font, "/", _LABEL_COLOR)
     register_text("colon", stage_font, ":", _LABEL_COLOR)
 

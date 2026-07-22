@@ -1,4 +1,4 @@
-"""Developer Tools (Cheats): Auto-Play (Modo Deus), Unlock All e Reset de Save."""
+"""Developer Tools (Cheats): gate mestre (dev_mode) + Auto-Play, Unlock All e Reset de Save."""
 import os
 
 from ouroboros.interfaces.null.null_renderer import NullRenderer
@@ -9,10 +9,29 @@ from hertzbeats.bootstrap.hertz_game_loop import (
     FLOW_PLAYING,
     FLOW_PREFLIGHT,
     FLOW_TITLE,
+    FLOW_VAULT,
+    HUB_CATEGORIES,
 )
 from hertzbeats.player_progress import delete_progress
 
 from tests.test_match_flow import _basic, _goto_carousel, _goto_hub, _goto_preflight, _press, flow_game
+
+_DEV_MODE_SEQUENCE_ACTIONS = (
+    "menu_up", "menu_up", "menu_down", "menu_down",
+    "menu_left", "menu_right", "menu_left", "menu_right",
+)
+
+
+def _press_sequence(loop, null_input, actions) -> None:
+    for action in actions:
+        _press(loop, null_input, action)
+
+
+def _activate_dev_mode(loop, null_input) -> None:
+    """Ativa o gate mestre (fora de PLAYING/PAUSED, onde o codigo nem e
+    escutado) -- helper reusado por todo teste que precisa dos cheats
+    LIGADOS antes de exercitar F12/F9/CTRL+SHIFT+DEL."""
+    _press_sequence(loop, null_input, _DEV_MODE_SEQUENCE_ACTIONS)
 
 
 # -- Auto-Play (Modo Deus): JudgmentSystem.bot_mode, Zero-GC -----------------
@@ -115,8 +134,18 @@ def test_bot_mode_with_no_active_threats_does_not_crash(compose, null_clock, nul
 # -- Auto-Play: HertzGameLoop (F12 no Pre-Voo, indicador do HUD) -------------
 
 
-def test_f12_in_preflight_toggles_bot_mode_enabled(flow_game, null_input):
+def test_f12_does_nothing_without_dev_mode(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
+    _goto_preflight(loop, null_input, "campaign")
+    assert loop.flow == FLOW_PREFLIGHT
+
+    _press(loop, null_input, "toggle_bot_mode")
+    assert loop._bot_mode_enabled is False  # dev_mode desligado -- F12 e' ignorado
+
+
+def test_f12_in_preflight_toggles_bot_mode_enabled_once_dev_mode_is_on(flow_game, null_input):
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
     _goto_preflight(loop, null_input, "campaign")
     assert loop.flow == FLOW_PREFLIGHT
     assert loop._bot_mode_enabled is False
@@ -133,6 +162,7 @@ def test_f12_toggles_bot_mode_in_selectable_preflight_too(flow_game, null_input)
     completo -- F12 precisa funcionar ANTES daquele branch, nao so nas
     fases curadas."""
     loop, _clock = flow_game([[_basic(3.0)]], selectable_list=[True])
+    _activate_dev_mode(loop, null_input)
     _goto_preflight(loop, null_input, "free_play")
     assert loop.flow == FLOW_PREFLIGHT
 
@@ -142,6 +172,7 @@ def test_f12_toggles_bot_mode_in_selectable_preflight_too(flow_game, null_input)
 
 def test_starting_a_stage_copies_bot_mode_enabled_into_game_state(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
     _goto_preflight(loop, null_input, "campaign")
     _press(loop, null_input, "toggle_bot_mode")
     assert loop._bot_mode_enabled is True
@@ -167,6 +198,7 @@ def test_sync_bot_mode_indicator_reflects_playing_state(flow_game, null_input):
 
     loop, _clock = flow_game([[_basic(3.0)]])
     loop._renderer = _RecordingRenderer()
+    _activate_dev_mode(loop, null_input)
     _goto_preflight(loop, null_input, "campaign")
     _press(loop, null_input, "toggle_bot_mode")
     _press(loop, null_input, "confirm")
@@ -200,59 +232,148 @@ def test_draw_bot_mode_indicator_renders_without_crashing():
     renderer.end_frame()
 
 
-# -- Unlock All: Konami Code na Tela de Titulo -------------------------------
+def test_sync_dev_mode_indicator_forwards_all_3_fields(flow_game, null_input):
+    calls = []
+
+    class _RecordingRenderer(NullRenderer):
+        def set_dev_mode_state(self, active, code_progress, unlock_all_active):
+            calls.append((active, code_progress, unlock_all_active))
+
+    loop, _clock = flow_game([[_basic(3.0)]])
+    loop._renderer = _RecordingRenderer()
+
+    loop._sync_dev_mode_indicator()
+    assert calls[-1] == (False, 0, False)
+
+    _activate_dev_mode(loop, null_input)
+    loop._debug_unlock_all = True
+    loop._sync_dev_mode_indicator()
+    assert calls[-1] == (True, 0, True)
 
 
-def _press_sequence(loop, null_input, actions) -> None:
-    for action in actions:
-        _press(loop, null_input, action)
+def test_draw_dev_mode_badge_progress_dots_and_panel_render_without_crashing():
+    from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
+    from hertzbeats.adapters.texture_bank import build_and_register_overlay_surfaces
+    from hertzbeats.stages import StageDef
+
+    stage = StageDef(
+        stage_id="s", name="FASE", subtitle="", track_path="", beatmap_path="unused",
+        synth=None, beatmap_params={}, overrides={},
+    )
+    renderer = HBPygameRenderer()
+    renderer.initialize(320, 240, "test")
+    build_and_register_overlay_surfaces(renderer, (stage,))
+
+    renderer.set_dev_mode_state(False, 0, False)
+    renderer.end_frame()  # badge cinza, sem bolinhas/painel
+
+    renderer.set_dev_mode_state(False, 3, False)
+    renderer.end_frame()  # badge cinza + bolinhas de progresso (3 de 8)
+
+    renderer.set_dev_mode_state(True, 0, True)
+    renderer.end_frame()  # badge rosa + painel (Unlock All destacado em verde)
 
 
-def test_correct_sequence_unlocks_all_and_plays_a_confirmation_sfx(flow_game, null_input):
+# -- Gate mestre (dev_mode): "W W S S A D A D" em qualquer tela ------------
+
+
+def test_correct_sequence_toggles_dev_mode_and_shows_a_flash(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
     assert loop.flow == FLOW_TITLE
-    assert loop._debug_unlock_all is False
+    assert loop._dev_mode is False
 
-    _press_sequence(
-        loop, null_input,
-        ("menu_up", "menu_up", "menu_down", "menu_down", "menu_left", "menu_right"),
-    )
+    _activate_dev_mode(loop, null_input)
+    assert loop._dev_mode is True
+    assert loop._notice_key == "dev_mode_on_notice"
 
-    assert loop._debug_unlock_all is True
-    assert any(sound_id == SFX_UNLOCK_ALL for sound_id, _ in loop._audio_engine._one_shots_played)
+    _activate_dev_mode(loop, null_input)  # a MESMA sequencia tambem desliga
+    assert loop._dev_mode is False
+    assert loop._notice_key == "dev_mode_off_notice"
 
 
 def test_wrong_key_in_the_sequence_resets_progress(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
     _press(loop, null_input, "menu_up")
-    assert loop._unlock_code_progress == 1
+    assert loop._dev_mode_code_progress == 1
 
-    _press(loop, null_input, "menu_right")  # errado -- reinicia do zero
-    assert loop._unlock_code_progress == 0
-    assert loop._debug_unlock_all is False
+    _press(loop, null_input, "menu_down")  # errado (esperado: outro "menu_up") -- reinicia do zero
+    assert loop._dev_mode_code_progress == 0
+    assert loop._dev_mode is False
 
     # a sequencia completa AINDA funciona depois do erro
-    _press_sequence(
-        loop, null_input,
-        ("menu_up", "menu_up", "menu_down", "menu_down", "menu_left", "menu_right"),
-    )
-    assert loop._debug_unlock_all is True
+    _activate_dev_mode(loop, null_input)
+    assert loop._dev_mode is True
 
 
 def test_unrelated_actions_do_not_disturb_the_buffer(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
     _press(loop, null_input, "menu_up")
     _press(loop, null_input, "pause")  # ESC: nao mexe no progresso do buffer
-    assert loop._unlock_code_progress == 1
+    assert loop._dev_mode_code_progress == 1
     assert loop.flow == FLOW_TITLE  # ESC so chama stop() (_running=False), nunca muda _flow
+
+
+def test_dev_mode_sequence_works_in_the_hub_too(flow_game, null_input):
+    """"Em qualquer tela" (fora de PLAYING/PAUSED) -- nao so' na Tela de
+    Titulo."""
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _goto_hub(loop, null_input)
+    assert loop.flow == FLOW_HUB
+
+    _activate_dev_mode(loop, null_input)
+    assert loop._dev_mode is True
+
+
+def test_dev_mode_sequence_is_ignored_while_playing(flow_game, null_input):
+    """Arcade 4K reusa as MESMAS teclas fisicas W/A/S/D pras colunas --
+    o codigo secreto e' ignorado durante PLAYING/PAUSED de proposito,
+    pra um beatmap nunca disparar o cheat por acidente."""
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _goto_preflight(loop, null_input, "campaign")
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_PLAYING
+
+    _press_sequence(loop, null_input, _DEV_MODE_SEQUENCE_ACTIONS)
+    assert loop._dev_mode is False
+    assert loop._dev_mode_code_progress == 0
+
+
+def test_dev_mode_persists_across_screens(flow_game, null_input):
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
+    assert loop._dev_mode is True
+
+    _goto_hub(loop, null_input)
+    assert loop.flow == FLOW_HUB
+    assert loop._dev_mode is True  # nenhuma tela desliga sozinha
+
+
+# -- F9 (Unlock All, so' com dev_mode ligado) --------------------------------
+
+
+def test_f9_does_nothing_without_dev_mode(flow_game, null_input):
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _press(loop, null_input, "cheat_unlock_all")
+    assert loop._debug_unlock_all is False
+    assert loop._audio_engine._one_shots_played == []
+
+
+def test_f9_unlocks_all_and_plays_a_confirmation_sfx_once_dev_mode_is_on(flow_game, null_input):
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
+    assert loop._debug_unlock_all is False
+
+    _press(loop, null_input, "cheat_unlock_all")
+
+    assert loop._debug_unlock_all is True
+    assert loop._notice_key == "cheat_unlock_all_notice"
+    assert any(sound_id == SFX_UNLOCK_ALL for sound_id, _ in loop._audio_engine._one_shots_played)
 
 
 def test_unlock_all_persists_after_leaving_the_title_screen(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
-    _press_sequence(
-        loop, null_input,
-        ("menu_up", "menu_up", "menu_down", "menu_down", "menu_left", "menu_right"),
-    )
+    _activate_dev_mode(loop, null_input)
+    _press(loop, null_input, "cheat_unlock_all")
     assert loop._debug_unlock_all is True
 
     _goto_hub(loop, null_input)
@@ -292,7 +413,7 @@ def test_delete_progress_is_idempotent_on_a_missing_file(tmp_path):
     delete_progress(path)  # 2x seguidas tambem nao
 
 
-def test_wipe_save_in_hub_deletes_the_file_and_clears_memory_and_plays_bomb_sfx(flow_game, null_input):
+def test_wipe_save_does_nothing_without_dev_mode(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
     progress_path = loop._player_progress_path
     with open(progress_path, "w", encoding="utf-8") as f:
@@ -302,23 +423,37 @@ def test_wipe_save_in_hub_deletes_the_file_and_clears_memory_and_plays_bomb_sfx(
     _goto_hub(loop, null_input)
     _press(loop, null_input, "wipe_save")
 
-    assert loop._player_progress == {}
-    assert not os.path.exists(progress_path)
-    assert any(sound_id == SFX_BOMB for sound_id, _ in loop._audio_engine._one_shots_played)
-    assert loop.flow == FLOW_HUB  # continua no HUB, nao navega pra outro lugar
+    assert loop._player_progress != {}
+    assert os.path.exists(progress_path)
 
 
-def test_wipe_save_in_vault_also_works(flow_game, null_input):
-    from hertzbeats.bootstrap.hertz_game_loop import FLOW_VAULT
-
+def test_wipe_save_in_hub_deletes_the_file_and_clears_memory_and_plays_bomb_sfx(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
     progress_path = loop._player_progress_path
     with open(progress_path, "w", encoding="utf-8") as f:
         f.write('{"stage0": {"modifiers": [], "best_rank": "S"}}')
     loop._player_progress = {"stage0": {"modifiers": frozenset(), "best_rank": "S"}}
 
+    _activate_dev_mode(loop, null_input)
     _goto_hub(loop, null_input)
-    from hertzbeats.bootstrap.hertz_game_loop import HUB_CATEGORIES
+    _press(loop, null_input, "wipe_save")
+
+    assert loop._player_progress == {}
+    assert not os.path.exists(progress_path)
+    assert loop._notice_key == "cheat_wipe_save_notice"
+    assert any(sound_id == SFX_BOMB for sound_id, _ in loop._audio_engine._one_shots_played)
+    assert loop.flow == FLOW_HUB  # continua no HUB, nao navega pra outro lugar
+
+
+def test_wipe_save_in_vault_also_works(flow_game, null_input):
+    loop, _clock = flow_game([[_basic(3.0)]])
+    progress_path = loop._player_progress_path
+    with open(progress_path, "w", encoding="utf-8") as f:
+        f.write('{"stage0": {"modifiers": [], "best_rank": "S"}}')
+    loop._player_progress = {"stage0": {"modifiers": frozenset(), "best_rank": "S"}}
+
+    _activate_dev_mode(loop, null_input)
+    _goto_hub(loop, null_input)
     target = HUB_CATEGORIES.index("vault")
     while loop.hub_cursor != target:
         _press(loop, null_input, "menu_down")

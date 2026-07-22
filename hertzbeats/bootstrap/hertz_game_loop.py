@@ -103,14 +103,23 @@ _RESULTS_GRACE_SECONDS = 1.0
 _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
+_CHEAT_FLASH_SECONDS = 1.8
 
-_UNLOCK_ALL_SEQUENCE = ("menu_up", "menu_up", "menu_down", "menu_down", "menu_left", "menu_right")
-"""Developer Tools -- Unlock All: roteiro reduzido do Konami Code
-(Cima/Cima/Baixo/Baixo/Esquerda/Direita), escutado SO' em `FLOW_TITLE`
-(`HertzGameLoop._advance_unlock_all_code`) via as acoes de menu JA
-existentes (`menu_up`/`menu_down`/`menu_left`/`menu_right` -- setas OU
-WASD, `data/input_bindings/default_keyboard.json`), nenhuma tecla nova
-precisou ser mapeada."""
+_DEV_MODE_SEQUENCE = (
+    "menu_up", "menu_up", "menu_down", "menu_down",
+    "menu_left", "menu_right", "menu_left", "menu_right",
+)
+"""Developer Tools -- gate MESTRE dos 3 cheats: "W W S S A D A D" via as
+acoes de menu JA existentes (`menu_up`/`menu_down`/`menu_left`/
+`menu_right` -- setas OU WASD, `data/input_bindings/default_keyboard.json`),
+nenhuma tecla nova precisou ser mapeada. Escutado em QUALQUER tela/estado
+EXCETO `FLOW_PLAYING`/`FLOW_PAUSED` (`HertzGameLoop._advance_dev_mode_code`)
+-- diferenca deliberada do pedido literal ("em qualquer tela/estado"):
+o Arcade 4K usa as MESMAS teclas fisicas W/A/S/D pras colunas
+(`lane_0..3`), entao um beatmap com o padrao certo de notas durante o
+gameplay disparia o cheat por acidente -- risco que nao existe fora de
+PLAYING/PAUSED. Ao completar, alterna `_dev_mode` (liga/desliga os 3
+cheats -- F12/F9/CTRL+SHIFT+DEL nao fazem NADA enquanto desligado)."""
 
 _NEUTRAL_PALETTE_RGB = (255, 255, 255)
 """Estetica Reativa -- Paleta Dinamica: "sem tint ativo" (multiplicar
@@ -434,21 +443,27 @@ class HertzGameLoop(GameLoop):
         # Developer Tools (Cheats): flags de SESSAO (sobrevivem a troca
         # de `GameState` entre fases, ao contrario de `GameState.bot_mode`
         # em si, recriado do zero a cada `_compose_stage`).
+        self._dev_mode = False
+        """Gate MESTRE dos 3 cheats (F12/F9/CTRL+SHIFT+DEL) -- liga/
+        desliga ao completar `_DEV_MODE_SEQUENCE` (`_advance_dev_mode_code`).
+        Enquanto `False`, os 3 cheats nao fazem NADA (nem checam a
+        propria tecla)."""
+        self._dev_mode_code_progress = 0  # posicao atual dentro de `_DEV_MODE_SEQUENCE`
         self._bot_mode_enabled = False
         """Auto-Play (Modo Deus): ligado/desligado por F12 em
-        `FLOW_PREFLIGHT` (`_advance_preflight`); copiado pra
-        `GameState.bot_mode` no instante exato de `_start_stage`, ja que
-        aquele objeto e' recriado a cada fase e nao sobrevive sozinho."""
+        `FLOW_PREFLIGHT` (`_advance_preflight`, SO' com `_dev_mode`
+        ligado); copiado pra `GameState.bot_mode` no instante exato de
+        `_start_stage`, ja que aquele objeto e' recriado a cada fase e
+        nao sobrevive sozinho."""
         self._debug_unlock_all = False
         """Unlock All: liga permanentemente pelo resto da sessao ao
-        completar `_UNLOCK_ALL_SEQUENCE` na Tela de Titulo -- consultado
-        por `is_campaign_entry_locked` (fonte unica ja usada tanto pelo
-        aviso "FASE TRANCADA" do Carrossel quanto pelo guard de
-        confirmar em `_advance_carousel`), NUNCA em `GameState` (o
-        travamento de campanha e' um conceito do `HertzGameLoop`/
+        pressionar F9 com `_dev_mode` ligado (`_activate_unlock_all_cheat`)
+        -- consultado por `is_campaign_entry_locked` (fonte unica ja
+        usada tanto pelo aviso "FASE TRANCADA" do Carrossel quanto pelo
+        guard de confirmar em `_advance_carousel`), NUNCA em `GameState`
+        (o travamento de campanha e' um conceito do `HertzGameLoop`/
         `player_progress`, sem nenhuma relacao com o placar de uma
         fase)."""
-        self._unlock_code_progress = 0  # posicao atual dentro de `_UNLOCK_ALL_SEQUENCE`
 
         # O Novo Fluxo de Menus (Experiencia Arcade)
         self._hub_cursor = 0
@@ -912,9 +927,18 @@ class HertzGameLoop(GameLoop):
 
     def advance_frame(self, delta_time: float) -> None:
         """Um frame do fluxo: trata as acoes de meta-jogo do estado atual
-        e, apenas em PLAYING, avanca a simulacao (`world.step`)."""
+        e, apenas em PLAYING, avanca a simulacao (`world.step`).
+
+        Developer Tools: o gate mestre (`_advance_dev_mode_code`) e' o
+        UNICO checado fora de PLAYING/PAUSED tambem (ver docstring de
+        `_DEV_MODE_SEQUENCE`); F9 (Unlock All) roda em QUALQUER estado
+        sem risco de colisao (nao reusa nenhuma tecla de gameplay)."""
         if self._notice_timer > 0.0:
             self._notice_timer -= delta_time
+        if self._flow not in (FLOW_PLAYING, FLOW_PAUSED):
+            self._advance_dev_mode_code(self._input_provider)
+        if self._dev_mode and self._input_provider.is_action_pressed("cheat_unlock_all"):
+            self._activate_unlock_all_cheat()
         if self._flow in (FLOW_PLAYING, FLOW_PAUSED):
             self._handle_latency_keys()
         self._sync_carousel_preview(delta_time)
@@ -954,7 +978,6 @@ class HertzGameLoop(GameLoop):
 
     def _advance_title(self) -> None:
         inp = self._input_provider
-        self._advance_unlock_all_code(inp)
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
             if self._title_track_path and hasattr(self._audio_engine, "stop_track"):
                 self._audio_engine.stop_track("title")
@@ -962,39 +985,50 @@ class HertzGameLoop(GameLoop):
         elif inp.is_action_pressed("pause"):
             self.stop()  # ESC na Tela de Titulo encerra o jogo (e a tela mais externa)
 
-    def _advance_unlock_all_code(self, inp: IInputProvider) -> None:
-        """Developer Tools -- Unlock All: buffer invisivel de input SO'
-        na Tela de Titulo, escutando `_UNLOCK_ALL_SEQUENCE` (roteiro
-        reduzido do Konami Code). Qualquer acao de menu ERRADA reinicia
-        o progresso do zero -- exceto quando a propria tecla errada JA e'
-        o 1o passo certo (Cima), caso em que o progresso reinicia A
-        PARTIR dali em vez de exigir soltar tudo primeiro (mesma
-        tolerancia de implementacoes classicas do codigo). Uma vez
-        completa, `_debug_unlock_all` fica ligado pelo RESTO da sessao
-        -- nenhuma tela desliga de novo."""
-        if self._debug_unlock_all:
-            return
+    # -- Developer Tools (Cheats) -----------------------------------------
+
+    def _advance_dev_mode_code(self, inp: IInputProvider) -> None:
+        """Gate MESTRE dos 3 cheats: buffer invisivel de 8 posicoes
+        escutando `_DEV_MODE_SEQUENCE`. Qualquer acao de menu ERRADA
+        reinicia o progresso do zero -- exceto quando a propria tecla
+        errada JA e' o 1o passo certo, caso em que o progresso reinicia
+        A PARTIR dali em vez de exigir soltar tudo primeiro (mesma
+        tolerancia de implementacoes classicas de codigo secreto). Ao
+        completar, ALTERNA `_dev_mode` (liga E desliga -- ao contrario
+        do Unlock All, que so' liga) e dispara o flash visual de
+        confirmacao (`_notice_key`, `_CHEAT_FLASH_SECONDS`)."""
         pressed = [
             action for action in ("menu_up", "menu_down", "menu_left", "menu_right")
             if inp.is_action_pressed(action)
         ]
         if not pressed:
             return
-        expected = _UNLOCK_ALL_SEQUENCE[self._unlock_code_progress]
+        expected = _DEV_MODE_SEQUENCE[self._dev_mode_code_progress]
         if expected in pressed:
-            self._unlock_code_progress += 1
-            if self._unlock_code_progress == len(_UNLOCK_ALL_SEQUENCE):
-                self._debug_unlock_all = True
-                self._unlock_code_progress = 0
-                self._audio_engine.play_one_shot(SFX_UNLOCK_ALL, 0.8)
+            self._dev_mode_code_progress += 1
+            if self._dev_mode_code_progress == len(_DEV_MODE_SEQUENCE):
+                self._dev_mode = not self._dev_mode
+                self._dev_mode_code_progress = 0
+                self._notice_key = "dev_mode_on_notice" if self._dev_mode else "dev_mode_off_notice"
+                self._notice_timer = _CHEAT_FLASH_SECONDS
         else:
-            self._unlock_code_progress = 1 if pressed[0] == _UNLOCK_ALL_SEQUENCE[0] else 0
+            self._dev_mode_code_progress = 1 if pressed[0] == _DEV_MODE_SEQUENCE[0] else 0
+
+    def _activate_unlock_all_cheat(self) -> None:
+        """F9 (SO' com `_dev_mode` ligado): desbloqueia toda a Campanha
+        permanentemente pelo RESTO da sessao (ver `_debug_unlock_all`),
+        com o MESMO flash visual de confirmacao dos outros cheats + o
+        chime ja existente (`SFX_UNLOCK_ALL`)."""
+        self._debug_unlock_all = True
+        self._notice_key = "cheat_unlock_all_notice"
+        self._notice_timer = _CHEAT_FLASH_SECONDS
+        self._audio_engine.play_one_shot(SFX_UNLOCK_ALL, 0.8)
 
     # -- HUB Principal ------------------------------------------------------
 
     def _advance_hub(self) -> None:
         inp = self._input_provider
-        if inp.is_action_pressed("wipe_save"):
+        if self._dev_mode and inp.is_action_pressed("wipe_save"):
             self._reset_player_progress()
             return
         if inp.is_action_pressed("menu_down"):
@@ -1025,18 +1059,21 @@ class HertzGameLoop(GameLoop):
 
     def _reset_player_progress(self) -> None:
         """Developer Tools -- Reset de Save (Wipe): CTRL+SHIFT+DEL no HUB
-        ou no Vault apaga `player_progress.json` do disco
-        (`delete_progress`, cross-platform via `pathlib`) e zera o cache
-        em-memoria na MESMA chamada -- sem isso, `self._player_progress`
-        continuaria com o conteudo antigo ate o proximo restart do jogo,
-        mesmo com o arquivo ja apagado. NAO mexe em
-        `player_lifetime_stats.json`/`user_settings.json` (Estatisticas
-        Globais/paleta escolhida sobrevivem ao reset -- so' o progresso
-        de fases/musicas e' o "save" aqui). SFX de explosao/erro
-        (`SFX_BOMB`, ja existente -- nenhum som novo precisou ser
-        sintetizado so' pra isso)."""
+        ou no Vault, SO' com `_dev_mode` ligado, apaga `player_progress.json`
+        do disco (`delete_progress`, cross-platform via `pathlib`) e zera
+        o cache em-memoria na MESMA chamada -- sem isso,
+        `self._player_progress` continuaria com o conteudo antigo ate o
+        proximo restart do jogo, mesmo com o arquivo ja apagado. NAO
+        mexe em `player_lifetime_stats.json`/`user_settings.json`
+        (Estatisticas Globais/paleta escolhida sobrevivem ao reset -- so'
+        o progresso de fases/musicas e' o "save" aqui). Flash visual de
+        confirmacao (`_notice_key`, `_CHEAT_FLASH_SECONDS`) + SFX de
+        explosao/erro (`SFX_BOMB`, ja existente -- nenhum som novo
+        precisou ser sintetizado so' pra isso)."""
         delete_progress(self._player_progress_path)
         self._player_progress = {}
+        self._notice_key = "cheat_wipe_save_notice"
+        self._notice_timer = _CHEAT_FLASH_SECONDS
         self._audio_engine.play_one_shot(SFX_BOMB, 0.9)
 
     # -- Carrossel de Musicas ------------------------------------------------
@@ -1126,11 +1163,11 @@ class HertzGameLoop(GameLoop):
         CADA campanha nunca tranca (progressoes independentes: comecar
         o Arcade nao exige terminar o Defensor antes).
 
-        Developer Tools -- Unlock All: `_debug_unlock_all` (Konami Code
-        na Tela de Titulo) faz TUDO destrancar -- fonte UNICA lida tanto
-        pelo aviso "FASE TRANCADA" do Carrossel quanto pelo guard de
-        confirmar em `_advance_carousel`, entao os 2 lugares nunca
-        divergem."""
+        Developer Tools -- Unlock All: `_debug_unlock_all` (F9, com
+        `_dev_mode` ligado -- ver `_activate_unlock_all_cheat`) faz TUDO
+        destrancar -- fonte UNICA lida tanto pelo aviso "FASE TRANCADA"
+        do Carrossel quanto pelo guard de confirmar em
+        `_advance_carousel`, entao os 2 lugares nunca divergem."""
         if self._debug_unlock_all:
             return False
         if position <= 0:
@@ -1470,14 +1507,15 @@ class HertzGameLoop(GameLoop):
         curada e crescente), so A/D (Lado B/Remix, quando a fase tiver um
         -- ver `StageDef.b_side_name`) e START sao interativos.
 
-        Developer Tools -- Auto-Play (F12): alterna `_bot_mode_enabled`
-        ANTES de qualquer branch (funciona tanto em fases curadas quanto
-        em musicas do jogador -- facilita testar Campanha E geracao de
-        beatmap). So' um TOGGLE de sessao aqui; o valor real so' chega em
-        `GameState.bot_mode` no instante de `_start_stage`, que recompoe
-        um `GameState` novo a cada fase."""
+        Developer Tools -- Auto-Play (F12, SO' com `_dev_mode` ligado):
+        alterna `_bot_mode_enabled` ANTES de qualquer branch (funciona
+        tanto em fases curadas quanto em musicas do jogador -- facilita
+        testar Campanha E geracao de beatmap). So' um TOGGLE de sessao
+        aqui; o valor real so' chega em `GameState.bot_mode` no instante
+        de `_start_stage`, que recompoe um `GameState` novo a cada
+        fase."""
         inp = self._input_provider
-        if inp.is_action_pressed("toggle_bot_mode"):
+        if self._dev_mode and inp.is_action_pressed("toggle_bot_mode"):
             self._bot_mode_enabled = not self._bot_mode_enabled
         stage_index = self._preflight_stage_index
         stage = self._stages[stage_index]
@@ -1586,7 +1624,7 @@ class HertzGameLoop(GameLoop):
 
     def _advance_vault(self) -> None:
         inp = self._input_provider
-        if inp.is_action_pressed("wipe_save"):
+        if self._dev_mode and inp.is_action_pressed("wipe_save"):
             self._reset_player_progress()
             return
         if inp.is_action_pressed("menu_right"):
@@ -2048,6 +2086,21 @@ class HertzGameLoop(GameLoop):
         )
         self._renderer.set_bot_mode_active(active)
 
+    def _sync_dev_mode_indicator(self) -> None:
+        """Developer Tools -- gate mestre: sincroniza o badge "[ DEV ]"
+        (SEMPRE visivel, qualquer `_flow` -- ao contrario do indicador
+        do Auto-Play, que so aparece durante PLAYING), as bolinhas de
+        progresso do codigo secreto e o painel lateral de cheats
+        disponiveis (desenhado pelo renderer so' quando `_dev_mode`
+        estiver ligado; o destaque verde do Auto-Play naquele painel
+        reusa `_bot_mode_active`, ja sincronizado por
+        `_sync_bot_mode_indicator` -- nenhum dado duplicado aqui)."""
+        if not hasattr(self._renderer, "set_dev_mode_state"):
+            return
+        self._renderer.set_dev_mode_state(
+            self._dev_mode, self._dev_mode_code_progress, self._debug_unlock_all,
+        )
+
     def _sync_ghost_trail(self) -> None:
         """Juice Visual -- Ghost Trails: grava a posicao ATUAL da mira no
         RingBuffer do renderer, so durante `FLOW_PLAYING` no Defensor
@@ -2218,6 +2271,7 @@ class HertzGameLoop(GameLoop):
             self._sync_blindness()
             self._sync_low_health_danger()
             self._sync_bot_mode_indicator()
+            self._sync_dev_mode_indicator()
             self._sync_ghost_trail()
             self._sync_corruption_glitch()
             self._sync_reactive_background()

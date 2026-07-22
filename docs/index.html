@@ -272,7 +272,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>592 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<p>Total: <strong>601 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
 <details><summary><code>test_announcer.py</code> — Meta-Jogo -- Announcer: stinger sintetizado (nao fala real) em marcos de combo e Rank. (8 testes)</summary><ul><li><code>test_combo_announcer_fires_when_crossing_the_threshold</code></li><li><code>test_combo_announcer_does_not_fire_below_the_threshold</code></li><li><code>test_combo_announcer_never_refires_within_the_same_tier</code></li><li><code>test_combo_announcer_fires_again_at_the_next_tier</code></li><li><code>test_combo_announcer_is_silent_outside_playing</code></li><li><code>test_combo_announcer_tier_resets_on_a_fresh_stage</code></li><li><code>test_rank_ss_clear_triggers_the_rank_stinger</code></li><li><code>test_a_low_rank_clear_never_triggers_the_rank_stinger</code></li></ul></details>
 <details><summary><code>test_audio_ducking.py</code> — Audio Ducking: um MISS/dano abaixa a musica para duck_volume_fraction, restaurando gradualmente. (5 testes)</summary><ul><li><code>test_duck_multiplier_is_minimum_right_when_the_timer_is_fresh</code></li><li><code>test_duck_multiplier_recovers_to_normal_as_the_timer_decays</code></li><li><code>test_duck_multiplier_is_a_no_op_outside_the_ducking_window</code></li><li><code>test_a_miss_ducks_the_track_volume_and_it_recovers_over_time</code></li><li><code>test_a_second_miss_before_recovery_restarts_the_ducking_window</code></li></ul></details>
 <details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
@@ -292,7 +292,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_defender_polarity_resonance.py</code> — Defensor -- Ressonancia de Polaridade (Combos Monocromaticos): corrente por cor e Overdrive perfurante. (5 testes)</summary><ul><li><code>test_destroying_same_color_threats_in_sequence_builds_the_chain</code></li><li><code>test_destroying_a_different_color_threat_resets_the_chain_to_one</code></li><li><code>test_in_overdrive_becomes_true_only_at_the_configured_threshold</code></li><li><code>test_overdrive_shot_pierces_and_destroys_every_matching_color_candidate_at_once</code></li><li><code>test_overdrive_piercing_never_consumes_a_heavy_parry_candidate</code></li></ul></details>
 <details><summary><code>test_defender_twin_polarity.py</code> — Defensor -- Gemeos de Polaridade: um evento &quot;twin&quot; nasce como DUAS ameacas opostas no mesmo frame. (5 testes)</summary><ul><li><code>test_twin_event_spawns_two_entities_in_diametrically_opposite_lanes</code></li><li><code>test_twin_pair_shares_the_same_target_hit_time_and_is_30_degrees_adjacent</code></li><li><code>test_twin_pair_has_opposite_polarities</code></li><li><code>test_non_twin_threat_type_still_spawns_a_single_entity</code></li><li><code>test_twin_type_is_inert_without_the_polarity_modifier</code></li></ul></details>
 <details><summary><code>test_defender_vision_tunnel.py</code> — Defensor -- Colapso de Visao (Tolerancia Organica): raio cosmetico via evento do beatmap, NUNCA a fisica (mira/spawner). (9 testes)</summary><ul><li><code>test_parse_vision_tunnel_events_sorts_by_time_and_filters_other_types</code></li><li><code>test_compute_tunnel_radius_before_during_and_after</code></li><li><code>test_compute_tunnel_radius_chains_a_sequence_of_events</code></li><li><code>test_no_vision_tunnel_events_keeps_the_field_fully_open_forever</code></li><li><code>test_vision_tunnel_is_fully_open_even_without_the_modifier</code></li><li><code>test_vision_tunnel_event_shrinks_tunnel_radius_over_time</code></li><li><code>test_vision_tunnel_never_changes_the_physical_judgment_radius</code></li><li><code>test_crosshair_orbit_radius_is_unaffected_by_the_vision_tunnel</code></li><li><code>test_new_threat_speed_is_unaffected_by_the_vision_tunnel</code></li></ul></details>
-<details><summary><code>test_developer_tools.py</code> — Developer Tools (Cheats): Auto-Play (Modo Deus), Unlock All e Reset de Save. (22 testes)</summary><ul><li><code>test_bot_mode_is_off_by_default</code></li><li><code>test_bot_mode_auto_hits_perfect_without_any_input</code></li><li><code>test_bot_mode_ignores_player_fire_with_wrong_aim</code></li><li><code>test_bot_mode_leaves_a_future_threat_untouched</code></li><li><code>test_bot_mode_resolves_an_already_overdue_threat_too</code></li><li><code>test_bot_mode_resolves_multiple_ready_threats_in_the_same_frame</code></li><li><code>test_bot_mode_with_no_active_threats_does_not_crash</code></li><li><code>test_f12_in_preflight_toggles_bot_mode_enabled</code></li><li><code>test_f12_toggles_bot_mode_in_selectable_preflight_too</code></li><li><code>test_starting_a_stage_copies_bot_mode_enabled_into_game_state</code></li><li><code>test_bot_mode_enabled_stays_off_by_default_when_starting_a_stage</code></li><li><code>test_sync_bot_mode_indicator_reflects_playing_state</code></li><li><code>test_draw_bot_mode_indicator_renders_without_crashing</code></li><li><code>test_correct_sequence_unlocks_all_and_plays_a_confirmation_sfx</code></li><li><code>test_wrong_key_in_the_sequence_resets_progress</code></li><li><code>test_unrelated_actions_do_not_disturb_the_buffer</code></li><li><code>test_unlock_all_persists_after_leaving_the_title_screen</code></li><li><code>test_is_campaign_entry_locked_bypassed_by_unlock_all</code></li><li><code>test_confirming_a_locked_stage_with_unlock_all_enters_preflight</code></li><li><code>test_delete_progress_is_idempotent_on_a_missing_file</code></li><li><code>test_wipe_save_in_hub_deletes_the_file_and_clears_memory_and_plays_bomb_sfx</code></li><li><code>test_wipe_save_in_vault_also_works</code></li></ul></details>
+<details><summary><code>test_developer_tools.py</code> — Developer Tools (Cheats): gate mestre (dev_mode) + Auto-Play, Unlock All e Reset de Save. (31 testes)</summary><ul><li><code>test_bot_mode_is_off_by_default</code></li><li><code>test_bot_mode_auto_hits_perfect_without_any_input</code></li><li><code>test_bot_mode_ignores_player_fire_with_wrong_aim</code></li><li><code>test_bot_mode_leaves_a_future_threat_untouched</code></li><li><code>test_bot_mode_resolves_an_already_overdue_threat_too</code></li><li><code>test_bot_mode_resolves_multiple_ready_threats_in_the_same_frame</code></li><li><code>test_bot_mode_with_no_active_threats_does_not_crash</code></li><li><code>test_f12_does_nothing_without_dev_mode</code></li><li><code>test_f12_in_preflight_toggles_bot_mode_enabled_once_dev_mode_is_on</code></li><li><code>test_f12_toggles_bot_mode_in_selectable_preflight_too</code></li><li><code>test_starting_a_stage_copies_bot_mode_enabled_into_game_state</code></li><li><code>test_bot_mode_enabled_stays_off_by_default_when_starting_a_stage</code></li><li><code>test_sync_bot_mode_indicator_reflects_playing_state</code></li><li><code>test_draw_bot_mode_indicator_renders_without_crashing</code></li><li><code>test_sync_dev_mode_indicator_forwards_all_3_fields</code></li><li><code>test_draw_dev_mode_badge_progress_dots_and_panel_render_without_crashing</code></li><li><code>test_correct_sequence_toggles_dev_mode_and_shows_a_flash</code></li><li><code>test_wrong_key_in_the_sequence_resets_progress</code></li><li><code>test_unrelated_actions_do_not_disturb_the_buffer</code></li><li><code>test_dev_mode_sequence_works_in_the_hub_too</code></li><li><code>test_dev_mode_sequence_is_ignored_while_playing</code></li><li><code>test_dev_mode_persists_across_screens</code></li><li><code>test_f9_does_nothing_without_dev_mode</code></li><li><code>test_f9_unlocks_all_and_plays_a_confirmation_sfx_once_dev_mode_is_on</code></li><li><code>test_unlock_all_persists_after_leaving_the_title_screen</code></li><li><code>test_is_campaign_entry_locked_bypassed_by_unlock_all</code></li><li><code>test_confirming_a_locked_stage_with_unlock_all_enters_preflight</code></li><li><code>test_delete_progress_is_idempotent_on_a_missing_file</code></li><li><code>test_wipe_save_does_nothing_without_dev_mode</code></li><li><code>test_wipe_save_in_hub_deletes_the_file_and_clears_memory_and_plays_bomb_sfx</code></li><li><code>test_wipe_save_in_vault_also_works</code></li></ul></details>
 <details><summary><code>test_flow_state.py</code> — Flow State (&quot;vidro quebrado&quot;): 50 PERFECTs seguidos apaga o HUD; um Miss o restaura. (3 testes)</summary><ul><li><code>test_flow_combo_threshold_is_wired_only_for_lanes_mode</code></li><li><code>test_flow_state_hides_score_combo_and_labels_at_the_threshold</code></li><li><code>test_flow_state_restores_the_hud_after_a_miss_resets_combo</code></li></ul></details>
 <details><summary><code>test_flow_tier.py</code> — Flow State: o tier de 50 combos extras chega ao renderer TODO frame, nao so na transicao. (4 testes)</summary><ul><li><code>test_tier_is_zero_before_reaching_the_flow_threshold</code></li><li><code>test_tier_is_one_exactly_at_the_threshold</code></li><li><code>test_tier_advances_within_flow_without_leaving_and_re_entering</code></li><li><code>test_tier_resets_to_zero_after_a_miss_breaks_the_combo</code></li></ul></details>
 <details><summary><code>test_ghost_trail.py</code> — Juice Visual -- Ghost Trails: RingBuffer circular das ultimas posicoes da mira (Defensor). (8 testes)</summary><ul><li><code>test_ghost_trail_records_the_crosshair_position_while_playing_defender</code></li><li><code>test_ghost_trail_does_not_record_outside_playing</code></li><li><code>test_ghost_trail_does_not_record_in_lanes_mode</code></li><li><code>test_ghost_trail_resets_on_a_fresh_stage</code></li><li><code>test_record_ghost_trail_position_wraps_around_the_fixed_buffer</code></li><li><code>test_draw_ghost_trail_is_a_no_op_when_empty</code></li><li><code>test_draw_ghost_trail_draws_something_once_positions_are_recorded</code></li><li><code>test_reset_ghost_trail_clears_recorded_positions</code></li></ul></details>
@@ -444,7 +444,7 @@ sobre todas as teclas de cada acao, mais os eixos de mira.</pre>
 </details>
 <details class="module" id="hertzbeats-adapters-hb_pygame_renderer"><summary><code>hertzbeats/adapters/hb_pygame_renderer.py</code> — PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</summary>
 <pre class="doc">PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</pre>
-<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_GLITCH_BAR_COLOR</code>, <code>_GLITCH_MAX_BARS</code>, <code>_RESULTS_HISTOGRAM_BAR_WIDTH</code>, <code>_RESULTS_HISTOGRAM_BAR_GAP</code>, <code>_RESULTS_HISTOGRAM_MAX_HEIGHT</code>, <code>_RESULTS_HISTOGRAM_COLOR</code>, <code>_RESULTS_HISTOGRAM_CENTER_COLOR</code>, <code>_HIT_ERROR_METER_WIDTH</code>, <code>_HIT_ERROR_METER_RANGE_SECONDS</code>, <code>_HIT_ERROR_METER_RECENT_TICKS</code>, <code>_HIT_ERROR_METER_COLOR</code>, <code>_REACTIVE_BG_BAR_COUNT</code>, <code>_REACTIVE_BG_MAX_HEIGHT</code>, <code>_REACTIVE_BG_COLOR</code>, <code>_GHOST_TRAIL_LENGTH</code>, <code>_GHOST_TRAIL_COLOR</code>, <code>_GHOST_TRAIL_MAX_RADIUS</code>, <code>_HEARTBEAT_DECAY_RATE</code>, <code>_HEARTBEAT_RING_ZOOM</code>, <code>_HEARTBEAT_LANE_WARP</code>, <code>_METRONOME_BAR_WIDTH</code>, <code>_METRONOME_COLOR</code>, <code>_SPARK_COLOR</code>, <code>_ARENA_BG_COLOR</code>, <code>_TUNNEL_COLOR</code>, <code>_MEDAL_GLYPH_SIZE</code>, <code>_MEDAL_GLYPH_GAP</code>, <code>_MEDAL_GLYPH_COLOR</code>, <code>_MEDAL_MAX_GLYPHS</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code>, <code>_HUB_CATEGORIES</code>, <code>_CAROUSEL_DOT_RADIUS</code>, <code>_CAROUSEL_DOT_GAP</code>, <code>_CAROUSEL_DOT_COLOR</code>, <code>_CAROUSEL_DOT_FOCUSED_COLOR</code>, <code>_CALIBRATION_ONTIME_THRESHOLD_SECONDS</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_CAROUSEL_THUMBNAIL_FOCUSED_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_SPACING_PX</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN</code>, <code>_BLUR_DOWNSCALE_DIVISOR</code>, <code>_PALETTE_RING_BLEND_FACTOR</code>, <code>_DOWNLOAD_PREVIEW_THUMBNAIL_SIZE</code>, <code>_DOWNLOAD_TITLE_FONT_SIZE</code>, <code>_DOWNLOAD_LABEL_FONT_SIZE</code>, <code>_DOWNLOAD_TEXT_COLOR</code>, <code>_DOWNLOAD_ERROR_COLOR</code>, <code>_DOWNLOAD_LINK_COLOR</code>, <code>_DOWNLOAD_TITLE_MAX_CHARS</code>, <code>_DOWNLOAD_ERROR_MAX_CHARS</code>, <code>_DOWNLOAD_LINK_MAX_CHARS</code></p>
+<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_GLITCH_BAR_COLOR</code>, <code>_GLITCH_MAX_BARS</code>, <code>_RESULTS_HISTOGRAM_BAR_WIDTH</code>, <code>_RESULTS_HISTOGRAM_BAR_GAP</code>, <code>_RESULTS_HISTOGRAM_MAX_HEIGHT</code>, <code>_RESULTS_HISTOGRAM_COLOR</code>, <code>_RESULTS_HISTOGRAM_CENTER_COLOR</code>, <code>_HIT_ERROR_METER_WIDTH</code>, <code>_HIT_ERROR_METER_RANGE_SECONDS</code>, <code>_HIT_ERROR_METER_RECENT_TICKS</code>, <code>_HIT_ERROR_METER_COLOR</code>, <code>_REACTIVE_BG_BAR_COUNT</code>, <code>_REACTIVE_BG_MAX_HEIGHT</code>, <code>_REACTIVE_BG_COLOR</code>, <code>_GHOST_TRAIL_LENGTH</code>, <code>_GHOST_TRAIL_COLOR</code>, <code>_GHOST_TRAIL_MAX_RADIUS</code>, <code>_HEARTBEAT_DECAY_RATE</code>, <code>_HEARTBEAT_RING_ZOOM</code>, <code>_HEARTBEAT_LANE_WARP</code>, <code>_METRONOME_BAR_WIDTH</code>, <code>_METRONOME_COLOR</code>, <code>_SPARK_COLOR</code>, <code>_ARENA_BG_COLOR</code>, <code>_TUNNEL_COLOR</code>, <code>_MEDAL_GLYPH_SIZE</code>, <code>_MEDAL_GLYPH_GAP</code>, <code>_MEDAL_GLYPH_COLOR</code>, <code>_MEDAL_MAX_GLYPHS</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code>, <code>_HUB_CATEGORIES</code>, <code>_CAROUSEL_DOT_RADIUS</code>, <code>_CAROUSEL_DOT_GAP</code>, <code>_CAROUSEL_DOT_COLOR</code>, <code>_CAROUSEL_DOT_FOCUSED_COLOR</code>, <code>_DEV_MODE_SEQUENCE_LENGTH</code>, <code>_DEV_MODE_DOT_RADIUS</code>, <code>_DEV_MODE_DOT_GAP</code>, <code>_DEV_MODE_DOT_MARGIN</code>, <code>_DEV_MODE_PINK_COLOR</code>, <code>_DEV_MODE_DOT_EMPTY_COLOR</code>, <code>_DEV_MODE_PANEL_MARGIN</code>, <code>_DEV_MODE_PANEL_LINE_GAP</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_CAROUSEL_THUMBNAIL_FOCUSED_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_SPACING_PX</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN</code>, <code>_BLUR_DOWNSCALE_DIVISOR</code>, <code>_PALETTE_RING_BLEND_FACTOR</code>, <code>_DOWNLOAD_PREVIEW_THUMBNAIL_SIZE</code>, <code>_DOWNLOAD_TITLE_FONT_SIZE</code>, <code>_DOWNLOAD_LABEL_FONT_SIZE</code>, <code>_DOWNLOAD_TEXT_COLOR</code>, <code>_DOWNLOAD_ERROR_COLOR</code>, <code>_DOWNLOAD_LINK_COLOR</code>, <code>_DOWNLOAD_TITLE_MAX_CHARS</code>, <code>_DOWNLOAD_ERROR_MAX_CHARS</code>, <code>_DOWNLOAD_LINK_MAX_CHARS</code></p>
 <h3>classe <code>HBPygameRenderer</code></h3><pre class="doc">`PygameRenderer` da engine estendido para o Hertz &amp; Beats com:
 
     - `register_texture(texture_id, surface)`: associa um inteiro de
@@ -530,6 +530,9 @@ inclusive durante o gameplay. `None` oculta.</pre>
 piscante &quot;[ AUTO-PLAY ]&quot; (`end_frame`). Chamado todo frame por
 `HertzGameLoop._sync_bot_mode_indicator` -- mesma familia de
 `set_low_health_danger`.</pre>
+<h4><code>.set_dev_mode_state()</code></h4><pre class="doc">Developer Tools -- gate mestre: estado sincronizado TODO
+frame por `HertzGameLoop._sync_dev_mode_indicator`, lido pelo
+badge/bolinhas de progresso/painel lateral em `end_frame`.</pre>
 <h4><code>.set_flow_mode()</code></h4><pre class="doc">Flow State (Arcade 4K): escurece o fundo da arena enquanto o
 combo se mantiver acima do limiar -- a &quot;imersao total&quot; que resta
 no lado puramente visual depois que o `UIRenderSystem` ja apagou
@@ -651,6 +654,27 @@ dele, avanca por `_FLOW_TIER_PALETTE` a cada tier de 50 combos
 extras e PULSA em brilho (seno sobre o relogio de parede --
 puramente cosmetico, sem nenhuma decisao de jogabilidade aqui,
 entao fora da disciplina Zero-GC do gameplay).</pre>
+<h4><code>._draw_dev_mode_badge()</code></h4><pre class="doc">Developer Tools -- badge &quot;[ DEV ]&quot; SEMPRE visivel (qualquer
+`_flow`, inclusive PLAYING), canto superior direito -- rosa
+quando `_dev_mode_active`, cinza quando nao (2 texturas
+pre-renderizadas escolhidas por bool, mesmo criterio das
+variantes &quot;_sel&quot; do HUB).</pre>
+<h4><code>._draw_dev_mode_progress_dots()</code></h4><pre class="doc">Developer Tools -- bolinhas no canto inferior esquerdo
+mostrando quantas teclas da sequencia secreta ja foram
+acertadas -- SO&#x27; aparecem com progresso &gt; 0 (nada acertado
+ainda = nada na tela, evita ruido visual constante). MESMO
+criterio procedural de `_draw_dot_row` (Carrossel), so&#x27;
+alinhadas a ESQUERDA em vez de centradas.</pre>
+<h4><code>._draw_dev_mode_panel()</code></h4><pre class="doc">Developer Tools -- painel lateral (SO&#x27; com `_dev_mode_active`)
+listando os 3 cheats disponiveis -- Auto-Play/Unlock All
+destacam em verde quando JA ATIVOS (`_bot_mode_active`/
+`_dev_mode_unlock_all_active`, ambos estado PERSISTENTE); Reset
+de Save nunca destaca (acao unica, sem &quot;ligado/desligado&quot;).</pre>
+<h4><code>._blit_left()</code></h4><pre class="doc">Blita a superficie `key` alinhada a ESQUERDA em `x`, topo em
+`y`; retorna a altura consumida (0 se a chave nao foi
+registrada) -- mesmo contrato de `_blit_centered`, so&#x27; sem
+centralizar (usado SO&#x27; pelo painel lateral de Developer Tools,
+unico texto do jogo alinhado a esquerda).</pre>
 <h4><code>._draw_bot_mode_indicator()</code></h4><pre class="doc">Developer Tools -- Auto-Play: &quot;[ AUTO-PLAY ]&quot; piscando (alfa
 em seno sobre o relogio de parede, MESMO criterio de
 `_draw_title_overlay`&#x27;s &quot;press_space&quot;) -- desenhado ABAIXO do
@@ -889,7 +913,7 @@ digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
 registradas no renderer UMA unica vez. Nenhum `font.render` acontece
 depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
 aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
-<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_DODGE_COLOR</code>, <code>_RANK_COLORS</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_ORBITAL_SHIELDS_CONTROL_HINT</code>, <code>_TWIN_THREATS_CONTROL_HINT</code>, <code>_ORBITAL_ECLIPSES_CONTROL_HINT</code>, <code>_OVERLOAD_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_GENERIC_GAME_MODE_HINTS</code>, <code>_MODIFIER_ROW_LABELS</code>, <code>_GAME_MODE_ROW_LABELS</code>, <code>_HEAVY_MECHANIC_ROW_LABELS</code>, <code>_HUB_CATEGORY_LABELS</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_START_ROW_LABEL</code></p>
+<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_DODGE_COLOR</code>, <code>_PINK_COLOR</code>, <code>_RANK_COLORS</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_ORBITAL_SHIELDS_CONTROL_HINT</code>, <code>_TWIN_THREATS_CONTROL_HINT</code>, <code>_ORBITAL_ECLIPSES_CONTROL_HINT</code>, <code>_OVERLOAD_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_GENERIC_GAME_MODE_HINTS</code>, <code>_MODIFIER_ROW_LABELS</code>, <code>_GAME_MODE_ROW_LABELS</code>, <code>_HEAVY_MECHANIC_ROW_LABELS</code>, <code>_HUB_CATEGORY_LABELS</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_START_ROW_LABEL</code></p>
 <h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
 composicao, depois de `renderer.initialize` (precisa do display
 ativo para `convert_alpha`).</pre>
@@ -1002,7 +1026,7 @@ primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
-<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_DOWNLOAD_HUB</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_DOWNLOAD_STAGE_WAITING</code>, <code>_DOWNLOAD_STAGE_FETCHING_PREVIEW</code>, <code>_DOWNLOAD_STAGE_PREVIEW_READY</code>, <code>_DOWNLOAD_STAGE_DOWNLOADING</code>, <code>_DOWNLOAD_STAGE_SUCCESS</code>, <code>_DOWNLOAD_STAGE_ERROR</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_UNLOCK_ALL_SEQUENCE</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
+<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_DOWNLOAD_HUB</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_DOWNLOAD_STAGE_WAITING</code>, <code>_DOWNLOAD_STAGE_FETCHING_PREVIEW</code>, <code>_DOWNLOAD_STAGE_PREVIEW_READY</code>, <code>_DOWNLOAD_STAGE_DOWNLOADING</code>, <code>_DOWNLOAD_STAGE_SUCCESS</code>, <code>_DOWNLOAD_STAGE_ERROR</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_CHEAT_FLASH_SECONDS</code>, <code>_DEV_MODE_SEQUENCE</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
 <h4><code>compute_duck_multiplier()</code></h4><pre class="doc">Audio Ducking: fracao MULTIPLICATIVA do volume da faixa (1.0 =
 normal). `duck_timer_seconds` (contagem regressiva, MESMO idioma dos
 outros timers do jogo) em `duck_duration_seconds`: `duck_volume_fraction`
@@ -1163,30 +1187,40 @@ ameacas parecem chegar ANTES do som, aumente; DEPOIS, diminua.
 O novo valor vale imediatamente (spawner/julgamento leem o
 relogio compensado) e e persistido ao sair do jogo.</pre>
 <h4><code>.advance_frame()</code></h4><pre class="doc">Um frame do fluxo: trata as acoes de meta-jogo do estado atual
-e, apenas em PLAYING, avanca a simulacao (`world.step`).</pre>
+e, apenas em PLAYING, avanca a simulacao (`world.step`).
+
+Developer Tools: o gate mestre (`_advance_dev_mode_code`) e&#x27; o
+UNICO checado fora de PLAYING/PAUSED tambem (ver docstring de
+`_DEV_MODE_SEQUENCE`); F9 (Unlock All) roda em QUALQUER estado
+sem risco de colisao (nao reusa nenhuma tecla de gameplay).</pre>
 <h4><code>._enter_title()</code></h4><pre class="doc">Titulo pulsando com `beat_phase` + BGM em loop (faixa JA
 garantida por `RhythmCompositionRoot.build()`, opcional -- `None`
 e um no-op gracioso, o caso comum dos testes headless).</pre>
-<h4><code>._advance_unlock_all_code()</code></h4><pre class="doc">Developer Tools -- Unlock All: buffer invisivel de input SO&#x27;
-na Tela de Titulo, escutando `_UNLOCK_ALL_SEQUENCE` (roteiro
-reduzido do Konami Code). Qualquer acao de menu ERRADA reinicia
-o progresso do zero -- exceto quando a propria tecla errada JA e&#x27;
-o 1o passo certo (Cima), caso em que o progresso reinicia A
-PARTIR dali em vez de exigir soltar tudo primeiro (mesma
-tolerancia de implementacoes classicas do codigo). Uma vez
-completa, `_debug_unlock_all` fica ligado pelo RESTO da sessao
--- nenhuma tela desliga de novo.</pre>
+<h4><code>._advance_dev_mode_code()</code></h4><pre class="doc">Gate MESTRE dos 3 cheats: buffer invisivel de 8 posicoes
+escutando `_DEV_MODE_SEQUENCE`. Qualquer acao de menu ERRADA
+reinicia o progresso do zero -- exceto quando a propria tecla
+errada JA e&#x27; o 1o passo certo, caso em que o progresso reinicia
+A PARTIR dali em vez de exigir soltar tudo primeiro (mesma
+tolerancia de implementacoes classicas de codigo secreto). Ao
+completar, ALTERNA `_dev_mode` (liga E desliga -- ao contrario
+do Unlock All, que so&#x27; liga) e dispara o flash visual de
+confirmacao (`_notice_key`, `_CHEAT_FLASH_SECONDS`).</pre>
+<h4><code>._activate_unlock_all_cheat()</code></h4><pre class="doc">F9 (SO&#x27; com `_dev_mode` ligado): desbloqueia toda a Campanha
+permanentemente pelo RESTO da sessao (ver `_debug_unlock_all`),
+com o MESMO flash visual de confirmacao dos outros cheats + o
+chime ja existente (`SFX_UNLOCK_ALL`).</pre>
 <h4><code>._reset_player_progress()</code></h4><pre class="doc">Developer Tools -- Reset de Save (Wipe): CTRL+SHIFT+DEL no HUB
-ou no Vault apaga `player_progress.json` do disco
-(`delete_progress`, cross-platform via `pathlib`) e zera o cache
-em-memoria na MESMA chamada -- sem isso, `self._player_progress`
-continuaria com o conteudo antigo ate o proximo restart do jogo,
-mesmo com o arquivo ja apagado. NAO mexe em
-`player_lifetime_stats.json`/`user_settings.json` (Estatisticas
-Globais/paleta escolhida sobrevivem ao reset -- so&#x27; o progresso
-de fases/musicas e&#x27; o &quot;save&quot; aqui). SFX de explosao/erro
-(`SFX_BOMB`, ja existente -- nenhum som novo precisou ser
-sintetizado so&#x27; pra isso).</pre>
+ou no Vault, SO&#x27; com `_dev_mode` ligado, apaga `player_progress.json`
+do disco (`delete_progress`, cross-platform via `pathlib`) e zera
+o cache em-memoria na MESMA chamada -- sem isso,
+`self._player_progress` continuaria com o conteudo antigo ate o
+proximo restart do jogo, mesmo com o arquivo ja apagado. NAO
+mexe em `player_lifetime_stats.json`/`user_settings.json`
+(Estatisticas Globais/paleta escolhida sobrevivem ao reset -- so&#x27;
+o progresso de fases/musicas e&#x27; o &quot;save&quot; aqui). Flash visual de
+confirmacao (`_notice_key`, `_CHEAT_FLASH_SECONDS`) + SFX de
+explosao/erro (`SFX_BOMB`, ja existente -- nenhum som novo
+precisou ser sintetizado so&#x27; pra isso).</pre>
 <h4><code>._enter_carousel()</code></h4><pre class="doc">Entra no Carrossel numa VISAO especifica (`campaign_id` ou
 &quot;free_play&quot;) -- ponto UNICO onde a Estetica Reativa pre-cacheia
 miniatura/fundo/paleta de TODO o catalogo (`cache_carousel_visuals`,
@@ -1231,11 +1265,11 @@ vez (`stage_id in player_progress`) -- a PRIMEIRA posicao de
 CADA campanha nunca tranca (progressoes independentes: comecar
 o Arcade nao exige terminar o Defensor antes).
 
-Developer Tools -- Unlock All: `_debug_unlock_all` (Konami Code
-na Tela de Titulo) faz TUDO destrancar -- fonte UNICA lida tanto
-pelo aviso &quot;FASE TRANCADA&quot; do Carrossel quanto pelo guard de
-confirmar em `_advance_carousel`, entao os 2 lugares nunca
-divergem.</pre>
+Developer Tools -- Unlock All: `_debug_unlock_all` (F9, com
+`_dev_mode` ligado -- ver `_activate_unlock_all_cheat`) faz TUDO
+destrancar -- fonte UNICA lida tanto pelo aviso &quot;FASE TRANCADA&quot;
+do Carrossel quanto pelo guard de confirmar em
+`_advance_carousel`, entao os 2 lugares nunca divergem.</pre>
 <h4><code>._cycle_carousel_view()</code></h4><pre class="doc">TAB/Q-E no Carrossel: alterna `self._carousel_category` entre
 `carousel_views()` (cada campanha + Free Play), enrolando nas
 duas pontas -- a posicao lembrada de CADA visao (`_carousel_index_by_category`)
@@ -1333,12 +1367,13 @@ em vez de aninhada); fases curadas mostram os modifiers FIXOS
 curada e crescente), so A/D (Lado B/Remix, quando a fase tiver um
 -- ver `StageDef.b_side_name`) e START sao interativos.
 
-Developer Tools -- Auto-Play (F12): alterna `_bot_mode_enabled`
-ANTES de qualquer branch (funciona tanto em fases curadas quanto
-em musicas do jogador -- facilita testar Campanha E geracao de
-beatmap). So&#x27; um TOGGLE de sessao aqui; o valor real so&#x27; chega em
-`GameState.bot_mode` no instante de `_start_stage`, que recompoe
-um `GameState` novo a cada fase.</pre>
+Developer Tools -- Auto-Play (F12, SO&#x27; com `_dev_mode` ligado):
+alterna `_bot_mode_enabled` ANTES de qualquer branch (funciona
+tanto em fases curadas quanto em musicas do jogador -- facilita
+testar Campanha E geracao de beatmap). So&#x27; um TOGGLE de sessao
+aqui; o valor real so&#x27; chega em `GameState.bot_mode` no instante
+de `_start_stage`, que recompoe um `GameState` novo a cada
+fase.</pre>
 <h4><code>._advance_preflight_options()</code></h4><pre class="doc">W/S navegam as linhas do painel; A/D alteram a linha de
 multipla escolha focada (`GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`,
 nao fazem nada nas demais); ESPACO/ENTER agem sobre a linha
@@ -1473,6 +1508,14 @@ carregada) sempre desliga -- mesma familia de sincronizacao de
 com `GameState.bot_mode` ligado -- mesma familia de
 sincronizacao de `_sync_low_health_danger`/`_sync_blindness`
 (fora de PLAYING, ou entre uma fase e outra, sempre desliga).</pre>
+<h4><code>._sync_dev_mode_indicator()</code></h4><pre class="doc">Developer Tools -- gate mestre: sincroniza o badge &quot;[ DEV ]&quot;
+(SEMPRE visivel, qualquer `_flow` -- ao contrario do indicador
+do Auto-Play, que so aparece durante PLAYING), as bolinhas de
+progresso do codigo secreto e o painel lateral de cheats
+disponiveis (desenhado pelo renderer so&#x27; quando `_dev_mode`
+estiver ligado; o destaque verde do Auto-Play naquele painel
+reusa `_bot_mode_active`, ja sincronizado por
+`_sync_bot_mode_indicator` -- nenhum dado duplicado aqui).</pre>
 <h4><code>._sync_ghost_trail()</code></h4><pre class="doc">Juice Visual -- Ghost Trails: grava a posicao ATUAL da mira no
 RingBuffer do renderer, so durante `FLOW_PLAYING` no Defensor
 (Arcade 4K nao tem mira livre -- colunas fixas, o rastro nao

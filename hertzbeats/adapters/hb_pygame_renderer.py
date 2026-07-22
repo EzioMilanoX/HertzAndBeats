@@ -168,7 +168,21 @@ procedurais (mesmo criterio dos glifos de medalha -- um numero pequeno
 e variavel de itens nao pede uma textura pre-renderizada por contagem),
 o ponto da entrada em foco pintado em destaque."""
 
-_CALIBRATION_ONTIME_THRESHOLD_SECONDS = 0.02
+_DEV_MODE_SEQUENCE_LENGTH = 8
+_DEV_MODE_DOT_RADIUS = 4
+_DEV_MODE_DOT_GAP = 14
+_DEV_MODE_DOT_MARGIN = 16
+_DEV_MODE_PINK_COLOR = (255, 105, 180)
+_DEV_MODE_DOT_EMPTY_COLOR = (60, 55, 90)
+_DEV_MODE_PANEL_MARGIN = 16
+_DEV_MODE_PANEL_LINE_GAP = 4
+"""Developer Tools -- gate mestre dos cheats: `_DEV_MODE_SEQUENCE_LENGTH`
+duplica de proposito `len(HertzGameLoop._DEV_MODE_SEQUENCE)` (mesmo
+criterio de `_HUB_CATEGORIES` -- adapter nao importa o bootstrap).
+Bolinhas de progresso (canto inferior esquerdo, MESMO criterio
+procedural de `_CAROUSEL_DOT_RADIUS`, so' que alinhadas a ESQUERDA em
+vez de centradas) e badge "[ DEV ]" (canto superior direito) usam o
+mesmo rosa (`_DEV_MODE_PINK_COLOR`, duplicado de `texture_bank._PINK_COLOR`)."""
 """Tela de Calibracao: um toque com desvio absoluto ate isso do tempo do
 metronomo mostra o feedback "NO TEMPO" em vez de "CEDO"/"TARDE" -- so 3
 texturas discretas de feedback, nunca o valor continuo do desvio."""
@@ -325,6 +339,14 @@ class HBPygameRenderer(PygameRenderer):
         `latency_X`/`ironman_progress_N` ja aparecem DURANTE
         `FLOW_PLAYING`/`FLOW_PAUSED`, e um unico slot compartilhado faria
         um brigar com o outro pela mesma Surface a cada frame."""
+        self._dev_mode_active: bool = False
+        self._dev_mode_code_progress: int = 0
+        self._dev_mode_unlock_all_active: bool = False
+        """Developer Tools -- gate mestre: sincronizados TODO frame por
+        `HertzGameLoop._sync_dev_mode_indicator`, independente de
+        `_flow` -- o badge "[ DEV ]" fica visivel em QUALQUER tela
+        (ao contrario do indicador do Auto-Play, so' visivel durante
+        PLAYING)."""
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
         self._flow_tier: int = 0
@@ -463,6 +485,14 @@ class HBPygameRenderer(PygameRenderer):
         `HertzGameLoop._sync_bot_mode_indicator` -- mesma familia de
         `set_low_health_danger`."""
         self._bot_mode_active = bool(active)
+
+    def set_dev_mode_state(self, active: bool, code_progress: int, unlock_all_active: bool) -> None:
+        """Developer Tools -- gate mestre: estado sincronizado TODO
+        frame por `HertzGameLoop._sync_dev_mode_indicator`, lido pelo
+        badge/bolinhas de progresso/painel lateral em `end_frame`."""
+        self._dev_mode_active = bool(active)
+        self._dev_mode_code_progress = int(code_progress)
+        self._dev_mode_unlock_all_active = bool(unlock_all_active)
 
     def set_flow_mode(self, active: bool) -> None:
         """Flow State (Arcade 4K): escurece o fundo da arena enquanto o
@@ -833,10 +863,73 @@ class HBPygameRenderer(PygameRenderer):
         if self._notice_key is not None:
             self._blit_centered(self._notice_key, self._width // 2, 64)
         self._draw_bot_mode_indicator()
+        self._draw_dev_mode_badge()
+        self._draw_dev_mode_progress_dots()
+        self._draw_dev_mode_panel()
         self._draw_hit_error_meter()
         self._draw_glitch_bars()
         self._draw_low_health_danger()
         super().end_frame()
+
+    def _draw_dev_mode_badge(self) -> None:
+        """Developer Tools -- badge "[ DEV ]" SEMPRE visivel (qualquer
+        `_flow`, inclusive PLAYING), canto superior direito -- rosa
+        quando `_dev_mode_active`, cinza quando nao (2 texturas
+        pre-renderizadas escolhidas por bool, mesmo criterio das
+        variantes "_sel" do HUB)."""
+        key = "dev_badge_on" if self._dev_mode_active else "dev_badge_off"
+        surface = self._overlay_surfaces.get(key)
+        if surface is None:
+            return
+        self._surface.blit(surface, (self._width - surface.get_width() - 16, 12))
+
+    def _draw_dev_mode_progress_dots(self) -> None:
+        """Developer Tools -- bolinhas no canto inferior esquerdo
+        mostrando quantas teclas da sequencia secreta ja foram
+        acertadas -- SO' aparecem com progresso > 0 (nada acertado
+        ainda = nada na tela, evita ruido visual constante). MESMO
+        criterio procedural de `_draw_dot_row` (Carrossel), so'
+        alinhadas a ESQUERDA em vez de centradas."""
+        if self._dev_mode_code_progress <= 0:
+            return
+        radius = _DEV_MODE_DOT_RADIUS
+        y = self._height - 24
+        for i in range(_DEV_MODE_SEQUENCE_LENGTH):
+            color = _DEV_MODE_PINK_COLOR if i < self._dev_mode_code_progress else _DEV_MODE_DOT_EMPTY_COLOR
+            x = _DEV_MODE_DOT_MARGIN + radius + i * _DEV_MODE_DOT_GAP
+            pygame.draw.circle(self._surface, color, (x, y), radius)
+
+    def _draw_dev_mode_panel(self) -> None:
+        """Developer Tools -- painel lateral (SO' com `_dev_mode_active`)
+        listando os 3 cheats disponiveis -- Auto-Play/Unlock All
+        destacam em verde quando JA ATIVOS (`_bot_mode_active`/
+        `_dev_mode_unlock_all_active`, ambos estado PERSISTENTE); Reset
+        de Save nunca destaca (acao unica, sem "ligado/desligado")."""
+        if not self._dev_mode_active:
+            return
+        x = _DEV_MODE_PANEL_MARGIN
+        y = _DEV_MODE_PANEL_MARGIN
+        y += self._blit_left("dev_panel_title", x, y) + 8
+        y += self._blit_left(
+            "dev_panel_bot_mode_active" if self._bot_mode_active else "dev_panel_bot_mode", x, y
+        ) + _DEV_MODE_PANEL_LINE_GAP
+        y += self._blit_left(
+            "dev_panel_unlock_all_active" if self._dev_mode_unlock_all_active else "dev_panel_unlock_all",
+            x, y,
+        ) + _DEV_MODE_PANEL_LINE_GAP
+        self._blit_left("dev_panel_wipe_save", x, y)
+
+    def _blit_left(self, key: str, x: int, y: int) -> int:
+        """Blita a superficie `key` alinhada a ESQUERDA em `x`, topo em
+        `y`; retorna a altura consumida (0 se a chave nao foi
+        registrada) -- mesmo contrato de `_blit_centered`, so' sem
+        centralizar (usado SO' pelo painel lateral de Developer Tools,
+        unico texto do jogo alinhado a esquerda)."""
+        surface = self._overlay_surfaces.get(key)
+        if surface is None:
+            return 0
+        self._surface.blit(surface, (x, y))
+        return surface.get_height()
 
     def _draw_bot_mode_indicator(self) -> None:
         """Developer Tools -- Auto-Play: "[ AUTO-PLAY ]" piscando (alfa
