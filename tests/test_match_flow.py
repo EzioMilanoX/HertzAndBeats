@@ -57,7 +57,10 @@ def flow_game(tmp_path, null_input):
     o save real). `selectable_list[i]` marca a fase `i` como musica do
     jogador (Free Play) -- por padrao todas sao curadas (Campanha)."""
 
-    def _make(stage_threat_lists, overrides_list=None, selectable_list=None, active_modifiers_list=None):
+    def _make(
+        stage_threat_lists, overrides_list=None, selectable_list=None, active_modifiers_list=None,
+        b_side_list=None, tutorial_list=None,
+    ):
         stages = []
         beatmap_path = None
         for i, threats in enumerate(stage_threat_lists):
@@ -65,6 +68,8 @@ def flow_game(tmp_path, null_input):
             overrides = overrides_list[i] if overrides_list else {}
             selectable = selectable_list[i] if selectable_list else False
             active_modifiers = active_modifiers_list[i] if active_modifiers_list else ()
+            b_side = b_side_list[i] if b_side_list else None
+            is_tutorial = tutorial_list[i] if tutorial_list else False
             stages.append(
                 StageDef(
                     stage_id=f"stage{i}",
@@ -77,6 +82,10 @@ def flow_game(tmp_path, null_input):
                     overrides=overrides,
                     selectable_mode=selectable,
                     active_modifiers=active_modifiers,
+                    b_side_name=b_side["name"] if b_side else None,
+                    b_side_overrides=b_side.get("overrides", {}) if b_side else {},
+                    b_side_active_modifiers=b_side.get("active_modifiers", ()) if b_side else (),
+                    tutorial_steps=({"until_seconds": 1.0, "text": "x"},) if is_tutorial else (),
                 )
             )
         audio_engine = NullAudioEngine()
@@ -659,6 +668,114 @@ def test_score_multiplier_preview_for_a_curated_stage_uses_its_fixed_overrides(f
     _goto_preflight(loop, null_input, "campaign", 0)
     _press(loop, null_input, "confirm")
     assert loop._stage_config.score_multiplier == pytest.approx(expected)
+
+
+# -- Progressao de Campanha -- Lado B/Remix -------------------------------
+
+
+def test_b_side_choice_is_off_by_default_on_a_curated_stage_with_a_b_side(flow_game, null_input):
+    loop, _ = flow_game(
+        [[_basic(3.0)]], selectable_list=[False],
+        b_side_list=[{"name": "LADO B", "overrides": {}, "active_modifiers": ("corrupcao",)}],
+    )
+    assert loop.b_side_chosen(0) is False
+
+
+def test_a_curated_stage_without_a_b_side_never_reports_it_chosen(flow_game, null_input):
+    loop, _ = flow_game([[_basic(3.0)]], selectable_list=[False])
+    assert loop.b_side_chosen(0) is False
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "menu_left")
+    _press(loop, null_input, "menu_right")
+    assert loop.b_side_chosen(0) is False  # sem b_side_name, A/D nao fazem nada
+
+
+def test_left_right_toggles_the_b_side_choice_in_preflight(flow_game, null_input):
+    loop, _ = flow_game(
+        [[_basic(3.0)]], selectable_list=[False],
+        b_side_list=[{"name": "LADO B", "overrides": {}, "active_modifiers": ("corrupcao",)}],
+    )
+    _goto_preflight(loop, null_input, "campaign", 0)
+    assert loop.b_side_chosen(0) is False
+    _press(loop, null_input, "menu_right")
+    assert loop.b_side_chosen(0) is True
+    _press(loop, null_input, "menu_left")
+    assert loop.b_side_chosen(0) is False
+
+
+def test_confirming_with_b_side_chosen_applies_its_overrides_and_modifiers(flow_game, null_input):
+    loop, _ = flow_game(
+        [[_basic(3.0)]], selectable_list=[False], active_modifiers_list=[("telegraph_rings",)],
+        b_side_list=[{
+            "name": "LADO B: RUPTURA",
+            "overrides": {"approach_seconds": 1.3},
+            "active_modifiers": ("telegraph_rings", "corrupcao", "boomerang"),
+        }],
+    )
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "menu_right")  # escolhe o Lado B
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_PLAYING
+    assert loop._stage_config.approach_seconds == pytest.approx(1.3)
+    assert set(loop._stage_config.active_modifiers) == {"telegraph_rings", "corrupcao", "boomerang"}
+
+
+def test_confirming_without_choosing_b_side_uses_the_normal_overrides(flow_game, null_input):
+    loop, _ = flow_game(
+        [[_basic(3.0)]], selectable_list=[False],
+        overrides_list=[{"approach_seconds": 2.0}], active_modifiers_list=[("telegraph_rings",)],
+        b_side_list=[{
+            "name": "LADO B: RUPTURA",
+            "overrides": {"approach_seconds": 1.3},
+            "active_modifiers": ("telegraph_rings", "corrupcao", "boomerang"),
+        }],
+    )
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "confirm")  # SEM alternar o Lado B
+    assert loop._stage_config.approach_seconds == pytest.approx(2.0)
+    assert loop._stage_config.active_modifiers == ("telegraph_rings",)
+
+
+def test_score_multiplier_preview_reflects_the_b_side_choice(flow_game, null_input):
+    loop, _ = flow_game(
+        [[_basic(3.0)]], selectable_list=[False], active_modifiers_list=[("telegraph_rings",)],
+        b_side_list=[{
+            "name": "LADO B",
+            "overrides": {},
+            "active_modifiers": ("telegraph_rings", "corrupcao", "boomerang"),
+        }],
+    )
+    _goto_preflight(loop, null_input, "campaign", 0)
+    normal_preview = loop._current_score_multiplier(0)
+    assert normal_preview == pytest.approx(compute_score_multiplier(frozenset({"telegraph_rings"}), False))
+
+    _press(loop, null_input, "menu_right")  # escolhe o Lado B
+    b_side_preview = loop._current_score_multiplier(0)
+    expected = compute_score_multiplier(frozenset({"telegraph_rings", "corrupcao", "boomerang"}), False)
+    assert b_side_preview == pytest.approx(expected)
+
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.score_multiplier == pytest.approx(b_side_preview)
+
+
+def test_every_curated_stage_with_a_b_side_has_its_two_overlay_textures_registered():
+    """Mesma logica de `test_every_menu_row_has_a_registered_label_texture`
+    -- sem a textura, `_blit_centered` desenha em branco silenciosamente
+    (o `NullRenderer` usado pelo resto dos testes de fluxo nunca pega
+    essa categoria de bug)."""
+    from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
+    from hertzbeats.adapters.texture_bank import build_and_register_overlay_surfaces
+
+    stage = StageDef(
+        stage_id="curated", name="FASE", subtitle="", track_path="", beatmap_path="unused",
+        synth=None, beatmap_params={}, overrides={},
+        b_side_name="LADO B: RUPTURA", b_side_active_modifiers=("corrupcao",),
+    )
+    renderer = HBPygameRenderer()
+    renderer.initialize(120, 120, "test")
+    build_and_register_overlay_surfaces(renderer, (stage,))
+    assert renderer._overlay_surfaces.get("stage_0_b_side_hint") is not None
+    assert renderer._overlay_surfaces.get("stage_0_b_side_name") is not None
 
 
 # -- Jogando / Pausa / Derrota / Resultados -------------------------------

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
 from hertzbeats.config import HertzConfig
@@ -55,6 +55,22 @@ class StageDef:
             SUBSTITUI a lista inteira da fase base a cada
             `resolve_stage_config` (nunca mesclada com nenhum default) --
             uma fase que quer 3 mecanicas lista as 3 explicitamente.
+        b_side_name: Progressao de Campanha -- Lado B/Remix: `None`
+            (default) significa que esta fase NAO tem uma variante mais
+            cruel; uma string (ex.: "LADO B: RUPTURA") habilita o toggle
+            no Pre-Voo (so fases CURADAS -- `selectable_mode=False`) e
+            vira o subtitulo mostrado quando o Lado B esta escolhido.
+            NAO reprocessa a musica pela IA (o beatmap.json e o MESMO em
+            disco) -- reusa a MESMA tese ja demonstrada pela campanha
+            (fases 3-5 reaproveitam o beatmap com overrides/modifiers
+            cada vez mais duros): o Lado B e so outra composicao em cima
+            do mesmo tempo extraido.
+        b_side_overrides: campos de `HertzConfig` aplicados SOMENTE
+            quando o Lado B esta escolhido (substitui `overrides`, nunca
+            mesclado com ele).
+        b_side_active_modifiers: `active_modifiers` aplicados SOMENTE
+            quando o Lado B esta escolhido (substitui `active_modifiers`,
+            mesmo criterio -- nunca mesclado).
     """
 
     stage_id: str
@@ -69,6 +85,9 @@ class StageDef:
     selectable_mode: bool = False
     modchart_events: Tuple[Dict, ...] = ()
     active_modifiers: Tuple[str, ...] = ()
+    b_side_name: Optional[str] = None
+    b_side_overrides: Dict = field(default_factory=dict)
+    b_side_active_modifiers: Tuple[str, ...] = ()
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
@@ -90,6 +109,9 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
                 tutorial_steps=tuple(entry.get("tutorial_steps", ())),
                 modchart_events=tuple(entry.get("modchart_events", ())),
                 active_modifiers=tuple(entry.get("active_modifiers", ())),
+                b_side_name=entry.get("b_side_name"),
+                b_side_overrides=dict(entry.get("b_side_overrides", {})),
+                b_side_active_modifiers=tuple(entry.get("b_side_active_modifiers", ())),
             )
         )
     if not stages:

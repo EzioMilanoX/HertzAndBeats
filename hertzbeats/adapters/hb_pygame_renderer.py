@@ -147,10 +147,10 @@ desenhados em TEMPO REAL (`pygame.draw.rect`), nunca pre-renderizados
 retangulo simples nao precisa de `font.render`, so o ROTULO de texto de
 cada linha e uma Surface pronta)."""
 
-_HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration")
+_HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration", "ironman")
 """Duplicado de proposito de `hertz_game_loop.HUB_CATEGORIES` (mesmo
 criterio de `_GAME_MODE_ROW` acima -- adapter nao importa o game loop):
-ordem das 4 categorias grandes do HUB, indexada por `hub_cursor`."""
+ordem das 5 categorias grandes do HUB, indexada por `hub_cursor`."""
 
 _CAROUSEL_DOT_RADIUS = 4
 _CAROUSEL_DOT_GAP = 14
@@ -249,6 +249,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_vault_stats: Optional[dict] = None
         self._overlay_calibration_progress: Optional[tuple] = None
         self._overlay_hit_error_histogram: Optional[tuple] = None
+        self._overlay_b_side_info: Optional[dict] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
@@ -313,6 +314,7 @@ class HBPygameRenderer(PygameRenderer):
         vault_stats: Optional[dict] = None,
         calibration_progress: Optional[tuple] = None,
         hit_error_histogram: Optional[tuple] = None,
+        b_side_info: Optional[dict] = None,
     ) -> None:
         """Publica o estado do Novo Fluxo de Menus (Experiencia Arcade) a
         desenhar sobre o frame: `None` (jogando, sem overlay) ou uma das
@@ -350,6 +352,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_vault_stats = vault_stats
         self._overlay_calibration_progress = calibration_progress
         self._overlay_hit_error_histogram = hit_error_histogram
+        self._overlay_b_side_info = b_side_info
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -1188,6 +1191,12 @@ class HBPygameRenderer(PygameRenderer):
             stage_index = self._overlay_preflight_stage_index
             if stage_index is not None:
                 y += self._blit_centered(f"stage_{stage_index}_hint", center_x, y + 10) + 10
+                b_side = self._overlay_b_side_info
+                if b_side is not None:
+                    if b_side["chosen"]:
+                        y += self._blit_centered(f"stage_{stage_index}_b_side_name", center_x, y + 6) + 10
+                    else:
+                        y += self._blit_centered(f"stage_{stage_index}_b_side_hint", center_x, y + 6) + 10
             self._blit_centered("hint_preflight_curated", center_x, self._height - 54)
 
     def _draw_vault_overlay(self, center_x: int) -> None:

@@ -279,9 +279,11 @@ _HUB_CATEGORY_LABELS = {
     "free_play": "[ FREE PLAY ]",
     "vault": "[ ARQUIVOS (VAULT) ]",
     "calibration": "[ CALIBRACAO ]",
+    "ironman": "[ IRONMAN ]",
 }
-"""HUB Principal: rotulo de cada uma das 4 categorias grandes
-(`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa."""
+"""HUB Principal: rotulo de cada uma das 5 categorias grandes
+(`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa. "ironman" nao
+tem tela propria -- confirma-la ja inicia o gauntlet."""
 
 _SCORE_MULTIPLIER_MIN = 0.10
 _SCORE_MULTIPLIER_STEP = 0.05
@@ -371,6 +373,18 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         else:
             hint_text = _GENERIC_GAME_MODE_HINTS.get(stage_mode, "")
         register_text(f"stage_{i}_hint", hint_font, hint_text, _GOOD_COLOR)
+
+        # Progressao de Campanha -- Lado B/Remix: so fases curadas com
+        # `StageDef.b_side_name` ganham as 2 texturas (dica de toggle A/D
+        # + o proprio nome, mostrado quando escolhido) -- cor de perigo
+        # (_MISS_COLOR) de proposito, sinalizando a dificuldade mais dura
+        # antes mesmo do jogador confirmar o toggle.
+        if stage.b_side_name is not None:
+            register_text(
+                f"stage_{i}_b_side_hint", hint_font,
+                "A/D: LADO B DISPONIVEL (mais dificil)", _MISS_COLOR,
+            )
+            register_text(f"stage_{i}_b_side_name", stage_font, stage.b_side_name, _MISS_COLOR)
 
     # calibracao de latencia ao vivo: um aviso por valor (passos de 10 ms)
     for step in range(MAX_LATENCY_STEPS + 1):
@@ -463,6 +477,15 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text("calibration_late", hint_font, "TARDE", _MISS_COLOR)
     register_text("calibration_ontime", hint_font, "NO TEMPO", _GOOD_COLOR)
     register_text("hint_calibration", hint_font, "ESC volta ao HUB", _LABEL_COLOR)
+
+    # Progressao de Campanha -- Ironman: aviso "IRONMAN: FASE N/M" ao
+    # iniciar CADA fase do gauntlet (`HertzGameLoop._start_ironman_next_stage`,
+    # mesmo mecanismo de `_notice_key` do aviso de fase trancada acima) --
+    # `M` e' FIXO (fases curadas exceto o tutorial), uma textura por `N`
+    # possivel, mesmo criterio de `latency_{step}`/`score_multiplier_{step}`.
+    ironman_total = sum(1 for s in stages if not s.selectable_mode and not s.tutorial_steps)
+    for n in range(1, ironman_total + 1):
+        register_text(f"ironman_progress_{n}", hint_font, f"IRONMAN: FASE {n}/{ironman_total}", _MISS_COLOR)
 
 
 def build_and_register_tutorial_textures(renderer: HBPygameRenderer, stages) -> None:

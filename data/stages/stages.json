@@ -54,7 +54,16 @@
         "good_window_seconds": 0.12,
         "miss_window_seconds": 0.18
       },
-      "active_modifiers": ["telegraph_rings"]
+      "active_modifiers": ["telegraph_rings"],
+      "b_side_name": "LADO B: RUPTURA (breakcore)",
+      "b_side_overrides": {
+        "approach_seconds": 1.3,
+        "aim_tolerance_degrees": 22.0,
+        "perfect_window_seconds": 0.04,
+        "good_window_seconds": 0.08,
+        "miss_window_seconds": 0.12
+      },
+      "b_side_active_modifiers": ["telegraph_rings", "corrupcao", "boomerang"]
     },
     {
       "stage_id": "defender_3_ikaruga",

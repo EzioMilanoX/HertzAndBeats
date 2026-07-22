@@ -49,12 +49,14 @@ FLOW_PAUSED = "paused"
 FLOW_GAME_OVER = "game_over"
 FLOW_RESULTS = "results"
 
-HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration")
-"""O Novo Fluxo de Menus (Experiencia Arcade): 4 categorias grandes do
+HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration", "ironman")
+"""O Novo Fluxo de Menus (Experiencia Arcade): 5 categorias grandes do
 HUB principal, nesta ORDEM fixa -- `HertzGameLoop._hub_cursor` e um
 indice nesta tupla. "campaign"/"free_play" levam ao Carrossel
 (`FLOW_CAROUSEL`, filtrado por `StageDef.selectable_mode`); "vault" e
-"calibration" sao telas dedicadas proprias."""
+"calibration" sao telas dedicadas proprias; "ironman" NAO tem tela
+propria -- confirma-la ja inicia o gauntlet (`_start_ironman_run`),
+pulando Carrossel/Pre-Voo por completo (ver `_advance_hub`)."""
 
 _RESULTS_GRACE_SECONDS = 1.0
 """Pausa dramatica entre a ultima ameaca resolvida e a tela de resultados."""
@@ -306,6 +308,12 @@ class HertzGameLoop(GameLoop):
         self._chosen_modifiers: dict = {}  # fase selectable_mode -> frozenset dos modifiers booleanos ligados
         self._menu_cursor_index: dict = {}  # fase selectable_mode -> indice da linha em foco no Pre-Voo
         self._practice_mode: dict = {}  # fase selectable_mode -> Modo Treino ligado?
+        self._preflight_b_side_chosen: dict = {}  # fase curada com b_side_name -> Lado B escolhido?
+        self._ironman_active = False  # Progressao de Campanha -- Ironman: gauntlet em andamento?
+        self._ironman_queue: tuple = ()  # indices (em `self._stages`) ainda por jogar no gauntlet
+        self._ironman_total = 0  # tamanho FIXO do gauntlet atual, pro aviso "FASE N/M"
+        self._ironman_stage_number = 0  # posicao ATUAL (1-based) dentro do gauntlet
+        self._ironman_carried_health: Optional[int] = None  # vida da fase anterior, carregada pra proxima
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
         self._was_frozen = False
@@ -452,6 +460,30 @@ class HertzGameLoop(GameLoop):
         escolhida no menu, tecla T)."""
         return self._practice_mode.get(stage_index, False)
 
+    def b_side_chosen(self, stage_index: int) -> bool:
+        """Progressao de Campanha -- Lado B/Remix: True so se a fase
+        `stage_index` tem `StageDef.b_side_name` E o jogador alternou
+        A/D no Pre-Voo pra ele (default False -- toda fase comeca no
+        Modo Normal, mesmo tendo Lado B disponivel)."""
+        stage = self._stages[stage_index]
+        if stage.b_side_name is None:
+            return False
+        return self._preflight_b_side_chosen.get(stage_index, False)
+
+    @property
+    def ironman_active(self) -> bool:
+        """Progressao de Campanha -- Ironman: True enquanto um gauntlet
+        estiver em andamento (entre `_start_ironman_run` e a fila se
+        esvaziar ou o jogador voltar ao HUB)."""
+        return self._ironman_active
+
+    def ironman_progress(self) -> Tuple[int, int]:
+        """`(fase_atual, total)` (1-based) do gauntlet Ironman em
+        andamento -- `(0, 0)` fora dele."""
+        if not self._ironman_active:
+            return (0, 0)
+        return (self._ironman_stage_number, self._ironman_total)
+
     def _compose_stage(self, stage_index: int) -> ComposedGame:
         """Recompoe o `World` inteiro para a fase `stage_index` e garante
         que a faixa exista (re-sintese deterministica se necessario)."""
@@ -463,6 +495,15 @@ class HertzGameLoop(GameLoop):
                 practice_mode=self._practice_mode.get(stage_index, False),
                 game_mode=self.chosen_game_mode(stage_index),
                 active_modifiers=tuple(self.chosen_modifiers(stage_index)),
+            )
+        elif self.b_side_chosen(stage_index):
+            # Progressao de Campanha -- Lado B/Remix: SUBSTITUI overrides/
+            # active_modifiers por completo (mesma disciplina de
+            # `resolve_stage_config`, nunca mesclado com o Modo Normal).
+            stage_config = dataclasses.replace(
+                stage_config,
+                active_modifiers=stage.b_side_active_modifiers,
+                **stage.b_side_overrides,
             )
         # Meta-Jogo -- Multiplicador de Pontuacao: resolvido AQUI, depois
         # que `active_modifiers`/`practice_mode` ja estao no valor FINAL
@@ -623,6 +664,46 @@ class HertzGameLoop(GameLoop):
         Pre-Voo."""
         self._start_stage(stage_index % len(self._stages))
 
+    def _start_ironman_run(self) -> None:
+        """Progressao de Campanha -- Ironman: enfileira TODAS as fases
+        curadas da Campanha (`campaign_entries`), exceto o tutorial
+        (`StageDef.tutorial_steps` nao-vazio -- didatico, nao faz parte
+        do desafio) e inicia a primeira, pulando Carrossel/Pre-Voo por
+        completo ("sem menu" entre fases e' o proprio ponto do
+        gauntlet). Vida comeca cheia SO na primeira fase
+        (`_ironman_carried_health = None`); as seguintes carregam a
+        vida da anterior (ver `_start_ironman_next_stage`)."""
+        self._ironman_queue = tuple(
+            i for i, stage in self.campaign_entries() if not stage.tutorial_steps
+        )
+        self._ironman_total = len(self._ironman_queue)
+        self._ironman_stage_number = 0
+        self._ironman_active = True
+        self._ironman_carried_health = None
+        self._start_ironman_next_stage()
+
+    def _start_ironman_next_stage(self) -> None:
+        """Consome a proxima fase da fila e a inicia. Fila vazia =
+        gauntlet inteiro vencido -> HUB. A vida CARREGADA (se houver)
+        so e clampada ao `max_health` da fase nova -- nunca restaurada
+        ao maximo, e' exatamente a ausencia de "cura entre fases" que
+        define o Ironman; uma fase com teto MENOR (ex.: Roleta Russa)
+        ainda assim nunca deixa a vida acima do proprio teto."""
+        if not self._ironman_queue:
+            self._ironman_active = False
+            self._flow = FLOW_HUB
+            return
+        stage_index = self._ironman_queue[0]
+        self._ironman_queue = self._ironman_queue[1:]
+        self._ironman_stage_number += 1
+        self._start_stage(stage_index)
+        if self._ironman_carried_health is not None:
+            self._composed.game_state.health = min(
+                self._ironman_carried_health, self._composed.game_state.health
+            )
+        self._notice_key = f"ironman_progress_{self._ironman_stage_number}"
+        self._notice_timer = _NOTICE_SECONDS
+
     def _stop_music(self) -> None:
         stage = self._stages[self._loaded_stage]
         if stage.track_path:
@@ -723,6 +804,8 @@ class HertzGameLoop(GameLoop):
                 self._flow = FLOW_VAULT
             elif category == "calibration":
                 self._enter_calibration()
+            elif category == "ironman":
+                self._start_ironman_run()
         elif inp.is_action_pressed("pause"):
             self._enter_title()  # ESC no HUB volta pra Tela de Titulo (nunca encerra o jogo daqui)
 
@@ -809,6 +892,9 @@ class HertzGameLoop(GameLoop):
         if stage.selectable_mode:
             modifiers = self.chosen_modifiers(stage_index)
             practice = self.practice_mode_on(stage_index)
+        elif self.b_side_chosen(stage_index):
+            modifiers = frozenset(stage.b_side_active_modifiers)
+            practice = False
         else:
             stage_config = resolve_stage_config(self._base_config, stage)
             modifiers = frozenset(stage_config.active_modifiers)
@@ -821,7 +907,8 @@ class HertzGameLoop(GameLoop):
         o antigo "menu de opcoes" -- MESMA logica, agora sua PROPRIA tela
         em vez de aninhada); fases curadas mostram os modifiers FIXOS
         (so leitura -- a Campanha existe justamente pela dificuldade
-        curada e crescente) com um unico botao interativo, START."""
+        curada e crescente), so A/D (Lado B/Remix, quando a fase tiver um
+        -- ver `StageDef.b_side_name`) e START sao interativos."""
         inp = self._input_provider
         stage_index = self._preflight_stage_index
         stage = self._stages[stage_index]
@@ -831,6 +918,10 @@ class HertzGameLoop(GameLoop):
                 self._practice_mode[stage_index] = not self.practice_mode_on(stage_index)
             self._advance_preflight_options(stage_index)
         else:
+            if stage.b_side_name is not None and (
+                inp.is_action_pressed("menu_left") or inp.is_action_pressed("menu_right")
+            ):
+                self._preflight_b_side_chosen[stage_index] = not self.b_side_chosen(stage_index)
             if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
                 self._start_stage(stage_index)
             elif inp.is_action_pressed("pause"):
@@ -1123,23 +1214,44 @@ class HertzGameLoop(GameLoop):
             self._flow = FLOW_PLAYING
             self._resume_music()
         elif inp.is_action_pressed("to_menu"):
+            self._ironman_active = False  # Ironman: sair pro HUB cancela o gauntlet em andamento
             self._stop_music()
             self._flow = FLOW_HUB
 
     def _advance_game_over(self) -> None:
+        """Ironman (Progressao de Campanha): "retry" reinicia o
+        gauntlet INTEIRO da primeira fase (`_start_ironman_run`), nunca
+        so a fase atual -- a ausencia de cura entre fases so faz
+        sentido se uma derrota custar o progresso acumulado."""
         inp = self._input_provider
         if inp.is_action_pressed("retry"):
-            self._start_stage(self._loaded_stage)
+            if self._ironman_active:
+                self._start_ironman_run()
+            else:
+                self._start_stage(self._loaded_stage)
         elif inp.is_action_pressed("to_menu") or inp.is_action_pressed("pause"):
+            self._ironman_active = False
             self._flow = FLOW_HUB
 
     def _advance_results(self) -> None:
+        """Ironman: "confirm" avanca pra PROXIMA fase da fila
+        (`_start_ironman_next_stage`, carregando a vida com que esta
+        fase terminou) em vez do `loaded_stage + 1` normal -- e' o
+        "sem menu entre fases" do gauntlet. "retry" continua reiniciando
+        SO a fase atual (com vida cheia) mesmo dentro de um gauntlet --
+        util pra tentar de novo uma unica fase sem perder o progresso
+        das anteriores."""
         inp = self._input_provider
         if inp.is_action_pressed("confirm"):
-            self._start_stage((self._loaded_stage + 1) % len(self._stages))
+            if self._ironman_active:
+                self._ironman_carried_health = self._composed.game_state.health
+                self._start_ironman_next_stage()
+            else:
+                self._start_stage((self._loaded_stage + 1) % len(self._stages))
         elif inp.is_action_pressed("retry"):
             self._start_stage(self._loaded_stage)
         elif inp.is_action_pressed("to_menu") or inp.is_action_pressed("pause"):
+            self._ironman_active = False
             self._stop_music()
             self._flow = FLOW_HUB
 
@@ -1157,6 +1269,7 @@ class HertzGameLoop(GameLoop):
             modifier_panel = None
             practice_enabled = None
             score_multiplier = 1.0
+            b_side_info = None
             if self._flow == FLOW_PREFLIGHT:
                 stage_index = self._preflight_stage_index
                 stage = self._stages[stage_index]
@@ -1170,6 +1283,8 @@ class HertzGameLoop(GameLoop):
                         "focused": True,
                     }
                     practice_enabled = self.practice_mode_on(stage_index)
+                elif stage.b_side_name is not None:
+                    b_side_info = {"name": stage.b_side_name, "chosen": self.b_side_chosen(stage_index)}
                 score_multiplier = self._current_score_multiplier(stage_index)
 
             carousel_stage_index = None
@@ -1212,6 +1327,7 @@ class HertzGameLoop(GameLoop):
                     self._preflight_stage_index if self._flow == FLOW_PREFLIGHT else None
                 ),
                 score_multiplier=score_multiplier,
+                b_side_info=b_side_info,
                 vault_stats=(self.vault_stats() if self._flow == FLOW_VAULT else None),
                 calibration_progress=(
                     self.calibration_progress() if self._flow == FLOW_CALIBRATION else None
