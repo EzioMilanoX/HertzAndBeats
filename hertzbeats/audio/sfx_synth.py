@@ -32,6 +32,17 @@ nucleo tocavam NENHUM som antes disto -- so tremor/texto. Thud seco e
 curto, claramente um erro (distinto do "clique" do misfire, que e sobre
 a ARMA emperrar, nao sobre errar o tempo)."""
 
+SFX_ANNOUNCER_COMBO = "data/sfx/announcer_combo.wav"
+SFX_ANNOUNCER_RANK = "data/sfx/announcer_rank.wav"
+"""Meta-Jogo -- Announcer: o jogo inteiro sintetiza audio proceduralmente
+(numpy puro, Zero-GC/deterministico, sem TTS nem gravacao -- ver
+`hertzbeats/audio/demo_track_synth.py`). Sem motor de texto-pra-fala
+disponivel no ambiente, "voz do Announcer" vira um STINGER sintetizado
+(nao fala real) nos mesmos 2 marcos do pedido original:
+`SFX_ANNOUNCER_COMBO` ao cruzar `ANNOUNCER_COMBO_THRESHOLD` de combo
+(`HertzGameLoop._sync_announcer`), `SFX_ANNOUNCER_RANK` ao entrar em
+`FLOW_RESULTS` com Rank S ou melhor."""
+
 _PITCH_VARIANT_COUNT = 5
 """Combo Pitch Shift: quantas variantes de afinacao existem por som de
 acerto -- `JudgmentSystem`/`LaneJudgmentSystem` escolhem o indice
@@ -189,6 +200,38 @@ def _heal(sample_rate: int) -> np.ndarray:
     return tone / (np.max(np.abs(tone)) * 1.05)
 
 
+def _announcer_combo(sample_rate: int) -> np.ndarray:
+    """Marco de combo (Announcer -- `ANNOUNCER_COMBO_THRESHOLD`): stinger
+    ENERGETICO -- arpejo ascendente de 3 tons (A4->D5->A5) entrando em
+    sequencia, cada um com o 2o harmonico por cima -- comunica "subindo",
+    sem depender de fala real (ver decisao do usuario -- o jogo inteiro
+    sintetiza audio, sem TTS disponivel no ambiente)."""
+    length = int(0.5 * sample_rate)
+    note_length = length // 3
+    mix = np.zeros(length, dtype=np.float64)
+    for i, freq in enumerate((440.0, 587.33, 880.0)):  # A4, D5, A5
+        start = i * note_length
+        seg_t = np.arange(length - start) / sample_rate
+        tone = np.exp(-seg_t * 7.0) * (
+            np.sin(2 * np.pi * freq * seg_t) + 0.5 * np.sin(2 * np.pi * 2.0 * freq * seg_t)
+        )
+        mix[start:] += tone * 0.6
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
+def _announcer_rank(sample_rate: int) -> np.ndarray:
+    """Rank S/SS nos Resultados (Announcer): stinger TRIUNFANTE -- acorde
+    maior sustentado (C5-E5-G5 simultaneos), decaimento bem mais LONGO
+    que qualquer outro SFX do jogo -- um momento de celebracao na tela
+    final, nao uma reacao rapida de gameplay."""
+    length = int(1.0 * sample_rate)
+    t = np.arange(length) / sample_rate
+    mix = np.zeros(length, dtype=np.float64)
+    for freq in (523.25, 659.25, 783.99):  # C5, E5, G5
+        mix += np.exp(-t * 2.2) * np.sin(2 * np.pi * freq * t)
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -204,6 +247,8 @@ def ensure_sfx() -> None:
         (SFX_BOMB, _bomb),
         (SFX_HEAL, _heal),
         (SFX_MISS, _miss),
+        (SFX_ANNOUNCER_COMBO, _announcer_combo),
+        (SFX_ANNOUNCER_RANK, _announcer_rank),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

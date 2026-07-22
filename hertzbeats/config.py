@@ -102,6 +102,17 @@ class HertzConfig:
     #                            e' Game Over instantaneo no primeiro erro
     #                            "de graca" (maior bonus de pontuacao do
     #                            catalogo, ver `MODIFIER_SCORE_BONUS`)
+    #      "boomerang"        -- Defensor (independente): `BoomerangThreatSystem`
+    #                            -- nasce no nucleo, voa ate a borda e
+    #                            volta (formula senoidal do raio, nao a
+    #                            reta constante de toda ameaca comum);
+    #                            deixe passar na ida, atire na volta
+    #      "corrupcao"        -- os 2 modos (independente): barras de
+    #                            estatica visual na tela inteira
+    #                            enquanto a fase toca -- puramente
+    #                            cosmetico, nenhuma mudanca de
+    #                            jogabilidade (`HBPygameRenderer.
+    #                            _draw_glitch_bars`)
     #    Um modifier cuja dependencia nao esta presente (ex.:
     #    "orbital_shields" sem "polarity") degrada silenciosamente para
     #    no-op -- nunca lanca erro (mesma filosofia de opt-in gracioso ja
@@ -240,6 +251,18 @@ class HertzConfig:
     #    "orbital_shields" em `active_modifiers` (exige "polarity" junto) --
     orbit_radius: float = 90.0
     orbit_angular_speed_rad_per_sec: float = 2.4
+
+    # -- Defensor: Ameacas Bumerangue -- opt-in via "boomerang" em
+    #    `active_modifiers` (independente, nao exige "polarity"): nascem
+    #    no nucleo, voam ate `spawn_radius` e voltam, tudo dentro deste
+    #    tempo total -- `target_hit_time_sec` continua sendo o instante
+    #    do RETORNO (ver `BoomerangThreatSystem`). Deve ficar <=
+    #    `approach_seconds` da fase para a ameaca nascer (e ficar parada,
+    #    raio 0) ANTES do inicio de fato do percurso -- maior que isso, a
+    #    entidade so e criada pelo spawner generico da engine DEPOIS do
+    #    instante em que o percurso ja deveria ter comecado, "pulando"
+    #    direto para o meio da viagem.
+    boomerang_round_trip_seconds: float = 2.0
 
     # -- Defensor: Ressonancia de Polaridade (Combos Monocromaticos,
     #    automatica quando "polarity" esta em `active_modifiers` --
@@ -382,6 +405,7 @@ class HertzConfig:
             distraction_pool_size=raw.get("distraction_pool_size", 5),
             orbit_radius=raw.get("orbit_radius", 90.0),
             orbit_angular_speed_rad_per_sec=raw.get("orbit_angular_speed_rad_per_sec", 2.4),
+            boomerang_round_trip_seconds=raw.get("boomerang_round_trip_seconds", 2.0),
             resonance_chain_threshold=raw.get("resonance_chain_threshold", 10),
             parry_hitlag_freeze_frames=raw.get("parry_hitlag_freeze_frames", 3),
             orbital_eclipse_count=raw.get("orbital_eclipse_count", 3),

@@ -77,6 +77,7 @@ from hertzbeats.systems.distraction_system import (
     parse_distraction_events,
 )
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
+from hertzbeats.systems.boomerang_threat_system import BoomerangThreatSystem
 from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
 from hertzbeats.systems.orbital_eclipse_system import OrbitalEclipseSystem
 from hertzbeats.systems.parry_impact_system import (
@@ -141,6 +142,7 @@ class ComposedGame:
         "lane_choreography_system",
         "lane_geometry_y",
         "spark_system",
+        "hit_times",
     )
 
     def __init__(
@@ -155,6 +157,7 @@ class ComposedGame:
         lane_choreography_system=None,
         lane_geometry_y=None,
         spark_system=None,
+        hit_times=None,
     ) -> None:
         self.world = world
         self.memory_manager = memory_manager
@@ -181,6 +184,14 @@ class ComposedGame:
         crosshair que ancora a rajada). Exposto para o `HertzGameLoop`
         ler `render_arrays()` todo frame e publicar no renderer
         (`_sync_sparks`)."""
+        self.hit_times = hit_times
+        """Fundo Reativo (Juice Visual): array COMPLETO (float64,
+        crescente) dos instantes de impacto de TODAS as ameacas/notas da
+        fase inteira -- o MESMO array que o spawner ja usa internamente,
+        so exposto aqui pro `HertzGameLoop` "olhar pra frente" (`_sync_
+        reactive_background`, `np.searchsorted`) e contar quantos
+        eventos vem por ai, sem precisar duplicar o beatmap em lugar
+        nenhum."""
 
     @property
     def spawner_system(self):
@@ -301,6 +312,7 @@ def _compose_defender_mode(ctx: _ModeContext):
     # fase liga so UM dos dois -- nunca validado em runtime, e uma
     # responsabilidade de curadoria do `stages.json`).
     holds_enabled = "holds" in modifiers
+    boomerang_enabled = "boomerang" in modifiers and "rhythm_threat_boomerang" in config.threat_type_ids
 
     scheduled = _reinterpret_scheduled_for_modifiers(ctx.scheduled, config, modifiers)
 
@@ -333,6 +345,9 @@ def _compose_defender_mode(ctx: _ModeContext):
         ),
         threat_blue_rgb=config.threat_blue_rgb,
         threat_pink_rgb=config.threat_pink_rgb,
+        boomerang_threat_type_id=(
+            config.threat_type_ids.get("rhythm_threat_boomerang") if boomerang_enabled else None
+        ),
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -477,6 +492,21 @@ def _compose_defender_mode(ctx: _ModeContext):
                 angular_speed_rad_per_sec=config.orbit_angular_speed_rad_per_sec,
             )
         )
+    # Ameacas Bumerangue ("boomerang"): mesmo padrao de `OrbitalCaptureSystem`
+    # acima -- sobrescreve `position_x/y` DIRETAMENTE, ANTES do
+    # `PhysicsSystem` generico (que ja e um no-op nelas, spawn com
+    # velocidade zerada).
+    if boomerang_enabled:
+        ctx.world.register_system(
+            BoomerangThreatSystem(
+                audio_clock=ctx.audio_clock,
+                memory_manager=ctx.memory_manager,
+                threat_type_id=config.threat_type_ids["rhythm_threat_boomerang"],
+                center_xy=(center_x, center_y),
+                spawn_radius=config.spawn_radius,
+                round_trip_seconds=config.boomerang_round_trip_seconds,
+            )
+        )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
 
     # Eclipses Orbitais ("orbital_eclipses"): ao CONTRARIO da Captura
@@ -555,19 +585,20 @@ def _compose_defender_mode(ctx: _ModeContext):
 
 
 def _reinterpret_scheduled_for_modifiers(scheduled: np.ndarray, config: HertzConfig, modifiers) -> np.ndarray:
-    """Gemeos de Polaridade ("twin_threats") e Escudos Rotativos
-    ("orbital_shields") nunca sao emitidos pelo mapeador OFFLINE da IA
-    (vocabulario so tem "basic"/"heavy") -- mesma reinterpretacao 100%
-    GAME-side ja usada por Notas Toxicas/Cura/Scratch: o `beatmap.json`
-    em disco nunca muda, so a INTERPRETACAO do `threat_type` de algumas
-    linhas ja agendadas. Reescreve uma fracao DETERMINISTICA (a cada
-    Nesima ocorrencia, nunca por sorteio) do array recebido -- devolve
-    SEMPRE uma copia nova, nunca muta `scheduled` (compartilhado com
-    `ctx.hit_times` por indice de linha) mesmo quando nenhum modifier
-    relevante esta ativo."""
+    """Gemeos de Polaridade ("twin_threats"), Escudos Rotativos
+    ("orbital_shields") e Ameacas Bumerangue ("boomerang") nunca sao
+    emitidos pelo mapeador OFFLINE da IA (vocabulario so tem
+    "basic"/"heavy") -- mesma reinterpretacao 100% GAME-side ja usada por
+    Notas Toxicas/Cura/Scratch: o `beatmap.json` em disco nunca muda, so
+    a INTERPRETACAO do `threat_type` de algumas linhas ja agendadas.
+    Reescreve uma fracao DETERMINISTICA (a cada Nesima ocorrencia, nunca
+    por sorteio) do array recebido -- devolve SEMPRE uma copia nova,
+    nunca muta `scheduled` (compartilhado com `ctx.hit_times` por indice
+    de linha) mesmo quando nenhum modifier relevante esta ativo."""
     orbital_shields_enabled = "orbital_shields" in modifiers and "polarity" in modifiers
     twin_threats_enabled = "twin_threats" in modifiers and "polarity" in modifiers
-    if not orbital_shields_enabled and not twin_threats_enabled:
+    boomerang_enabled = "boomerang" in modifiers and "rhythm_threat_boomerang" in config.threat_type_ids
+    if not orbital_shields_enabled and not twin_threats_enabled and not boomerang_enabled:
         return scheduled
 
     scheduled = scheduled.copy()
@@ -587,6 +618,16 @@ def _reinterpret_scheduled_for_modifiers(scheduled: np.ndarray, config: HertzCon
         if twin_id is not None and basic_id is not None:
             basic_rows = np.flatnonzero(threat_type_col == basic_id)
             threat_type_col[basic_rows[::5]] = twin_id  # a cada 5a comum vira Gemeos
+
+    if boomerang_enabled:
+        # Recalcula `basic_rows` DEPOIS do bloco de Gemeos acima -- so as
+        # linhas AINDA comuns entram aqui, evitando que as 2 reinterpretacoes
+        # disputem a mesma linha original (sem precisar de logica de exclusao).
+        boomerang_id = threat_type_ids.get("rhythm_threat_boomerang")
+        basic_id = threat_type_ids.get("rhythm_threat_basic")
+        if boomerang_id is not None and basic_id is not None:
+            basic_rows = np.flatnonzero(threat_type_col == basic_id)
+            threat_type_col[basic_rows[::7]] = boomerang_id  # a cada 7a comum (ainda) vira Bumerangue
 
     return scheduled
 
@@ -1105,6 +1146,7 @@ def compose_world(
         lane_choreography_system=context.lane_choreography_system,
         lane_geometry_y=context.lane_geometry_y,
         spark_system=context.spark_system,
+        hit_times=context.hit_times,
     )
 
 
@@ -1250,6 +1292,8 @@ class RhythmCompositionRoot:
         )
         from hertzbeats.audio.demo_track_synth import ensure_metronome_track, ensure_track
         from hertzbeats.audio.sfx_synth import (
+            SFX_ANNOUNCER_COMBO,
+            SFX_ANNOUNCER_RANK,
             SFX_BOMB,
             SFX_CANNON,
             SFX_CANNON_VARIANTS,
@@ -1319,7 +1363,8 @@ class RhythmCompositionRoot:
         for sound_id in (
             SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY,
             SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB, SFX_HEAL,
-            SFX_MISS, *SFX_CANNON_VARIANTS, *SFX_NOTE_HIT_VARIANTS,
+            SFX_MISS, SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK,
+            *SFX_CANNON_VARIANTS, *SFX_NOTE_HIT_VARIANTS,
         ):
             audio_engine.preload_one_shot(sound_id)
 

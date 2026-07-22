@@ -23,6 +23,7 @@ from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.interfaces.renderer import IRenderer
 
 from hertzbeats.audio.demo_track_synth import ensure_track
+from hertzbeats.audio.sfx_synth import SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK
 from hertzbeats.bootstrap.rhythm_composition_root import (
     ComposedGame,
     compose_world,
@@ -62,6 +63,24 @@ _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
 
+REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS = 0.5
+REACTIVE_BACKGROUND_MAX_COUNT = 6
+"""Fundo Reativo (Juice Visual): a intensidade do visualizer de fundo
+vem de quantos EVENTOS (`ComposedGame.hit_times`) caem nos proximos
+`REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS` -- o jogo "sabe" que o som vai
+estourar antes mesmo de tocar, ja que o beatmap inteiro esta na memoria
+desde a composicao. `REACTIVE_BACKGROUND_MAX_COUNT` satura a 1.0
+(intensidade maxima) -- alem disso vira ruido visual, nao informacao."""
+
+ANNOUNCER_COMBO_THRESHOLD = 100
+"""Meta-Jogo -- Announcer: `SFX_ANNOUNCER_COMBO` toca ao CRUZAR um
+multiplo deste valor (`combo_count // ANNOUNCER_COMBO_THRESHOLD` antes/
+depois do frame, MESMO criterio de tier-crossing ja usado pela UI Bump --
+nunca `% == 0`, pra um combo perfurante que soma varios de uma vez nao
+pular por cima do marco exato sem tocar nada)."""
+_ANNOUNCER_RANK_TIERS = ("S", "SS")
+"""Ranks que disparam `SFX_ANNOUNCER_RANK` na tela de Resultados."""
+
 
 def compute_duck_multiplier(
     duck_timer_seconds: float, duck_duration_seconds: float, duck_volume_fraction: float
@@ -82,6 +101,8 @@ MODIFIER_SCORE_BONUS = {
     "roleta_russa": 0.30,
     "orbital_eclipses": 0.20,
     "twin_threats": 0.20,
+    "boomerang": 0.20,
+    "corrupcao": 0.15,
     "orbital_shields": 0.15,
     "overload": 0.15,
     "vision_tunnel": 0.15,
@@ -161,9 +182,11 @@ DEFENDER_MODIFIER_ROWS = (
     "twin_threats",
     "orbital_eclipses",
     "overload",
+    "boomerang",
+    "corrupcao",
     "roleta_russa",
 )
-LANES_MODIFIER_ROWS = ("roleta_russa",)
+LANES_MODIFIER_ROWS = ("corrupcao", "roleta_russa")
 """Linhas de modifier BOOLEANO (checkbox) mostradas por `game_mode`,
 ENTRE `HEAVY_MECHANIC_ROW` e `START_ROW` -- "holds"/"polarity" NAO
 aparecem aqui (viraram a multipla escolha `HEAVY_MECHANIC_ROW`).
@@ -288,6 +311,7 @@ class HertzGameLoop(GameLoop):
         self._was_frozen = False
         self._last_miss_count_seen = 0  # Audio Ducking: baseline pra detectar um NOVO miss/dano
         self._duck_timer_seconds = 0.0
+        self._last_announcer_combo_tier = 0  # Announcer: baseline do cruzamento de ANNOUNCER_COMBO_THRESHOLD
         self._results_rank = "-"  # Meta-Jogo -- Rank: calculado ao entrar em FLOW_RESULTS
         self._player_progress_path = player_progress_path
         self._player_progress = load_progress(player_progress_path)  # lido 1x, atualizado in-memory
@@ -584,6 +608,9 @@ class HertzGameLoop(GameLoop):
         # ainda neste mesmo frame).
         self._last_miss_count_seen = 0
         self._duck_timer_seconds = 0.0
+        self._last_announcer_combo_tier = 0
+        if hasattr(self._renderer, "reset_ghost_trail"):
+            self._renderer.reset_ghost_trail()
         if hasattr(self._renderer, "set_flow_mode"):
             self._renderer.set_flow_mode(False)
         self._flow = FLOW_PLAYING
@@ -1009,6 +1036,11 @@ class HertzGameLoop(GameLoop):
                 self._results_rank = compute_rank(state.perfect_count, state.good_count, state.miss_count)
                 self._save_stage_medal()
                 self._accumulate_lifetime_stats()
+                # Meta-Jogo -- Announcer: stinger triunfante SO nos 2
+                # melhores Ranks -- celebra o desempenho excepcional, nao
+                # qualquer fase concluida.
+                if self._results_rank in _ANNOUNCER_RANK_TIERS:
+                    self._audio_engine.play_one_shot(SFX_ANNOUNCER_RANK, 0.9)
                 self._flow = FLOW_RESULTS
         else:
             self._results_grace = 0.0
@@ -1248,6 +1280,21 @@ class HertzGameLoop(GameLoop):
         )
         self._audio_engine.set_track_volume(base_volume * duck_multiplier)
 
+    def _sync_announcer(self) -> None:
+        """Meta-Jogo -- Announcer: `SFX_ANNOUNCER_COMBO` toca ao CRUZAR
+        um multiplo de `ANNOUNCER_COMBO_THRESHOLD` (tier-crossing,
+        `combo_count // limiar` antes/depois -- MESMO criterio da UI
+        Bump, nunca `% == 0`). So `self._flow == FLOW_PLAYING` importa;
+        fora dai `state.combo_count` fica parado (nenhum disparo
+        espurio) -- ainda assim guardado explicitamente para nunca ler
+        `GameState` de uma fase ja trocada."""
+        if self._composed is None or self._flow != FLOW_PLAYING:
+            return
+        tier = self._composed.game_state.combo_count // ANNOUNCER_COMBO_THRESHOLD
+        if tier > self._last_announcer_combo_tier:
+            self._audio_engine.play_one_shot(SFX_ANNOUNCER_COMBO, 0.8)
+        self._last_announcer_combo_tier = tier
+
     def _sync_beat_phase(self) -> None:
         """Heartbeat (Juice Visual): publica `beat_phase` (`[0, 1)`, a
         fracao ja percorrida do compasso ATUAL) no renderer todo frame
@@ -1271,6 +1318,71 @@ class HertzGameLoop(GameLoop):
         if not hasattr(self._renderer, "set_blindness_active") or self._composed is None:
             return
         self._renderer.set_blindness_active(self._composed.game_state.is_blinded)
+
+    def _sync_low_health_danger(self) -> None:
+        """Danger Visual (Meta-Jogo): liga a aberracao cromatica do
+        renderer exatamente quando `GameState.health == 1` -- o ultimo
+        ponto de vida, o instante em que QUALQUER erro seguinte e Game
+        Over. Fora de `FLOW_PLAYING` (menu, pausa, fase ainda nao
+        carregada) sempre desliga -- mesma familia de sincronizacao de
+        `_sync_blindness`/`_sync_hitlag`."""
+        if not hasattr(self._renderer, "set_low_health_danger"):
+            return
+        active = (
+            self._flow == FLOW_PLAYING
+            and self._composed is not None
+            and self._composed.game_state.health == 1
+        )
+        self._renderer.set_low_health_danger(active)
+
+    def _sync_ghost_trail(self) -> None:
+        """Juice Visual -- Ghost Trails: grava a posicao ATUAL da mira no
+        RingBuffer do renderer, so durante `FLOW_PLAYING` no Defensor
+        (Arcade 4K nao tem mira livre -- colunas fixas, o rastro nao
+        faria sentido ali; escopo consciente, mesmo criterio das Sparks
+        serem so-Defensor)."""
+        if not hasattr(self._renderer, "record_ghost_trail_position") or self._composed is None:
+            return
+        if self._flow != FLOW_PLAYING or self._stage_config.game_mode != "defender":
+            return
+        transform_pool = self._composed.memory_manager.get_pool("transform")
+        row = transform_pool.dense_row_of(self._composed.crosshair_entity_index)
+        transform_view = transform_pool.active_view()
+        self._renderer.record_ghost_trail_position(
+            float(transform_view["position_x"][row]), float(transform_view["position_y"][row])
+        )
+
+    def _sync_corruption_glitch(self) -> None:
+        """Modificador "corrupcao" (Breakcore/Glitchhop): liga o efeito
+        visual de estatica do renderer enquanto a fase estiver
+        `FLOW_PLAYING` com o modifier ativo -- constante durante a
+        musica inteira (nao um pulso pontual), a interface "tremendo"
+        junto com o caos sonoro da fase."""
+        if not hasattr(self._renderer, "set_glitch_intensity") or self._composed is None:
+            return
+        active = self._flow == FLOW_PLAYING and "corrupcao" in self._stage_config.active_modifiers
+        self._renderer.set_glitch_intensity(1.0 if active else 0.0)
+
+    def _sync_reactive_background(self) -> None:
+        """Fundo Reativo (Juice Visual): conta quantos eventos ritmicos
+        (`ComposedGame.hit_times`, o array COMPLETO da fase, ja na
+        memoria desde a composicao) caem nos proximos
+        `REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS` -- o jogo "sabe" que o
+        som vai estourar antes mesmo de tocar. `np.searchsorted` sobre o
+        array ORDENADO (o beatmap ja vem em ordem crescente de tempo) e
+        O(log n), nunca uma varredura completa por frame."""
+        if not hasattr(self._renderer, "set_background_intensity") or self._composed is None:
+            return
+        if self._flow != FLOW_PLAYING or self._composed.hit_times is None:
+            intensity = 0.0
+        else:
+            now = self._audio_clock.now_seconds()
+            hit_times = self._composed.hit_times
+            first = np.searchsorted(hit_times, now, side="left")
+            last = np.searchsorted(hit_times, now + REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS, side="right")
+            count = int(last - first)
+            intensity = min(1.0, count / REACTIVE_BACKGROUND_MAX_COUNT)
+        self._renderer.set_background_intensity(intensity)
 
     def _sync_hitlag(self) -> None:
         """Juice de Parry (Hitlag Visual Simulado): traduz
@@ -1376,12 +1488,17 @@ class HertzGameLoop(GameLoop):
             self._sync_overlay()
             self._sync_camera_shake()
             self._sync_blindness()
+            self._sync_low_health_danger()
+            self._sync_ghost_trail()
+            self._sync_corruption_glitch()
+            self._sync_reactive_background()
             self._sync_hitlag()
             self._sync_lane_playfield()
             self._sync_defender_playfield()
             self._sync_sparks()
             self._sync_beat_phase()
             self._sync_track_volume(delta_time)
+            self._sync_announcer()
             self._render_frame()
 
             elapsed = time.perf_counter() - now

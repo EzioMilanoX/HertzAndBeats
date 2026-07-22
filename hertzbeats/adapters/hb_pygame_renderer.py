@@ -40,6 +40,35 @@ opcoes (as 2 primeiras sao multipla escolha -- Defensor/Arcade 4K e
 Nenhuma/Polaridade/Holds -- a ultima e o botao de Acao "Iniciar Fase")
 e desenha-las SEM quadrado de marcar."""
 
+_GLITCH_BAR_COLOR = (5, 5, 8)
+_GLITCH_MAX_BARS = 4
+"""Modificador "Corrupcao" (Breakcore/Glitchhop): barras de estatica
+horizontais cruzando a tela enquanto o modifier esta ativo -- posicao/
+altura PSEUDO-aleatorias mas deterministicas (hash aritmetico simples
+sobre `pygame.time.get_ticks()`, nunca `random` de verdade), puramente
+COSMETICO -- mesma categoria de `_judgment_line_color`'s pulso (fora da
+disciplina Zero-GC/determinismo do gameplay, que continua 100%
+`IAudioClock`)."""
+
+_REACTIVE_BG_BAR_COUNT = 12
+_REACTIVE_BG_MAX_HEIGHT = 60
+_REACTIVE_BG_COLOR = (60, 45, 110)
+"""Fundo Reativo (Juice Visual): fileira de barras tipo equalizador na
+borda de baixo da tela, altura proporcional a `_background_intensity`
+(publicada pelo `HertzGameLoop` -- quantos eventos ritmicos vem por ai,
+olhando `ComposedGame.hit_times` a frente). Cada barra usa uma fase
+DIFERENTE de seno (sobre o relogio de parede) pra nao subir/descer tudo
+em bloco -- puramente cosmetico, decorativo, nunca parte do
+julgamento."""
+
+_GHOST_TRAIL_LENGTH = 10
+_GHOST_TRAIL_COLOR = (140, 220, 255)
+_GHOST_TRAIL_MAX_RADIUS = 9
+"""Ghost Trails (Defensor -- mira): quantas posicoes passadas da mira
+ficam no rastro (`RingBuffer` circular, tamanho FIXO -- nunca cresce) e
+a cor/raio maximo do rastro mais recente, esmaecendo ate quase
+invisivel na posicao mais antiga."""
+
 _HEARTBEAT_DECAY_RATE = 6.0
 """Heartbeat: quao rapido o pulso decai apos o inicio do compasso (maior
 = "thump" mais curto e seco). Ver `_heartbeat_pulse`."""
@@ -208,6 +237,18 @@ class HBPygameRenderer(PygameRenderer):
         self._freeze_active: bool = False
         self._color_invert_pending: bool = False
         self._invert_surface: Optional[pygame.Surface] = None
+        self._low_health_danger_active: bool = False
+        self._danger_red_surface: Optional[pygame.Surface] = None
+        self._danger_blue_surface: Optional[pygame.Surface] = None
+        # Ghost Trails (Defensor -- mira): RingBuffer circular de tamanho
+        # FIXO (nunca cresce/aloca por frame) com as ULTIMAS posicoes da
+        # mira -- `_ghost_trail_count` satura em `_GHOST_TRAIL_LENGTH`.
+        self._ghost_trail_xs = [0.0] * _GHOST_TRAIL_LENGTH
+        self._ghost_trail_ys = [0.0] * _GHOST_TRAIL_LENGTH
+        self._ghost_trail_write_index: int = 0
+        self._ghost_trail_count: int = 0
+        self._glitch_intensity: float = 0.0
+        self._background_intensity: float = 0.0
         self._spark_xs = None
         self._spark_ys = None
         self._spark_angles = None
@@ -331,6 +372,105 @@ class HBPygameRenderer(PygameRenderer):
         do frame seguinte ja desarma."""
         self._color_invert_pending = bool(active)
 
+    def record_ghost_trail_position(self, x: float, y: float) -> None:
+        """Ghost Trails (Defensor -- mira): grava a posicao ATUAL da mira
+        no RingBuffer circular (`_ghost_trail_write_index` avanca 1 slot
+        por chamada, voltando ao inicio ao encher -- nenhuma lista
+        cresce). Chamado pelo `HertzGameLoop` todo frame de `FLOW_PLAYING`
+        no Defensor."""
+        self._ghost_trail_xs[self._ghost_trail_write_index] = float(x)
+        self._ghost_trail_ys[self._ghost_trail_write_index] = float(y)
+        self._ghost_trail_write_index = (self._ghost_trail_write_index + 1) % _GHOST_TRAIL_LENGTH
+        self._ghost_trail_count = min(self._ghost_trail_count + 1, _GHOST_TRAIL_LENGTH)
+
+    def reset_ghost_trail(self) -> None:
+        """Esvazia o rastro -- chamado pelo `HertzGameLoop` a cada troca
+        de fase, pra um rastro da fase ANTERIOR nao "vazar" pro inicio
+        da proxima (mesmo criterio de `_last_miss_count_seen` zerado em
+        `_start_stage`)."""
+        self._ghost_trail_count = 0
+        self._ghost_trail_write_index = 0
+
+    def _draw_ghost_trail(self) -> None:
+        """Desenha os slots PREENCHIDOS do rastro, do mais ANTIGO (quase
+        invisivel) ao mais RECENTE (raio/alfa maximo) -- em `begin_frame`,
+        ANTES do `draw_batch` real desenhar a mira na posicao atual por
+        cima, pra parecer uma esteira deixada para tras. Sem alfa real
+        (a Surface principal nao tem `SRCALPHA`), o "esmaecer" e
+        aproximado interpolando RUMO ao fundo da arena -- mesmo truque
+        ja usado pelas Sparks."""
+        count = self._ghost_trail_count
+        if count == 0:
+            return
+        background = (2, 1, 6) if self._flow_mode_active else (8, 6, 20)
+        for i in range(count):
+            # i=0 e o slot mais ANTIGO ainda vivo, i=count-1 e o mais RECENTE
+            slot = (self._ghost_trail_write_index - count + i) % _GHOST_TRAIL_LENGTH
+            fraction = (i + 1) / count
+            x = int(self._ghost_trail_xs[slot])
+            y = int(self._ghost_trail_ys[slot])
+            radius = max(1, int(_GHOST_TRAIL_MAX_RADIUS * fraction))
+            color = tuple(
+                int(bg + (fg - bg) * fraction) for bg, fg in zip(background, _GHOST_TRAIL_COLOR)
+            )
+            pygame.draw.circle(self._surface, color, (x, y), radius, 1)
+
+    def set_background_intensity(self, intensity: float) -> None:
+        """Fundo Reativo: `0.0..1.0` publicado pelo `HertzGameLoop`
+        (quantos eventos ritmicos vem nos proximos instantes, olhando
+        `ComposedGame.hit_times` a frente) -- desenhado em `begin_frame`,
+        antes de qualquer decoracao de arena."""
+        self._background_intensity = float(intensity)
+
+    def _draw_reactive_background(self) -> None:
+        """Fileira de barras tipo equalizador na borda de baixo,
+        altura escalada por `_background_intensity` -- cada barra usa
+        uma fase de seno DIFERENTE (indice * offset fixo) sobre o
+        relogio de parede, pra nao subirem/descerem todas em bloco.
+        Puramente cosmetico (mesma categoria de `_judgment_line_color`),
+        desenhado ANTES da decoracao de arena (fundo, nunca por cima do
+        gameplay)."""
+        if self._background_intensity <= 0.0:
+            return
+        ticks = pygame.time.get_ticks() / 1000.0
+        bar_width = self._width / _REACTIVE_BG_BAR_COUNT
+        for i in range(_REACTIVE_BG_BAR_COUNT):
+            wobble = 0.5 + 0.5 * math.sin(ticks * 6.0 + i * 0.8)
+            height = int(_REACTIVE_BG_MAX_HEIGHT * self._background_intensity * wobble)
+            if height <= 0:
+                continue
+            rect = pygame.Rect(int(i * bar_width), self._height - height, int(bar_width) + 1, height)
+            pygame.draw.rect(self._surface, _REACTIVE_BG_COLOR, rect)
+
+    def set_glitch_intensity(self, intensity: float) -> None:
+        """Modificador "Corrupcao": `0.0` (desligado, `_draw_glitch_bars`
+        vira no-op) ou um valor `> 0.0` (mais barras/mais grossas quanto
+        maior) enquanto o modifier estiver ativo -- publicado pelo
+        `HertzGameLoop`, nunca decidido aqui."""
+        self._glitch_intensity = float(intensity)
+
+    def _draw_glitch_bars(self) -> None:
+        """Barras de estatica horizontais, posicao/altura PSEUDO-
+        aleatorias (hash aritmetico deterministico sobre o relogio de
+        parede -- nunca `random` de verdade, e puramente cosmetico,
+        fora da jurisdicao Zero-GC/determinismo do gameplay)."""
+        if self._glitch_intensity <= 0.0:
+            return
+        tick_seed = pygame.time.get_ticks() // 60
+        bar_count = min(_GLITCH_MAX_BARS, max(1, int(_GLITCH_MAX_BARS * self._glitch_intensity)))
+        for i in range(bar_count):
+            seed = (tick_seed * 2654435761 + i * 97) & 0xFFFFFFFF
+            y = seed % self._height
+            bar_height = 2 + (seed // 997) % 6
+            pygame.draw.rect(self._surface, _GLITCH_BAR_COLOR, pygame.Rect(0, y, self._width, bar_height))
+
+    def set_low_health_danger(self, active: bool) -> None:
+        """Danger Visual (Meta-Jogo -- Roleta Russa/1 de vida): liga/
+        desliga a aberracao cromatica desenhada TODO frame em
+        `end_frame` enquanto ativo -- publicado pelo `HertzGameLoop`
+        (`GameState.health == 1`), nunca decidido aqui."""
+        self._low_health_danger_active = bool(active)
+
     def set_sparks(self, xs, ys, angles, lengths, alphas, count: int) -> None:
         """Juice Visual -- Sparks: publica os buffers do `SparkSystem`
         (Zero-GC, nenhuma copia -- so guarda as REFERENCIAS) para o
@@ -394,6 +534,11 @@ class HBPygameRenderer(PygameRenderer):
         # circulo transparente) a CADA frame sobre esta Surface
         # persistente (nunca uma nova por frame).
         self._tunnel_surface = pygame.Surface((width, height), pygame.SRCALPHA).convert_alpha()
+        # Danger Visual (Roleta Russa/1 de vida): 2 Surfaces de RASCUNHO
+        # persistentes (nunca criadas por frame) para a aberracao
+        # cromatica -- ver `_draw_low_health_danger`.
+        self._danger_red_surface = pygame.Surface((width, height))
+        self._danger_blue_surface = pygame.Surface((width, height))
 
     def show_loading_message(self, message: str) -> None:
         """Tela de carregamento imediata (ex.: 'analisando musica nova').
@@ -422,6 +567,7 @@ class HBPygameRenderer(PygameRenderer):
         if self._freeze_active:
             return  # Juice de Parry: repete o ultimo frame desenhado, pixel por pixel
         self._surface.fill((2, 1, 6) if self._flow_mode_active else (8, 6, 20))
+        self._draw_reactive_background()
         kind = self._playfield_kind
         if kind is None:
             return
@@ -432,6 +578,7 @@ class HBPygameRenderer(PygameRenderer):
             judgment_radius = float(params["judgment_radius"]) * (1.0 + _HEARTBEAT_RING_ZOOM * pulse)
             pygame.draw.circle(self._surface, (36, 28, 70), center, int(params["spawn_radius"]), 1)
             pygame.draw.circle(self._surface, (90, 70, 160), center, int(judgment_radius), 2)
+            self._draw_ghost_trail()
         if kind == "lanes":
             height = int(params["height"])
             judgment_y = int(params["judgment_y"])
@@ -482,7 +629,32 @@ class HBPygameRenderer(PygameRenderer):
             self._draw_overlay()
         if self._notice_key is not None:
             self._blit_centered(self._notice_key, self._width // 2, 64)
+        self._draw_glitch_bars()
+        self._draw_low_health_danger()
         super().end_frame()
+
+    def _draw_low_health_danger(self) -> None:
+        """Danger Visual (1 de vida): aberracao cromatica -- uma copia
+        VERMELHA do frame ja pronto (overlay incluso) desloca 2px pra
+        ESQUERDA, uma copia AZUL desloca 2px pra DIREITA, ambas somadas
+        (`BLEND_RGB_ADD`) por cima do original -- "panico visual
+        induzido" no ultimo ponto de vida. `BLEND_RGB_MULT` por
+        (255,40,40)/(40,40,255) isola cada canal ANTES do deslocamento
+        (zera os outros 2 quase por completo), entao a soma só acrescenta
+        uma franja de cor nas bordas dos elementos em movimento, nunca
+        escurece a tela. 2 Surfaces de rascunho persistentes (criadas 1x
+        em `initialize`), nenhuma alocacao por frame."""
+        if not self._low_health_danger_active:
+            return
+        if self._danger_red_surface is None or self._danger_blue_surface is None:
+            return
+        self._danger_red_surface.blit(self._surface, (0, 0))
+        self._danger_red_surface.fill((255, 40, 40), special_flags=pygame.BLEND_RGB_MULT)
+        self._surface.blit(self._danger_red_surface, (-2, 0), special_flags=pygame.BLEND_RGB_ADD)
+
+        self._danger_blue_surface.blit(self._surface, (0, 0))
+        self._danger_blue_surface.fill((40, 40, 255), special_flags=pygame.BLEND_RGB_MULT)
+        self._surface.blit(self._danger_blue_surface, (2, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     def _draw_sparks(self) -> None:
         """Juice Visual -- Sparks: laco escalar sobre o pool fixo (128

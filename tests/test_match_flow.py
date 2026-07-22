@@ -27,6 +27,7 @@ from hertzbeats.bootstrap.hertz_game_loop import (
     HEAVY_MECHANIC_ROW,
     HEAVY_MECHANIC_VALUES_BY_GAME_MODE,
     HUB_CATEGORIES,
+    LANES_MODIFIER_ROWS,
     MIN_SCORE_MULTIPLIER,
     MODIFIER_SCORE_BONUS,
     START_ROW,
@@ -421,7 +422,7 @@ def test_left_right_cycle_the_game_mode_row(flow_game, null_input):
     assert loop.menu_cursor_index(0) == 0  # GAME_MODE_ROW
     _press(loop, null_input, "menu_right")
     assert loop.chosen_game_mode(0) == "lanes"
-    assert loop.modifier_rows(0) == (GAME_MODE_ROW, HEAVY_MECHANIC_ROW, "roleta_russa", START_ROW)
+    assert loop.modifier_rows(0) == (GAME_MODE_ROW, HEAVY_MECHANIC_ROW) + LANES_MODIFIER_ROWS + (START_ROW,)
 
     _press(loop, null_input, "menu_left")
     assert loop.chosen_game_mode(0) == "defender"

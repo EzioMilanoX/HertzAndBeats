@@ -86,6 +86,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         twin_threat_type_id: int = None,
         threat_blue_rgb: tuple = (70, 140, 255),
         threat_pink_rgb: tuple = (255, 90, 190),
+        boomerang_threat_type_id: int = None,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -138,6 +139,15 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         Anel de Convergencia HERDA a cor da ameaca que o gerou
         (`_spawn_convergence_ring`), entao ja fica correto sem nenhuma
         mudanca adicional aqui.
+
+        AMEACAS BUMERANGUE (opt-in via `boomerang_threat_type_id`): nascem
+        no NUCLEO (raio 0, nao na borda) com velocidade ZERO -- o
+        `BoomerangThreatSystem` (registrado ANTES do `PhysicsSystem` na
+        composicao) e quem de fato as move, via formula senoidal do raio
+        em vez da reta constante de toda ameaca comum. `target_hit_time_sec`
+        continua sendo o instante de ACERTO de sempre (aqui, o RETORNO ao
+        nucleo) -- `JudgmentSystem` nao precisa saber que o caminho nao e
+        reto.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -175,6 +185,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._twin_threat_type_id = twin_threat_type_id
         self._threat_blue_rgb = tuple(threat_blue_rgb)
         self._threat_pink_rgb = tuple(threat_pink_rgb)
+        self._boomerang_threat_type_id = boomerang_threat_type_id
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -267,8 +278,15 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         )
         direction_x = math.cos(angle)
         direction_y = math.sin(angle)
-        spawn_x = self._center_x + direction_x * self._spawn_radius
-        spawn_y = self._center_y + direction_y * self._spawn_radius
+        # Ameacas Bumerangue nascem no NUCLEO (raio 0), nao na borda --
+        # o `BoomerangThreatSystem` assume a posicao delas a partir daqui.
+        is_boomerang = self._boomerang_threat_type_id is not None and threat_type == self._boomerang_threat_type_id
+        if is_boomerang:
+            spawn_x = self._center_x
+            spawn_y = self._center_y
+        else:
+            spawn_x = self._center_x + direction_x * self._spawn_radius
+            spawn_y = self._center_y + direction_y * self._spawn_radius
 
         threat_view = self._threat_pool.active_view()
         threat_view["mode_tag"][threat_row] = MODE_TAG_DEFENDER
@@ -313,8 +331,11 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
 
         velocity_row = self._velocity_pool.dense_row_of(entity_index)
         velocity_view = self._velocity_pool.active_view()
-        velocity_view["linear_x"][velocity_row] = -direction_x * speed
-        velocity_view["linear_y"][velocity_row] = -direction_y * speed
+        # Bumerangue: velocidade ZERO -- o `BoomerangThreatSystem` move a
+        # ameaca via formula senoidal, o `PhysicsSystem` generico vira
+        # no-op nela (mesmo criterio de `OrbitalCaptureSystem`).
+        velocity_view["linear_x"][velocity_row] = 0.0 if is_boomerang else -direction_x * speed
+        velocity_view["linear_y"][velocity_row] = 0.0 if is_boomerang else -direction_y * speed
         velocity_view["angular"][velocity_row] = 0.0
 
         hitbox_row = self._hitbox_pool.dense_row_of(entity_index)
@@ -331,12 +352,21 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         )
         sprite_row = self._sprite_pool.dense_row_of(entity_index)
         sprite_view = self._sprite_pool.active_view()
+        # Bumerangue: tint LARANJA distinto -- "espere, ainda nao atire"
+        # -- desde o spawn, checado ANTES de qualquer ramo de Polaridade
+        # (o Bumerangue aceita qualquer cor de gatilho, so o TEMPO
+        # importa pro julgamento, ver `BoomerangThreatSystem`).
+        if is_boomerang:
+            sprite_view["texture_id"][sprite_row] = base_texture_id
+            sprite_view["tint_r"][sprite_row] = 255
+            sprite_view["tint_g"][sprite_row] = 150
+            sprite_view["tint_b"][sprite_row] = 40
         # Captura Orbital: tint ciano DISTINTO desde o spawn -- "isto e
         # um alvo de Parry especial", antes mesmo da captura. Checado
         # ANTES do ramo de Polaridade: um Escudo aceita QUALQUER cor (a
         # janela PERFECT-apenas do `JudgmentSystem` ja cuida disso), seu
         # visual nao deve trocar para azul/rosa por engano.
-        if self._orbit_threat_type_id is not None and threat_type == self._orbit_threat_type_id:
+        elif self._orbit_threat_type_id is not None and threat_type == self._orbit_threat_type_id:
             sprite_view["texture_id"][sprite_row] = base_texture_id
             sprite_view["tint_r"][sprite_row] = 70
             sprite_view["tint_g"][sprite_row] = 225

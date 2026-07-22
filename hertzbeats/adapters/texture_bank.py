@@ -235,6 +235,8 @@ _MODIFIER_ROW_LABELS = {
     "twin_threats": "Gemeos de Polaridade (exige Polaridade)",
     "orbital_eclipses": "Eclipses Orbitais",
     "overload": "Overload do Nucleo (exige Polaridade)",
+    "boomerang": "Ameacas Bumerangue (deixe ir, atire na volta)",
+    "corrupcao": "Corrupcao (estatica visual na tela)",
     "roleta_russa": "Roleta Russa (1 de vida -- qualquer erro e Game Over)",
 }
 """Rotulo de CADA linha BOOLEANA (checkbox) do menu de opcoes do

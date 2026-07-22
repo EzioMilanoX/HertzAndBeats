@@ -60,11 +60,13 @@ def make_config(beatmap_path: Path) -> HertzConfig:
             "rhythm_threat_basic": 0, "rhythm_threat_heavy": 1,
             "rhythm_threat_bomb": 2, "rhythm_threat_heal": 3,
             "rhythm_threat_orbit": 4, "rhythm_threat_twin": 5,
+            "rhythm_threat_boomerang": 6,
         },
         threat_half_extents={
             "rhythm_threat_basic": 10.0, "rhythm_threat_heavy": 16.0,
             "rhythm_threat_bomb": 12.0, "rhythm_threat_heal": 11.0,
             "rhythm_threat_orbit": 13.0, "rhythm_threat_twin": 9.0,
+            "rhythm_threat_boomerang": 12.0,
         },
         lane_count=8,
         approach_seconds=2.0,
