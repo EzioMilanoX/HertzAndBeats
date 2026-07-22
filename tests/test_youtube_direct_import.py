@@ -219,6 +219,38 @@ def test_pasting_a_valid_url_enters_fetching_preview_and_starts_the_worker(impor
     _wait_for_worker_result(loop)
 
 
+def test_pasting_a_valid_url_publishes_it_to_the_renderer_immediately(import_loop, null_input):
+    """Confirmacao visual do link colado (`set_download_pasted_url`) --
+    publicada no PASTE, ANTES da Previa chegar, pra navegacao mais clara
+    sobre qual URL esta em andamento mesmo enquanto ainda busca."""
+    calls = []
+
+    class _RecordingRenderer(NullRenderer):
+        def set_download_pasted_url(self, url):
+            calls.append(url)
+
+    loop = import_loop(clipboard_text="https://youtu.be/newsong123", renderer=_RecordingRenderer())
+    _goto_download_hub(loop, null_input)
+    _press(loop, null_input, "paste")
+
+    assert calls == ["https://youtu.be/newsong123"]
+    _wait_for_worker_result(loop)
+
+
+def test_pasting_invalid_text_never_publishes_a_pasted_url(import_loop, null_input):
+    calls = []
+
+    class _RecordingRenderer(NullRenderer):
+        def set_download_pasted_url(self, url):
+            calls.append(url)
+
+    loop = import_loop(clipboard_text="isso nao e uma URL do youtube", renderer=_RecordingRenderer())
+    _goto_download_hub(loop, null_input)
+    _press(loop, null_input, "paste")
+
+    assert calls == []
+
+
 def test_a_successful_preview_transitions_to_preview_ready_and_notifies_the_renderer(import_loop, null_input):
     calls = []
 
@@ -451,9 +483,44 @@ def test_draw_overlay_handles_every_download_hub_stage_without_crashing(stage):
     renderer = HBPygameRenderer()
     renderer.initialize(320, 240, "test")
     build_and_register_overlay_surfaces(renderer, (game_stage,))
+    renderer.set_download_pasted_url("https://youtu.be/dQw4w9WgXcQ")
     if stage == "preview_ready":
         renderer.set_download_preview("Titulo", "Canal", None)
     elif stage == "error":
         renderer.set_download_error("Falha qualquer")
     renderer.set_overlay("download_hub", download_stage=stage)
     renderer._draw_overlay()  # nao deve levantar
+
+
+def test_set_download_pasted_url_renders_a_surface_with_the_link():
+    renderer = HBPygameRenderer()
+    renderer.initialize(320, 240, "test")
+    assert renderer._download_pasted_url_surface is None
+
+    renderer.set_download_pasted_url("https://youtu.be/dQw4w9WgXcQ")
+    assert renderer._download_pasted_url_surface is not None
+
+
+def test_set_download_pasted_url_truncates_long_links():
+    renderer = HBPygameRenderer()
+    renderer.initialize(320, 240, "test")
+    long_url = "https://www.youtube.com/watch?v=" + "x" * 80
+
+    renderer.set_download_pasted_url(long_url)
+    short_surface = renderer._download_pasted_url_surface
+
+    renderer.set_download_pasted_url("https://youtu.be/short")
+    short_url_surface = renderer._download_pasted_url_surface
+
+    assert short_surface.get_width() < 960  # nunca estoura a janela quadrada de 960px
+    assert short_surface.get_width() > short_url_surface.get_width()
+
+
+def test_clear_download_preview_also_clears_the_pasted_url():
+    renderer = HBPygameRenderer()
+    renderer.initialize(320, 240, "test")
+    renderer.set_download_pasted_url("https://youtu.be/dQw4w9WgXcQ")
+    assert renderer._download_pasted_url_surface is not None
+
+    renderer.clear_download_preview()
+    assert renderer._download_pasted_url_surface is None

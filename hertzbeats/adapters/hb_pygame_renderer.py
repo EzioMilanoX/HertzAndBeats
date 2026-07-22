@@ -206,15 +206,20 @@ _DOWNLOAD_TITLE_FONT_SIZE = 36
 _DOWNLOAD_LABEL_FONT_SIZE = 26
 _DOWNLOAD_TEXT_COLOR = (235, 235, 255)
 _DOWNLOAD_ERROR_COLOR = (255, 80, 96)
+_DOWNLOAD_LINK_COLOR = (160, 170, 210)
 _DOWNLOAD_TITLE_MAX_CHARS = 42
 _DOWNLOAD_ERROR_MAX_CHARS = 80
+_DOWNLOAD_LINK_MAX_CHARS = 58
 """Pipeline de Importacao Direta -- Previa: titulo/canal/mensagem de
-erro sao conteudo DINAMICO (o video importado muda toda vez), entao NAO
-da pra pre-renderizar em `texture_bank.py` (que so conhece strings
-FIXAS de antemao) -- `set_download_preview`/`set_download_error`
-renderizam sob demanda, UMA vez quando o dado chega (nunca por frame),
-truncando pra nunca estourar a largura da janela (mesmo criterio ja
-usado pelos nomes de fase curados)."""
+erro/link colado sao conteudo DINAMICO (o video importado muda toda
+vez), entao NAO da pra pre-renderizar em `texture_bank.py` (que so
+conhece strings FIXAS de antemao) -- `set_download_preview`/
+`set_download_error`/`set_download_pasted_url` renderizam sob demanda,
+UMA vez quando o dado chega (nunca por frame), truncando pra nunca
+estourar a largura da janela (mesmo criterio ja usado pelos nomes de
+fase curados). `_DOWNLOAD_LINK_COLOR` (um tom mais apagado que o texto
+principal) marca o link colado como METADADO de contexto, nunca o
+conteudo primario da tela."""
 
 
 class HBPygameRenderer(PygameRenderer):
@@ -305,6 +310,7 @@ class HBPygameRenderer(PygameRenderer):
         self._download_preview_uploader_surface: Optional[pygame.Surface] = None
         self._download_preview_thumbnail_surface: Optional[pygame.Surface] = None
         self._download_error_surface: Optional[pygame.Surface] = None
+        self._download_pasted_url_surface: Optional[pygame.Surface] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
@@ -1324,6 +1330,24 @@ class HBPygameRenderer(PygameRenderer):
             except (pygame.error, FileNotFoundError, OSError):
                 pass
 
+    def set_download_pasted_url(self, url: str) -> None:
+        """Ctrl+V validado (WAITING -> FETCHING_PREVIEW): confirmacao
+        visual do link colado, renderizada UMA vez no instante do paste
+        (nunca por frame) -- o jogador ve exatamente qual URL entrou em
+        vez de precisar confiar de memoria no que tinha no clipboard,
+        continuando visivel por toda a Previa/Download/Sucesso/Erro (ate
+        a proxima tentativa ou `clear_download_preview`). Chamado por
+        `HertzGameLoop._try_paste_youtube_url`."""
+        if not pygame.font.get_init():
+            pygame.font.init()
+        label_font = pygame.font.Font(None, _DOWNLOAD_LABEL_FONT_SIZE)
+        display_url = url
+        if len(display_url) > _DOWNLOAD_LINK_MAX_CHARS:
+            display_url = display_url[: _DOWNLOAD_LINK_MAX_CHARS - 3].rstrip() + "..."
+        self._download_pasted_url_surface = label_font.render(
+            f"Link: {display_url}", True, _DOWNLOAD_LINK_COLOR
+        ).convert_alpha()
+
     def set_download_error(self, message: str) -> None:
         """Mensagem de erro (URL invalida, FFmpeg ausente, video
         indisponivel, ...) -- conteudo DINAMICO, renderizada sob demanda
@@ -1339,14 +1363,15 @@ class HBPygameRenderer(PygameRenderer):
         ).convert_alpha()
 
     def clear_download_preview(self) -> None:
-        """Reseta a Previa/erro renderizados -- chamado ao entrar/sair
-        de `FLOW_DOWNLOAD_HUB` ou cancelar, pra nunca mostrar dado
-        DESATUALIZADO (o video/erro da tentativa ANTERIOR) numa nova
-        tentativa."""
+        """Reseta a Previa/erro/link renderizados -- chamado ao
+        entrar/sair de `FLOW_DOWNLOAD_HUB` ou cancelar, pra nunca mostrar
+        dado DESATUALIZADO (o video/erro/link da tentativa ANTERIOR)
+        numa nova tentativa."""
         self._download_preview_title_surface = None
         self._download_preview_uploader_surface = None
         self._download_preview_thumbnail_surface = None
         self._download_error_surface = None
+        self._download_pasted_url_surface = None
 
     def _draw_download_hub_overlay(self, center_x: int) -> None:
         """Desenha o sub-estado ATUAL de `FLOW_DOWNLOAD_HUB`
@@ -1354,13 +1379,26 @@ class HBPygameRenderer(PygameRenderer):
         ("Aguardando Link...", "Buscando Previa...", "Baixando Audio e
         Gerando Beatmap...", "Sucesso!") vem do Atlas de Fonte JA
         REGISTRADO em `texture_bank.py` (nenhum `font.render` aqui); so'
-        o titulo/canal da Previa e a mensagem de erro (conteudo
-        DINAMICO) usam as Surfaces preparadas por
-        `set_download_preview`/`set_download_error`. Cada ramo cuida do
-        proprio rodape (hint contextual), nunca um fallback generico."""
+        o titulo/canal da Previa, a mensagem de erro e o link colado
+        (conteudo DINAMICO) usam as Surfaces preparadas por
+        `set_download_preview`/`set_download_error`/
+        `set_download_pasted_url`. Cada ramo cuida do proprio rodape
+        (hint contextual), nunca um fallback generico.
+
+        O link colado (`_download_pasted_url_surface`) fica visivel logo
+        abaixo do titulo em QUALQUER sub-estado depois do paste
+        (Buscando Previa/Previa Pronta/Baixando/Sucesso/Erro) -- so' nao
+        aparece em WAITING (antes de colar nada, a Surface ainda e'
+        `None`) -- navegacao mais clara: o jogador sempre ve qual URL
+        esta em andamento, inclusive numa falha."""
         y = int(self._height * 0.14)
         y += self._blit_centered("download_hub_title", center_x, y) + 40
         stage = self._overlay_download_stage
+
+        if stage != "waiting" and self._download_pasted_url_surface is not None:
+            link = self._download_pasted_url_surface
+            self._surface.blit(link, (center_x - link.get_width() // 2, y))
+            y += link.get_height() + 20
 
         if stage == "preview_ready":
             if self._download_preview_thumbnail_surface is not None:

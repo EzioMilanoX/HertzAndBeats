@@ -1148,7 +1148,12 @@ class HertzGameLoop(GameLoop):
         """CTRL+V em WAITING: valida com REGEX (`extract_youtube_url`,
         PURA) ANTES de cogitar qualquer thread -- uma URL invalida vira
         so' um aviso transitorio (`_notice_key`, mesmo mecanismo de
-        `stage_locked`), nunca aciona I/O de rede."""
+        `stage_locked`), nunca aciona I/O de rede. Uma URL valida tambem
+        publica o link colado pro renderer (`set_download_pasted_url`,
+        conteudo DINAMICO, UMA vez aqui -- nunca por frame) -- confirmacao
+        visual do que foi colado, visivel durante toda a Previa/Download/
+        Sucesso/Erro, pra navegacao mais clara sobre qual link esta em
+        andamento."""
         text = self._clipboard_reader()
         url = extract_youtube_url(text)
         if url is None:
@@ -1156,6 +1161,8 @@ class HertzGameLoop(GameLoop):
             self._notice_timer = _NOTICE_SECONDS
             return
         self._download_stage = _DOWNLOAD_STAGE_FETCHING_PREVIEW
+        if hasattr(self._renderer, "set_download_pasted_url"):
+            self._renderer.set_download_pasted_url(url)
         self._enqueue_download_request(("preview", url))
 
     def _confirm_download(self) -> None:
