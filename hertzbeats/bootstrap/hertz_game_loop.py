@@ -931,14 +931,21 @@ class HertzGameLoop(GameLoop):
 
         Developer Tools: o gate mestre (`_advance_dev_mode_code`) e' o
         UNICO checado fora de PLAYING/PAUSED tambem (ver docstring de
-        `_DEV_MODE_SEQUENCE`); F9 (Unlock All) roda em QUALQUER estado
-        sem risco de colisao (nao reusa nenhuma tecla de gameplay)."""
+        `_DEV_MODE_SEQUENCE`); os 3 cheats (`_advance_dev_mode_cheats`)
+        rodam em QUALQUER estado, sem excecao -- ACHADO REAL (usuario
+        reportou "as teclas nao funcionam"): F12/CTRL+SHIFT+DEL viviam
+        escondidos dentro de `_advance_preflight`/`_advance_hub`/
+        `_advance_vault`, cada um so' reagindo NAQUELA tela especifica
+        (F12 exigia estar EXATAMENTE em `FLOW_PREFLIGHT`, o wipe exigia
+        HUB/Vault) -- testar de qualquer OUTRA tela parecia "quebrado"
+        mesmo com o gate ligado. Centralizado aqui, igual F9 sempre foi,
+        pra nenhum dos 3 depender de estar na tela "certa"."""
         if self._notice_timer > 0.0:
             self._notice_timer -= delta_time
         if self._flow not in (FLOW_PLAYING, FLOW_PAUSED):
             self._advance_dev_mode_code(self._input_provider)
-        if self._dev_mode and self._input_provider.is_action_pressed("cheat_unlock_all"):
-            self._activate_unlock_all_cheat()
+        if self._dev_mode:
+            self._advance_dev_mode_cheats(self._input_provider)
         if self._flow in (FLOW_PLAYING, FLOW_PAUSED):
             self._handle_latency_keys()
         self._sync_carousel_preview(delta_time)
@@ -1014,6 +1021,24 @@ class HertzGameLoop(GameLoop):
         else:
             self._dev_mode_code_progress = 1 if pressed[0] == _DEV_MODE_SEQUENCE[0] else 0
 
+    def _advance_dev_mode_cheats(self, inp: IInputProvider) -> None:
+        """Os 3 cheats, checados em QUALQUER tela/estado (chamado so'
+        quando `_dev_mode` ja esta ligado) -- nenhum deles exige estar
+        numa tela especifica. F12 aplica `_bot_mode_enabled` IMEDIATAMENTE
+        no `GameState` ja composto (se houver um carregado), alem de
+        guardar o toggle de sessao pro PROXIMO `_start_stage` -- assim
+        ligar/desligar o Auto-Play funciona na hora mesmo se o jogador
+        estiver DENTRO de uma fase em andamento (pausada ou nao), sem
+        precisar reiniciar a fase pra ver efeito."""
+        if inp.is_action_pressed("cheat_unlock_all"):
+            self._activate_unlock_all_cheat()
+        if inp.is_action_pressed("toggle_bot_mode"):
+            self._bot_mode_enabled = not self._bot_mode_enabled
+            if self._composed is not None:
+                self._composed.game_state.bot_mode = self._bot_mode_enabled
+        if inp.is_action_pressed("wipe_save"):
+            self._reset_player_progress()
+
     def _activate_unlock_all_cheat(self) -> None:
         """F9 (SO' com `_dev_mode` ligado): desbloqueia toda a Campanha
         permanentemente pelo RESTO da sessao (ver `_debug_unlock_all`),
@@ -1028,9 +1053,6 @@ class HertzGameLoop(GameLoop):
 
     def _advance_hub(self) -> None:
         inp = self._input_provider
-        if self._dev_mode and inp.is_action_pressed("wipe_save"):
-            self._reset_player_progress()
-            return
         if inp.is_action_pressed("menu_down"):
             self._hub_cursor = (self._hub_cursor + 1) % len(HUB_CATEGORIES)
         if inp.is_action_pressed("menu_up"):
@@ -1507,16 +1529,11 @@ class HertzGameLoop(GameLoop):
         curada e crescente), so A/D (Lado B/Remix, quando a fase tiver um
         -- ver `StageDef.b_side_name`) e START sao interativos.
 
-        Developer Tools -- Auto-Play (F12, SO' com `_dev_mode` ligado):
-        alterna `_bot_mode_enabled` ANTES de qualquer branch (funciona
-        tanto em fases curadas quanto em musicas do jogador -- facilita
-        testar Campanha E geracao de beatmap). So' um TOGGLE de sessao
-        aqui; o valor real so' chega em `GameState.bot_mode` no instante
-        de `_start_stage`, que recompoe um `GameState` novo a cada
-        fase."""
+        Developer Tools -- Auto-Play (F12): checado CENTRALMENTE em
+        `advance_frame`/`_advance_dev_mode_cheats`, nao aqui -- F12
+        funciona em QUALQUER tela (nao so' Preflight), ver o achado real
+        na docstring de `advance_frame`."""
         inp = self._input_provider
-        if self._dev_mode and inp.is_action_pressed("toggle_bot_mode"):
-            self._bot_mode_enabled = not self._bot_mode_enabled
         stage_index = self._preflight_stage_index
         stage = self._stages[stage_index]
 
@@ -1624,9 +1641,6 @@ class HertzGameLoop(GameLoop):
 
     def _advance_vault(self) -> None:
         inp = self._input_provider
-        if self._dev_mode and inp.is_action_pressed("wipe_save"):
-            self._reset_player_progress()
-            return
         if inp.is_action_pressed("menu_right"):
             self._cycle_palette(+1)
         if inp.is_action_pressed("menu_left"):

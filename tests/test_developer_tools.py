@@ -170,6 +170,41 @@ def test_f12_toggles_bot_mode_in_selectable_preflight_too(flow_game, null_input)
     assert loop._bot_mode_enabled is True
 
 
+def test_f12_works_from_the_hub_not_just_preflight(flow_game, null_input):
+    """ACHADO REAL (usuario reportou "as teclas nao funcionam"): F12
+    vivia escondido dentro de `_advance_preflight`, so' reagindo NAQUELA
+    tela -- testar de qualquer outra tela parecia quebrado mesmo com o
+    gate ligado. Centralizado em `_advance_dev_mode_cheats`, chamado em
+    QUALQUER `_flow`."""
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
+    _goto_hub(loop, null_input)
+    assert loop.flow == FLOW_HUB
+
+    _press(loop, null_input, "toggle_bot_mode")
+    assert loop._bot_mode_enabled is True
+
+
+def test_f12_applies_immediately_to_a_live_game_state(flow_game, null_input):
+    """Alem de guardar o toggle de sessao pro PROXIMO `_start_stage`,
+    F12 tambem escreve direto no `GameState` JA composto -- ligar o
+    Auto-Play enquanto uma fase esta em andamento (ou pausada) faz
+    efeito na hora, sem precisar reiniciar a fase. O GATE em si so' pode
+    ser ligado FORA de PLAYING/PAUSED (colisao com Arcade 4K) -- entao
+    ativa ele ANTES de entrar na fase, so' F12 e' pressionado durante."""
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
+    _goto_preflight(loop, null_input, "campaign")
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_PLAYING
+    assert loop._composed.game_state.bot_mode is False
+
+    _press(loop, null_input, "toggle_bot_mode")
+
+    assert loop._bot_mode_enabled is True
+    assert loop._composed.game_state.bot_mode is True
+
+
 def test_starting_a_stage_copies_bot_mode_enabled_into_game_state(flow_game, null_input):
     loop, _clock = flow_game([[_basic(3.0)]])
     _activate_dev_mode(loop, null_input)
@@ -465,3 +500,25 @@ def test_wipe_save_in_vault_also_works(flow_game, null_input):
     assert loop._player_progress == {}
     assert not os.path.exists(progress_path)
     assert loop.flow == FLOW_VAULT
+
+
+def test_wipe_save_works_from_the_title_screen_too(flow_game, null_input):
+    """ACHADO REAL (usuario reportou "as teclas nao funcionam"):
+    CTRL+SHIFT+DEL vivia escondido dentro de `_advance_hub`/
+    `_advance_vault`, so' reagindo NAQUELAS 2 telas -- testar de
+    qualquer OUTRA tela (aqui, a propria Tela de Titulo) parecia
+    quebrado mesmo com o gate ligado. Centralizado em
+    `_advance_dev_mode_cheats`, chamado em QUALQUER `_flow`."""
+    loop, _clock = flow_game([[_basic(3.0)]])
+    progress_path = loop._player_progress_path
+    with open(progress_path, "w", encoding="utf-8") as f:
+        f.write('{"stage0": {"modifiers": [], "best_rank": "S"}}')
+    loop._player_progress = {"stage0": {"modifiers": frozenset(), "best_rank": "S"}}
+
+    _activate_dev_mode(loop, null_input)
+    assert loop.flow == FLOW_TITLE
+
+    _press(loop, null_input, "wipe_save")
+
+    assert loop._player_progress == {}
+    assert not os.path.exists(progress_path)
