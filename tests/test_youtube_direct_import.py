@@ -1,6 +1,7 @@
 """Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): deteccao de Ctrl+V, tela dedicada em 2 etapas (Previa -> Download), thread persistente e tratamento de erros."""
 import time
 
+import numpy as np
 import pygame
 import pytest
 
@@ -524,3 +525,57 @@ def test_clear_download_preview_also_clears_the_pasted_url():
 
     renderer.clear_download_preview()
     assert renderer._download_pasted_url_surface is None
+
+
+# -- Renderer: HUB Principal + botao "[ IMPORTAR MUSICA ]" -------------------
+
+
+def test_renderer_hub_categories_matches_the_game_loop_categories():
+    """Bug real ja corrigido uma vez: `hb_pygame_renderer._HUB_CATEGORIES`
+    e' um duplicado DELIBERADO de `HUB_CATEGORIES` (adapter nao importa o
+    game loop), e por isso pode DIVERGIR silenciosamente -- quando
+    "download_music" foi adicionado ao game loop sem atualizar essa
+    copia, a linha "[ IMPORTAR MUSICA ]" parou de ser desenhada (o loop
+    de `_draw_hub_overlay` so ia ate o indice 4), mesmo com o
+    cursor/confirmar funcionando normalmente (aquela logica le a tupla
+    REAL do game loop). Este teste tranca as 2 tuplas juntas pra essa
+    classe de bug nunca mais passar silenciosamente."""
+    from hertzbeats.adapters.hb_pygame_renderer import _HUB_CATEGORIES as renderer_hub_categories
+
+    assert renderer_hub_categories == HUB_CATEGORIES
+
+
+@pytest.mark.parametrize("cursor_index", range(6))
+def test_draw_hub_overlay_renders_every_category_without_crashing(cursor_index):
+    stage = StageDef(
+        stage_id="s", name="FASE", subtitle="", track_path="", beatmap_path="unused",
+        synth=None, beatmap_params={}, overrides={},
+    )
+    renderer = HBPygameRenderer()
+    renderer.initialize(320, 240, "test")
+    build_and_register_overlay_surfaces(renderer, (stage,))
+    renderer.set_overlay("hub", hub_cursor=cursor_index)
+    renderer._draw_overlay()  # nao deve levantar (nem em silencio pular uma categoria)
+
+
+def test_draw_hub_overlay_draws_a_button_box_around_import_music():
+    """"[ IMPORTAR MUSICA ]" (indice 5, ultima categoria) ganha uma
+    moldura retangular real (`pygame.draw.rect`) -- verificado
+    procurando pixels da cor da moldura na regiao onde o rotulo e'
+    desenhado, algo que uma categoria de texto puro (ex. "campaign",
+    indice 0) nunca produz."""
+    from hertzbeats.adapters.hb_pygame_renderer import _HUB_IMPORT_BUTTON_COLOR
+
+    stage = StageDef(
+        stage_id="s", name="FASE", subtitle="", track_path="", beatmap_path="unused",
+        synth=None, beatmap_params={}, overrides={},
+    )
+    renderer = HBPygameRenderer()
+    renderer.initialize(960, 960, "test")
+    build_and_register_overlay_surfaces(renderer, (stage,))
+    renderer.set_overlay("hub", hub_cursor=0)
+    renderer._draw_overlay()
+
+    pixels = pygame.surfarray.array3d(renderer._surface)
+    button_color = np.array(_HUB_IMPORT_BUTTON_COLOR)
+    assert np.any(np.all(pixels == button_color, axis=-1))

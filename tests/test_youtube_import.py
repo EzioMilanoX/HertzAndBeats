@@ -8,11 +8,13 @@ from hertzbeats.music_library import parse_youtube_metadata, scan_user_songs, sc
 from hertzbeats.youtube_import import (
     FFmpegNotFoundError,
     YoutubeImportError,
+    YtDlpNotFoundError,
     download_and_analyze_youtube_song,
     extract_video_id,
     extract_youtube_url,
     fetch_youtube_preview,
     ffmpeg_available,
+    yt_dlp_available,
 )
 
 
@@ -61,6 +63,11 @@ def test_ffmpeg_available_reflects_which_fn_result():
     assert ffmpeg_available(which_fn=lambda name: None) is False
 
 
+def test_yt_dlp_available_reflects_which_fn_result():
+    assert yt_dlp_available(which_fn=lambda name: "/usr/bin/yt-dlp") is True
+    assert yt_dlp_available(which_fn=lambda name: None) is False
+
+
 # -- fetch_youtube_preview (ETAPA 1 -- subprocess FAKE, nunca rede) ----------
 
 
@@ -83,6 +90,21 @@ def test_fetch_youtube_preview_rejects_an_unrecognized_url(tmp_path):
     assert calls == []  # nunca chega a chamar o subprocess com uma URL invalida
 
 
+def test_fetch_youtube_preview_raises_yt_dlp_not_found_before_touching_the_subprocess(tmp_path):
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _FakeCompletedProcess(0)
+
+    with pytest.raises(YtDlpNotFoundError):
+        fetch_youtube_preview(
+            "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path),
+            run_subprocess=fake_run, yt_dlp_checker=lambda: False,
+        )
+    assert calls == []  # nunca chega a chamar o subprocess sem yt-dlp
+
+
 def test_fetch_youtube_preview_builds_a_skip_download_command(tmp_path):
     captured = {}
 
@@ -91,7 +113,10 @@ def test_fetch_youtube_preview_builds_a_skip_download_command(tmp_path):
         captured["kwargs"] = kwargs
         return _FakeCompletedProcess(0, stdout=json.dumps({"title": "T", "uploader": "U"}))
 
-    fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run)
+    fetch_youtube_preview(
+        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+        yt_dlp_checker=lambda: True,
+    )
 
     command = captured["command"]
     assert command[0] == "yt-dlp"
@@ -117,6 +142,7 @@ def test_fetch_youtube_preview_parses_metadata_and_locates_the_thumbnail(tmp_pat
 
     preview = fetch_youtube_preview(
         "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+        yt_dlp_checker=lambda: True,
     )
     assert preview["video_id"] == "dQw4w9WgXcQ"
     assert preview["url"] == "https://youtu.be/dQw4w9WgXcQ"
@@ -133,6 +159,7 @@ def test_fetch_youtube_preview_thumbnail_is_none_when_not_written(tmp_path):
 
     preview = fetch_youtube_preview(
         "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+        yt_dlp_checker=lambda: True,
     )
     assert preview["thumbnail_path"] is None
 
@@ -142,7 +169,10 @@ def test_fetch_youtube_preview_raises_on_a_nonzero_exit_code(tmp_path):
         return _FakeCompletedProcess(1, stderr="ERROR: video unavailable")
 
     with pytest.raises(YoutubeImportError, match="video unavailable"):
-        fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=failing_run)
+        fetch_youtube_preview(
+            "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=failing_run,
+            yt_dlp_checker=lambda: True,
+        )
 
 
 def test_fetch_youtube_preview_raises_on_invalid_json(tmp_path):
@@ -150,14 +180,20 @@ def test_fetch_youtube_preview_raises_on_invalid_json(tmp_path):
         return _FakeCompletedProcess(0, stdout="isso nao e um json")
 
     with pytest.raises(YoutubeImportError):
-        fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run)
+        fetch_youtube_preview(
+            "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+            yt_dlp_checker=lambda: True,
+        )
 
 
 def test_fetch_youtube_preview_falls_back_to_channel_field(tmp_path):
     def fake_run(*args, **kwargs):
         return _FakeCompletedProcess(0, stdout=json.dumps({"title": "T", "channel": "Canal Via Channel"}))
 
-    preview = fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run)
+    preview = fetch_youtube_preview(
+        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+        yt_dlp_checker=lambda: True,
+    )
     assert preview["uploader"] == "Canal Via Channel"
 
 
@@ -189,6 +225,27 @@ def _fake_analyzer(audio_path, beatmap_path, track_id):
     )
 
 
+def test_download_and_analyze_raises_yt_dlp_not_found_before_touching_the_subprocess(tmp_path):
+    preview = _make_preview(tmp_path)
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _FakeCompletedProcess(0)
+
+    with pytest.raises(YtDlpNotFoundError):
+        download_and_analyze_youtube_song(
+            preview,
+            music_dir=str(tmp_path / "musicas"),
+            beatmap_dir=str(tmp_path / "beatmaps"),
+            run_subprocess=fake_run,
+            yt_dlp_checker=lambda: False,
+            ffmpeg_checker=lambda: True,
+            analyzer=_fake_analyzer,
+        )
+    assert calls == []  # nunca chega a chamar o subprocess sem yt-dlp
+
+
 def test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subprocess(tmp_path):
     preview = _make_preview(tmp_path)
     calls = []
@@ -203,6 +260,7 @@ def test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subpro
             music_dir=str(tmp_path / "musicas"),
             beatmap_dir=str(tmp_path / "beatmaps"),
             run_subprocess=fake_run,
+            yt_dlp_checker=lambda: True,
             ffmpeg_checker=lambda: False,
             analyzer=_fake_analyzer,
         )
@@ -226,6 +284,7 @@ def test_download_and_analyze_builds_an_extract_audio_command_reusing_the_previe
         music_dir=str(tmp_path / "musicas"),
         beatmap_dir=str(tmp_path / "beatmaps"),
         run_subprocess=fake_run,
+        yt_dlp_checker=lambda: True,
         ffmpeg_checker=lambda: True,
         analyzer=_fake_analyzer,
     )
@@ -250,6 +309,7 @@ def test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_
         music_dir=str(tmp_path / "musicas"),
         beatmap_dir=str(tmp_path / "beatmaps"),
         run_subprocess=fake_run,
+        yt_dlp_checker=lambda: True,
         ffmpeg_checker=lambda: True,
         analyzer=_fake_analyzer,
     )
@@ -275,6 +335,7 @@ def test_download_and_analyze_raises_on_a_nonzero_exit_code(tmp_path):
             music_dir=str(tmp_path / "musicas"),
             beatmap_dir=str(tmp_path / "beatmaps"),
             run_subprocess=failing_run,
+            yt_dlp_checker=lambda: True,
             ffmpeg_checker=lambda: True,
             analyzer=_fake_analyzer,
         )
