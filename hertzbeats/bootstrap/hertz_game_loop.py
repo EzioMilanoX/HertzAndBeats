@@ -31,7 +31,7 @@ from hertzbeats.bootstrap.rhythm_composition_root import (
 )
 from hertzbeats.components.schemas import MODE_TAG_LANES
 from hertzbeats.config import HertzConfig
-from hertzbeats.game_state import RANK_ORDER, compute_rank
+from hertzbeats.game_state import RANK_ORDER, compute_hit_error_histogram, compute_rank
 from hertzbeats.player_progress import PLAYER_PROGRESS_PATH, load_progress, record_stage_cleared
 from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_stats
 from hertzbeats.stages import StageDef, read_stage_bpm_and_duration, resolve_stage_config
@@ -313,6 +313,7 @@ class HertzGameLoop(GameLoop):
         self._duck_timer_seconds = 0.0
         self._last_announcer_combo_tier = 0  # Announcer: baseline do cruzamento de ANNOUNCER_COMBO_THRESHOLD
         self._results_rank = "-"  # Meta-Jogo -- Rank: calculado ao entrar em FLOW_RESULTS
+        self._results_histogram = ()  # Acessibilidade -- Histograma: idem, calculado 1x em FLOW_RESULTS
         self._player_progress_path = player_progress_path
         self._player_progress = load_progress(player_progress_path)  # lido 1x, atualizado in-memory
         self._player_stats_path = player_stats_path
@@ -1034,6 +1035,9 @@ class HertzGameLoop(GameLoop):
                 # exato da transicao (nao a cada frame na tela de
                 # resultados -- os contadores ja pararam de mudar).
                 self._results_rank = compute_rank(state.perfect_count, state.good_count, state.miss_count)
+                self._results_histogram = compute_hit_error_histogram(
+                    state.hit_delta_buffer, state.hit_delta_filled_count
+                )
                 self._save_stage_medal()
                 self._accumulate_lifetime_stats()
                 # Meta-Jogo -- Announcer: stinger triunfante SO nos 2
@@ -1194,6 +1198,7 @@ class HertzGameLoop(GameLoop):
                 modifier_panel=modifier_panel,
                 practice_enabled=practice_enabled,
                 rank=(self._results_rank if self._flow == FLOW_RESULTS else None),
+                hit_error_histogram=(self._results_histogram if self._flow == FLOW_RESULTS else None),
                 hub_cursor=self._hub_cursor,
                 carousel_category=self._carousel_category,
                 carousel_stage_index=carousel_stage_index,
@@ -1384,6 +1389,21 @@ class HertzGameLoop(GameLoop):
             intensity = min(1.0, count / REACTIVE_BACKGROUND_MAX_COUNT)
         self._renderer.set_background_intensity(intensity)
 
+    def _sync_hit_error_meter(self) -> None:
+        """Acessibilidade -- Hit-Error Meter: publica a MESMA referencia
+        do RingBuffer de `GameState.hit_delta_buffer` (nunca uma copia)
+        pro renderer -- so durante `FLOW_PLAYING`, senao desliga o
+        desenho (`buffer=None`)."""
+        if not hasattr(self._renderer, "set_hit_error_data"):
+            return
+        if self._flow != FLOW_PLAYING or self._composed is None:
+            self._renderer.set_hit_error_data(None, 0, 0)
+            return
+        state = self._composed.game_state
+        self._renderer.set_hit_error_data(
+            state.hit_delta_buffer, state.hit_delta_write_index, state.hit_delta_filled_count
+        )
+
     def _sync_hitlag(self) -> None:
         """Juice de Parry (Hitlag Visual Simulado): traduz
         `GameState.visual_freeze_frames` (decaido pelo `CameraShakeSystem`
@@ -1492,6 +1512,7 @@ class HertzGameLoop(GameLoop):
             self._sync_ghost_trail()
             self._sync_corruption_glitch()
             self._sync_reactive_background()
+            self._sync_hit_error_meter()
             self._sync_hitlag()
             self._sync_lane_playfield()
             self._sync_defender_playfield()

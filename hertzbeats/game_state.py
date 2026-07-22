@@ -1,9 +1,20 @@
 """Placar global da partida: o equivalente das "variaveis globais no World" da arquitetura."""
 from __future__ import annotations
 
+import numpy as np
+
 from hertzbeats.components.schemas import JUDGMENT_PENDING
 
 RANK_ORDER = ("SS", "S", "A", "B", "C", "D")
+
+HIT_ERROR_BUFFER_CAPACITY = 512
+"""Acessibilidade -- Hit-Error Meter/Histograma de Resultados: quantos
+deltas de acerto (PERFECT/GOOD, segundos assinados -- negativo=cedo,
+positivo=tarde) ficam guardados por partida, num RingBuffer de tamanho
+FIXO (`GameState.record_hit_delta`) -- generoso o bastante pra cobrir
+qualquer fase curada do repositorio (107-180 notas) inteira; musicas do
+jogador MUITO longas guardam so os ULTIMOS `HIT_ERROR_BUFFER_CAPACITY`
+acertos (mesmo criterio de saturacao ja usado pelo Ghost Trail/SparkPool)."""
 """Ordem de exibicao (melhor -> pior) -- MESMA ordem usada por
 `texture_bank.py` para registrar `rank_{letra}` uma unica vez no
 carregamento."""
@@ -33,6 +44,32 @@ def compute_rank(perfect_count: int, good_count: int, miss_count: int) -> str:
     if precision > 0.50:
         return "C"
     return "D"
+
+
+RESULTS_HISTOGRAM_BIN_COUNT = 11
+RESULTS_HISTOGRAM_RANGE_SECONDS = 0.15
+"""Acessibilidade -- Histograma de Resultados: MESMA escala do Hit-Error
+Meter ao vivo (`_HIT_ERROR_METER_RANGE_SECONDS`) -- 11 barras (numero
+IMPAR: a do meio e sempre "quase no tempo exato") cobrindo -150ms a
++150ms, o resto da distribuicao satura nas pontas."""
+
+
+def compute_hit_error_histogram(hit_delta_buffer: np.ndarray, filled_count: int) -> tuple:
+    """Acessibilidade -- Histograma de Resultados: conta quantos PERFECT/
+    GOOD desta partida caem em cada uma das `RESULTS_HISTOGRAM_BIN_COUNT`
+    faixas de tempo -- pura, chamada UMA vez na transicao pra
+    `FLOW_RESULTS` (nunca por frame), sobre o MESMO RingBuffer que
+    alimenta o Hit-Error Meter ao vivo. `filled_count == 0` (fase sem
+    nenhum PERFECT/GOOD, ex.: so MISS) devolve todas as faixas zeradas."""
+    if filled_count <= 0:
+        return (0,) * RESULTS_HISTOGRAM_BIN_COUNT
+    deltas = hit_delta_buffer[:filled_count]
+    clamped = np.clip(deltas, -RESULTS_HISTOGRAM_RANGE_SECONDS, RESULTS_HISTOGRAM_RANGE_SECONDS)
+    counts, _ = np.histogram(
+        clamped, bins=RESULTS_HISTOGRAM_BIN_COUNT,
+        range=(-RESULTS_HISTOGRAM_RANGE_SECONDS, RESULTS_HISTOGRAM_RANGE_SECONDS),
+    )
+    return tuple(int(c) for c in counts)
 
 
 class GameState:
@@ -77,6 +114,9 @@ class GameState:
         "overload_requested",
         "tunnel_radius",
         "bpm",
+        "hit_delta_buffer",
+        "hit_delta_write_index",
+        "hit_delta_filled_count",
     )
 
     def __init__(
@@ -214,6 +254,23 @@ class GameState:
         (60/bpm) / (60/bpm)`) para pulsar o Anel de Julgamento/pistas e
         o Metronomo Periferico -- puramente cosmetico, nenhum julgamento
         le este campo."""
+        self.hit_delta_buffer: np.ndarray = np.zeros(HIT_ERROR_BUFFER_CAPACITY, dtype=np.float64)
+        self.hit_delta_write_index: int = 0
+        self.hit_delta_filled_count: int = 0
+        """Acessibilidade -- Hit-Error Meter/Histograma: RingBuffer de
+        tamanho FIXO (nunca alocado por acerto) com os deltas assinados
+        de cada PERFECT/GOOD -- `record_hit_delta` e' o UNICO jeito de
+        escrever nele (mesmo criterio de `trigger_shake`)."""
+
+    def record_hit_delta(self, delta_seconds: float) -> None:
+        """Acessibilidade -- Hit-Error Meter/Histograma de Resultados:
+        grava o delta ASSINADO (negativo=cedo, positivo=tarde) de UM
+        PERFECT/GOOD no RingBuffer -- chamado por `JudgmentSystem`/
+        `LaneJudgmentSystem`/`ScratchJudgmentSystem` no exato instante em
+        que o julgamento e decidido, nunca recalculado depois."""
+        self.hit_delta_buffer[self.hit_delta_write_index] = float(delta_seconds)
+        self.hit_delta_write_index = (self.hit_delta_write_index + 1) % HIT_ERROR_BUFFER_CAPACITY
+        self.hit_delta_filled_count = min(self.hit_delta_filled_count + 1, HIT_ERROR_BUFFER_CAPACITY)
 
     def consume_overdrive_for_overload(self) -> None:
         """Defensor -- Overload do Nucleo: o `JudgmentSystem` chama isto

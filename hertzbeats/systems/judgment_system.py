@@ -645,6 +645,11 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+        # Acessibilidade -- Hit-Error Meter/Histograma: delta ASSINADO
+        # na convencao "atual - esperado" (negativo=cedo, positivo=tarde)
+        # -- `deltas` guarda o INVERSO (`target_hit_time_sec - agora`,
+        # ver `update()`), entao negativa aqui antes de gravar.
+        state.record_hit_delta(-float(deltas[best_row]))
 
         # Gun Sync + Combo Pitch Shift: o canhao do tiro certeiro E
         # percussao da trilha -- a variante tocada sobe de semitom a cada

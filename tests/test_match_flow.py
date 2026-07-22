@@ -856,7 +856,7 @@ def test_vault_starts_with_nothing_cleared(flow_game, null_input):
         "stages_cleared": 0, "total_stages": 2, "total_medals": 0,
         "rank_counts": {"SS": 0, "S": 0, "A": 0, "B": 0, "C": 0, "D": 0},
         "lifetime_perfect_count": 0, "lifetime_shots_fired": 0, "lifetime_playtime_seconds": 0.0,
-        "palette_id": "classic", "unlocked_palettes": ("classic",),
+        "palette_id": "classic", "unlocked_palettes": ("classic", "colorblind", "monochrome"),
     }
 
 
@@ -931,41 +931,50 @@ def test_lifetime_stats_accumulate_across_multiple_matches(flow_game, null_input
 # -- Meta-Jogo -- Paletas Cosmeticas --------------------------------------
 
 
-def test_vault_cycling_does_nothing_when_only_classic_is_unlocked(flow_game, null_input):
+def test_vault_cycling_never_reaches_a_reward_palette_with_no_progress(flow_game, null_input):
+    """Sem NENHUM progresso salvo, "classic" + as 2 paletas de
+    Acessibilidade (sempre desbloqueadas) sao as UNICAS no ciclo --
+    "gold_silver"/"neon" (recompensas por Rank) nunca aparecem."""
     loop, _ = flow_game([[_basic(3.0)]])
     _goto_vault(loop, null_input)
-    _press(loop, null_input, "menu_right")
-    assert loop.palette_id == "classic"
-    _press(loop, null_input, "menu_left")
-    assert loop.palette_id == "classic"
+    for _ in range(6):  # varias voltas completas
+        _press(loop, null_input, "menu_right")
+        assert loop.palette_id in ("classic", "colorblind", "monochrome")
 
 
 def test_vault_cycling_wraps_through_unlocked_palettes(flow_game, null_input):
+    from hertzbeats.palettes import unlocked_palette_ids
+
     loop, _ = flow_game([[_basic(3.0)]])
     loop._player_progress = {"external": {"modifiers": frozenset(), "best_rank": "SS"}}
     _goto_vault(loop, null_input)
 
-    assert loop.palette_id == "classic"
-    _press(loop, null_input, "menu_right")
-    assert loop.palette_id == "gold_silver"
-    _press(loop, null_input, "menu_right")
-    assert loop.palette_id == "neon"
+    unlocked = unlocked_palette_ids(loop._player_progress)
+    assert loop.palette_id == unlocked[0] == "classic"
+    for expected_id in unlocked[1:]:
+        _press(loop, null_input, "menu_right")
+        assert loop.palette_id == expected_id
     _press(loop, null_input, "menu_right")
     assert loop.palette_id == "classic"  # enrola
 
     _press(loop, null_input, "menu_left")
-    assert loop.palette_id == "neon"  # o inverso tambem enrola
+    assert loop.palette_id == unlocked[-1]  # o inverso tambem enrola
 
 
 def test_vault_only_cycles_through_palettes_actually_unlocked(flow_game, null_input):
     """Com apenas Rank S alcancado, "neon" (exige SS) nunca aparece no
-    ciclo -- so "classic"/"gold_silver"."""
+    ciclo -- so as sempre-desbloqueadas + "gold_silver"."""
+    from hertzbeats.palettes import unlocked_palette_ids
+
     loop, _ = flow_game([[_basic(3.0)]])
     loop._player_progress = {"external": {"modifiers": frozenset(), "best_rank": "S"}}
     _goto_vault(loop, null_input)
 
-    _press(loop, null_input, "menu_right")
-    assert loop.palette_id == "gold_silver"
+    unlocked = unlocked_palette_ids(loop._player_progress)
+    assert "neon" not in unlocked
+    for expected_id in unlocked[1:]:
+        _press(loop, null_input, "menu_right")
+        assert loop.palette_id == expected_id
     _press(loop, null_input, "menu_right")
     assert loop.palette_id == "classic"  # enrola sem passar por "neon"
 

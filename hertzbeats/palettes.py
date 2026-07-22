@@ -24,14 +24,33 @@ PALETTE_CATALOG: Dict[str, Dict] = {
         "threat_pink_rgb": (190, 90, 255),
         "unlock_rank": "SS",
     },
+    "colorblind": {
+        "label": "Daltonico (Laranja/Azul)",
+        # Par Okabe-Ito (seguro pro daltonismo mais comum): laranja e azul
+        # sao distinguiveis nas 3 formas principais de daltonismo, ao
+        # contrario do azul/rosa "classic" (proximos demais na percepcao
+        # de protanopia/deuteranopia).
+        "threat_blue_rgb": (86, 180, 233),
+        "threat_pink_rgb": (230, 159, 0),
+        "unlock_rank": None,
+    },
+    "monochrome": {
+        "label": "Monocromatico (Branco/Cinza)",
+        "threat_blue_rgb": (225, 225, 230),
+        "threat_pink_rgb": (120, 120, 130),
+        "unlock_rank": None,
+    },
 }
 """Catalogo de paletas cosmeticas -- so recolore os 2 tints de Polaridade
 (`HertzConfig.threat_blue_rgb`/`threat_pink_rgb`); o Anel de Convergencia
 herda a cor da ameaca automaticamente (`RadialRhythmSpawnerSystem.
 _spawn_convergence_ring`), sem precisar de um campo proprio. "classic" e'
-o default de sempre (`unlock_rank=None`, sempre disponivel); as demais
-exigem ter alcancado aquele Rank (ou melhor) em PELO MENOS uma fase/
-musica salva em `player_progress.json` -- ver `unlocked_palette_ids`."""
+o default de sempre (`unlock_rank=None`, sempre disponivel); "gold_silver"/
+"neon" sao RECOMPENSAS (exigem Rank S/SS nalguma fase/musica salva --
+ver `unlocked_palette_ids`); "colorblind"/"monochrome" sao ACESSIBILIDADE
+-- `unlock_rank=None` de proposito, disponiveis pra QUALQUER jogador desde
+o inicio (jamais faz sentido condicionar uma opcao de acessibilidade a
+desempenho/progresso)."""
 
 DEFAULT_PALETTE_ID = "classic"
 

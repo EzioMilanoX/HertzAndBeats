@@ -318,6 +318,11 @@ class LaneJudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+        # Acessibilidade -- Hit-Error Meter/Histograma: delta ASSINADO na
+        # convencao "atual - esperado" (negativo=cedo, positivo=tarde) --
+        # `deltas` guarda o INVERSO (`target_hit_time_sec - agora`), por
+        # isso negativa aqui antes de gravar.
+        state.record_hit_delta(-float(deltas[best_row]))
         # Combo Pitch Shift: mesmo truque Zero-GC do canhao do Defensor --
         # so escolhe qual variante ja sintetizada tocar, nunca faz
         # pitch-shift em tempo real.

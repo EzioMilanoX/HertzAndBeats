@@ -50,6 +50,27 @@ COSMETICO -- mesma categoria de `_judgment_line_color`'s pulso (fora da
 disciplina Zero-GC/determinismo do gameplay, que continua 100%
 `IAudioClock`)."""
 
+_RESULTS_HISTOGRAM_BAR_WIDTH = 14
+_RESULTS_HISTOGRAM_BAR_GAP = 4
+_RESULTS_HISTOGRAM_MAX_HEIGHT = 50
+_RESULTS_HISTOGRAM_COLOR = (140, 130, 200)
+_RESULTS_HISTOGRAM_CENTER_COLOR = (255, 214, 64)
+"""Acessibilidade -- Histograma de Resultados: barras verticais sobre
+`HertzGameLoop._results_histogram` (`compute_hit_error_histogram`,
+`game_state.py`) -- a barra do MEIO (faixa mais proxima do tempo exato)
+vem destacada em dourado, o resto em lilás neutro."""
+
+_HIT_ERROR_METER_WIDTH = 220
+_HIT_ERROR_METER_RANGE_SECONDS = 0.15
+_HIT_ERROR_METER_RECENT_TICKS = 20
+_HIT_ERROR_METER_COLOR = (200, 195, 240)
+"""Acessibilidade -- Hit-Error Meter: barra fixa perto do rodape
+mostrando os ULTIMOS `_HIT_ERROR_METER_RECENT_TICKS` acertos como riscos
+(esquerda=cedo, direita=tarde, centro=no tempo exato) -- ensina o
+jogador a corrigir o proprio ritmo visualmente (classico do Osu!/
+StepMania). `_HIT_ERROR_METER_RANGE_SECONDS` e a escala da barra inteira
+(mesma ordem de grandeza da janela de MISS)."""
+
 _REACTIVE_BG_BAR_COUNT = 12
 _REACTIVE_BG_MAX_HEIGHT = 60
 _REACTIVE_BG_COLOR = (60, 45, 110)
@@ -227,6 +248,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_score_multiplier: float = 1.0
         self._overlay_vault_stats: Optional[dict] = None
         self._overlay_calibration_progress: Optional[tuple] = None
+        self._overlay_hit_error_histogram: Optional[tuple] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
@@ -249,6 +271,9 @@ class HBPygameRenderer(PygameRenderer):
         self._ghost_trail_count: int = 0
         self._glitch_intensity: float = 0.0
         self._background_intensity: float = 0.0
+        self._hit_error_buffer = None
+        self._hit_error_write_index: int = 0
+        self._hit_error_filled_count: int = 0
         self._spark_xs = None
         self._spark_ys = None
         self._spark_angles = None
@@ -287,6 +312,7 @@ class HBPygameRenderer(PygameRenderer):
         score_multiplier: float = 1.0,
         vault_stats: Optional[dict] = None,
         calibration_progress: Optional[tuple] = None,
+        hit_error_histogram: Optional[tuple] = None,
     ) -> None:
         """Publica o estado do Novo Fluxo de Menus (Experiencia Arcade) a
         desenhar sobre o frame: `None` (jogando, sem overlay) ou uma das
@@ -302,6 +328,9 @@ class HBPygameRenderer(PygameRenderer):
         `preflight_stage_index` + `score_multiplier` (Meta-Jogo --
         Multiplicador de Pontuacao, previa ao vivo). `vault_stats`/
         `calibration_progress`: dados agregados das telas dedicadas.
+        `hit_error_histogram` (Acessibilidade, so em "results"): tupla de
+        `RESULTS_HISTOGRAM_BIN_COUNT` contagens ja prontas
+        (`compute_hit_error_histogram`, calculada 1x na transicao).
         Chamado pelo `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_modifier_panel = modifier_panel
@@ -320,6 +349,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_score_multiplier = float(score_multiplier)
         self._overlay_vault_stats = vault_stats
         self._overlay_calibration_progress = calibration_progress
+        self._overlay_hit_error_histogram = hit_error_histogram
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -441,6 +471,67 @@ class HBPygameRenderer(PygameRenderer):
                 continue
             rect = pygame.Rect(int(i * bar_width), self._height - height, int(bar_width) + 1, height)
             pygame.draw.rect(self._surface, _REACTIVE_BG_COLOR, rect)
+
+    def set_hit_error_data(self, buffer, write_index: int, filled_count: int) -> None:
+        """Acessibilidade -- Hit-Error Meter: publica a MESMA referencia
+        do RingBuffer de `GameState.hit_delta_buffer` (nunca uma copia)
+        mais o cursor de escrita e quantos slots ja tem dado de verdade.
+        `buffer=None` (fora de `FLOW_PLAYING`) desliga o desenho."""
+        self._hit_error_buffer = buffer
+        self._hit_error_write_index = int(write_index)
+        self._hit_error_filled_count = int(filled_count)
+
+    def _draw_hit_error_meter(self) -> None:
+        """Barra fixa perto do rodape com os ULTIMOS acertos como riscos
+        verticais -- esquerda=cedo, direita=tarde, o risco dourado no
+        centro marca "no tempo exato". So os `_HIT_ERROR_METER_RECENT_TICKS`
+        mais recentes aparecem, esmaecendo do mais novo (opaco) ao mais
+        antigo (quase invisivel)."""
+        if self._hit_error_buffer is None or self._hit_error_filled_count == 0:
+            return
+        center_x = self._width // 2
+        y = self._height - 34
+        half_width = _HIT_ERROR_METER_WIDTH // 2
+        pygame.draw.line(self._surface, (90, 85, 120), (center_x - half_width, y), (center_x + half_width, y), 2)
+        pygame.draw.line(self._surface, (255, 214, 64), (center_x, y - 7), (center_x, y + 7), 2)
+
+        capacity = self._hit_error_buffer.shape[0]
+        count = min(self._hit_error_filled_count, _HIT_ERROR_METER_RECENT_TICKS)
+        for i in range(count):
+            slot = (self._hit_error_write_index - 1 - i) % capacity
+            delta = float(self._hit_error_buffer[slot])
+            clamped = max(-_HIT_ERROR_METER_RANGE_SECONDS, min(_HIT_ERROR_METER_RANGE_SECONDS, delta))
+            x = center_x + int((clamped / _HIT_ERROR_METER_RANGE_SECONDS) * half_width)
+            fade = 1.0 - (i / count)
+            color = tuple(int(c * (0.25 + 0.75 * fade)) for c in _HIT_ERROR_METER_COLOR)
+            pygame.draw.line(self._surface, color, (x, y - 9), (x, y + 9), 2)
+
+    def _draw_hit_error_histogram(self, center_x: int, y: int) -> int:
+        """Acessibilidade -- Histograma de Resultados: barras verticais
+        sobre `_overlay_hit_error_histogram` (contagens JA prontas,
+        `compute_hit_error_histogram` -- nenhum bucketing aqui). A barra
+        do MEIO (faixa mais proxima do tempo exato) fica destacada em
+        dourado. `None`/tudo zerado (fase sem PERFECT/GOOD nenhum) e um
+        no-op silencioso."""
+        histogram = self._overlay_hit_error_histogram
+        if not histogram:
+            return 0
+        peak = max(histogram)
+        if peak <= 0:
+            return 0
+        bin_count = len(histogram)
+        center_bin = bin_count // 2
+        total_width = bin_count * _RESULTS_HISTOGRAM_BAR_WIDTH + (bin_count - 1) * _RESULTS_HISTOGRAM_BAR_GAP
+        start_x = center_x - total_width // 2
+        for i, count in enumerate(histogram):
+            height = int(_RESULTS_HISTOGRAM_MAX_HEIGHT * (count / peak))
+            if height <= 0:
+                continue
+            color = _RESULTS_HISTOGRAM_CENTER_COLOR if i == center_bin else _RESULTS_HISTOGRAM_COLOR
+            x = start_x + i * (_RESULTS_HISTOGRAM_BAR_WIDTH + _RESULTS_HISTOGRAM_BAR_GAP)
+            rect = pygame.Rect(x, y + (_RESULTS_HISTOGRAM_MAX_HEIGHT - height), _RESULTS_HISTOGRAM_BAR_WIDTH, height)
+            pygame.draw.rect(self._surface, color, rect)
+        return _RESULTS_HISTOGRAM_MAX_HEIGHT
 
     def set_glitch_intensity(self, intensity: float) -> None:
         """Modificador "Corrupcao": `0.0` (desligado, `_draw_glitch_bars`
@@ -629,6 +720,7 @@ class HBPygameRenderer(PygameRenderer):
             self._draw_overlay()
         if self._notice_key is not None:
             self._blit_centered(self._notice_key, self._width // 2, 64)
+        self._draw_hit_error_meter()
         self._draw_glitch_bars()
         self._draw_low_health_danger()
         super().end_frame()
@@ -990,6 +1082,7 @@ class HBPygameRenderer(PygameRenderer):
             # transicao pra resultados (calculado 1x, nunca por frame).
             if self._overlay_rank is not None:
                 y += self._blit_centered(f"rank_{self._overlay_rank}", center_x, y) + 10
+            y += self._draw_hit_error_histogram(center_x, y + 8)
             self._blit_centered("hint_results", center_x, self._height - 110)
 
     # -- O Novo Fluxo de Menus (Experiencia Arcade) -----------------------
