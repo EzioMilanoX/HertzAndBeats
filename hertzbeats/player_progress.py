@@ -83,3 +83,17 @@ def record_stage_cleared(
             f,
         )
     return progress
+
+
+def delete_progress(path: str = PLAYER_PROGRESS_PATH) -> None:
+    """Developer Tools -- Reset de Save (Wipe): apaga `player_progress.json`
+    do disco, se existir. `Path.unlink(missing_ok=True)` (nao
+    `os.remove`, que levantaria `FileNotFoundError` num arquivo ja
+    ausente) -- cross-platform de verdade (Windows/Linux/Mac, mesmo
+    `pathlib` usado no resto deste modulo) e idempotente: chamar 2x
+    seguidas (ou num progresso que nunca existiu) nunca levanta. NAO
+    mexe em `player_lifetime_stats.json`/`user_settings.json` -- so' o
+    progresso de fases/musicas. Quem chama (`HertzGameLoop`) tambem
+    precisa zerar o cache em-memoria (`self._player_progress = {}`),
+    nunca feito automaticamente aqui (esta funcao so' cuida do disco)."""
+    Path(path).unlink(missing_ok=True)

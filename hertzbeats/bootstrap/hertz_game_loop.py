@@ -27,7 +27,7 @@ from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.interfaces.renderer import IRenderer
 
 from hertzbeats.audio.demo_track_synth import ensure_track
-from hertzbeats.audio.sfx_synth import SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK
+from hertzbeats.audio.sfx_synth import SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK, SFX_BOMB, SFX_UNLOCK_ALL
 from hertzbeats.bootstrap.rhythm_composition_root import (
     ComposedGame,
     compose_world,
@@ -39,7 +39,12 @@ from hertzbeats.config import HertzConfig
 from hertzbeats.modchart import chapters_to_modchart_events
 from hertzbeats.game_state import RANK_ORDER, compute_hit_error_histogram, compute_rank
 from hertzbeats.music_library import USER_BEATMAP_DIR, USER_MUSIC_DIR
-from hertzbeats.player_progress import PLAYER_PROGRESS_PATH, load_progress, record_stage_cleared
+from hertzbeats.player_progress import (
+    PLAYER_PROGRESS_PATH,
+    delete_progress,
+    load_progress,
+    record_stage_cleared,
+)
 from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_stats
 from hertzbeats.stages import StageDef, campaign_ids, read_stage_bpm_and_duration, resolve_stage_config
 from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
@@ -98,6 +103,14 @@ _RESULTS_GRACE_SECONDS = 1.0
 _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
+
+_UNLOCK_ALL_SEQUENCE = ("menu_up", "menu_up", "menu_down", "menu_down", "menu_left", "menu_right")
+"""Developer Tools -- Unlock All: roteiro reduzido do Konami Code
+(Cima/Cima/Baixo/Baixo/Esquerda/Direita), escutado SO' em `FLOW_TITLE`
+(`HertzGameLoop._advance_unlock_all_code`) via as acoes de menu JA
+existentes (`menu_up`/`menu_down`/`menu_left`/`menu_right` -- setas OU
+WASD, `data/input_bindings/default_keyboard.json`), nenhuma tecla nova
+precisou ser mapeada."""
 
 _NEUTRAL_PALETTE_RGB = (255, 255, 255)
 """Estetica Reativa -- Paleta Dinamica: "sem tint ativo" (multiplicar
@@ -417,6 +430,25 @@ class HertzGameLoop(GameLoop):
         self._session_playtime_seconds = 0.0  # tempo desta tentativa, zerado a cada RESULTS/GAME_OVER
         self._user_settings_path = user_settings_path
         self._palette_id = palette_id if palette_id in PALETTE_CATALOG else DEFAULT_PALETTE_ID
+
+        # Developer Tools (Cheats): flags de SESSAO (sobrevivem a troca
+        # de `GameState` entre fases, ao contrario de `GameState.bot_mode`
+        # em si, recriado do zero a cada `_compose_stage`).
+        self._bot_mode_enabled = False
+        """Auto-Play (Modo Deus): ligado/desligado por F12 em
+        `FLOW_PREFLIGHT` (`_advance_preflight`); copiado pra
+        `GameState.bot_mode` no instante exato de `_start_stage`, ja que
+        aquele objeto e' recriado a cada fase e nao sobrevive sozinho."""
+        self._debug_unlock_all = False
+        """Unlock All: liga permanentemente pelo resto da sessao ao
+        completar `_UNLOCK_ALL_SEQUENCE` na Tela de Titulo -- consultado
+        por `is_campaign_entry_locked` (fonte unica ja usada tanto pelo
+        aviso "FASE TRANCADA" do Carrossel quanto pelo guard de
+        confirmar em `_advance_carousel`), NUNCA em `GameState` (o
+        travamento de campanha e' um conceito do `HertzGameLoop`/
+        `player_progress`, sem nenhuma relacao com o placar de uma
+        fase)."""
+        self._unlock_code_progress = 0  # posicao atual dentro de `_UNLOCK_ALL_SEQUENCE`
 
         # O Novo Fluxo de Menus (Experiencia Arcade)
         self._hub_cursor = 0
@@ -773,6 +805,11 @@ class HertzGameLoop(GameLoop):
     def _start_stage(self, stage_index: int) -> None:
         """Recompoe a fase e inicia a musica do zero -> PLAYING."""
         self._compose_stage(stage_index)
+        # Developer Tools -- Auto-Play: `GameState` acabou de ser
+        # recriado do zero por `_compose_stage` -- copia o TOGGLE de
+        # sessao (F12 em Preflight) pra cada fase nova, ja que o objeto
+        # em si nao sobrevive sozinho de uma fase pra outra.
+        self._composed.game_state.bot_mode = self._bot_mode_enabled
         self._apply_playfield()
         stage = self._stages[stage_index]
         if stage.track_path:
@@ -917,6 +954,7 @@ class HertzGameLoop(GameLoop):
 
     def _advance_title(self) -> None:
         inp = self._input_provider
+        self._advance_unlock_all_code(inp)
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
             if self._title_track_path and hasattr(self._audio_engine, "stop_track"):
                 self._audio_engine.stop_track("title")
@@ -924,10 +962,41 @@ class HertzGameLoop(GameLoop):
         elif inp.is_action_pressed("pause"):
             self.stop()  # ESC na Tela de Titulo encerra o jogo (e a tela mais externa)
 
+    def _advance_unlock_all_code(self, inp: IInputProvider) -> None:
+        """Developer Tools -- Unlock All: buffer invisivel de input SO'
+        na Tela de Titulo, escutando `_UNLOCK_ALL_SEQUENCE` (roteiro
+        reduzido do Konami Code). Qualquer acao de menu ERRADA reinicia
+        o progresso do zero -- exceto quando a propria tecla errada JA e'
+        o 1o passo certo (Cima), caso em que o progresso reinicia A
+        PARTIR dali em vez de exigir soltar tudo primeiro (mesma
+        tolerancia de implementacoes classicas do codigo). Uma vez
+        completa, `_debug_unlock_all` fica ligado pelo RESTO da sessao
+        -- nenhuma tela desliga de novo."""
+        if self._debug_unlock_all:
+            return
+        pressed = [
+            action for action in ("menu_up", "menu_down", "menu_left", "menu_right")
+            if inp.is_action_pressed(action)
+        ]
+        if not pressed:
+            return
+        expected = _UNLOCK_ALL_SEQUENCE[self._unlock_code_progress]
+        if expected in pressed:
+            self._unlock_code_progress += 1
+            if self._unlock_code_progress == len(_UNLOCK_ALL_SEQUENCE):
+                self._debug_unlock_all = True
+                self._unlock_code_progress = 0
+                self._audio_engine.play_one_shot(SFX_UNLOCK_ALL, 0.8)
+        else:
+            self._unlock_code_progress = 1 if pressed[0] == _UNLOCK_ALL_SEQUENCE[0] else 0
+
     # -- HUB Principal ------------------------------------------------------
 
     def _advance_hub(self) -> None:
         inp = self._input_provider
+        if inp.is_action_pressed("wipe_save"):
+            self._reset_player_progress()
+            return
         if inp.is_action_pressed("menu_down"):
             self._hub_cursor = (self._hub_cursor + 1) % len(HUB_CATEGORIES)
         if inp.is_action_pressed("menu_up"):
@@ -953,6 +1022,22 @@ class HertzGameLoop(GameLoop):
                 self._enter_download_hub()
         elif inp.is_action_pressed("pause"):
             self._enter_title()  # ESC no HUB volta pra Tela de Titulo (nunca encerra o jogo daqui)
+
+    def _reset_player_progress(self) -> None:
+        """Developer Tools -- Reset de Save (Wipe): CTRL+SHIFT+DEL no HUB
+        ou no Vault apaga `player_progress.json` do disco
+        (`delete_progress`, cross-platform via `pathlib`) e zera o cache
+        em-memoria na MESMA chamada -- sem isso, `self._player_progress`
+        continuaria com o conteudo antigo ate o proximo restart do jogo,
+        mesmo com o arquivo ja apagado. NAO mexe em
+        `player_lifetime_stats.json`/`user_settings.json` (Estatisticas
+        Globais/paleta escolhida sobrevivem ao reset -- so' o progresso
+        de fases/musicas e' o "save" aqui). SFX de explosao/erro
+        (`SFX_BOMB`, ja existente -- nenhum som novo precisou ser
+        sintetizado so' pra isso)."""
+        delete_progress(self._player_progress_path)
+        self._player_progress = {}
+        self._audio_engine.play_one_shot(SFX_BOMB, 0.9)
 
     # -- Carrossel de Musicas ------------------------------------------------
 
@@ -1039,7 +1124,15 @@ class HertzGameLoop(GameLoop):
         ate a ANTERIOR (na MESMA campanha) ter sido vencida ao menos uma
         vez (`stage_id in player_progress`) -- a PRIMEIRA posicao de
         CADA campanha nunca tranca (progressoes independentes: comecar
-        o Arcade nao exige terminar o Defensor antes)."""
+        o Arcade nao exige terminar o Defensor antes).
+
+        Developer Tools -- Unlock All: `_debug_unlock_all` (Konami Code
+        na Tela de Titulo) faz TUDO destrancar -- fonte UNICA lida tanto
+        pelo aviso "FASE TRANCADA" do Carrossel quanto pelo guard de
+        confirmar em `_advance_carousel`, entao os 2 lugares nunca
+        divergem."""
+        if self._debug_unlock_all:
+            return False
         if position <= 0:
             return False
         entries = self.campaign_entries_for(campaign_id)
@@ -1375,8 +1468,17 @@ class HertzGameLoop(GameLoop):
         em vez de aninhada); fases curadas mostram os modifiers FIXOS
         (so leitura -- a Campanha existe justamente pela dificuldade
         curada e crescente), so A/D (Lado B/Remix, quando a fase tiver um
-        -- ver `StageDef.b_side_name`) e START sao interativos."""
+        -- ver `StageDef.b_side_name`) e START sao interativos.
+
+        Developer Tools -- Auto-Play (F12): alterna `_bot_mode_enabled`
+        ANTES de qualquer branch (funciona tanto em fases curadas quanto
+        em musicas do jogador -- facilita testar Campanha E geracao de
+        beatmap). So' um TOGGLE de sessao aqui; o valor real so' chega em
+        `GameState.bot_mode` no instante de `_start_stage`, que recompoe
+        um `GameState` novo a cada fase."""
         inp = self._input_provider
+        if inp.is_action_pressed("toggle_bot_mode"):
+            self._bot_mode_enabled = not self._bot_mode_enabled
         stage_index = self._preflight_stage_index
         stage = self._stages[stage_index]
 
@@ -1484,6 +1586,9 @@ class HertzGameLoop(GameLoop):
 
     def _advance_vault(self) -> None:
         inp = self._input_provider
+        if inp.is_action_pressed("wipe_save"):
+            self._reset_player_progress()
+            return
         if inp.is_action_pressed("menu_right"):
             self._cycle_palette(+1)
         if inp.is_action_pressed("menu_left"):
@@ -1928,6 +2033,21 @@ class HertzGameLoop(GameLoop):
         )
         self._renderer.set_low_health_danger(active)
 
+    def _sync_bot_mode_indicator(self) -> None:
+        """Developer Tools -- Auto-Play: liga o indicador piscante
+        "[ AUTO-PLAY ]" do renderer exatamente durante `FLOW_PLAYING`
+        com `GameState.bot_mode` ligado -- mesma familia de
+        sincronizacao de `_sync_low_health_danger`/`_sync_blindness`
+        (fora de PLAYING, ou entre uma fase e outra, sempre desliga)."""
+        if not hasattr(self._renderer, "set_bot_mode_active"):
+            return
+        active = (
+            self._flow == FLOW_PLAYING
+            and self._composed is not None
+            and self._composed.game_state.bot_mode
+        )
+        self._renderer.set_bot_mode_active(active)
+
     def _sync_ghost_trail(self) -> None:
         """Juice Visual -- Ghost Trails: grava a posicao ATUAL da mira no
         RingBuffer do renderer, so durante `FLOW_PLAYING` no Defensor
@@ -2097,6 +2217,7 @@ class HertzGameLoop(GameLoop):
             self._sync_camera_shake()
             self._sync_blindness()
             self._sync_low_health_danger()
+            self._sync_bot_mode_indicator()
             self._sync_ghost_trail()
             self._sync_corruption_glitch()
             self._sync_reactive_background()

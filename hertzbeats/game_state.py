@@ -120,6 +120,7 @@ class GameState:
         "hit_delta_buffer",
         "hit_delta_write_index",
         "hit_delta_filled_count",
+        "bot_mode",
     )
 
     def __init__(
@@ -275,6 +276,17 @@ class GameState:
         tamanho FIXO (nunca alocado por acerto) com os deltas assinados
         de cada PERFECT/GOOD -- `record_hit_delta` e' o UNICO jeito de
         escrever nele (mesmo criterio de `trigger_shake`)."""
+        self.bot_mode: bool = False
+        """Developer Tools -- Auto-Play (Modo Deus): quando `True`,
+        `JudgmentSystem` ignora por completo o `PlayerInputSystem` e
+        resolve toda ameaca do Defensor como PERFECT assim que o tempo
+        entra na janela PERFECT dela (ver `JudgmentSystem._run_bot_mode`).
+        Ligado por F12 em `FLOW_PREFLIGHT`
+        (`HertzGameLoop._advance_preflight`) -- o TOGGLE em si vive em
+        `HertzGameLoop._bot_mode_enabled` (sobrevive a troca de
+        `GameState` entre fases) e e' copiado pra ca em `_start_stage`,
+        no instante exato da composicao; nenhum sistema ESCREVE este
+        campo depois disso, so' le."""
 
     def record_hit_delta(self, delta_seconds: float) -> None:
         """Acessibilidade -- Hit-Error Meter/Histograma de Resultados:

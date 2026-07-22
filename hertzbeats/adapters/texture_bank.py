@@ -421,6 +421,11 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
 
     register_text("press_space", hint_font, "PRESSIONE ESPACO", _DIGIT_COLOR)
     register_text("stage_locked", hint_font, "TRANCADA -- vença a fase anterior primeiro", _MISS_COLOR)
+    register_text("auto_play_active", hint_font, "[ AUTO-PLAY ]", _PERFECT_COLOR)
+    """Developer Tools -- Auto-Play (Modo Deus): indicador piscante
+    exibido durante FLOW_PLAYING enquanto `GameState.bot_mode` estiver
+    ligado (`HBPygameRenderer.end_frame`, mesmo criterio de piscar de
+    `press_space` -- alfa em seno sobre o relogio de parede)."""
     register_text("slash", stage_font, "/", _LABEL_COLOR)
     register_text("colon", stage_font, ":", _LABEL_COLOR)
 

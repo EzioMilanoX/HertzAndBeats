@@ -1333,6 +1333,7 @@ class RhythmCompositionRoot:
             SFX_PARRY,
             SFX_SHIELD_BREAK,
             SFX_TAP,
+            SFX_UNLOCK_ALL,
             ensure_sfx,
         )
         from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
@@ -1389,7 +1390,7 @@ class RhythmCompositionRoot:
         for sound_id in (
             SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY,
             SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB, SFX_HEAL,
-            SFX_MISS, SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK,
+            SFX_MISS, SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK, SFX_UNLOCK_ALL,
             *SFX_CANNON_VARIANTS, *SFX_NOTE_HIT_VARIANTS,
         ):
             audio_engine.preload_one_shot(sound_id)

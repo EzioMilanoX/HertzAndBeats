@@ -20,5 +20,6 @@
   "latency_up": "KEY_=",
   "latency_down": "KEY_-",
   "cycle_view_next": ["KEY_TAB", "KEY_E"],
-  "cycle_view_prev": "KEY_Q"
+  "cycle_view_prev": "KEY_Q",
+  "toggle_bot_mode": "KEY_F12"
 }

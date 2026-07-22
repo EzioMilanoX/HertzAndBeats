@@ -143,13 +143,18 @@ class HBPygameInputProvider(PygameInputProvider):
                     break
             current[action_name] = held
 
-        # Pipeline de Importacao Direta (Ctrl+V): um CASO UNICO de
-        # combinacao de teclas -- fora do esquema geral de
-        # `data/input_bindings/*.json` (um codigo por acao, OR entre
-        # varios) de proposito, ja que nenhuma OUTRA acao do jogo
-        # precisa de uma combinacao (nunca vale a pena generalizar um
-        # mecanismo de "chord" pra um unico caso de uso).
+        # Pipeline de Importacao Direta (Ctrl+V) + Developer Tools --
+        # Reset de Save (Ctrl+Shift+Del): combinacoes de teclas fora do
+        # esquema geral de `data/input_bindings/*.json` (um codigo por
+        # acao, OR entre varios) de proposito -- nenhuma OUTRA acao do
+        # jogo precisa de uma combinacao (nunca vale a pena generalizar
+        # um mecanismo de "chord" pra 2 casos de uso isolados).
         current["paste"] = bool(keys[pygame.K_v]) and (bool(keys[pygame.K_LCTRL]) or bool(keys[pygame.K_RCTRL]))
+        current["wipe_save"] = (
+            bool(keys[pygame.K_DELETE])
+            and (bool(keys[pygame.K_LCTRL]) or bool(keys[pygame.K_RCTRL]))
+            and (bool(keys[pygame.K_LSHIFT]) or bool(keys[pygame.K_RSHIFT]))
+        )
 
         self._current_held = current
 

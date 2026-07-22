@@ -318,6 +318,13 @@ class HBPygameRenderer(PygameRenderer):
         self._download_error_surface: Optional[pygame.Surface] = None
         self._download_pasted_url_surface: Optional[pygame.Surface] = None
         self._notice_key: Optional[str] = None
+        self._bot_mode_active: bool = False
+        """Developer Tools -- Auto-Play: liga o indicador piscante
+        "[ AUTO-PLAY ]" em `end_frame` -- campo SEPARADO de `_notice_key`
+        de proposito (nunca compartilha o mesmo slot): notices como
+        `latency_X`/`ironman_progress_N` ja aparecem DURANTE
+        `FLOW_PLAYING`/`FLOW_PAUSED`, e um unico slot compartilhado faria
+        um brigar com o outro pela mesma Surface a cada frame."""
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
         self._flow_tier: int = 0
@@ -449,6 +456,13 @@ class HBPygameRenderer(PygameRenderer):
         calibracao de latencia), desenhado no topo em QUALQUER estado --
         inclusive durante o gameplay. `None` oculta."""
         self._notice_key = key
+
+    def set_bot_mode_active(self, active: bool) -> None:
+        """Developer Tools -- Auto-Play: liga/desliga o indicador
+        piscante "[ AUTO-PLAY ]" (`end_frame`). Chamado todo frame por
+        `HertzGameLoop._sync_bot_mode_indicator` -- mesma familia de
+        `set_low_health_danger`."""
+        self._bot_mode_active = bool(active)
 
     def set_flow_mode(self, active: bool) -> None:
         """Flow State (Arcade 4K): escurece o fundo da arena enquanto o
@@ -818,10 +832,28 @@ class HBPygameRenderer(PygameRenderer):
             self._draw_overlay()
         if self._notice_key is not None:
             self._blit_centered(self._notice_key, self._width // 2, 64)
+        self._draw_bot_mode_indicator()
         self._draw_hit_error_meter()
         self._draw_glitch_bars()
         self._draw_low_health_danger()
         super().end_frame()
+
+    def _draw_bot_mode_indicator(self) -> None:
+        """Developer Tools -- Auto-Play: "[ AUTO-PLAY ]" piscando (alfa
+        em seno sobre o relogio de parede, MESMO criterio de
+        `_draw_title_overlay`'s "press_space") -- desenhado ABAIXO do
+        `_notice_key` (y=104 vs y=64) pra nunca sobrepor um aviso
+        transiente que calhe de aparecer ao mesmo tempo (ex.: ajuste de
+        latencia com Auto-Play ligado)."""
+        if not self._bot_mode_active:
+            return
+        surface = self._overlay_surfaces.get("auto_play_active")
+        if surface is None:
+            return
+        blink = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 260.0)
+        surface.set_alpha(int(90 + blink * 165))
+        self._surface.blit(surface, (self._width // 2 - surface.get_width() // 2, 104))
+        surface.set_alpha(255)
 
     def _draw_low_health_danger(self) -> None:
         """Danger Visual (1 de vida): aberracao cromatica -- uma copia

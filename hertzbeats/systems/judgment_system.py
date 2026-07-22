@@ -262,6 +262,13 @@ class JudgmentSystem(ISystem):
         mesmo criterio dos timers de i-frame/cooldown do
         `PlayerInputSystem`.
         """
+        # Developer Tools -- Auto-Play (Modo Deus): `bot_mode` substitui
+        # o resto deste metodo por completo -- `_run_bot_mode` nunca lê
+        # `PlayerInputSystem` (nem `fire`/mira), ver seu docstring.
+        if self._game_state.bot_mode:
+            self._run_bot_mode(world)
+            return
+
         player_row = self._player_pool.dense_row_of(self._player_entity_index)
         gun_jammed = float(self._player_pool.active_view()["gun_jam_sec"][player_row]) > 0.0
 
@@ -363,6 +370,91 @@ class JudgmentSystem(ISystem):
 
         for polarity in triggered_polarities:
             self._try_player_hit(world, threat_view, deltas, active_count, polarity)
+
+    def _run_bot_mode(self, world: World) -> None:
+        """Developer Tools -- Auto-Play (Modo Deus, `GameState.bot_mode`):
+        ligado por F12 em `FLOW_PREFLIGHT`
+        (`HertzGameLoop._advance_preflight`), pra facilitar teste de
+        campanhas/geracao de beatmap sem precisar jogar manualmente.
+        IGNORA por completo o `PlayerInputSystem` -- nenhuma leitura de
+        `is_action_pressed`/mira acontece aqui. Toda ameaca PENDENTE
+        deste juiz (Defensor) e resolvida como PERFECT no EXATO instante
+        em que `agora_efetivo` entra na janela PERFECT dela
+        (`delta <= perfect_window`), sem checar mira/cor/tipo -- uma
+        ameaca ja atrasada (delta bem negativo) tambem satisfaz essa
+        condicao, entao nada fica preso PENDING pra sempre mesmo se o
+        modo for ligado com ameacas ja em voo.
+
+        Escopo DELIBERADO de cheat, nao de mecanica real: Parry/Hold/
+        Captura Orbital nao sao reproduzidos (nenhuma reflexao/
+        sustentacao/orbita) -- toda ameaca especial e' so destruida como
+        PERFECT comum, o suficiente pra validar o RITMO do beatmap sem
+        replicar toda a fisica secundaria dessas mecanicas.
+
+        ZERO-GC: reusa os MESMOS buffers pre-alocados no construtor
+        (`_delta_buffer`/`_owned_mask`/`_scratch_mask`/`_engaged_mask`/
+        `_heavy_mask`/`_orbiting_mask`/`_candidate_mask`) -- seguro
+        porque este metodo SUBSTITUI o resto de `update()` pro frame
+        inteiro (nunca roda ao lado do fluxo normal, sem conflito de
+        uso concorrente). `np.flatnonzero` + laco escalar final sobre as
+        poucas linhas prontas no frame: mesmo criterio ja aceito em
+        `_sweep_overdue_misses`/`_register_piercing_kill` (o numero de
+        candidatas simultaneas e tipicamente pequeno, vetorizar so'
+        complicaria sem ganho real)."""
+        active_count = self._threat_pool.count
+        if active_count == 0:
+            return
+
+        now_effective = max(
+            0.0, self._audio_clock.now_seconds() - self._audio_clock.get_output_latency_seconds(),
+        )
+        threat_view = self._threat_pool.active_view()
+        deltas = self._delta_buffer[:active_count]
+        np.subtract(threat_view["target_hit_time_sec"], now_effective, out=deltas)
+
+        # mesma exclusao de "pending" ja usada em `update()`: so ameacas
+        # RADIAIS (owned), ainda nao engajadas/refletidas/orbitando.
+        owned = self._owned_mask[:active_count]
+        np.equal(threat_view["mode_tag"], MODE_TAG_DEFENDER, out=owned)
+
+        pending = self._scratch_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(pending, owned, out=pending)
+
+        not_engaged = self._engaged_mask[:active_count]
+        np.logical_not(threat_view["is_hit"], out=not_engaged)
+        np.logical_and(pending, not_engaged, out=pending)
+
+        if self._heavy_threat_type_id is not None:
+            not_reflected = self._heavy_mask[:active_count]
+            np.logical_not(threat_view["is_reflected"], out=not_reflected)
+            np.logical_and(pending, not_reflected, out=pending)
+
+        if self._orbit_threat_type_id is not None:
+            not_orbiting = self._orbiting_mask[:active_count]
+            np.not_equal(threat_view["phase"], PHASE_ORBITING, out=not_orbiting)
+            np.logical_and(pending, not_orbiting, out=pending)
+
+        ready = self._candidate_mask[:active_count]
+        np.less_equal(deltas, self._perfect_window, out=ready)
+        np.logical_and(ready, pending, out=ready)
+
+        rows = np.flatnonzero(ready)
+        if rows.shape[0] == 0:
+            return
+
+        state = self._game_state
+        for row in rows:
+            row = int(row)
+            threat_view["is_hit"][row] = True
+            threat_view["judgment"][row] = JUDGMENT_PERFECT
+            world.destroy_entity(int(threat_view["packed_handle"][row]))
+            state.score += self._score_perfect
+            state.perfect_count += 1
+            state.combo_count += 1
+            if state.combo_count > state.max_combo:
+                state.max_combo = state.combo_count
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
 
     def _sweep_overdue_misses(
         self,

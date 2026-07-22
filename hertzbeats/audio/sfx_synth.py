@@ -34,6 +34,12 @@ a ARMA emperrar, nao sobre errar o tempo)."""
 
 SFX_ANNOUNCER_COMBO = "data/sfx/announcer_combo.wav"
 SFX_ANNOUNCER_RANK = "data/sfx/announcer_rank.wav"
+SFX_UNLOCK_ALL = "data/sfx/unlock_all.wav"
+"""Developer Tools -- Unlock All: chime de confirmacao ao completar a
+sequencia secreta (Cima/Cima/Baixo/Baixo/Esquerda/Direita) na Tela de
+Titulo (`HertzGameLoop._advance_unlock_all_code`). Reset de Save reusa
+`SFX_BOMB` (ja existente, "explosao/erro") em vez de um som dedicado --
+ver `HertzGameLoop._reset_player_progress`."""
 """Meta-Jogo -- Announcer: o jogo inteiro sintetiza audio proceduralmente
 (numpy puro, Zero-GC/deterministico, sem TTS nem gravacao -- ver
 `hertzbeats/audio/demo_track_synth.py`). Sem motor de texto-pra-fala
@@ -232,6 +238,23 @@ def _announcer_rank(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _unlock_all(sample_rate: int) -> np.ndarray:
+    """Developer Tools -- Unlock All: chime ascendente curto de 2 notas
+    (E5 -> A5) ao completar a sequencia secreta -- inequivoco e
+    distinto de qualquer SFX de gameplay, sem ser tao longo/triunfante
+    quanto `_announcer_rank` (isto e' so uma confirmacao de cheat, nao
+    uma celebracao de Rank)."""
+    length = int(0.35 * sample_rate)
+    note_length = length // 2
+    mix = np.zeros(length, dtype=np.float64)
+    for i, freq in enumerate((659.25, 880.0)):  # E5, A5
+        start = i * note_length
+        seg_t = np.arange(length - start) / sample_rate
+        tone = np.exp(-seg_t * 8.0) * np.sin(2 * np.pi * freq * seg_t)
+        mix[start:] += tone * 0.8
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -249,6 +272,7 @@ def ensure_sfx() -> None:
         (SFX_MISS, _miss),
         (SFX_ANNOUNCER_COMBO, _announcer_combo),
         (SFX_ANNOUNCER_RANK, _announcer_rank),
+        (SFX_UNLOCK_ALL, _unlock_all),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)
