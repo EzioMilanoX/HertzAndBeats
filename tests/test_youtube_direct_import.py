@@ -1,7 +1,6 @@
 """Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): deteccao de Ctrl+V, tela dedicada em 2 etapas (Previa -> Download), thread persistente e tratamento de erros."""
 import time
 
-import numpy as np
 import pygame
 import pytest
 
@@ -556,26 +555,3 @@ def test_draw_hub_overlay_renders_every_category_without_crashing(cursor_index):
     build_and_register_overlay_surfaces(renderer, (stage,))
     renderer.set_overlay("hub", hub_cursor=cursor_index)
     renderer._draw_overlay()  # nao deve levantar (nem em silencio pular uma categoria)
-
-
-def test_draw_hub_overlay_draws_a_button_box_around_import_music():
-    """"[ IMPORTAR MUSICA ]" (indice 5, ultima categoria) ganha uma
-    moldura retangular real (`pygame.draw.rect`) -- verificado
-    procurando pixels da cor da moldura na regiao onde o rotulo e'
-    desenhado, algo que uma categoria de texto puro (ex. "campaign",
-    indice 0) nunca produz."""
-    from hertzbeats.adapters.hb_pygame_renderer import _HUB_IMPORT_BUTTON_COLOR
-
-    stage = StageDef(
-        stage_id="s", name="FASE", subtitle="", track_path="", beatmap_path="unused",
-        synth=None, beatmap_params={}, overrides={},
-    )
-    renderer = HBPygameRenderer()
-    renderer.initialize(960, 960, "test")
-    build_and_register_overlay_surfaces(renderer, (stage,))
-    renderer.set_overlay("hub", hub_cursor=0)
-    renderer._draw_overlay()
-
-    pixels = pygame.surfarray.array3d(renderer._surface)
-    button_color = np.array(_HUB_IMPORT_BUTTON_COLOR)
-    assert np.any(np.all(pixels == button_color, axis=-1))

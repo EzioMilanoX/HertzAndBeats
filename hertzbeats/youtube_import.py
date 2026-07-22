@@ -9,12 +9,14 @@ funcoes deste modulo so devolvem dicts/tuplas simples, postados na
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from hertzbeats.music_library import (
     USER_BEATMAP_DIR,
@@ -31,7 +33,6 @@ _YOUTUBE_HOST_PATTERN = (
 _YOUTUBE_URL_PATTERN = re.compile(_YOUTUBE_HOST_PATTERN + r"[A-Za-z0-9_-]{6,}(?:[^\s]*)?")
 _YOUTUBE_VIDEO_ID_PATTERN = re.compile(_YOUTUBE_HOST_PATTERN + r"([A-Za-z0-9_-]{6,})")
 
-DEFAULT_YT_DLP_COMMAND = "yt-dlp"
 PREVIEW_THUMBNAIL_FILENAME = "preview.jpg"
 
 
@@ -114,11 +115,38 @@ def ffmpeg_available(which_fn: Callable[[str], Optional[str]] = shutil.which) ->
     return which_fn("ffmpeg") is not None
 
 
+def resolve_yt_dlp_command(
+    which_fn: Callable[[str], Optional[str]] = shutil.which,
+    module_finder: Callable[[str], Optional[object]] = importlib.util.find_spec,
+    python_executable: str = sys.executable,
+) -> Optional[List[str]]:
+    """Resolve os argumentos INICIAIS pra invocar yt-dlp (uma LISTA,
+    nunca uma string unica -- vira o prefixo do comando do subprocess).
+
+    Prefere o executavel no PATH (`shutil.which("yt-dlp")`); se ausente,
+    cai pra `<python_executable> -m yt_dlp` quando o PACOTE pip esta
+    instalado no MESMO interpretador rodando o jogo mas seu script de
+    entrada (`yt-dlp.exe`/`yt-dlp`) nao esta no PATH -- caso MUITO comum
+    no Windows com `pip install --user` (o pip so' AVISA que o script
+    ficou fora do PATH, nao falha a instalacao, e o jogador raramente le
+    esse aviso no meio da saida do pip). `python -m yt_dlp` funciona
+    INDEPENDENTE do PATH -- so precisa do pacote ser importavel.
+
+    `None` se nem o executavel nem o pacote existirem -- so' entao
+    `YtDlpNotFoundError` e' realmente justificado."""
+    which_path = which_fn("yt-dlp")
+    if which_path is not None:
+        return [which_path]
+    if module_finder("yt_dlp") is not None:
+        return [python_executable, "-m", "yt_dlp"]
+    return None
+
+
 def yt_dlp_available(which_fn: Callable[[str], Optional[str]] = shutil.which) -> bool:
-    """Presenca do `yt-dlp` no sistema (`shutil.which`, injetavel pra
-    testes) -- checado PROATIVAMENTE em AMBAS as etapas (Previa e
-    Download), antes de qualquer subprocess -- mesmo criterio de
-    `ffmpeg_available`."""
+    """Conveniencia booleana sobre `resolve_yt_dlp_command` (so' o
+    `which_fn`, sem checar o pacote importavel) -- usada por quem so
+    precisa saber "existe o executavel no PATH?", nao o comando
+    completo pra rodar."""
     return which_fn("yt-dlp") is not None
 
 
@@ -149,8 +177,7 @@ def fetch_youtube_preview(
     url: str,
     music_dir: str = USER_MUSIC_DIR,
     run_subprocess: Callable[..., "subprocess.CompletedProcess"] = subprocess.run,
-    yt_dlp_command: str = DEFAULT_YT_DLP_COMMAND,
-    yt_dlp_checker: Callable[[], bool] = yt_dlp_available,
+    yt_dlp_command_resolver: Callable[[], Optional[List[str]]] = resolve_yt_dlp_command,
 ) -> Dict:
     """ETAPA 1 (Previa): SO metadados + miniatura, NUNCA audio
     (`--skip-download`) -- `--dump-json` imprime o JSON no STDOUT
@@ -165,22 +192,24 @@ def fetch_youtube_preview(
     precisa pra continuar exatamente daqui (`video_id`/`url`/
     `preview_folder`).
 
-    Verifica `yt_dlp_checker()` (default `yt_dlp_available`, ou seja
-    `shutil.which("yt-dlp")`) PROATIVAMENTE antes do subprocess -- sem
-    isso, levanta `YtDlpNotFoundError` com uma mensagem clara em vez do
+    Resolve `yt_dlp_command_resolver()` (default `resolve_yt_dlp_command`
+    -- executavel no PATH, ou `python -m yt_dlp` se so o pacote pip
+    estiver instalado) PROATIVAMENTE antes do subprocess -- `None` vira
+    `YtDlpNotFoundError` com uma mensagem clara em vez do
     `FileNotFoundError`/`OSError` criptico do sistema operacional.
 
     Levanta `YoutubeImportError` se a URL nao tiver um video ID
     reconhecivel, se o subprocess falhar, ou se a saida nao for um JSON
     valido (yt-dlp desatualizado/pagina de erro capturada por engano)."""
-    if not yt_dlp_checker():
+    command_prefix = yt_dlp_command_resolver()
+    if command_prefix is None:
         raise YtDlpNotFoundError("yt-dlp nao encontrado no sistema -- instale com 'pip install yt-dlp'")
     folder = _destination_folder(url, music_dir)
     output_template = str(folder / "preview.%(ext)s")
 
     result = run_subprocess(
         [
-            yt_dlp_command,
+            *command_prefix,
             "--dump-json",
             "--skip-download",
             "--write-thumbnail",
@@ -228,8 +257,7 @@ def download_and_analyze_youtube_song(
     music_dir: str = USER_MUSIC_DIR,
     beatmap_dir: str = USER_BEATMAP_DIR,
     run_subprocess: Callable[..., "subprocess.CompletedProcess"] = subprocess.run,
-    yt_dlp_command: str = DEFAULT_YT_DLP_COMMAND,
-    yt_dlp_checker: Callable[[], bool] = yt_dlp_available,
+    yt_dlp_command_resolver: Callable[[], Optional[List[str]]] = resolve_yt_dlp_command,
     ffmpeg_checker: Callable[[], bool] = ffmpeg_available,
     analyzer: Callable[[Path, Path, str], None] = analyze_song,
 ) -> Tuple[str, Tuple[StageDef, ...]]:
@@ -239,19 +267,21 @@ def download_and_analyze_youtube_song(
     busca a miniatura de novo) e IMEDIATAMENTE analisa o beatmap
     (`music_library.scan_youtube_songs`, mesma IA offline de sempre).
 
-    Verifica `yt_dlp_checker()`/`ffmpeg_checker()` PROATIVAMENTE antes
-    do subprocess (nessa ordem -- `yt-dlp` e' a dependencia mais
-    fundamental) -- `yt-dlp --extract-audio` depende do `ffmpeg` pra
-    converter o audio baixado; sem qualquer um dos dois, levanta
-    `YtDlpNotFoundError`/`FFmpegNotFoundError` com uma mensagem clara em
-    vez de deixar o subprocess falhar com um erro interno criptico.
+    Resolve `yt_dlp_command_resolver()`/checa `ffmpeg_checker()`
+    PROATIVAMENTE antes do subprocess (nessa ordem -- `yt-dlp` e' a
+    dependencia mais fundamental) -- `yt-dlp --extract-audio` depende do
+    `ffmpeg` pra converter o audio baixado; sem qualquer um dos dois,
+    levanta `YtDlpNotFoundError`/`FFmpegNotFoundError` com uma mensagem
+    clara em vez de deixar o subprocess falhar com um erro interno
+    criptico.
 
     Retorna `(video_id, stages)`: `stages` e' a lista COMPLETA e
     atualizada de musicas do YouTube (inclui importacoes anteriores,
     nao so a nova) -- `HertzGameLoop._apply_download_success` substitui
     so essa fatia do catalogo, preservando fases curadas e musicas
     soltas intactas."""
-    if not yt_dlp_checker():
+    command_prefix = yt_dlp_command_resolver()
+    if command_prefix is None:
         raise YtDlpNotFoundError("yt-dlp nao encontrado no sistema -- instale com 'pip install yt-dlp'")
     if not ffmpeg_checker():
         raise FFmpegNotFoundError("FFmpeg nao encontrado no sistema -- instale e garanta que esta no PATH")
@@ -261,7 +291,7 @@ def download_and_analyze_youtube_song(
 
     result = run_subprocess(
         [
-            yt_dlp_command,
+            *command_prefix,
             "--extract-audio",
             "--audio-format", "mp3",
             "--write-info-json",

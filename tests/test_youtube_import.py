@@ -14,6 +14,7 @@ from hertzbeats.youtube_import import (
     extract_youtube_url,
     fetch_youtube_preview,
     ffmpeg_available,
+    resolve_yt_dlp_command,
     yt_dlp_available,
 )
 
@@ -68,6 +69,38 @@ def test_yt_dlp_available_reflects_which_fn_result():
     assert yt_dlp_available(which_fn=lambda name: None) is False
 
 
+# -- resolve_yt_dlp_command (executavel no PATH > fallback "python -m yt_dlp") --
+
+
+def test_resolve_yt_dlp_command_prefers_the_path_executable():
+    command = resolve_yt_dlp_command(
+        which_fn=lambda name: "/usr/bin/yt-dlp",
+        module_finder=lambda name: object(),  # nem chega a ser consultado
+        python_executable="/usr/bin/python3",
+    )
+    assert command == ["/usr/bin/yt-dlp"]
+
+
+def test_resolve_yt_dlp_command_falls_back_to_python_dash_m_when_only_the_package_is_installed():
+    """Caso real: `pip install yt-dlp` (ou `--user`) instala o PACOTE,
+    mas o script de entrada (`yt-dlp.exe`/`yt-dlp`) pode acabar numa
+    pasta fora do PATH -- `shutil.which` corretamente nao acha nada,
+    mas o pacote esta la, entao `python -m yt_dlp` funciona (nao
+    depende do PATH, so' do pacote ser importavel no MESMO
+    interprete)."""
+    command = resolve_yt_dlp_command(
+        which_fn=lambda name: None,
+        module_finder=lambda name: object(),
+        python_executable="/usr/bin/python3",
+    )
+    assert command == ["/usr/bin/python3", "-m", "yt_dlp"]
+
+
+def test_resolve_yt_dlp_command_returns_none_when_neither_is_available():
+    command = resolve_yt_dlp_command(which_fn=lambda name: None, module_finder=lambda name: None)
+    assert command is None
+
+
 # -- fetch_youtube_preview (ETAPA 1 -- subprocess FAKE, nunca rede) ----------
 
 
@@ -100,9 +133,31 @@ def test_fetch_youtube_preview_raises_yt_dlp_not_found_before_touching_the_subpr
     with pytest.raises(YtDlpNotFoundError):
         fetch_youtube_preview(
             "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path),
-            run_subprocess=fake_run, yt_dlp_checker=lambda: False,
+            run_subprocess=fake_run, yt_dlp_command_resolver=lambda: None,
         )
     assert calls == []  # nunca chega a chamar o subprocess sem yt-dlp
+
+
+def test_fetch_youtube_preview_spreads_a_multi_token_command_prefix(tmp_path):
+    """Caso real (Windows, `pip install --user yt-dlp`): so' o pacote
+    esta instalado, sem o executavel no PATH -- `resolve_yt_dlp_command`
+    resolve pra `[python, "-m", "yt_dlp"]` (3 tokens), que precisa virar
+    os 3 PRIMEIROS elementos do comando do subprocess, nao um unico
+    argumento colado."""
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        return _FakeCompletedProcess(0, stdout=json.dumps({"title": "T", "uploader": "U"}))
+
+    fetch_youtube_preview(
+        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+        yt_dlp_command_resolver=lambda: ["/usr/bin/python3", "-m", "yt_dlp"],
+    )
+
+    command = captured["command"]
+    assert command[:3] == ["/usr/bin/python3", "-m", "yt_dlp"]
+    assert "--dump-json" in command
 
 
 def test_fetch_youtube_preview_builds_a_skip_download_command(tmp_path):
@@ -115,7 +170,7 @@ def test_fetch_youtube_preview_builds_a_skip_download_command(tmp_path):
 
     fetch_youtube_preview(
         "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
-        yt_dlp_checker=lambda: True,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
     )
 
     command = captured["command"]
@@ -142,7 +197,7 @@ def test_fetch_youtube_preview_parses_metadata_and_locates_the_thumbnail(tmp_pat
 
     preview = fetch_youtube_preview(
         "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
-        yt_dlp_checker=lambda: True,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
     )
     assert preview["video_id"] == "dQw4w9WgXcQ"
     assert preview["url"] == "https://youtu.be/dQw4w9WgXcQ"
@@ -159,7 +214,7 @@ def test_fetch_youtube_preview_thumbnail_is_none_when_not_written(tmp_path):
 
     preview = fetch_youtube_preview(
         "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
-        yt_dlp_checker=lambda: True,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
     )
     assert preview["thumbnail_path"] is None
 
@@ -171,7 +226,7 @@ def test_fetch_youtube_preview_raises_on_a_nonzero_exit_code(tmp_path):
     with pytest.raises(YoutubeImportError, match="video unavailable"):
         fetch_youtube_preview(
             "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=failing_run,
-            yt_dlp_checker=lambda: True,
+            yt_dlp_command_resolver=lambda: ["yt-dlp"],
         )
 
 
@@ -182,7 +237,7 @@ def test_fetch_youtube_preview_raises_on_invalid_json(tmp_path):
     with pytest.raises(YoutubeImportError):
         fetch_youtube_preview(
             "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
-            yt_dlp_checker=lambda: True,
+            yt_dlp_command_resolver=lambda: ["yt-dlp"],
         )
 
 
@@ -192,7 +247,7 @@ def test_fetch_youtube_preview_falls_back_to_channel_field(tmp_path):
 
     preview = fetch_youtube_preview(
         "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
-        yt_dlp_checker=lambda: True,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
     )
     assert preview["uploader"] == "Canal Via Channel"
 
@@ -239,7 +294,7 @@ def test_download_and_analyze_raises_yt_dlp_not_found_before_touching_the_subpro
             music_dir=str(tmp_path / "musicas"),
             beatmap_dir=str(tmp_path / "beatmaps"),
             run_subprocess=fake_run,
-            yt_dlp_checker=lambda: False,
+            yt_dlp_command_resolver=lambda: None,
             ffmpeg_checker=lambda: True,
             analyzer=_fake_analyzer,
         )
@@ -260,7 +315,7 @@ def test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subpro
             music_dir=str(tmp_path / "musicas"),
             beatmap_dir=str(tmp_path / "beatmaps"),
             run_subprocess=fake_run,
-            yt_dlp_checker=lambda: True,
+            yt_dlp_command_resolver=lambda: ["yt-dlp"],
             ffmpeg_checker=lambda: False,
             analyzer=_fake_analyzer,
         )
@@ -284,7 +339,7 @@ def test_download_and_analyze_builds_an_extract_audio_command_reusing_the_previe
         music_dir=str(tmp_path / "musicas"),
         beatmap_dir=str(tmp_path / "beatmaps"),
         run_subprocess=fake_run,
-        yt_dlp_checker=lambda: True,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
         ffmpeg_checker=lambda: True,
         analyzer=_fake_analyzer,
     )
@@ -309,7 +364,7 @@ def test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_
         music_dir=str(tmp_path / "musicas"),
         beatmap_dir=str(tmp_path / "beatmaps"),
         run_subprocess=fake_run,
-        yt_dlp_checker=lambda: True,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
         ffmpeg_checker=lambda: True,
         analyzer=_fake_analyzer,
     )
@@ -335,7 +390,7 @@ def test_download_and_analyze_raises_on_a_nonzero_exit_code(tmp_path):
             music_dir=str(tmp_path / "musicas"),
             beatmap_dir=str(tmp_path / "beatmaps"),
             run_subprocess=failing_run,
-            yt_dlp_checker=lambda: True,
+            yt_dlp_command_resolver=lambda: ["yt-dlp"],
             ffmpeg_checker=lambda: True,
             analyzer=_fake_analyzer,
         )

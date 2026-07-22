@@ -159,21 +159,6 @@ game loop), mas a linha "[ IMPORTAR MUSICA ]" nunca era desenhada (o
 loop de `_draw_hub_overlay` so ia ate o indice 4), entao o jogador so
 conseguia chegar la as cegas."""
 
-_HUB_IMPORT_BUTTON_COLOR = (64, 255, 214)
-_HUB_IMPORT_BUTTON_BORDER_WIDTH = 3
-_HUB_IMPORT_BUTTON_PADDING_X = 18
-_HUB_IMPORT_BUTTON_PADDING_Y = 10
-_HUB_IMPORT_BUTTON_RADIUS = 10
-""""[ IMPORTAR MUSICA ]" ganha uma moldura retangular PROCEDURAL
-(`pygame.draw.rect`, nunca uma textura -- mesmo criterio do retangulo de
-destaque do painel de checkboxes, `_CURSOR_HIGHLIGHT_COLOR`) pra se
-destacar visualmente das outras 5 categorias (texto puro, sem moldura)
--- um "botao" de verdade, sempre visivel (focada ou nao). Cor teal
-(mesma de `_GOOD_COLOR` em `texture_bank.py`, duplicada de proposito
-pelo mesmo criterio de nao-importar-o-outro-modulo) -- associa
-visualmente "adicionar musica nova" a uma acao positiva, distinta do
-dourado usado pelo destaque de foco e do vermelho de erro."""
-
 _CAROUSEL_DOT_RADIUS = 4
 _CAROUSEL_DOT_GAP = 14
 _CAROUSEL_DOT_COLOR = (110, 100, 150)
@@ -1481,41 +1466,15 @@ class HBPygameRenderer(PygameRenderer):
     def _draw_hub_overlay(self, center_x: int) -> None:
         """HUB Principal: as 6 categorias grandes (`_HUB_CATEGORIES`),
         a em foco (`hub_cursor`) destacada pela MESMA variante "_sel"
-        (setas + dourado) das linhas de fase do antigo menu unico.
-        "download_music" ganha ADICIONALMENTE uma moldura retangular
-        (`_draw_hub_import_button`) -- unico ponto de entrada pro
-        Pipeline de Importacao Direta, marcado como um "botao" de
-        verdade em vez de mais uma linha de texto igual as outras 5."""
+        (setas + dourado) das linhas de fase do antigo menu unico --
+        "download_music" (Pipeline de Importacao Direta) e' so mais uma
+        linha igual as outras 5, sem moldura/decoracao extra."""
         y = int(self._height * 0.22)
         y += self._blit_centered("title", center_x, y) + 70
         for i, category in enumerate(_HUB_CATEGORIES):
             key = f"hub_category_{category}_sel" if i == self._overlay_hub_cursor else f"hub_category_{category}"
-            if category == "download_music":
-                y += self._draw_hub_import_button(key, center_x, y) + 26
-            else:
-                y += self._blit_centered(key, center_x, y) + 26
+            y += self._blit_centered(key, center_x, y) + 26
         self._blit_centered("hint_hub", center_x, self._height - 54)
-
-    def _draw_hub_import_button(self, key: str, center_x: int, y: int) -> int:
-        """Desenha `key` (rotulo "[ IMPORTAR MUSICA ]", focado ou nao)
-        com uma moldura teal ao redor -- distingue esta categoria das
-        outras 5 (texto puro) como o unico "botao" de acao do HUB.
-        Retorna a altura TOTAL consumida (rotulo + preenchimento
-        vertical da moldura), mesmo contrato de `_blit_centered`."""
-        surface = self._overlay_surfaces.get(key)
-        if surface is None:
-            return 0
-        box_width = surface.get_width() + _HUB_IMPORT_BUTTON_PADDING_X * 2
-        box_height = surface.get_height() + _HUB_IMPORT_BUTTON_PADDING_Y * 2
-        box_rect = pygame.Rect(
-            center_x - box_width // 2, y - _HUB_IMPORT_BUTTON_PADDING_Y, box_width, box_height
-        )
-        pygame.draw.rect(
-            self._surface, _HUB_IMPORT_BUTTON_COLOR, box_rect,
-            width=_HUB_IMPORT_BUTTON_BORDER_WIDTH, border_radius=_HUB_IMPORT_BUTTON_RADIUS,
-        )
-        self._surface.blit(surface, (center_x - surface.get_width() // 2, y))
-        return box_height
 
     def _draw_carousel_overlay(self, center_x: int) -> None:
         """Carrossel: SO a entrada em foco toma o centro da tela (nunca a
