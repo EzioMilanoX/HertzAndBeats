@@ -52,6 +52,21 @@ TEX_DIGIT_BASE: int = 100
 """Digito `d` do HUD = `TEX_DIGIT_BASE + d` (0..9), pre-renderizado no
 carregamento -- nunca `font.render` dentro do loop."""
 
+TEX_DIGIT_BUMP_BASE: int = 300
+"""UI Bump (Juice Visual): digito `d` no estagio de destaque `s` do
+combo = `TEX_DIGIT_BUMP_BASE + s*10 + d` (`s` em `0..BUMP_FADE_STEPS-1`,
+0 = pico dourado, `BUMP_FADE_STEPS-1` = quase de volta ao branco).
+`UIRenderSystem` escolhe QUAL base de digito usar por aritmetica -- o
+"retorno suave ao branco" e uma sequencia de texturas PRE-renderizadas
+discretas, nunca um recolorimento em tempo real (o `draw_batch` so
+aplica alfa a sprites com textura, nunca RGB -- ver `HBPygameRenderer.
+draw_batch`)."""
+
+BUMP_FADE_STEPS: int = 3
+"""Quantos estagios de cor existem ANTES de voltar ao digito branco
+padrao (`TEX_DIGIT_BASE`) -- o "branco" e o proprio digito de sempre,
+nao um 4o estagio duplicado aqui."""
+
 TEX_WORD_PERFECT: int = 110
 TEX_WORD_GOOD: int = 111
 TEX_WORD_MISS: int = 112

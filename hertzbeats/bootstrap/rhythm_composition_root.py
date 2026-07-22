@@ -26,6 +26,7 @@ testes headless componham o jogo INTEIRO com backends Null.
 """
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 
@@ -44,11 +45,14 @@ from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 from hertzbeats.audio.sfx_synth import (
     SFX_BOMB,
     SFX_CANNON,
+    SFX_CANNON_VARIANTS,
     SFX_CLICK,
     SFX_DEFLECT,
     SFX_HEAL,
     SFX_HOLD_BREAK,
     SFX_HOLD_ENGAGE,
+    SFX_MISS,
+    SFX_NOTE_HIT_VARIANTS,
     SFX_PARRY,
     SFX_SHIELD_BREAK,
     SFX_TAP,
@@ -81,6 +85,7 @@ from hertzbeats.systems.parry_impact_system import (
 )
 from hertzbeats.systems.scratch_judgment_system import ScratchJudgmentSystem
 from hertzbeats.systems.shockwave_system import SHOCKWAVE_DTYPE, ShockwaveSystem
+from hertzbeats.systems.spark_system import SparkSystem
 from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
@@ -134,6 +139,7 @@ class ComposedGame:
         "crosshair_entity_index",
         "lane_choreography_system",
         "lane_geometry_y",
+        "spark_system",
     )
 
     def __init__(
@@ -147,6 +153,7 @@ class ComposedGame:
         crosshair_entity_index: int,
         lane_choreography_system=None,
         lane_geometry_y=None,
+        spark_system=None,
     ) -> None:
         self.world = world
         self.memory_manager = memory_manager
@@ -167,6 +174,12 @@ class ComposedGame:
         `ReverseScrollSystem`) quando `game_mode == "lanes"`; `None` nos
         demais modos. Exposto para o `HertzGameLoop` sincronizar a linha
         de julgamento do fundo com a Inversao de Gravidade."""
+        self.spark_system = spark_system
+        """Juice Visual -- `SparkSystem` da fase quando `game_mode ==
+        "defender"` (`None` no Arcade 4K, que nao tem o conceito de mira/
+        crosshair que ancora a rajada). Exposto para o `HertzGameLoop`
+        ler `render_arrays()` todo frame e publicar no renderer
+        (`_sync_sparks`)."""
 
     @property
     def spawner_system(self):
@@ -205,13 +218,14 @@ class _ModeContext:
         "modchart_events",
         "lane_choreography_system",
         "lane_geometry_y",
+        "spark_system",
     )
 
-    _OPTIONAL_SLOTS = frozenset({"lane_choreography_system", "lane_geometry_y"})
+    _OPTIONAL_SLOTS = frozenset({"lane_choreography_system", "lane_geometry_y", "spark_system"})
     """Slots preenchidos DEPOIS da construcao (pela propria estrategia
     de modo, ex.: `_compose_lanes_mode` grava `lane_choreography_system`/
-    `lane_geometry_y` de volta no `ctx`) -- unicos que podem faltar em
-    `kwargs`."""
+    `lane_geometry_y` de volta no `ctx`, `_compose_defender_mode` grava
+    `spark_system`) -- unicos que podem faltar em `kwargs`."""
 
     def __init__(self, **kwargs) -> None:
         for name in self.__slots__:
@@ -219,6 +233,22 @@ class _ModeContext:
                 setattr(self, name, kwargs.get(name))
             else:
                 setattr(self, name, kwargs[name])
+
+
+def _read_beatmap_bpm(beatmap_path: str, default_bpm: float = 120.0) -> float:
+    """Heartbeat (Juice Visual): le SO o campo `bpm` (raiz obrigatoria do
+    schema, ver `BeatmapLoader`/`REQUIRED_ROOT_FIELDS`) do proprio
+    `beatmap.json` da fase -- fora do loop de gameplay, uma unica vez na
+    composicao (`BeatmapLoader.load` descarta esse campo, entao le-lo de
+    novo aqui e mais barato que estender o contrato da engine so por
+    causa de um efeito cosmetico do jogo). `default_bpm` cobre qualquer
+    leitura malsucedida (arquivo ausente/corrompido -- nunca derruba a
+    composicao por causa de um pulso visual)."""
+    try:
+        with open(beatmap_path, "r", encoding="utf-8") as beatmap_file:
+            return float(json.load(beatmap_file).get("bpm", default_bpm))
+    except (OSError, ValueError, TypeError):
+        return default_bpm
 
 
 def _hide_sprite(memory_manager: MemoryManager, entity_index: int) -> None:
@@ -325,6 +355,16 @@ def _compose_defender_mode(ctx: _ModeContext):
         )
     )
     ctx.world.register_system(spawner_system)
+    # Juice Visual -- Sparks: sempre registrado (mesma filosofia "sempre
+    # ligado, cosmetico puro" do CameraShakeSystem) -- pool fixo,
+    # NUNCA participa de colisao/julgamento, so `JudgmentSystem` chama
+    # `emit_burst` diretamente a cada acerto PERFEITO.
+    spark_system = SparkSystem(
+        pool_size=config.spark_pool_size,
+        lifetime_seconds=config.spark_lifetime_seconds,
+        max_length=config.spark_max_length_px,
+    )
+    ctx.world.register_system(spark_system)
     # Aneis de Convergencia ("telegraph_rings"): SO decoracao-aviso, zero
     # impacto no julgamento -- opt-in explicito agora (antes era
     # incondicional em todo Defensor); uma fase sem o modifier so nao
@@ -388,8 +428,9 @@ def _compose_defender_mode(ctx: _ModeContext):
             misfire_breaks_combo=config.misfire_breaks_combo,
             misfire_jam_seconds=config.misfire_jam_seconds,
             audio_engine=ctx.audio_engine,
-            shot_sound_id=SFX_CANNON,
+            shot_sound_ids=SFX_CANNON_VARIANTS,
             jam_sound_id=SFX_CLICK,
+            miss_sound_id=SFX_MISS,
             polarity_enabled=polarity_enabled,
             fire_alt_action_name=config.fire_alt_action_name,
             heavy_threat_type_id=heavy_threat_type_id,
@@ -411,6 +452,9 @@ def _compose_defender_mode(ctx: _ModeContext):
             orbit_threat_type_id=orbit_threat_type_id,
             shield_collision_layer=SHIELD_COLLISION_LAYER if orbit_threat_type_id is not None else None,
             shield_collision_mask=THREAT_COLLISION_LAYER if orbit_threat_type_id is not None else None,
+            spark_system=spark_system,
+            crosshair_entity_index=ctx.crosshair_entity_index,
+            spark_burst_count=config.spark_burst_count,
         )
     )
     # Captura Orbital ("orbital_shields"): mesmo padrao de
@@ -498,8 +542,10 @@ def _compose_defender_mode(ctx: _ModeContext):
             damage_shake_px=config.core_damage_shake_px,
             audio_engine=ctx.audio_engine,
             dodge_sound_id=SFX_DEFLECT,
+            miss_sound_id=SFX_MISS,
         )
     )
+    ctx.spark_system = spark_system
     return (spawner_system,), collision_system
 
 
@@ -750,6 +796,8 @@ def _compose_lanes_mode(ctx: _ModeContext):
             max_health=config.max_health,
             heal_amount=config.heal_amount,
             heal_sound_id=SFX_HEAL,
+            note_hit_sound_ids=SFX_NOTE_HIT_VARIANTS,
+            miss_sound_id=SFX_MISS,
         )
     )
     ctx.world.register_system(
@@ -900,6 +948,7 @@ def compose_world(
     #    o array original de impacto segue paralelo, linha a linha.
     scheduled = BeatmapLoader(config.threat_type_ids).load(Path(config.beatmap_path))
     hit_times = scheduled["timestamp_seconds"].copy()
+    bpm = _read_beatmap_bpm(config.beatmap_path)
     if config.practice_mode:
         # Modo Treino: reduz a densidade de onsets ANTES de qualquer
         # spawner ver o beatmap -- pura interpretacao game-side, o
@@ -937,6 +986,11 @@ def compose_world(
         # numa fase sem o modifier; so o `VisionTunnelSystem` (opt-in) o
         # encolhe de verdade.
         tunnel_radius=math.hypot(config.window_width, config.window_height),
+        # Heartbeat (Juice Visual): bpm do PROPRIO beatmap.json da fase
+        # (`_read_beatmap_bpm`, lido uma unica vez aqui na composicao,
+        # nunca em runtime) -- `beat_phase` (`HertzGameLoop._sync_beat_phase`)
+        # deriva dele.
+        bpm=bpm,
     )
 
     # Entidades persistentes -----------------------------------------
@@ -1019,6 +1073,8 @@ def compose_world(
             flow_combo_threshold=(config.flow_combo_threshold if config.game_mode == "lanes" else None),
             score_label_entity_index=score_label_index,
             combo_label_entity_index=combo_label_index,
+            combo_bump_threshold=config.combo_bump_threshold,
+            combo_bump_seconds=config.combo_bump_seconds,
         )
     )
 
@@ -1032,6 +1088,7 @@ def compose_world(
         crosshair_entity_index=crosshair_entity_index,
         lane_choreography_system=context.lane_choreography_system,
         lane_geometry_y=context.lane_geometry_y,
+        spark_system=context.spark_system,
     )
 
 
@@ -1179,11 +1236,14 @@ class RhythmCompositionRoot:
         from hertzbeats.audio.sfx_synth import (
             SFX_BOMB,
             SFX_CANNON,
+            SFX_CANNON_VARIANTS,
             SFX_CLICK,
             SFX_DEFLECT,
             SFX_HEAL,
             SFX_HOLD_BREAK,
             SFX_HOLD_ENGAGE,
+            SFX_MISS,
+            SFX_NOTE_HIT_VARIANTS,
             SFX_PARRY,
             SFX_SHIELD_BREAK,
             SFX_TAP,
@@ -1229,6 +1289,7 @@ class RhythmCompositionRoot:
         for sound_id in (
             SFX_CANNON, SFX_CLICK, SFX_TAP, SFX_DEFLECT, SFX_PARRY,
             SFX_HOLD_ENGAGE, SFX_HOLD_BREAK, SFX_SHIELD_BREAK, SFX_BOMB, SFX_HEAL,
+            SFX_MISS, *SFX_CANNON_VARIANTS, *SFX_NOTE_HIT_VARIANTS,
         ):
             audio_engine.preload_one_shot(sound_id)
 

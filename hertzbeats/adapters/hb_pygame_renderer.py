@@ -39,10 +39,50 @@ opcoes (as 2 primeiras sao multipla escolha -- Defensor/Arcade 4K e
 Nenhuma/Polaridade/Holds -- a ultima e o botao de Acao "Iniciar Fase")
 e desenha-las SEM quadrado de marcar."""
 
+_HEARTBEAT_DECAY_RATE = 6.0
+"""Heartbeat: quao rapido o pulso decai apos o inicio do compasso (maior
+= "thump" mais curto e seco). Ver `_heartbeat_pulse`."""
+
+_HEARTBEAT_RING_ZOOM = 0.05
+"""Heartbeat: variacao MAXIMA (fracao) do raio do Anel de Julgamento no
+pico do pulso -- +5%, sutil o bastante para nao atrapalhar a leitura da
+mira."""
+
+_HEARTBEAT_LANE_WARP = 0.05
+"""Heartbeat: mesma variacao MAXIMA, aplicada a meia-largura das pistas
+do Arcade 4K (Grid Warp)."""
+
+_METRONOME_BAR_WIDTH = 10
+_METRONOME_COLOR = (140, 120, 220)
+"""Metronomo Periferico: 2 barras finas nas bordas esquerda/direita da
+tela, cujo alfa pulsa com `beat_phase` -- um metronomo visual que nao
+compete com a leitura da arena (fica na periferia da visao)."""
+
+_SPARK_COLOR = (255, 214, 64)
+"""Dourado -- mesmo tom de PERFECT (`_PERFECT_COLOR` em `texture_bank.py`),
+reforcando a mesma associacao "isso foi impecavel"."""
+
+_ARENA_BG_COLOR = (8, 6, 20)
+"""MESMO tom de fundo de `begin_frame` (fora do Flow State) -- as
+Sparks nao tem uma Surface `SRCALPHA` propria (series 128 linhas por
+frame nao valeria o custo de outra Surface so pra alfa real), entao o
+"sumir" e aproximado interpolando a cor RUMO ao fundo da arena em vez de
+um alfa de verdade -- visualmente identico (funde com o fundo) sem
+precisar de blit extra por faisca."""
+
 _TUNNEL_COLOR = (2, 1, 6, 255)
 """Cor opaca do overlay do Colapso de Visao -- mesmo tom base da arena
 (`begin_frame`, modo Defensor fora do Flow State) para nao criar um
 contraste artificial nas bordas do campo de luz."""
+
+_MEDAL_GLYPH_SIZE = 10
+_MEDAL_GLYPH_GAP = 4
+_MEDAL_GLYPH_COLOR = (255, 214, 64)
+_MEDAL_MAX_GLYPHS = 6
+"""Meta-Jogo -- Medalhas: quadrados pequenos desenhados em TEMPO REAL
+(mesmo criterio de `_CHECKBOX_SIZE`/`_draw_modifier_row`, nunca uma
+textura pre-renderizada) ao lado do rotulo de cada fase no menu, um por
+modifier distinto ja vencido nela (`player_progress.json`)."""
 
 _CHECKBOX_SIZE = 18
 _CHECKBOX_GAP = 12
@@ -116,6 +156,8 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_stage_count: int = 0
         self._overlay_modifier_panel: Optional[dict] = None
         self._overlay_practice_enabled: Optional[bool] = None
+        self._overlay_rank: Optional[str] = None
+        self._overlay_medal_counts: tuple = ()
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
@@ -126,6 +168,13 @@ class HBPygameRenderer(PygameRenderer):
         self._freeze_active: bool = False
         self._color_invert_pending: bool = False
         self._invert_surface: Optional[pygame.Surface] = None
+        self._spark_xs = None
+        self._spark_ys = None
+        self._spark_angles = None
+        self._spark_lengths = None
+        self._spark_alphas = None
+        self._spark_count: int = 0
+        self._beat_phase: float = 0.0
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
         """Registra `surface` (ja convertida com alpha) para `texture_id`.
@@ -145,6 +194,8 @@ class HBPygameRenderer(PygameRenderer):
         stage_count: int = 0,
         modifier_panel: Optional[dict] = None,
         practice_enabled: Optional[bool] = None,
+        rank: Optional[str] = None,
+        medal_counts: tuple = (),
     ) -> None:
         """Publica o estado de fluxo a desenhar sobre o frame: `None`
         (jogando, sem overlay), "menu", "paused", "game_over" ou
@@ -154,13 +205,21 @@ class HBPygameRenderer(PygameRenderer):
         `{"game_mode", "modifiers", "rows", "cursor"}` (ver
         `HertzGameLoop._sync_overlay`). `practice_enabled` (`None` em
         fases curadas, `True`/`False` nas musicas do jogador) mostra o
-        estado do Modo Treino junto do painel. Chamado pelo
+        estado do Modo Treino junto do painel. `rank` (Meta-Jogo, so
+        preenchido em "results"): letra ja calculada por
+        `hertzbeats.game_state.compute_rank`, blitada como
+        `rank_{letra}`. `medal_counts` (Meta-Jogo): tupla PARALELA a
+        lista de fases -- quantos modifiers distintos ja foram vencidos
+        em cada uma (`player_progress.json`), desenhada como glifos ao
+        lado do rotulo de cada fase visivel no menu. Chamado pelo
         `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_selected = int(selected_index)
         self._overlay_stage_count = int(stage_count)
         self._overlay_modifier_panel = modifier_panel
         self._overlay_practice_enabled = practice_enabled
+        self._overlay_rank = rank
+        self._overlay_medal_counts = medal_counts
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -212,6 +271,28 @@ class HBPygameRenderer(PygameRenderer):
         necessidade de auto-consumo aqui: o proximo `set_color_invert(False)`
         do frame seguinte ja desarma."""
         self._color_invert_pending = bool(active)
+
+    def set_sparks(self, xs, ys, angles, lengths, alphas, count: int) -> None:
+        """Juice Visual -- Sparks: publica os buffers do `SparkSystem`
+        (Zero-GC, nenhuma copia -- so guarda as REFERENCIAS) para o
+        proximo `end_frame` desenhar via `pygame.draw.line`. Chamado
+        TODO frame pelo `HertzGameLoop` (`_sync_sparks`), mesma familia
+        de `_sync_camera_shake`/`_sync_blindness`."""
+        self._spark_xs = xs
+        self._spark_ys = ys
+        self._spark_angles = angles
+        self._spark_lengths = lengths
+        self._spark_alphas = alphas
+        self._spark_count = int(count)
+
+    def set_beat_phase(self, phase: float) -> None:
+        """Heartbeat: fase `[0, 1)` do compasso ATUAL (`now_seconds %
+        beat_duration / beat_duration`, calculada pelo `HertzGameLoop` a
+        partir de `GameState.bpm`) -- usada para pulsar o Anel de
+        Julgamento/pistas (`begin_frame`) e o Metronomo Periferico
+        (`end_frame`). Publicada TODO frame, mesma familia de
+        sincronizacao de `_sync_camera_shake`."""
+        self._beat_phase = float(phase)
 
     def set_playfield(self, kind: Optional[str], **params) -> None:
         """Define a decoracao de arena do MODO ativo, desenhada a cada
@@ -286,14 +367,16 @@ class HBPygameRenderer(PygameRenderer):
         if kind is None:
             return
         params = self._playfield_params
+        pulse = self._heartbeat_pulse()
         if kind == "radial":
             center = (int(params["center_x"]), int(params["center_y"]))
+            judgment_radius = float(params["judgment_radius"]) * (1.0 + _HEARTBEAT_RING_ZOOM * pulse)
             pygame.draw.circle(self._surface, (36, 28, 70), center, int(params["spawn_radius"]), 1)
-            pygame.draw.circle(self._surface, (90, 70, 160), center, int(params["judgment_radius"]), 2)
+            pygame.draw.circle(self._surface, (90, 70, 160), center, int(judgment_radius), 2)
         if kind == "lanes":
             height = int(params["height"])
             judgment_y = int(params["judgment_y"])
-            lane_half = int(params["lane_half_width"])
+            lane_half = int(float(params["lane_half_width"]) * (1.0 + _HEARTBEAT_LANE_WARP * pulse))
             for lane_x in params["lane_xs"]:
                 column = pygame.Rect(int(lane_x) - lane_half, 0, lane_half * 2, height)
                 pygame.draw.rect(self._surface, (16, 13, 36), column)
@@ -304,6 +387,15 @@ class HBPygameRenderer(PygameRenderer):
                 (0, judgment_y), (int(params.get("width", self._width)), judgment_y),
                 4 if self._flow_tier > 0 else 2,
             )
+
+    def _heartbeat_pulse(self) -> float:
+        """Heartbeat (Juice Visual): 1.0 EXATAMENTE no inicio do
+        compasso, decaindo exponencialmente ate quase 0 na proxima
+        batida (`beat_phase` publicado por `set_beat_phase` todo frame)
+        -- um "thump" ritmico, nao uma oscilacao simetrica (que deixaria
+        o anel/pistas MENORES que o normal na metade do compasso, o
+        oposto do efeito pedido)."""
+        return math.exp(-self._beat_phase * _HEARTBEAT_DECAY_RATE)
 
     def _judgment_line_color(self) -> Tuple[int, int, int]:
         """Cor da linha de julgamento: neutra fora do Flow State; dentro
@@ -322,6 +414,8 @@ class HBPygameRenderer(PygameRenderer):
             self._invert_surface.fill((255, 255, 255))
             self._invert_surface.blit(self._surface, (0, 0), special_flags=pygame.BLEND_RGB_SUB)
             self._surface.blit(self._invert_surface, (0, 0))
+        self._draw_sparks()
+        self._draw_peripheral_metronome()
         self._draw_vision_tunnel()
         if self._blindness_active and self._vignette_surface is not None:
             self._surface.blit(self._vignette_surface, (0, 0))
@@ -330,6 +424,69 @@ class HBPygameRenderer(PygameRenderer):
         if self._notice_key is not None:
             self._blit_centered(self._notice_key, self._width // 2, 64)
         super().end_frame()
+
+    def _draw_sparks(self) -> None:
+        """Juice Visual -- Sparks: laco escalar sobre o pool fixo (128
+        por padrao) publicado por `set_sparks`, desenhando cada faisca
+        VIVA (alfa > 0) como uma linha reta que parte de `(x, y)` no
+        angulo armazenado, comprimento e alfa ja resolvidos pelo
+        `SparkSystem` (nunca recalculados aqui). `pygame.draw.line` nao
+        alfa-mescla numa Surface opaca, entao o "sumir" e aproximado
+        interpolando a cor RUMO ao fundo da arena (ver `_ARENA_BG_COLOR`)
+        -- visualmente equivalente a um fade, sem precisar de outra
+        Surface `SRCALPHA` so para 128 linhas curtas."""
+        count = self._spark_count
+        if count == 0:
+            return
+        xs, ys, angles, lengths, alphas = (
+            self._spark_xs, self._spark_ys, self._spark_angles, self._spark_lengths, self._spark_alphas
+        )
+        bg_r, bg_g, bg_b = _ARENA_BG_COLOR
+        spark_r, spark_g, spark_b = _SPARK_COLOR
+        cam_dx, cam_dy = self._cam_dx, self._cam_dy
+        for i in range(count):
+            alpha = float(alphas[i])
+            if alpha <= 1.0:
+                continue
+            length = float(lengths[i])
+            if length <= 0.5:
+                continue
+            fraction = alpha / 255.0
+            color = (
+                int(bg_r + (spark_r - bg_r) * fraction),
+                int(bg_g + (spark_g - bg_g) * fraction),
+                int(bg_b + (spark_b - bg_b) * fraction),
+            )
+            x = float(xs[i]) + cam_dx
+            y = float(ys[i]) + cam_dy
+            angle = float(angles[i])
+            end_x = x + math.cos(angle) * length
+            end_y = y + math.sin(angle) * length
+            pygame.draw.line(self._surface, color, (x, y), (end_x, end_y), 2)
+
+    def _draw_peripheral_metronome(self) -> None:
+        """Metronomo Periferico (Heartbeat): 2 barras finas nas bordas
+        esquerda/direita da tela, cujo brilho pulsa com `beat_phase` --
+        um metronomo visual na PERIFERIA da visao, que nunca compete com
+        a leitura da arena central. MESMO truque de "fade" por
+        interpolacao de cor RUMO ao fundo (ver `_draw_sparks`) em vez de
+        alfa de verdade -- sem Surface extra. No-op antes do primeiro
+        playfield (menu inicial sem fase carregada ainda)."""
+        if self._playfield_kind is None:
+            return
+        pulse = self._heartbeat_pulse()
+        bg_r, bg_g, bg_b = _ARENA_BG_COLOR
+        m_r, m_g, m_b = _METRONOME_COLOR
+        color = (
+            int(bg_r + (m_r - bg_r) * pulse),
+            int(bg_g + (m_g - bg_g) * pulse),
+            int(bg_b + (m_b - bg_b) * pulse),
+        )
+        bar_width = _METRONOME_BAR_WIDTH
+        pygame.draw.rect(self._surface, color, pygame.Rect(0, 0, bar_width, self._height))
+        pygame.draw.rect(
+            self._surface, color, pygame.Rect(self._width - bar_width, 0, bar_width, self._height)
+        )
 
     def _draw_vision_tunnel(self) -> None:
         """Colapso de Visao (Defensor -- "vision_tunnel", Tolerancia
@@ -367,6 +524,34 @@ class HBPygameRenderer(PygameRenderer):
             return 0
         self._surface.blit(surface, (center_x - surface.get_width() // 2, y))
         return surface.get_height()
+
+    def _draw_stage_row(self, key: str, medal_count: int, center_x: int, y: int) -> int:
+        """Meta-Jogo -- Medalhas: blita o rotulo de UMA fase (mesmo
+        `_blit_centered` de sempre) e, se `medal_count > 0`, desenha uma
+        fileira de pequenos quadrados dourados a DIREITA dele -- um por
+        modifier distinto ja vencido nessa fase/musica
+        (`player_progress.json`), capada em `_MEDAL_MAX_GLYPHS` (mais
+        que isso na tela vira ruido, nao informacao). Procedural
+        (`pygame.draw.rect`), mesmo criterio de `_draw_modifier_row` --
+        um quadrado simples nao precisa de textura pre-renderizada."""
+        surface = self._overlay_surfaces.get(key)
+        if surface is None:
+            return 0
+        label_width = surface.get_width()
+        height = surface.get_height()
+        self._surface.blit(surface, (center_x - label_width // 2, y))
+
+        glyph_count = min(medal_count, _MEDAL_MAX_GLYPHS)
+        if glyph_count > 0:
+            glyph_x = center_x + label_width // 2 + _MEDAL_GLYPH_GAP
+            glyph_y = y + height // 2 - _MEDAL_GLYPH_SIZE // 2
+            for i in range(glyph_count):
+                rect = pygame.Rect(
+                    glyph_x + i * (_MEDAL_GLYPH_SIZE + _MEDAL_GLYPH_GAP),
+                    glyph_y, _MEDAL_GLYPH_SIZE, _MEDAL_GLYPH_SIZE,
+                )
+                pygame.draw.rect(self._surface, _MEDAL_GLYPH_COLOR, rect)
+        return height
 
     def _draw_modifier_row(self, label_key: str, checked, is_cursor: bool, center_x: int, y: int) -> int:
         """Desenha UMA linha do painel de checkboxes do seletor de
@@ -428,7 +613,8 @@ class HBPygameRenderer(PygameRenderer):
                 y += self._blit_centered("scroll_up", center_x, y) + 8
             for i in range(first, min(first + MAX_VISIBLE, count)):
                 key = f"stage_{i}_sel" if i == self._overlay_selected else f"stage_{i}"
-                y += self._blit_centered(key, center_x, y) + 16
+                medal_count = self._overlay_medal_counts[i] if i < len(self._overlay_medal_counts) else 0
+                y += self._draw_stage_row(key, medal_count, center_x, y) + 16
             if first + MAX_VISIBLE < count:
                 y += self._blit_centered("scroll_down", center_x, y) + 8
 
@@ -467,7 +653,12 @@ class HBPygameRenderer(PygameRenderer):
             self._blit_centered("game_over", center_x, int(self._height * 0.40))
             self._blit_centered("hint_end", center_x, self._height - 110)
         elif self._overlay_mode == "results":
-            self._blit_centered("results", center_x, int(self._height * 0.40))
+            y = int(self._height * 0.40)
+            y += self._blit_centered("results", center_x, y) + 10
+            # Meta-Jogo -- Rank: so preenchido pelo HertzGameLoop na
+            # transicao pra resultados (calculado 1x, nunca por frame).
+            if self._overlay_rank is not None:
+                y += self._blit_centered(f"rank_{self._overlay_rank}", center_x, y) + 10
             self._blit_centered("hint_results", center_x, self._height - 110)
 
     def draw_batch(

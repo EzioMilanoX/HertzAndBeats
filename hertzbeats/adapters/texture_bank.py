@@ -13,9 +13,11 @@ import pygame
 
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
 from hertzbeats.components.texture_ids import (
+    BUMP_FADE_STEPS,
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
     TEX_DIGIT_BASE,
+    TEX_DIGIT_BUMP_BASE,
     TEX_DISTRACTION_SPLAT,
     TEX_HEALTH_PIP,
     TEX_KEY_LABEL_BASE,
@@ -28,6 +30,7 @@ from hertzbeats.components.texture_ids import (
     TEX_WORD_MISS,
     TEX_WORD_PERFECT,
 )
+from hertzbeats.game_state import RANK_ORDER
 
 LANE_KEY_LABELS = ("A", "S", "W", "D")
 """Rotulos exibidos sob os receptores do Arcade 4K (espelham os
@@ -47,6 +50,15 @@ _DODGE_COLOR = (70, 225, 225)
 """Mesmo ciano da Captura Orbital (tint de escudo) -- "defesa habilidosa",
 distinto tanto do dourado de PERFECT quanto do vermelho de MISS."""
 
+_RANK_COLORS = {
+    "SS": (255, 235, 120), "S": _PERFECT_COLOR, "A": _GOOD_COLOR,
+    "B": (140, 160, 255), "C": (255, 170, 90), "D": _MISS_COLOR, "-": _LABEL_COLOR,
+}
+"""Meta-Jogo -- Ranks: uma cor por letra de `compute_rank` (`RANK_ORDER`
++ "-", a fase sem nenhuma nota resolvida) -- dourado nos 2 melhores,
+esmaecendo ate vermelho no pior."""
+assert set(_RANK_COLORS) == set(RANK_ORDER) | {"-"}
+
 
 def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
     """Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
@@ -62,6 +74,22 @@ def build_and_register_hud_textures(renderer: HBPygameRenderer) -> None:
     for digit in range(10):
         surface = digit_font.render(str(digit), True, _DIGIT_COLOR).convert_alpha()
         renderer.register_texture(TEX_DIGIT_BASE + digit, surface)
+
+    # UI Bump (Juice Visual): estagios PRE-renderizados de digito
+    # "em destaque" (combo cruzando um multiplo de 50), do dourado puro
+    # (estagio 0) esmaecendo rumo a cor branca normal do digito (o
+    # digito branco de sempre, `TEX_DIGIT_BASE`, e o estagio FINAL --
+    # nao duplicado aqui). `UIRenderSystem` so escolhe qual base somar
+    # por aritmetica, nunca recolore em tempo real.
+    for stage in range(BUMP_FADE_STEPS):
+        fraction = 1.0 - (stage / BUMP_FADE_STEPS)  # 1.0 no estagio 0 -> quase 0 no ultimo
+        color = tuple(
+            int(digit_color + (gold - digit_color) * fraction)
+            for digit_color, gold in zip(_DIGIT_COLOR, _PERFECT_COLOR)
+        )
+        for digit in range(10):
+            surface = digit_font.render(str(digit), True, color).convert_alpha()
+            renderer.register_texture(TEX_DIGIT_BUMP_BASE + stage * 10 + digit, surface)
 
     renderer.register_texture(TEX_WORD_PERFECT, word_font.render("PERFECT", True, _PERFECT_COLOR).convert_alpha())
     renderer.register_texture(TEX_WORD_GOOD, word_font.render("GOOD", True, _GOOD_COLOR).convert_alpha())
@@ -272,6 +300,12 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text("paused", big_font, "PAUSADO", _DIGIT_COLOR)
     register_text("game_over", big_font, "GAME OVER", _MISS_COLOR)
     register_text("results", big_font, "FASE CONCLUIDA", _GOOD_COLOR)
+    # Meta-Jogo -- Ranks: uma textura por letra possivel de `compute_rank`
+    # (incluindo "-", a fase sem nenhuma nota resolvida), cor por faixa
+    # de desempenho -- dourado nos 2 melhores, esmaecendo ate vermelho.
+    rank_font = pygame.font.Font(None, 96)
+    for rank_letter, rank_color in _RANK_COLORS.items():
+        register_text(f"rank_{rank_letter}", rank_font, rank_letter, rank_color)
     register_text(
         "hint_menu", hint_font,
         "SETAS ou W/S escolhem  |  ENTER, ESPACO ou CLIQUE jogam  |  ESC sai", _LABEL_COLOR,

@@ -158,6 +158,21 @@ class HertzConfig:
     core_damage_shake_px: float = 14.0
     parry_impact_shake_px: float = 10.0
 
+    # -- Juice Visual: Sparks (particulas no acerto PERFECT, Defensor) --
+    spark_pool_size: int = 128
+    spark_lifetime_seconds: float = 0.22
+    spark_max_length_px: float = 24.0
+    spark_burst_count: int = 5
+
+    # -- Juice Visual: UI Bump (digitos do combo em destaque a cada
+    #    multiplo de `combo_bump_threshold`, comum aos 3 modos) --
+    combo_bump_threshold: int = 50
+    combo_bump_seconds: float = 0.5
+
+    # -- Audio Ducking (comum aos 3 modos: MISS/dano abaixam a musica) --
+    duck_volume_fraction: float = 0.3
+    duck_duration_seconds: float = 0.5
+
     # -- Modo Treino (musicas do jogador, alternado no menu com T) --
     practice_mode: bool = False
     practice_density_keep_fraction: float = 0.5
@@ -310,6 +325,14 @@ class HertzConfig:
             lane_hold_visual_max_fraction=raw.get("lane_hold_visual_max_fraction", 0.35),
             core_damage_shake_px=raw.get("core_damage_shake_px", 14.0),
             parry_impact_shake_px=raw.get("parry_impact_shake_px", 10.0),
+            spark_pool_size=raw.get("spark_pool_size", 128),
+            spark_lifetime_seconds=raw.get("spark_lifetime_seconds", 0.22),
+            spark_max_length_px=raw.get("spark_max_length_px", 24.0),
+            spark_burst_count=raw.get("spark_burst_count", 5),
+            combo_bump_threshold=raw.get("combo_bump_threshold", 50),
+            combo_bump_seconds=raw.get("combo_bump_seconds", 0.5),
+            duck_volume_fraction=raw.get("duck_volume_fraction", 0.3),
+            duck_duration_seconds=raw.get("duck_duration_seconds", 0.5),
             practice_mode=raw.get("practice_mode", False),
             practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),
             bomb_hit_shake_px=raw.get("bomb_hit_shake_px", 18.0),

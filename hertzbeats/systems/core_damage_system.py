@@ -63,6 +63,7 @@ class CoreDamageSystem(ISystem):
         damage_shake_px: float = 0.0,
         audio_engine=None,
         dodge_sound_id: str = None,
+        miss_sound_id: str = None,
     ) -> None:
         """Guarda a referencia ao `CollisionSystem` ja registrado (fonte
         dos pares do frame) e resolve as pools uma unica vez.
@@ -85,6 +86,7 @@ class CoreDamageSystem(ISystem):
         self._damage_shake_px = float(damage_shake_px)
         self._audio_engine = audio_engine
         self._dodge_sound_id = dodge_sound_id
+        self._miss_sound_id = miss_sound_id
 
     def _play(self, sound_id, volume: float) -> None:
         """Dispara um SFX se houver backend e som configurados (testes
@@ -155,3 +157,6 @@ class CoreDamageSystem(ISystem):
                 state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
                 if self._damage_shake_px > 0.0:
                     state.trigger_shake(self._damage_shake_px)
+                # Audio Ducking: SFX de erro em volume MAXIMO -- a musica
+                # que abaixa ao redor dele, nao o contrario.
+                self._play(self._miss_sound_id, 1.0)

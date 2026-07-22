@@ -3,6 +3,37 @@ from __future__ import annotations
 
 from hertzbeats.components.schemas import JUDGMENT_PENDING
 
+RANK_ORDER = ("SS", "S", "A", "B", "C", "D")
+"""Ordem de exibicao (melhor -> pior) -- MESMA ordem usada por
+`texture_bank.py` para registrar `rank_{letra}` uma unica vez no
+carregamento."""
+
+
+def compute_rank(perfect_count: int, good_count: int, miss_count: int) -> str:
+    """Meta-Jogo -- Ranks: `SS` exige 100% PERFECT (nenhum GOOD, nenhum
+    MISS); os demais usam a PRECISAO ponderada
+    `(PERFECT + GOOD*0.5) / total` (um GOOD vale meio PERFECT, um MISS
+    nao vale nada). Pura e sem estado -- so aritmetica sobre os 3
+    contadores ja existentes em `GameState`, calculada UMA vez ao entrar
+    em FLOW_RESULTS (`HertzGameLoop`), nunca por frame. `"-"` e o unico
+    veredito possivel quando a fase termina sem nenhuma nota resolvida
+    (`total == 0` -- ex.: uma fase vazia)."""
+    total = perfect_count + good_count + miss_count
+    if total == 0:
+        return "-"
+    if miss_count == 0 and good_count == 0 and perfect_count > 0:
+        return "SS"
+    precision = (perfect_count + good_count * 0.5) / total
+    if precision > 0.95:
+        return "S"
+    if precision > 0.85:
+        return "A"
+    if precision > 0.70:
+        return "B"
+    if precision > 0.50:
+        return "C"
+    return "D"
+
 
 class GameState:
     """
@@ -45,6 +76,7 @@ class GameState:
         "current_judgment_radius",
         "overload_requested",
         "tunnel_radius",
+        "bpm",
     )
 
     def __init__(
@@ -54,6 +86,7 @@ class GameState:
         resonance_chain_threshold: int = 10,
         judgment_radius: float = 0.0,
         tunnel_radius: float = 0.0,
+        bpm: float = 120.0,
     ) -> None:
         self.score: int = 0
         self.combo_count: int = 0
@@ -173,6 +206,14 @@ class GameState:
         le este campo -- ao contrario do extinto Colapso do Anel de
         Julgamento (ver `current_judgment_radius`), encolher a visao
         nunca quebra o calculo ja feito de nenhuma ameaca em voo."""
+        self.bpm: float = float(bpm)
+        """Heartbeat (Juice Visual): BPM do beatmap da fase ATUAL, lido
+        uma unica vez na composicao (`_read_beatmap_bpm`) -- FIXO pelo
+        resto da partida, nunca mutado por nenhum sistema. O
+        `HertzGameLoop` deriva `beat_phase` dele (`now_seconds %
+        (60/bpm) / (60/bpm)`) para pulsar o Anel de Julgamento/pistas e
+        o Metronomo Periferico -- puramente cosmetico, nenhum julgamento
+        le este campo."""
 
     def consume_overdrive_for_overload(self) -> None:
         """Defensor -- Overload do Nucleo: o `JudgmentSystem` chama isto

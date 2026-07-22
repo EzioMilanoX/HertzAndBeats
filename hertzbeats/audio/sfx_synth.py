@@ -26,19 +26,70 @@ SFX_HOLD_BREAK = "data/sfx/hold_break.wav"
 SFX_SHIELD_BREAK = "data/sfx/shield_break.wav"
 SFX_BOMB = "data/sfx/bomb.wav"
 SFX_HEAL = "data/sfx/heal.wav"
+SFX_MISS = "data/sfx/miss.wav"
+"""Auditoria de Juice: nem o MISS por tempo (Defensor) nem o dano no
+nucleo tocavam NENHUM som antes disto -- so tremor/texto. Thud seco e
+curto, claramente um erro (distinto do "clique" do misfire, que e sobre
+a ARMA emperrar, nao sobre errar o tempo)."""
+
+_PITCH_VARIANT_COUNT = 5
+"""Combo Pitch Shift: quantas variantes de afinacao existem por som de
+acerto -- `JudgmentSystem`/`LaneJudgmentSystem` escolhem o indice
+`min(combo // 10, _PITCH_VARIANT_COUNT - 1)`, nunca pitch-shiftando ao
+vivo (`pygame.mixer` nao suporta)."""
+
+SFX_CANNON_VARIANTS = tuple(
+    SFX_CANNON if i == 0 else f"data/sfx/cannon_{i}.wav" for i in range(_PITCH_VARIANT_COUNT)
+)
+"""5 variantes do canhao (Defensor), cada uma um semitom mais aguda que
+a anterior -- a variante 0 e o PROPRIO `SFX_CANNON` de sempre (nenhuma
+mudanca para quem so olha o combo baixo)."""
+
+SFX_NOTE_HIT_VARIANTS = tuple(f"data/sfx/note_hit_{i}.wav" for i in range(_PITCH_VARIANT_COUNT))
+"""5 variantes do acerto de nota do Arcade 4K -- ate agora um PERFECT/GOOD
+de coluna nao tocava som nenhum (so o ghost tap tinha som); fecha essa
+lacuna com o MESMO tratamento de Combo Pitch Shift do canhao."""
+
+_SEMITONE_RATIO = 2.0 ** (1.0 / 12.0)
 
 
-def _cannon(sample_rate: int) -> np.ndarray:
+def _cannon(sample_rate: int, pitch_ratio: float = 1.0) -> np.ndarray:
     """Tiro no tempo: bumbo profundo (sweep 160->40 Hz) + estalo curto --
-    percussao que se soma a musica."""
+    percussao que se soma a musica. `pitch_ratio` escala TODAS as
+    frequencias (Combo Pitch Shift: gerar 5 variantes semitom a semitom
+    no CARREGAMENTO, nunca em tempo real)."""
     length = int(0.22 * sample_rate)
     t = np.arange(length) / sample_rate
     body = np.exp(-t * 16.0) * np.sin(
-        2 * np.pi * np.cumsum(160.0 * np.exp(-t * 24.0) + 40.0) / sample_rate
+        2 * np.pi * np.cumsum(160.0 * pitch_ratio * np.exp(-t * 24.0) + 40.0 * pitch_ratio) / sample_rate
     )
-    snap = np.exp(-t * 220.0) * np.sin(2 * np.pi * 2400.0 * t + np.sin(2 * np.pi * 700.0 * t) * 6.0)
+    snap = np.exp(-t * 220.0) * np.sin(
+        2 * np.pi * 2400.0 * pitch_ratio * t + np.sin(2 * np.pi * 700.0 * pitch_ratio * t) * 6.0
+    )
     mix = 0.9 * body + 0.25 * snap
     return mix / (np.max(np.abs(mix)) * 1.05)
+
+
+def _note_hit(sample_rate: int, pitch_ratio: float = 1.0) -> np.ndarray:
+    """Acerto de nota do Arcade 4K: blip curto e limpo (envelope
+    exponencial sobre um tom + o 2o harmonico), bem distinto do "tick"
+    quase inaudivel do ghost tap. `pitch_ratio`: ver `_cannon`."""
+    length = int(0.09 * sample_rate)
+    t = np.arange(length) / sample_rate
+    tone = np.exp(-t * 30.0) * (
+        np.sin(2 * np.pi * 720.0 * pitch_ratio * t) + 0.4 * np.sin(2 * np.pi * 1440.0 * pitch_ratio * t)
+    )
+    return tone / (np.max(np.abs(tone)) * 1.05)
+
+
+def _miss(sample_rate: int) -> np.ndarray:
+    """MISS por tempo / dano no nucleo: thud grave e seco -- claramente
+    um erro, distinto do "clique" metalico do misfire (sobre a arma
+    emperrar, nao sobre o tempo)."""
+    length = int(0.16 * sample_rate)
+    t = np.arange(length) / sample_rate
+    thud = np.exp(-t * 20.0) * np.sin(2 * np.pi * np.cumsum(120.0 * np.exp(-t * 30.0) + 45.0) / sample_rate)
+    return thud / (np.max(np.abs(thud)) * 1.05)
 
 
 def _click(sample_rate: int) -> np.ndarray:
@@ -152,6 +203,17 @@ def ensure_sfx() -> None:
         (SFX_SHIELD_BREAK, _shield_break),
         (SFX_BOMB, _bomb),
         (SFX_HEAL, _heal),
+        (SFX_MISS, _miss),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)
+
+    # Combo Pitch Shift: 5 variantes cada, um semitom acima da anterior
+    # (indice 0 = afinacao original -- `SFX_CANNON_VARIANTS[0]` e o
+    # PROPRIO `SFX_CANNON` de sempre, ja gerado no laco acima).
+    for i, path in enumerate(SFX_CANNON_VARIANTS):
+        if not Path(path).exists():
+            write_wav(_cannon(SFX_SAMPLE_RATE, _SEMITONE_RATIO**i), Path(path), sample_rate=SFX_SAMPLE_RATE)
+    for i, path in enumerate(SFX_NOTE_HIT_VARIANTS):
+        if not Path(path).exists():
+            write_wav(_note_hit(SFX_SAMPLE_RATE, _SEMITONE_RATIO**i), Path(path), sample_rate=SFX_SAMPLE_RATE)

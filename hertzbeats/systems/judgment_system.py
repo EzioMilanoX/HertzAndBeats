@@ -76,7 +76,7 @@ class JudgmentSystem(ISystem):
         misfire_breaks_combo: bool = True,
         misfire_jam_seconds: float = 0.0,
         audio_engine=None,
-        shot_sound_id: str = None,
+        shot_sound_ids: tuple = (),
         jam_sound_id: str = None,
         fire_action_name: str = "fire",
         polarity_enabled: bool = False,
@@ -101,6 +101,10 @@ class JudgmentSystem(ISystem):
         shield_collision_layer: int = None,
         shield_collision_mask: int = None,
         dash_action_name: str = "dash",
+        spark_system=None,
+        crosshair_entity_index: int = None,
+        spark_burst_count: int = 5,
+        miss_sound_id: str = None,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -168,6 +172,16 @@ class JudgmentSystem(ISystem):
         `GameState.overload_requested` -- o `ShockwaveSystem` (reusado
         da extinta Sobrevivencia) consome o pedido e dispara o Pulso de
         Impacto no proximo `update` dele.
+
+        JUICE VISUAL -- SPARKS (ativo quando `spark_system` e fornecido):
+        toda vez que este sistema resolve um acerto de precisao PERFEITA
+        (comum, Parry, Captura Orbital ou sustentacao de Hold ate o
+        fim), chama `spark_system.emit_burst(x, y, spark_burst_count)`
+        na posicao ATUAL da mira (`crosshair_entity_index`, lido do
+        `transform_pool` -- o `PlayerInputSystem` ja a reposicionou
+        neste MESMO frame, antes deste sistema rodar). Referencia direta
+        entre sistemas, mesmo padrao ja usado por `ParryImpactSystem` <-
+        `CollisionSystem`.
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -189,7 +203,7 @@ class JudgmentSystem(ISystem):
         self._misfire_breaks_combo = bool(misfire_breaks_combo)
         self._misfire_jam_seconds = float(misfire_jam_seconds)
         self._audio_engine = audio_engine
-        self._shot_sound_id = shot_sound_id
+        self._shot_sound_ids = tuple(shot_sound_ids)
         self._jam_sound_id = jam_sound_id
         self._fire_action_name = fire_action_name
         self._polarity_enabled = bool(polarity_enabled)
@@ -214,6 +228,11 @@ class JudgmentSystem(ISystem):
         self._shield_collision_layer = shield_collision_layer
         self._shield_collision_mask = shield_collision_mask
         self._dash_action_name = dash_action_name
+        self._spark_system = spark_system
+        self._crosshair_entity_index = crosshair_entity_index
+        self._spark_burst_count = int(spark_burst_count)
+        self._transform_pool = memory_manager.get_pool("transform")
+        self._miss_sound_id = miss_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -375,6 +394,10 @@ class JudgmentSystem(ISystem):
         self._game_state.miss_count += missed
         self._game_state.combo_count = 0
         self._game_state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+        # Audio Ducking: o SFX de erro toca em volume MAXIMO -- e a
+        # musica quem abaixa ao redor dele (`HertzGameLoop._sync_track_volume`),
+        # nao o som de erro que precisa competir com ela.
+        self._play(self._miss_sound_id, 1.0)
 
     def _set_core_polarity_shape(self, polarity: int) -> None:
         """Troca o `texture_id` do sprite do nucleo para a variante com o
@@ -394,6 +417,30 @@ class JudgmentSystem(ISystem):
         headless injetam NullAudioEngine ou nada)."""
         if self._audio_engine is not None and sound_id is not None:
             self._audio_engine.play_one_shot(sound_id, volume)
+
+    def _shot_sound_for_combo(self, combo_count: int):
+        """Combo Pitch Shift (truque Zero-GC): `shot_sound_ids` e uma
+        tupla de N variantes PRE-SINTETIZADAS do canhao (cada uma um
+        semitom mais aguda -- `sfx_synth.py`), nunca um pitch-shift em
+        tempo real (`pygame.mixer` nao suporta). So a ESCOLHA de qual
+        arquivo tocar muda por aritmetica: a cada 10 de combo, sobe uma
+        variante, ate a ultima (a mais aguda)."""
+        if not self._shot_sound_ids:
+            return None
+        index = min(combo_count // 10, len(self._shot_sound_ids) - 1)
+        return self._shot_sound_ids[index]
+
+    def _emit_perfect_sparks(self) -> None:
+        """Juice Visual -- Sparks: rajada na posicao ATUAL da mira, so
+        quando `spark_system` foi injetado (opt-in, mesma filosofia
+        graciosa do resto do arquivo -- sem ele, um no-op)."""
+        if self._spark_system is None:
+            return
+        row = self._transform_pool.dense_row_of(self._crosshair_entity_index)
+        view = self._transform_pool.active_view()
+        x = float(view["position_x"][row])
+        y = float(view["position_y"][row])
+        self._spark_system.emit_burst(x, y, self._spark_burst_count)
 
     def _register_misfire(self) -> None:
         """MISFIRE punitivo (estilo BPM/Hellsinger): disparo SEM candidata
@@ -587,9 +634,6 @@ class JudgmentSystem(ISystem):
         threat_view["judgment"][best_row] = judgment
         world.destroy_entity(int(threat_view["packed_handle"][best_row]))
 
-        # Gun Sync: o canhao do tiro certeiro E percussao da trilha
-        self._play(self._shot_sound_id, 0.9)
-
         state = self._game_state
         if judgment == JUDGMENT_PERFECT:
             state.score += self._score_perfect
@@ -601,8 +645,16 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+
+        # Gun Sync + Combo Pitch Shift: o canhao do tiro certeiro E
+        # percussao da trilha -- a variante tocada sobe de semitom a cada
+        # 10 de combo (ate a mais aguda), so escolhendo QUAL arquivo ja
+        # sintetizado tocar (zero custo de pitch-shift em runtime).
+        self._play(self._shot_sound_for_combo(state.combo_count), 0.9)
         if self._polarity_enabled:
             self._register_resonance(int(threat_view["polarity_id"][best_row]))
+        if judgment == JUDGMENT_PERFECT:
+            self._emit_perfect_sparks()
 
     def _register_deflect(self) -> None:
         """DEFLECT (Polaridade): timing e mira certos, cor errada -- a
@@ -648,6 +700,7 @@ class JudgmentSystem(ISystem):
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
         if self._hitlag_freeze_frames > 0:
             state.trigger_hitlag(self._hitlag_freeze_frames)
+        self._emit_perfect_sparks()
 
     def _register_resonance(self, polarity_id: int) -> None:
         """Ressonancia de Polaridade (Combos Monocromaticos): destruir
@@ -675,7 +728,6 @@ class JudgmentSystem(ISystem):
         de candidatas simultaneas na MESMA janela+cone e tipicamente
         pequeno (poucas ameacas convergindo no mesmo instante), entao
         vetorizar aqui so complicaria sem ganho real de performance."""
-        self._play(self._shot_sound_id, 0.9)
         state = self._game_state
         any_perfect = False
         for row in pierce_rows:
@@ -692,6 +744,7 @@ class JudgmentSystem(ISystem):
             if judgment == JUDGMENT_PERFECT:
                 state.score += self._score_perfect
                 state.perfect_count += 1
+                self._emit_perfect_sparks()
             else:
                 state.score += self._score_good
                 state.good_count += 1
@@ -699,6 +752,9 @@ class JudgmentSystem(ISystem):
             if state.combo_count > state.max_combo:
                 state.max_combo = state.combo_count
 
+        # Gun Sync + Combo Pitch Shift: UM tiro so, mas ja refletindo o
+        # combo FINAL apos abater o grupo inteiro (ver `_shot_sound_for_combo`).
+        self._play(self._shot_sound_for_combo(state.combo_count), 0.9)
         state.register_judgment_feedback(
             JUDGMENT_PERFECT if any_perfect else JUDGMENT_GOOD, self._judgment_display_seconds
         )
@@ -740,6 +796,7 @@ class JudgmentSystem(ISystem):
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
         if self._hitlag_freeze_frames > 0:
             state.trigger_hitlag(self._hitlag_freeze_frames)
+        self._emit_perfect_sparks()
 
     def _register_hold_engage(self, threat_view: np.ndarray, best_row: int) -> None:
         """Notas Longas -- Fase 1 (Start): a candidata vencedora NAO e
@@ -863,6 +920,7 @@ class JudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+        self._emit_perfect_sparks()
 
     def _resolve_hold_break(self, world: World, threat_view: np.ndarray, row: int) -> None:
         """Soltou o gatilho ou desmirou antes do fim do Hold: MISS

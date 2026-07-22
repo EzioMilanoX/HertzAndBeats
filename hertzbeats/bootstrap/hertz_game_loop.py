@@ -30,6 +30,8 @@ from hertzbeats.bootstrap.rhythm_composition_root import (
 )
 from hertzbeats.components.schemas import MODE_TAG_LANES
 from hertzbeats.config import HertzConfig
+from hertzbeats.game_state import compute_rank
+from hertzbeats.player_progress import load_progress, record_stage_cleared
 from hertzbeats.stages import StageDef, resolve_stage_config
 
 FLOW_MENU = "menu"
@@ -44,6 +46,22 @@ _RESULTS_GRACE_SECONDS = 1.0
 _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
+
+
+def compute_duck_multiplier(
+    duck_timer_seconds: float, duck_duration_seconds: float, duck_volume_fraction: float
+) -> float:
+    """Audio Ducking: fracao MULTIPLICATIVA do volume da faixa (1.0 =
+    normal). `duck_timer_seconds` (contagem regressiva, MESMO idioma dos
+    outros timers do jogo) em `duck_duration_seconds`: `duck_volume_fraction`
+    (MINIMO) no instante do erro, subindo linearmente ate `1.0` conforme
+    o timer esgota. Fora da janela de ducking (`duck_timer_seconds <= 0`),
+    e sempre `1.0` -- um no-op transparente. Pura e sem estado, testavel
+    sem `HertzGameLoop`/audio real."""
+    if duck_timer_seconds <= 0.0 or duck_duration_seconds <= 0.0:
+        return 1.0
+    recovered_fraction = 1.0 - (duck_timer_seconds / duck_duration_seconds)
+    return duck_volume_fraction + (1.0 - duck_volume_fraction) * recovered_fraction
 
 GAME_MODE_ROW = "game_mode"
 """Sentinela: SEMPRE a PRIMEIRA linha do menu de opcoes do seletor de
@@ -181,6 +199,10 @@ class HertzGameLoop(GameLoop):
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
         self._was_frozen = False
+        self._last_miss_count_seen = 0  # Audio Ducking: baseline pra detectar um NOVO miss/dano
+        self._duck_timer_seconds = 0.0
+        self._results_rank = "-"  # Meta-Jogo -- Rank: calculado ao entrar em FLOW_RESULTS
+        self._player_progress = load_progress()  # Meta-Jogo -- Medalhas: lido 1x, atualizado in-memory
 
         composed = self._compose_stage(0)
         super().__init__(
@@ -442,8 +464,12 @@ class HertzGameLoop(GameLoop):
             self._audio_engine.load_track(stage.stage_id, stage.track_path)
             self._audio_engine.play_track(stage.stage_id)
         self._was_in_flow = False
-        if hasattr(self._audio_engine, "set_track_volume"):
-            self._audio_engine.set_track_volume(self._flow_base_volume())
+        # Audio Ducking: fase nova, GameState.miss_count novo -- nunca
+        # carrega um "erro" da fase ANTERIOR para a de agora (o valor
+        # real e recalculado no proximo `_sync_track_volume`, chamado
+        # ainda neste mesmo frame).
+        self._last_miss_count_seen = 0
+        self._duck_timer_seconds = 0.0
         if hasattr(self._renderer, "set_flow_mode"):
             self._renderer.set_flow_mode(False)
         self._flow = FLOW_PLAYING
@@ -611,18 +637,35 @@ class HertzGameLoop(GameLoop):
         if self._composed.all_spawners_finished and (threat_pool.count == 0 or music_over):
             self._results_grace += delta_time
             if self._results_grace >= _RESULTS_GRACE_SECONDS:
+                # Meta-Jogo -- Rank: calculado UMA vez aqui, no instante
+                # exato da transicao (nao a cada frame na tela de
+                # resultados -- os contadores ja pararam de mudar).
+                self._results_rank = compute_rank(state.perfect_count, state.good_count, state.miss_count)
+                self._save_stage_medal()
                 self._flow = FLOW_RESULTS
         else:
             self._results_grace = 0.0
+
+    def _save_stage_medal(self) -> None:
+        """Meta-Jogo -- Medalhas: registra os `active_modifiers` da fase
+        RECEM-CONCLUIDA em `player_progress.json` (uniao com o que ja
+        estava salvo, ver `record_stage_cleared`) -- chamado UMA vez, no
+        instante exato da transicao pra resultados. Atualiza o cache
+        em-memoria (`self._player_progress`) na mesma chamada, pro menu
+        ja mostrar o glifo novo sem precisar reler o arquivo."""
+        stage = self._stages[self._loaded_stage]
+        self._player_progress = record_stage_cleared(stage.stage_id, self._stage_config.active_modifiers)
 
     def _advance_flow_state(self, state) -> None:
         """Flow State ("vidro quebrado", Arcade 4K): detecta a
         TRANSICAO de combo cruzando `flow_combo_threshold` (o
         `UIRenderSystem` ja decide isso por conta propria a cada frame
         para o HUD -- aqui so replicamos a mesma condicao para acionar os
-        efeitos que vivem FORA do ECS: swell/restauracao de volume da
-        faixa e escurecimento de fundo do renderer; a saida (um Miss
-        zera o combo) dispara o aviso de "vidro quebrado".
+        efeitos que vivem FORA do ECS: escurecimento de fundo do
+        renderer; a saida (um Miss zera o combo) dispara o aviso de
+        "vidro quebrado". O VOLUME da faixa (swell do Flow + Audio
+        Ducking) e recalculado TODO frame por `_sync_track_volume`, nao
+        aqui -- so a transicao dispara o resto (fundo/aviso).
 
         Sem HUD, o jogador perde a nocao de progresso alem do limiar --
         `tier` (`combo // limiar`, 0 fora do Flow) e sincronizado com o
@@ -638,8 +681,6 @@ class HertzGameLoop(GameLoop):
             self._renderer.set_flow_tier(tier)
         if in_flow_now == self._was_in_flow:
             return
-        if hasattr(self._audio_engine, "set_track_volume"):
-            self._audio_engine.set_track_volume(1.0 if in_flow_now else self._flow_base_volume())
         if hasattr(self._renderer, "set_flow_mode"):
             self._renderer.set_flow_mode(in_flow_now)
         if not in_flow_now:
@@ -694,9 +735,18 @@ class HertzGameLoop(GameLoop):
                     "focused": self.options_focused(stage_index),
                 }
             practice_enabled = self.practice_mode_on(self._selected_stage) if is_selectable else None
+            # Meta-Jogo -- Medalhas: contagem de modifiers ja vencidos
+            # POR FASE (paralelo a `self._stages`, nao so as visiveis --
+            # poucas dezenas de fases no maximo, custo desprezivel numa
+            # sincronizacao que ja roda 1x por frame de qualquer jeito).
+            medal_counts = tuple(
+                len(self._player_progress.get(stage.stage_id, ())) for stage in self._stages
+            )
             self._renderer.set_overlay(
                 overlay_mode, self._selected_stage, len(self._stages),
                 modifier_panel=modifier_panel, practice_enabled=practice_enabled,
+                rank=(self._results_rank if self._flow == FLOW_RESULTS else None),
+                medal_counts=medal_counts,
             )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)
@@ -720,6 +770,66 @@ class HertzGameLoop(GameLoop):
         self._renderer.set_camera_offset(
             random.uniform(-intensity, intensity), random.uniform(-intensity, intensity)
         )
+
+    def _sync_sparks(self) -> None:
+        """Juice Visual -- Sparks: publica os buffers do `SparkSystem`
+        da fase (`ComposedGame.spark_system`, so no Defensor) no
+        renderer todo frame -- mesma familia de sincronizacao de
+        `_sync_camera_shake`. No-op fora do Defensor, sem `SparkSystem`
+        (Arcade 4K) ou com um renderer sem suporte."""
+        if not hasattr(self._renderer, "set_sparks") or self._composed is None:
+            return
+        spark_system = self._composed.spark_system
+        if spark_system is None:
+            self._renderer.set_sparks(None, None, None, None, None, 0)
+            return
+        xs, ys, angles, lengths, alphas, count = spark_system.render_arrays()
+        self._renderer.set_sparks(xs, ys, angles, lengths, alphas, count)
+
+    def _sync_track_volume(self, delta_time: float) -> None:
+        """Audio Ducking: UM unico lugar decide o volume real da faixa
+        a cada frame, combinando o swell do Flow State (`_flow_base_volume`/
+        `1.0` dentro do Flow -- `_was_in_flow` ja mantido por
+        `_advance_flow_state`) com o abaixamento temporario apos um
+        MISS/dano. `GameState.miss_count` e o MESMO contador incrementado
+        por QUALQUER erro nos 2 modos (timing do Defensor, dano no
+        nucleo, nota perdida do Arcade, Bomba, Hold quebrado) -- compara-lo
+        quadro a quadro detecta "um erro nasceu agora" sem precisar de um
+        evento/callback dedicado. `duck_timer_seconds` decai por
+        `delta_time` de FRAME (game feel); o volume sobe de
+        `duck_volume_fraction` (MINIMO, no instante do erro) de volta ao
+        normal ao longo de `duck_duration_seconds`."""
+        if not hasattr(self._audio_engine, "set_track_volume") or self._composed is None:
+            return
+        state = self._composed.game_state
+        config = self._stage_config
+
+        if state.miss_count > self._last_miss_count_seen:
+            self._duck_timer_seconds = config.duck_duration_seconds
+        self._last_miss_count_seen = state.miss_count
+        if self._duck_timer_seconds > 0.0:
+            self._duck_timer_seconds = max(0.0, self._duck_timer_seconds - delta_time)
+
+        base_volume = 1.0 if self._was_in_flow else self._flow_base_volume()
+        duck_multiplier = compute_duck_multiplier(
+            self._duck_timer_seconds, config.duck_duration_seconds, config.duck_volume_fraction
+        )
+        self._audio_engine.set_track_volume(base_volume * duck_multiplier)
+
+    def _sync_beat_phase(self) -> None:
+        """Heartbeat (Juice Visual): publica `beat_phase` (`[0, 1)`, a
+        fracao ja percorrida do compasso ATUAL) no renderer todo frame
+        -- mesma familia de sincronizacao de `_sync_camera_shake`.
+        `GameState.bpm` e fixo (lido uma unica vez na composicao), entao
+        so o `now_seconds()` do relogio de audio muda a fase quadro a
+        quadro. Zero-GC trivial: aritmetica escalar, nenhum array."""
+        if not hasattr(self._renderer, "set_beat_phase"):
+            return
+        bpm = self._composed.game_state.bpm if self._composed is not None else 120.0
+        beat_duration = 60.0 / max(bpm, 1.0)
+        now_seconds = self._audio_clock.now_seconds()
+        phase = (now_seconds % beat_duration) / beat_duration
+        self._renderer.set_beat_phase(phase)
 
     def _sync_blindness(self) -> None:
         """Vignette Flash: traduz `GameState.is_blinded` (decaido pelo
@@ -837,6 +947,9 @@ class HertzGameLoop(GameLoop):
             self._sync_hitlag()
             self._sync_lane_playfield()
             self._sync_defender_playfield()
+            self._sync_sparks()
+            self._sync_beat_phase()
+            self._sync_track_volume(delta_time)
             self._render_frame()
 
             elapsed = time.perf_counter() - now

@@ -24,6 +24,12 @@ def test_combo_142_extracts_digits_1_4_2(compose, null_clock, null_input):
     composed.game_state.combo_count = 142
     null_input.poll()
     composed.world.step(0.016)
+    # UI Bump: pular de 0 pra 142 direto (sem passar pelo JudgmentSystem)
+    # cruza varios multiplos de 50 -- deixa o timer de destaque esgotar
+    # (0.5s default) antes de checar os digitos, senao a textura seria a
+    # dourada do bump, nao a branca padrao (o que este teste mede).
+    for _ in range(35):
+        composed.world.step(0.016)
 
     ui_system = _find_ui_system(composed)
     texture_ids, alphas = _digit_sprites(composed, ui_system, "_combo_digit_indices")

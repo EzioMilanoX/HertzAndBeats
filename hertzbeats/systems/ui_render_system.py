@@ -7,7 +7,12 @@ from ouroboros.core.memory.memory_manager import MemoryManager
 from ouroboros.core.systems.base_system import ISystem
 from ouroboros.core.world import World
 
-from hertzbeats.components.texture_ids import JUDGMENT_WORD_TEXTURES, TEX_DIGIT_BASE
+from hertzbeats.components.texture_ids import (
+    BUMP_FADE_STEPS,
+    JUDGMENT_WORD_TEXTURES,
+    TEX_DIGIT_BASE,
+    TEX_DIGIT_BUMP_BASE,
+)
 from hertzbeats.game_state import GameState
 
 
@@ -32,6 +37,17 @@ class UIRenderSystem(ISystem):
 
     O timer da palavra de veredito decrementa com `delta_time` de frame
     (feedback visual, nao evento ritmico).
+
+    UI BUMP (Juice Visual): ao CRUZAR um multiplo de `combo_bump_threshold`
+    (default 50) -- comparando `combo_count // threshold` ANTES/DEPOIS
+    do frame, nao so `% threshold == 0` (um combo perfurante pode pular
+    varios multiplos de uma vez, ver `JudgmentSystem._register_piercing_kill`) --
+    arma `_bump_timer_seconds`. Enquanto o timer nao esgota, os digitos
+    do COMBO (nunca os do placar) trocam de `TEX_DIGIT_BASE` para
+    `TEX_DIGIT_BUMP_BASE + estagio*10`, onde o estagio avanca conforme o
+    timer decai -- um "retorno suave ao branco" feito de estagios
+    PRE-renderizados (`BUMP_FADE_STEPS`), nunca um recolorimento em
+    tempo real (o `draw_batch` so aplica alfa a sprites com textura).
     """
 
     def __init__(
@@ -46,6 +62,8 @@ class UIRenderSystem(ISystem):
         flow_combo_threshold: int = None,
         score_label_entity_index: int = None,
         combo_label_entity_index: int = None,
+        combo_bump_threshold: int = 50,
+        combo_bump_seconds: float = 0.5,
     ) -> None:
         """Os arrays de indices de entidade do HUD (int64, ordem: digito
         menos significativo primeiro) sao pre-alocados pela composicao.
@@ -61,6 +79,10 @@ class UIRenderSystem(ISystem):
         self._flow_combo_threshold = flow_combo_threshold
         self._score_label_entity_index = score_label_entity_index
         self._combo_label_entity_index = combo_label_entity_index
+        self._combo_bump_threshold = int(combo_bump_threshold)
+        self._combo_bump_seconds = float(combo_bump_seconds)
+        self._last_combo_seen = 0
+        self._bump_timer_seconds = 0.0
 
         score_digits = score_digit_entity_indices.shape[0]
         combo_digits = combo_digit_entity_indices.shape[0]
@@ -76,6 +98,19 @@ class UIRenderSystem(ISystem):
         `GameState` corrente."""
         sprite_view = self._sprite_pool.active_view()
         state = self._game_state
+
+        # UI Bump: compara TIERS (combo // limiar), nao so `% limiar == 0`
+        # -- um combo perfurante (Overdrive) pode somar varios de uma vez
+        # e pular por cima do multiplo exato. So dispara ao SUBIR
+        # (nunca ao zerar num MISS). Sempre atualizado, mesmo durante o
+        # Flow State (a fonte de verdade nao pode "perder" uma virada).
+        if state.combo_count > self._last_combo_seen and (
+            state.combo_count // self._combo_bump_threshold > self._last_combo_seen // self._combo_bump_threshold
+        ):
+            self._bump_timer_seconds = self._combo_bump_seconds
+        self._last_combo_seen = state.combo_count
+        if self._bump_timer_seconds > 0.0:
+            self._bump_timer_seconds = max(0.0, self._bump_timer_seconds - delta_time)
 
         # FLOW STATE: combo >= limiar -> interface some por completo (a
         # imersao "vidro quebrado" do enunciado). Um simples if sobre um
@@ -110,6 +145,7 @@ class UIRenderSystem(ISystem):
             self._combo_powers,
             self._combo_digit_buffer,
             self._combo_alpha_buffer,
+            digit_texture_base=self._combo_digit_texture_base(),
         )
 
         if state.judgment_display_seconds_left > 0.0:
@@ -144,6 +180,18 @@ class UIRenderSystem(ISystem):
                 label_row = self._sprite_pool.dense_row_of(label_index)
                 sprite_view["tint_a"][label_row] = 0
 
+    def _combo_digit_texture_base(self) -> int:
+        """UI Bump: enquanto `_bump_timer_seconds` nao esgota, escolhe o
+        estagio de textura dourada (0 = pico, `BUMP_FADE_STEPS-1` = mais
+        proximo do branco) por aritmetica sobre a fracao restante do
+        timer -- nenhum recolorimento em tempo real, so a ESCOLHA de
+        qual base de digito somar."""
+        if self._bump_timer_seconds <= 0.0 or self._combo_bump_seconds <= 0.0:
+            return TEX_DIGIT_BASE
+        remaining_fraction = self._bump_timer_seconds / self._combo_bump_seconds
+        stage = min(BUMP_FADE_STEPS - 1, int((1.0 - remaining_fraction) * BUMP_FADE_STEPS))
+        return TEX_DIGIT_BUMP_BASE + stage * 10
+
     def _write_number(
         self,
         sprite_view: np.ndarray,
@@ -152,15 +200,19 @@ class UIRenderSystem(ISystem):
         powers: np.ndarray,
         digit_buffer: np.ndarray,
         alpha_buffer: np.ndarray,
+        digit_texture_base: int = TEX_DIGIT_BASE,
     ) -> None:
         """Extrai os digitos de `value` (base 10, vetorizado, buffers
         `out=`) e grava textura/alfa nos sprites correspondentes; digitos
         alem do mais significativo ficam com alfa 0 (ocultos), exceto o
         das unidades, sempre visivel (mostra o proprio 0).
+        `digit_texture_base` (UI Bump): o combo pode pedir uma base de
+        textura DIFERENTE (dourada, ver `_combo_digit_texture_base`) --
+        o placar nunca muda a sua.
         """
         np.floor_divide(value, powers, out=digit_buffer)
         np.mod(digit_buffer, 10, out=digit_buffer)
-        np.add(digit_buffer, TEX_DIGIT_BASE, out=digit_buffer)
+        np.add(digit_buffer, digit_texture_base, out=digit_buffer)
 
         # visibilidade: potencia <= valor (ou digito das unidades)
         np.less_equal(powers, value, out=alpha_buffer)

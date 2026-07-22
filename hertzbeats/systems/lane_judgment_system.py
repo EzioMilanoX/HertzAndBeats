@@ -107,6 +107,8 @@ class LaneJudgmentSystem(ISystem):
         max_health: int = 0,
         heal_amount: int = 1,
         heal_sound_id: str = None,
+        note_hit_sound_ids: tuple = (),
+        miss_sound_id: str = None,
     ) -> None:
         """Buffers pre-alocados pela capacidade da pool (o update nunca
         aloca arrays)."""
@@ -141,6 +143,8 @@ class LaneJudgmentSystem(ISystem):
         self._max_health = int(max_health)
         self._heal_amount = int(heal_amount)
         self._heal_sound_id = heal_sound_id
+        self._note_hit_sound_ids = tuple(note_hit_sound_ids)
+        self._miss_sound_id = miss_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -231,6 +235,8 @@ class LaneJudgmentSystem(ISystem):
         state.miss_count += int(overdue_rows.shape[0])
         state.combo_count = 0
         state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+        # Audio Ducking: SFX de erro em volume MAXIMO.
+        self._play(self._miss_sound_id, 1.0)
 
     def _try_lane_hit(
         self,
@@ -312,6 +318,10 @@ class LaneJudgmentSystem(ISystem):
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
+        # Combo Pitch Shift: mesmo truque Zero-GC do canhao do Defensor --
+        # so escolhe qual variante ja sintetizada tocar, nunca faz
+        # pitch-shift em tempo real.
+        self._play(self._note_hit_sound_for_combo(state.combo_count), 0.7)
 
         # Nota de Cura: so um PERFECT cura -- GOOD pontua normalmente
         # (mesma nota, sem penalidade), mas nao recupera vida.
@@ -324,6 +334,14 @@ class LaneJudgmentSystem(ISystem):
         headless injetam NullAudioEngine ou nada)."""
         if self._audio_engine is not None and sound_id is not None:
             self._audio_engine.play_one_shot(sound_id, volume)
+
+    def _note_hit_sound_for_combo(self, combo_count: int):
+        """Combo Pitch Shift: ver `JudgmentSystem._shot_sound_for_combo`
+        -- mesma aritmetica, variantes diferentes."""
+        if not self._note_hit_sound_ids:
+            return None
+        index = min(combo_count // 10, len(self._note_hit_sound_ids) - 1)
+        return self._note_hit_sound_ids[index]
 
     def _register_hold_engage(self, threat_view: np.ndarray, best_row: int) -> None:
         """Nota longa classica -- Fase 1 (Start): a candidata vencedora
