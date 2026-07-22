@@ -92,6 +92,16 @@ class HertzConfig:
     #      "bombs"/"heal"     -- Arcade 4K, opt-in por presenca do tipo
     #                            no beatmap (aqui so garante que o TIPO
     #                            exista em `threat_type_ids`)
+    #      "roleta_russa"     -- Meta-Jogo (os 2 modos): forca `max_health`
+    #                            para 1 na composicao (`HertzGameLoop.
+    #                            _compose_stage`, depois de resolver
+    #                            overrides/painel) -- NENHUM sistema novo:
+    #                            todo MISS ja custa exatamente 1 de vida em
+    #                            CoreDamageSystem/JudgmentSystem/
+    #                            LaneJudgmentSystem, entao 1 de vida maxima
+    #                            e' Game Over instantaneo no primeiro erro
+    #                            "de graca" (maior bonus de pontuacao do
+    #                            catalogo, ver `MODIFIER_SCORE_BONUS`)
     #    Um modifier cuja dependencia nao esta presente (ex.:
     #    "orbital_shields" sem "polarity") degrada silenciosamente para
     #    no-op -- nunca lanca erro (mesma filosofia de opt-in gracioso ja
@@ -101,6 +111,16 @@ class HertzConfig:
     # -- Polaridade + Parry Perfeito (Defensor, opt-in via "polarity" em
     #    `active_modifiers`) --
     fire_alt_action_name: str = "fire_alt"
+
+    # -- Meta-Jogo -- Paletas Cosmeticas: os UNICOS 2 tints que mudam por
+    #    paleta desbloqueavel (ver `hertzbeats.palettes.PALETTE_CATALOG`,
+    #    resolvido em `RhythmCompositionRoot.build()` a partir da escolha
+    #    salva do jogador -- `user_settings.load_user_palette_id`). O Anel
+    #    de Convergencia HERDA a cor da ameaca que o gerou, sem precisar
+    #    de um campo proprio. Default = a paleta "classic" (tons de
+    #    sempre, comportamento IDENTICO a antes desta feature existir).
+    threat_blue_rgb: Tuple[int, int, int] = (70, 140, 255)
+    threat_pink_rgb: Tuple[int, int, int] = (255, 90, 190)
 
     # -- Pistas Dinamicas (Arcade 4K, sempre ativo) --
     lane_sway_amplitude_px: float = 34.0
@@ -312,6 +332,8 @@ class HertzConfig:
             lane_spacing=raw.get("lane_spacing", 110.0),
             judgment_line_offset=raw.get("judgment_line_offset", 170.0),
             misfire_jam_seconds=raw.get("misfire_jam_seconds", 0.5),
+            threat_blue_rgb=tuple(raw.get("threat_blue_rgb", (70, 140, 255))),
+            threat_pink_rgb=tuple(raw.get("threat_pink_rgb", (255, 90, 190))),
             active_modifiers=tuple(raw.get("active_modifiers", ())),
             fire_alt_action_name=raw.get("fire_alt_action_name", "fire_alt"),
             lane_sway_amplitude_px=raw.get("lane_sway_amplitude_px", 34.0),

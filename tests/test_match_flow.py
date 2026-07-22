@@ -28,6 +28,7 @@ from hertzbeats.bootstrap.hertz_game_loop import (
     HEAVY_MECHANIC_VALUES_BY_GAME_MODE,
     HUB_CATEGORIES,
     MIN_SCORE_MULTIPLIER,
+    MODIFIER_SCORE_BONUS,
     START_ROW,
     HertzGameLoop,
     compute_score_multiplier,
@@ -87,6 +88,8 @@ def flow_game(tmp_path, null_input):
             audio_engine=audio_engine,
             audio_clock=clock,
             player_progress_path=str(tmp_path / "player_progress.json"),
+            player_stats_path=str(tmp_path / "player_lifetime_stats.json"),
+            user_settings_path=str(tmp_path / "user_settings.json"),
         )
         return loop, clock
 
@@ -144,11 +147,13 @@ def _move_cursor_to(loop, null_input, row_name: str, stage_index: int = 0) -> No
 
 
 def _play_to_results(loop, clock, null_input, timestamp: float = 3.0, lane: int = 0) -> None:
-    """Autoplay: mira na `lane` e atira EXATAMENTE no instante da unica
-    ameaca da fase, depois deixa os frames rodarem ate a carencia de
-    resultados esgotar."""
-    null_input.set_axis("aim_x", math.cos(0.0))
-    null_input.set_axis("aim_y", math.sin(0.0))
+    """Autoplay: mira na `lane` (MESMA formula do spawner radial --
+    `angulo = TAU * lane / lane_count`, `lane_count=8` em `make_config`)
+    e atira EXATAMENTE no instante da unica ameaca da fase, depois deixa
+    os frames rodarem ate a carencia de resultados esgotar."""
+    angle = 2.0 * math.pi * lane / 8.0
+    null_input.set_axis("aim_x", math.cos(angle))
+    null_input.set_axis("aim_y", math.sin(angle))
     clock.set_now_seconds(timestamp)
     _press(loop, null_input, "fire")
     for _ in range(80):
@@ -328,6 +333,8 @@ def test_a_curated_stage_is_never_affected_by_the_modifier_panel(tmp_path, null_
         base_config=make_config(beatmap_path), stages=(stage,), renderer=NullRenderer(),
         input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
         player_progress_path=str(tmp_path / "player_progress.json"),
+        player_stats_path=str(tmp_path / "player_lifetime_stats.json"),
+        user_settings_path=str(tmp_path / "user_settings.json"),
     )
     _goto_preflight(loop, null_input, "campaign", 0)
     _press(loop, null_input, "confirm")
@@ -414,7 +421,7 @@ def test_left_right_cycle_the_game_mode_row(flow_game, null_input):
     assert loop.menu_cursor_index(0) == 0  # GAME_MODE_ROW
     _press(loop, null_input, "menu_right")
     assert loop.chosen_game_mode(0) == "lanes"
-    assert loop.modifier_rows(0) == (GAME_MODE_ROW, HEAVY_MECHANIC_ROW, START_ROW)  # sem modifiers booleanos
+    assert loop.modifier_rows(0) == (GAME_MODE_ROW, HEAVY_MECHANIC_ROW, "roleta_russa", START_ROW)
 
     _press(loop, null_input, "menu_left")
     assert loop.chosen_game_mode(0) == "defender"
@@ -562,6 +569,67 @@ def test_score_multiplier_worst_realistic_case_stays_above_the_floor():
     # negativo) + Modo Treino -- ainda bem acima de MIN_SCORE_MULTIPLIER
     assert compute_score_multiplier(frozenset({"heal"}), True) == pytest.approx(0.45)
     assert compute_score_multiplier(frozenset({"heal"}), True) > MIN_SCORE_MULTIPLIER
+
+
+def test_score_multiplier_roleta_russa_is_the_biggest_bonus_in_the_catalog():
+    assert compute_score_multiplier(frozenset({"roleta_russa"}), False) == pytest.approx(1.30)
+    all_others = [b for m, b in MODIFIER_SCORE_BONUS.items() if m != "roleta_russa"]
+    assert MODIFIER_SCORE_BONUS["roleta_russa"] > max(all_others)
+
+
+# -- Meta-Jogo -- Roleta Russa (1 de vida, qualquer erro e Game Over) ----
+
+
+def test_roleta_russa_forces_max_health_to_1_overriding_a_higher_config_value(flow_game, null_input):
+    loop, _ = flow_game([[_basic(3.0)]], selectable_list=[True], overrides_list=[{"max_health": 5}])
+    _goto_preflight(loop, null_input, "free_play", 0)
+    _move_cursor_to(loop, null_input, "roleta_russa")
+    _press(loop, null_input, "confirm")  # liga o modifier
+    assert "roleta_russa" in loop.chosen_modifiers(0)
+
+    _move_cursor_to(loop, null_input, "start")
+    _press(loop, null_input, "confirm")
+    assert loop.flow == FLOW_PLAYING
+    assert loop._stage_config.max_health == 1
+    assert loop.composed.game_state.health == 1
+
+
+def test_roleta_russa_off_keeps_the_configured_max_health(flow_game, null_input):
+    loop, _ = flow_game([[_basic(3.0)]], selectable_list=[True], overrides_list=[{"max_health": 5}])
+    _goto_preflight(loop, null_input, "free_play", 0)
+    _move_cursor_to(loop, null_input, "start")
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.max_health == 5
+
+
+def test_roleta_russa_on_a_curated_stage_also_forces_1_hp(flow_game, null_input):
+    loop, _ = flow_game(
+        [[_basic(3.0)]], selectable_list=[False], overrides_list=[{"max_health": 3}],
+        active_modifiers_list=[("roleta_russa",)],
+    )
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "confirm")
+    assert loop._stage_config.max_health == 1
+
+
+def test_roleta_russa_any_miss_is_instant_game_over(flow_game, null_input):
+    loop, clock = flow_game([[_basic(3.0)]], selectable_list=[True])
+    _goto_preflight(loop, null_input, "free_play", 0)
+    _move_cursor_to(loop, null_input, "roleta_russa")
+    _press(loop, null_input, "confirm")
+    _move_cursor_to(loop, null_input, "start")
+    _press(loop, null_input, "confirm")
+    assert loop.composed.game_state.health == 1
+
+    # sem atirar: a ameaca viaja, colide vencida com o nucleo -- 1 MISS basta
+    for _ in range(240):
+        clock.advance(DT)
+        loop.advance_frame(DT)
+        if loop.flow == FLOW_GAME_OVER:
+            break
+    assert loop.flow == FLOW_GAME_OVER
+    assert loop.composed.game_state.miss_count == 1
+    assert loop.composed.game_state.health == 0
 
 
 def test_score_multiplier_preview_in_preflight_matches_what_gets_composed(flow_game, null_input):
@@ -743,6 +811,32 @@ def test_saved_latency_roundtrip(tmp_path):
     assert load_user_latency(path) == 0.30
 
 
+def test_saved_palette_id_roundtrip(tmp_path):
+    from hertzbeats.user_settings import load_user_palette_id, save_user_palette_id
+
+    path = str(tmp_path / "user_settings.json")
+    assert load_user_palette_id(path) is None  # sem escolha ainda -> DEFAULT_PALETTE_ID
+    save_user_palette_id("neon", path)
+    assert load_user_palette_id(path) == "neon"
+
+
+def test_saving_latency_and_palette_never_erase_each_other(tmp_path):
+    """Os 2 campos vivem no MESMO arquivo, mas sao INDEPENDENTES -- salvar
+    um nao pode apagar o outro (mesmo arquivo tocado ao sair do jogo)."""
+    from hertzbeats.user_settings import (
+        load_user_latency, load_user_palette_id, save_user_latency, save_user_palette_id,
+    )
+
+    path = str(tmp_path / "user_settings.json")
+    save_user_latency(0.05, path)
+    save_user_palette_id("gold_silver", path)
+    assert load_user_latency(path) == 0.05
+    assert load_user_palette_id(path) == "gold_silver"
+
+    save_user_latency(0.08, path)  # simula o save de saida do jogo
+    assert load_user_palette_id(path) == "gold_silver"  # ainda la
+
+
 # -- Arquivos (Vault) ------------------------------------------------------
 
 
@@ -760,6 +854,8 @@ def test_vault_starts_with_nothing_cleared(flow_game, null_input):
     assert stats == {
         "stages_cleared": 0, "total_stages": 2, "total_medals": 0,
         "rank_counts": {"SS": 0, "S": 0, "A": 0, "B": 0, "C": 0, "D": 0},
+        "lifetime_perfect_count": 0, "lifetime_shots_fired": 0, "lifetime_playtime_seconds": 0.0,
+        "palette_id": "classic", "unlocked_palettes": ("classic",),
     }
 
 
@@ -776,6 +872,129 @@ def test_vault_reflects_a_stage_cleared_just_now(flow_game, null_input):
     assert stats["stages_cleared"] == 1
     assert stats["total_stages"] == 2
     assert stats["rank_counts"][loop._results_rank] == 1
+
+
+# -- Meta-Jogo -- Estatisticas Globais (vitalicias) -----------------------
+
+
+def test_clearing_a_stage_accumulates_lifetime_stats(flow_game, null_input):
+    loop, clock = flow_game([[_basic(3.0, lane=0)]], selectable_list=[False])
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "confirm")
+    _play_to_results(loop, clock, null_input)
+    assert loop.flow == FLOW_RESULTS
+
+    stats = loop.vault_stats()
+    assert stats["lifetime_perfect_count"] == 1
+    assert stats["lifetime_shots_fired"] == 1
+    assert stats["lifetime_playtime_seconds"] > 0.0
+
+
+def test_a_lost_stage_still_accumulates_lifetime_stats(flow_game, null_input):
+    """Estatisticas vitalicias nao dependem de vencer a fase -- um MISS
+    continua contando como tiro disparado mesmo num Game Over."""
+    loop, clock = flow_game([[_basic(3.0)]], overrides_list=[{"max_health": 1}])
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "confirm")
+    for _ in range(240):
+        clock.advance(DT)
+        loop.advance_frame(DT)
+        if loop.flow == FLOW_GAME_OVER:
+            break
+    assert loop.flow == FLOW_GAME_OVER
+
+    stats = loop.vault_stats()
+    assert stats["lifetime_shots_fired"] == 1  # o MISS que zerou a vida
+    assert stats["lifetime_perfect_count"] == 0
+    assert stats["lifetime_playtime_seconds"] > 0.0
+
+
+def test_lifetime_stats_accumulate_across_multiple_matches(flow_game, null_input):
+    loop, clock = flow_game(
+        [[_basic(3.0, lane=0)], [_basic(3.0, lane=1)]], selectable_list=[False, False],
+    )
+    _goto_preflight(loop, null_input, "campaign", 0)
+    _press(loop, null_input, "confirm")
+    _play_to_results(loop, clock, null_input)
+    _press(loop, null_input, "confirm")  # proxima fase
+    assert loop.flow == FLOW_PLAYING
+
+    _play_to_results(loop, clock, null_input, lane=1)
+    assert loop.flow == FLOW_RESULTS
+
+    stats = loop.vault_stats()
+    assert stats["lifetime_perfect_count"] == 2
+    assert stats["lifetime_shots_fired"] == 2
+
+
+# -- Meta-Jogo -- Paletas Cosmeticas --------------------------------------
+
+
+def test_vault_cycling_does_nothing_when_only_classic_is_unlocked(flow_game, null_input):
+    loop, _ = flow_game([[_basic(3.0)]])
+    _goto_vault(loop, null_input)
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "classic"
+    _press(loop, null_input, "menu_left")
+    assert loop.palette_id == "classic"
+
+
+def test_vault_cycling_wraps_through_unlocked_palettes(flow_game, null_input):
+    loop, _ = flow_game([[_basic(3.0)]])
+    loop._player_progress = {"external": {"modifiers": frozenset(), "best_rank": "SS"}}
+    _goto_vault(loop, null_input)
+
+    assert loop.palette_id == "classic"
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "gold_silver"
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "neon"
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "classic"  # enrola
+
+    _press(loop, null_input, "menu_left")
+    assert loop.palette_id == "neon"  # o inverso tambem enrola
+
+
+def test_vault_only_cycles_through_palettes_actually_unlocked(flow_game, null_input):
+    """Com apenas Rank S alcancado, "neon" (exige SS) nunca aparece no
+    ciclo -- so "classic"/"gold_silver"."""
+    loop, _ = flow_game([[_basic(3.0)]])
+    loop._player_progress = {"external": {"modifiers": frozenset(), "best_rank": "S"}}
+    _goto_vault(loop, null_input)
+
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "gold_silver"
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "classic"  # enrola sem passar por "neon"
+
+
+def test_cycling_palette_in_vault_applies_to_the_next_stage_composed(flow_game, null_input):
+    """`_goto_vault`/`_goto_preflight` (que comecam sempre de FLOW_TITLE)
+    nao dao pra encadear direto aqui -- depois do Vault o fluxo ja esta
+    no HUB (nao TITLE), entao a navegacao pro Carrossel/Pre-Voo e feita
+    manualmente a partir do estado real em que o loop ja esta."""
+    from hertzbeats.palettes import PALETTE_CATALOG
+    from hertzbeats.user_settings import load_user_palette_id
+
+    loop, _ = flow_game([[_basic(3.0)]])
+    loop._player_progress = {"external": {"modifiers": frozenset(), "best_rank": "SS"}}
+    _goto_vault(loop, null_input)
+    _press(loop, null_input, "menu_right")
+    assert loop.palette_id == "gold_silver"
+    _press(loop, null_input, "pause")  # volta ao HUB -- a escolha persiste
+    assert loop.flow == FLOW_HUB
+
+    target = HUB_CATEGORIES.index("campaign")
+    while loop.hub_cursor != target:
+        _press(loop, null_input, "menu_up")
+    _press(loop, null_input, "confirm")  # HUB -> CAROUSEL
+    _press(loop, null_input, "confirm")  # CAROUSEL -> PREFLIGHT (unica fase, nunca trancada)
+    _press(loop, null_input, "confirm")  # PREFLIGHT curada -> START
+    assert loop.flow == FLOW_PLAYING
+    assert loop._stage_config.threat_blue_rgb == PALETTE_CATALOG["gold_silver"]["threat_blue_rgb"]
+    assert loop._stage_config.threat_pink_rgb == PALETTE_CATALOG["gold_silver"]["threat_pink_rgb"]
+    assert load_user_palette_id(loop._user_settings_path) == "gold_silver"
 
 
 # -- Calibracao (metronomo + tecla no tempo) ------------------------------

@@ -45,6 +45,9 @@ def _make_lanes_loop(tmp_path, null_input):
         input_provider=null_input,
         audio_engine=audio_engine,
         audio_clock=clock,
+        player_progress_path=str(tmp_path / "player_progress.json"),
+        player_stats_path=str(tmp_path / "player_lifetime_stats.json"),
+        user_settings_path=str(tmp_path / "user_settings.json"),
     )
     loop.start_stage(0)
     return loop, renderer

@@ -145,6 +145,9 @@ def _hitlag_game(tmp_path, null_input):
     loop = HertzGameLoop(
         base_config=config, stages=(stage,), renderer=renderer,
         input_provider=null_input, audio_engine=audio_engine, audio_clock=clock,
+        player_progress_path=str(tmp_path / "player_progress.json"),
+        player_stats_path=str(tmp_path / "player_lifetime_stats.json"),
+        user_settings_path=str(tmp_path / "user_settings.json"),
     )
     return loop, renderer
 

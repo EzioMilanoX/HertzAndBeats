@@ -80,6 +80,9 @@ def flow_game(tmp_path, null_input):
         loop = HertzGameLoop(
             base_config=make_config(beatmap_path), stages=(stage,), renderer=renderer,
             input_provider=null_input, audio_engine=audio_engine, audio_clock=clock,
+            player_progress_path=str(tmp_path / "player_progress.json"),
+            player_stats_path=str(tmp_path / "player_lifetime_stats.json"),
+            user_settings_path=str(tmp_path / "user_settings.json"),
         )
         return loop, clock, renderer
 
@@ -131,6 +134,9 @@ def test_sync_beat_phase_uses_the_beatmaps_own_bpm(tmp_path, null_input):
     loop = HertzGameLoop(
         base_config=make_config(beatmap_path), stages=(stage,), renderer=renderer,
         input_provider=null_input, audio_engine=audio_engine, audio_clock=clock,
+        player_progress_path=str(tmp_path / "player_progress.json"),
+        player_stats_path=str(tmp_path / "player_lifetime_stats.json"),
+        user_settings_path=str(tmp_path / "user_settings.json"),
     )
     loop.start_stage(0)
     assert loop._composed.game_state.bpm == pytest.approx(150.0)

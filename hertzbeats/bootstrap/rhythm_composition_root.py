@@ -26,6 +26,7 @@ testes headless componham o jogo INTEIRO com backends Null.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import math
 from pathlib import Path
@@ -330,6 +331,8 @@ def _compose_defender_mode(ctx: _ModeContext):
         twin_threat_type_id=(
             config.threat_type_ids.get("rhythm_threat_twin") if twin_threats_enabled else None
         ),
+        threat_blue_rgb=config.threat_blue_rgb,
+        threat_pink_rgb=config.threat_pink_rgb,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -1283,7 +1286,8 @@ class RhythmCompositionRoot:
         input_provider.load_bindings(config.input_bindings_path)
         input_provider.configure_aim_origin(center_x, center_y)
 
-        from hertzbeats.user_settings import load_user_latency
+        from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG
+        from hertzbeats.user_settings import load_user_latency, load_user_palette_id
 
         audio_engine = HBPygameAudioEngine()
         audio_clock = audio_engine.get_clock()
@@ -1293,6 +1297,19 @@ class RhythmCompositionRoot:
         audio_clock.calibrate_latency(
             saved_latency if saved_latency is not None else config.output_latency_seconds
         )
+
+        # Meta-Jogo -- Paletas Cosmeticas: resolvida AQUI (fase de
+        # carregamento) a partir da escolha salva do jogador -- um id
+        # desconhecido/nunca escolhido cai no default "classic" (nenhuma
+        # mudanca de comportamento pra quem nunca abriu o Vault).
+        palette_id = load_user_palette_id() or DEFAULT_PALETTE_ID
+        palette = PALETTE_CATALOG.get(palette_id, PALETTE_CATALOG[DEFAULT_PALETTE_ID])
+        config = dataclasses.replace(
+            config,
+            threat_blue_rgb=palette["threat_blue_rgb"],
+            threat_pink_rgb=palette["threat_pink_rgb"],
+        )
+        self._config = config
 
         # SFX sintetizados deterministicamente (Gun Sync, misfire, ghost
         # tap): garantidos e PRE-CARREGADOS aqui -- o primeiro
@@ -1343,6 +1360,7 @@ class RhythmCompositionRoot:
             audio_clock=audio_clock,
             title_track_path=title_track_path,
             calibration_track_path=calibration_track_path,
+            palette_id=palette_id if palette_id in PALETTE_CATALOG else DEFAULT_PALETTE_ID,
         )
 
         # Texturas de HUD, overlays e textos de tutorial pre-renderizados

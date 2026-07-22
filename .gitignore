@@ -23,6 +23,9 @@ data/config/user_settings.json
 # Progresso local do jogador (medalhas de modificador por fase/musica)
 data/config/player_progress.json
 
+# Estatisticas vitalicias do jogador (PERFECTs/tiros/tempo jogado, acumulado)
+data/config/player_lifetime_stats.json
+
 # Musicas do jogador e beatmaps derivados delas (locais por maquina)
 musicas/*
 !musicas/LEIA-ME.txt

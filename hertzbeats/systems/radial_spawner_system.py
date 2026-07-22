@@ -84,6 +84,8 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         polarity_enabled: bool = False,
         orbit_threat_type_id: int = None,
         twin_threat_type_id: int = None,
+        threat_blue_rgb: tuple = (70, 140, 255),
+        threat_pink_rgb: tuple = (255, 90, 190),
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -129,6 +131,13 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         `PI/6` rad (30 graus) do angulo da original (`angle_override` em
         `_materialize_threat`) -- o jogador faz um swipe RAPIDO mas
         continuo entre as duas, nunca um alongamento impossivel de mao.
+
+        META-JOGO -- PALETAS COSMETICAS: `threat_blue_rgb`/`threat_pink_rgb`
+        (default os tons "classic" de sempre) sao os ÚNICOS 2 tints que
+        mudam por paleta desbloqueavel (ver `hertzbeats.palettes`) -- o
+        Anel de Convergencia HERDA a cor da ameaca que o gerou
+        (`_spawn_convergence_ring`), entao ja fica correto sem nenhuma
+        mudanca adicional aqui.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -164,6 +173,8 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._polarity_enabled = bool(polarity_enabled)
         self._orbit_threat_type_id = orbit_threat_type_id
         self._twin_threat_type_id = twin_threat_type_id
+        self._threat_blue_rgb = tuple(threat_blue_rgb)
+        self._threat_pink_rgb = tuple(threat_pink_rgb)
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -343,13 +354,15 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
                 TEX_THREAT_POLARITY_PINK if is_pink else TEX_THREAT_POLARITY_BLUE
             )
             if is_pink:
-                sprite_view["tint_r"][sprite_row] = 255
-                sprite_view["tint_g"][sprite_row] = 90
-                sprite_view["tint_b"][sprite_row] = 190
+                pink_r, pink_g, pink_b = self._threat_pink_rgb
+                sprite_view["tint_r"][sprite_row] = pink_r
+                sprite_view["tint_g"][sprite_row] = pink_g
+                sprite_view["tint_b"][sprite_row] = pink_b
             else:
-                sprite_view["tint_r"][sprite_row] = 70
-                sprite_view["tint_g"][sprite_row] = 140
-                sprite_view["tint_b"][sprite_row] = 255
+                blue_r, blue_g, blue_b = self._threat_blue_rgb
+                sprite_view["tint_r"][sprite_row] = blue_r
+                sprite_view["tint_g"][sprite_row] = blue_g
+                sprite_view["tint_b"][sprite_row] = blue_b
         else:
             sprite_view["texture_id"][sprite_row] = base_texture_id
             sprite_view["tint_r"][sprite_row] = 255

@@ -927,21 +927,40 @@ class HBPygameRenderer(PygameRenderer):
 
     def _draw_vault_overlay(self, center_x: int) -> None:
         """Arquivos (Vault): agregados globais de `player_progress.json`
-        -- fases vencidas de quantas existem, medalhas totais e quantas
-        vezes cada Rank ja foi o MELHOR alcancado nalguma fase. Todo
+        (fases vencidas de quantas existem, medalhas totais, quantas
+        vezes cada Rank ja foi o MELHOR alcancado nalguma fase) mais as
+        Estatisticas Globais VITALICIAS de `player_lifetime_stats.json`
+        (PERFECTs/tiros/tempo jogado, nunca zeradas por fase). Todo
         numero vem do atlas de digitos do HUD (`_blit_number`), nunca de
         uma textura nova por valor possivel."""
         stats = self._overlay_vault_stats or {}
-        y = int(self._height * 0.14)
-        y += self._blit_centered("vault_title", center_x, y) + 50
+        y = int(self._height * 0.10)
+        y += self._blit_centered("vault_title", center_x, y) + 40
         y += self._blit_centered("label_cleared", center_x, y) + 6
         y += self._blit_fraction_centered(
             stats.get("stages_cleared", 0), stats.get("total_stages", 0), center_x, y
-        ) + 24
-        y += self._blit_label_and_number_centered("label_medals", stats.get("total_medals", 0), center_x, y) + 34
+        ) + 20
+        y += self._blit_label_and_number_centered("label_medals", stats.get("total_medals", 0), center_x, y) + 26
 
         for rank, count in stats.get("rank_counts", {}).items():
-            y += self._blit_label_and_number_centered(f"rank_{rank}", count, center_x, y) + 10
+            y += self._blit_label_and_number_centered(f"rank_{rank}", count, center_x, y) + 8
+        y += 18
+        y += self._blit_label_and_number_centered(
+            "label_lifetime_perfect", stats.get("lifetime_perfect_count", 0), center_x, y
+        ) + 8
+        y += self._blit_label_and_number_centered(
+            "label_lifetime_shots", stats.get("lifetime_shots_fired", 0), center_x, y
+        ) + 8
+        y += self._blit_duration_centered(
+            "label_lifetime_playtime", stats.get("lifetime_playtime_seconds", 0.0), center_x, y
+        ) + 20
+
+        # Meta-Jogo -- Paletas Cosmeticas: nome da paleta ATUAL + quantas
+        # ja foram desbloqueadas (Rank ja alcancado nalguma fase/musica) --
+        # A/D cicla so entre as desbloqueadas, ver `HertzGameLoop._cycle_palette`.
+        palette_id = stats.get("palette_id", "classic")
+        y += self._blit_centered("label_palette", center_x, y) + 6
+        self._blit_centered(f"palette_name_{palette_id}", center_x, y)
         self._blit_centered("hint_vault", center_x, self._height - 54)
 
     def _draw_calibration_overlay(self, center_x: int) -> None:

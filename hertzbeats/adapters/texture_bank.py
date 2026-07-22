@@ -31,6 +31,7 @@ from hertzbeats.components.texture_ids import (
     TEX_WORD_PERFECT,
 )
 from hertzbeats.game_state import RANK_ORDER
+from hertzbeats.palettes import PALETTE_CATALOG
 
 LANE_KEY_LABELS = ("A", "S", "W", "D")
 """Rotulos exibidos sob os receptores do Arcade 4K (espelham os
@@ -234,6 +235,7 @@ _MODIFIER_ROW_LABELS = {
     "twin_threats": "Gemeos de Polaridade (exige Polaridade)",
     "orbital_eclipses": "Eclipses Orbitais",
     "overload": "Overload do Nucleo (exige Polaridade)",
+    "roleta_russa": "Roleta Russa (1 de vida -- qualquer erro e Game Over)",
 }
 """Rotulo de CADA linha BOOLEANA (checkbox) do menu de opcoes do
 seletor de minigame -- um por modifier de
@@ -440,7 +442,13 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text("vault_title", big_font, "ARQUIVOS (VAULT)", _DIGIT_COLOR)
     register_text("label_cleared", hint_font, "FASES VENCIDAS", _LABEL_COLOR)
     register_text("label_medals", hint_font, "MEDALHAS", _LABEL_COLOR)
-    register_text("hint_vault", hint_font, "ENTER, ESPACO ou ESC volta ao HUB", _LABEL_COLOR)
+    register_text("label_lifetime_perfect", hint_font, "PERFECTS NA VIDA", _PERFECT_COLOR)
+    register_text("label_lifetime_shots", hint_font, "TIROS DISPARADOS", _LABEL_COLOR)
+    register_text("label_lifetime_playtime", hint_font, "TEMPO JOGADO", _LABEL_COLOR)
+    register_text("label_palette", hint_font, "PALETA (A/D troca entre as desbloqueadas)", _LABEL_COLOR)
+    for palette_id, palette in PALETTE_CATALOG.items():
+        register_text(f"palette_name_{palette_id}", stage_font, palette["label"], _PERFECT_COLOR)
+    register_text("hint_vault", hint_font, "A/D troca paleta  |  ENTER, ESPACO ou ESC volta ao HUB", _LABEL_COLOR)
 
     # Calibracao: instrucao fixa + contador de toques + feedback de
     # cedo/tarde/no tempo do ULTIMO toque (3 texturas discretas).

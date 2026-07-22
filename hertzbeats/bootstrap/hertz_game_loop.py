@@ -32,8 +32,10 @@ from hertzbeats.components.schemas import MODE_TAG_LANES
 from hertzbeats.config import HertzConfig
 from hertzbeats.game_state import RANK_ORDER, compute_rank
 from hertzbeats.player_progress import PLAYER_PROGRESS_PATH, load_progress, record_stage_cleared
+from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_stats
 from hertzbeats.stages import StageDef, read_stage_bpm_and_duration, resolve_stage_config
-from hertzbeats.user_settings import save_user_latency
+from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
+from hertzbeats.user_settings import USER_SETTINGS_PATH, save_user_latency, save_user_palette_id
 
 FLOW_TITLE = "title"
 FLOW_HUB = "hub"
@@ -77,6 +79,7 @@ def compute_duck_multiplier(
     return duck_volume_fraction + (1.0 - duck_volume_fraction) * recovered_fraction
 
 MODIFIER_SCORE_BONUS = {
+    "roleta_russa": 0.30,
     "orbital_eclipses": 0.20,
     "twin_threats": 0.20,
     "orbital_shields": 0.15,
@@ -92,10 +95,12 @@ MODIFIER_SCORE_BONUS = {
 FRACIONARIO por modifier ligado, somado a 1.0. Modifiers mais cruéis
 (Eclipses, Gemeos, Overload, Colapso de Visao, Bombas) valem mais --
 incentiva o jogador a ligar as mecanicas dificeis pra tentar um Rank SS
-com pontuacao maior. "heal" reduz levemente (ajuda o jogador, entao vale
-menos); "telegraph_rings" e puramente decorativo (0). Modifiers ausentes
-daqui (ex.: nenhum -- todo modifier do catalogo tem uma entrada) valem
-0 por seguranca (`dict.get(m, 0.0)`)."""
+com pontuacao maior. "roleta_russa" (1 de vida, Game Over no primeiro
+erro) e' o MAIOR bonus do catalogo -- o risco mais alto tambem. "heal"
+reduz levemente (ajuda o jogador, entao vale menos); "telegraph_rings" e
+puramente decorativo (0). Modifiers ausentes daqui (ex.: nenhum -- todo
+modifier do catalogo tem uma entrada) valem 0 por seguranca
+(`dict.get(m, 0.0)`)."""
 
 PRACTICE_MODE_SCORE_PENALTY = 0.5
 """Meta-Jogo: Modo Treino ("Facil / Dano Reduzido") custa -50% na
@@ -156,8 +161,9 @@ DEFENDER_MODIFIER_ROWS = (
     "twin_threats",
     "orbital_eclipses",
     "overload",
+    "roleta_russa",
 )
-LANES_MODIFIER_ROWS = ()
+LANES_MODIFIER_ROWS = ("roleta_russa",)
 """Linhas de modifier BOOLEANO (checkbox) mostradas por `game_mode`,
 ENTRE `HEAVY_MECHANIC_ROW` e `START_ROW` -- "holds"/"polarity" NAO
 aparecem aqui (viraram a multipla escolha `HEAVY_MECHANIC_ROW`).
@@ -167,9 +173,10 @@ visivel em cima de dado especifico de fase CURADA (eventos
 jogador nunca tem (`music_library.py` sempre cria
 `StageDef(modchart_events=())` e o mapeador offline nunca emite
 `rhythm_threat_bomb`/`rhythm_threat_heal`) -- ligar so o modifier seria
-um checkbox que nao muda NADA na tela. Arcade 4K nao tem NENHUM
-modifier booleano hoje (so `GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`/
-`START_ROW`)."""
+um checkbox que nao muda NADA na tela. "roleta_russa" (Meta-Jogo) e' a
+excecao: nao depende de nenhum dado de fase, so forca `max_health=1` na
+composicao (ver `_compose_stage`) -- funciona identico nos 2 modos,
+entao e' a UNICA linha booleana que o Arcade 4K tem hoje."""
 
 HEAVY_MECHANIC_VALUES_BY_GAME_MODE = {
     "defender": ("none", "polarity", "holds"),
@@ -240,15 +247,25 @@ class HertzGameLoop(GameLoop):
         title_track_path: Optional[str] = None,
         calibration_track_path: Optional[str] = None,
         player_progress_path: str = PLAYER_PROGRESS_PATH,
+        player_stats_path: str = PLAYER_STATS_PATH,
+        user_settings_path: str = USER_SETTINGS_PATH,
+        palette_id: str = DEFAULT_PALETTE_ID,
     ) -> None:
         """Compoe a fase 0 imediatamente (sem tocar musica) para que a
         Tela de Titulo ja tenha uma arena renderizavel ao fundo.
         `title_track_path`/`calibration_track_path` (opcionais -- `None`
         e um no-op gracioso, usado pelos testes headless) sao faixas
         JA GARANTIDAS em disco por `RhythmCompositionRoot.build()`.
-        `player_progress_path` (default o save real do jogador) existe
-        para os testes isolarem em `tmp_path` -- sem isso, qualquer teste
-        que completa uma fase escreveria no save de VERDADE do jogo."""
+        `player_progress_path`/`player_stats_path`/`user_settings_path`
+        (default os saves reais do jogador) existem para os testes
+        isolarem em `tmp_path` -- sem isso, qualquer teste que completa
+        uma fase OU calibra a latencia (Calibracao dedicada) escreveria
+        nos saves de VERDADE do jogo. `palette_id` (Meta-Jogo -- Paletas
+        Cosmeticas) e' a escolha JA RESOLVIDA pelo `RhythmCompositionRoot.
+        build()` a partir de `user_settings.load_user_palette_id` -- as
+        cores em si ja vem prontas em `base_config.threat_blue_rgb`/
+        `threat_pink_rgb`, este parametro so serve para o Vault
+        mostrar/ciclar QUAL id esta selecionado."""
         self._base_config = base_config
         self._stages = stages
         self._audio_clock = audio_clock
@@ -274,6 +291,11 @@ class HertzGameLoop(GameLoop):
         self._results_rank = "-"  # Meta-Jogo -- Rank: calculado ao entrar em FLOW_RESULTS
         self._player_progress_path = player_progress_path
         self._player_progress = load_progress(player_progress_path)  # lido 1x, atualizado in-memory
+        self._player_stats_path = player_stats_path
+        self._player_stats = load_stats(player_stats_path)  # Meta-Jogo -- Estatisticas Globais, idem
+        self._session_playtime_seconds = 0.0  # tempo desta tentativa, zerado a cada RESULTS/GAME_OVER
+        self._user_settings_path = user_settings_path
+        self._palette_id = palette_id if palette_id in PALETTE_CATALOG else DEFAULT_PALETTE_ID
 
         # O Novo Fluxo de Menus (Experiencia Arcade)
         self._hub_cursor = 0
@@ -421,9 +443,13 @@ class HertzGameLoop(GameLoop):
         # que `active_modifiers`/`practice_mode` ja estao no valor FINAL
         # (curada ou escolhida no Pre-Voo) -- a MESMA formula da previa
         # ao vivo (`_current_score_multiplier`), nunca calculada por
-        # acerto em tempo real (so uma vez, na composicao).
+        # acerto em tempo real (so uma vez, na composicao). "roleta_russa"
+        # forca 1 de vida MAXIMA aqui -- nenhum sistema novo precisa saber
+        # do modifier, MISS ja custa exatamente 1 de vida nos 2 modos.
+        max_health = 1 if "roleta_russa" in stage_config.active_modifiers else stage_config.max_health
         stage_config = dataclasses.replace(
             stage_config,
+            max_health=max_health,
             score_multiplier=compute_score_multiplier(
                 frozenset(stage_config.active_modifiers), stage_config.practice_mode
             ),
@@ -824,7 +850,8 @@ class HertzGameLoop(GameLoop):
         `player_progress.json` -- quantas fases distintas ja foram
         vencidas (de quantas existem ao todo), quantas medalhas de
         modificador ao todo, e quantas vezes cada Rank ja foi o MELHOR
-        alcancado nalguma fase."""
+        alcancado nalguma fase -- mais as Estatisticas Globais VITALICIAS
+        (`player_lifetime_stats.json`, cache em `self._player_stats`)."""
         rank_counts = {rank: 0 for rank in RANK_ORDER}
         total_medals = 0
         for entry in self._player_progress.values():
@@ -836,10 +863,45 @@ class HertzGameLoop(GameLoop):
             "total_stages": len(self._stages),
             "total_medals": total_medals,
             "rank_counts": rank_counts,
+            "lifetime_perfect_count": self._player_stats["lifetime_perfect_count"],
+            "lifetime_shots_fired": self._player_stats["lifetime_shots_fired"],
+            "lifetime_playtime_seconds": self._player_stats["lifetime_playtime_seconds"],
+            "palette_id": self._palette_id,
+            "unlocked_palettes": unlocked_palette_ids(self._player_progress),
         }
+
+    @property
+    def palette_id(self) -> str:
+        """Meta-Jogo -- Paletas Cosmeticas: id ATUALMENTE selecionado
+        (`hertzbeats.palettes.PALETTE_CATALOG`)."""
+        return self._palette_id
+
+    def _cycle_palette(self, direction: int) -> None:
+        """A/D no Vault: percorre so as paletas JA DESBLOQUEADAS
+        (`unlocked_palette_ids`, Rank ja alcancado nalguma fase/musica) --
+        aplica as cores em `self._base_config` (vale a partir da PROXIMA
+        fase carregada, nunca muda a fase em andamento) e persiste
+        IMEDIATAMENTE, mesmo criterio da Calibracao dedicada."""
+        unlocked = unlocked_palette_ids(self._player_progress)
+        if not unlocked:
+            return
+        current = self._palette_id if self._palette_id in unlocked else unlocked[0]
+        index = (unlocked.index(current) + direction) % len(unlocked)
+        self._palette_id = unlocked[index]
+        palette = PALETTE_CATALOG[self._palette_id]
+        self._base_config = dataclasses.replace(
+            self._base_config,
+            threat_blue_rgb=palette["threat_blue_rgb"],
+            threat_pink_rgb=palette["threat_pink_rgb"],
+        )
+        save_user_palette_id(self._palette_id, path=self._user_settings_path)
 
     def _advance_vault(self) -> None:
         inp = self._input_provider
+        if inp.is_action_pressed("menu_right"):
+            self._cycle_palette(+1)
+        if inp.is_action_pressed("menu_left"):
+            self._cycle_palette(-1)
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire") or inp.is_action_pressed("pause"):
             self._flow = FLOW_HUB
 
@@ -898,7 +960,7 @@ class HertzGameLoop(GameLoop):
         current_latency = self._audio_clock.get_output_latency_seconds()
         new_latency = min(max(round(current_latency + average_offset, 3), 0.0), _LATENCY_MAX_SECONDS)
         self._audio_clock.calibrate_latency(new_latency)
-        save_user_latency(new_latency)
+        save_user_latency(new_latency, path=self._user_settings_path)
         self._notice_key = f"latency_{int(round(new_latency * 100))}"
         self._notice_timer = _NOTICE_SECONDS
         self._stop_calibration_track()
@@ -912,11 +974,19 @@ class HertzGameLoop(GameLoop):
             self._pause_music()
             return
 
+        # Meta-Jogo -- Estatisticas Globais: tempo REAL de gameplay desta
+        # tentativa, acumulado so enquanto PLAYING de verdade avanca (nao
+        # soma tempo pausado) -- dobrado ao total vitalicio em
+        # `_accumulate_lifetime_stats`, no instante exato em que a
+        # tentativa termina (RESULTS ou GAME_OVER), nunca por frame.
+        self._session_playtime_seconds += delta_time
+
         self._world.step(delta_time)
 
         state = self._composed.game_state
         self._advance_flow_state(state)
         if state.health <= 0:
+            self._accumulate_lifetime_stats()
             self._flow = FLOW_GAME_OVER
             self._stop_music()
             return
@@ -938,9 +1008,31 @@ class HertzGameLoop(GameLoop):
                 # resultados -- os contadores ja pararam de mudar).
                 self._results_rank = compute_rank(state.perfect_count, state.good_count, state.miss_count)
                 self._save_stage_medal()
+                self._accumulate_lifetime_stats()
                 self._flow = FLOW_RESULTS
         else:
             self._results_grace = 0.0
+
+    def _accumulate_lifetime_stats(self) -> None:
+        """Meta-Jogo -- Estatisticas Globais: soma os contadores desta
+        tentativa (vencida OU perdida -- um PERFECT continua contando
+        mesmo num Game Over) ao total vitalicio em `player_lifetime_stats.
+        json`, e zera o acumulador de tempo desta tentativa. "Tiros
+        Disparados" reusa os contadores JA existentes do julgamento
+        (`perfect_count`/`good_count`/`miss_count`/`misfire_count`) em vez
+        de instrumentar um contador novo no caminho de input -- todo tiro
+        disparado numa ameaca de verdade vira PERFECT/GOOD/MISS, e todo
+        tiro fora do tempo vira misfire; a soma dos 4 e' exatamente
+        "quantas vezes o jogador atirou"."""
+        state = self._composed.game_state
+        shots_fired = state.perfect_count + state.good_count + state.miss_count + state.misfire_count
+        self._player_stats = record_match_stats(
+            perfect_count=state.perfect_count,
+            shots_fired=shots_fired,
+            playtime_seconds=self._session_playtime_seconds,
+            path=self._player_stats_path,
+        )
+        self._session_playtime_seconds = 0.0
 
     def _save_stage_medal(self) -> None:
         """Meta-Jogo -- Medalhas + Rank Maximo: registra os
