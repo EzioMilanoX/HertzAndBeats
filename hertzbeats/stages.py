@@ -71,6 +71,23 @@ class StageDef:
         b_side_active_modifiers: `active_modifiers` aplicados SOMENTE
             quando o Lado B esta escolhido (substitui `active_modifiers`,
             mesmo criterio -- nunca mesclado).
+        campaign_id: agrupa fases CURADAS em progressoes independentes
+            (ex.: "defender_core", "arcade_matrix") -- cada uma tranca/
+            destranca por si (a posicao 0 de CADA campanha nunca tranca;
+            comecar o Arcade nao exige terminar o Defensor). O Carrossel
+            filtra por este campo (`HertzGameLoop.campaign_entries_for`);
+            a ORDEM de progressao dentro de uma campanha e a ordem em
+            que suas fases aparecem em `stages.json` (mesmo criterio de
+            antes, so que agora por sub-lista em vez da lista inteira).
+            Ignorado por musicas do jogador (`selectable_mode=True`, que
+            usam o sentinela fixo "free_play" no Carrossel, nunca este
+            campo). Default "default" -- so importa para fases CURADAS,
+            que devem sempre declarar o proprio id explicitamente.
+        description: frase curta de imersao/lore mostrada no Carrossel
+            logo abaixo do nome da fase em foco (pre-renderizada como
+            textura na composicao, `stage_{i}_description` -- nunca
+            `font.render` por frame). String vazia (default, e o normal
+            pras musicas do jogador) so' nao desenha nada.
     """
 
     stage_id: str
@@ -88,6 +105,8 @@ class StageDef:
     b_side_name: Optional[str] = None
     b_side_overrides: Dict = field(default_factory=dict)
     b_side_active_modifiers: Tuple[str, ...] = ()
+    campaign_id: str = "default"
+    description: str = ""
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
@@ -112,11 +131,26 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
                 b_side_name=entry.get("b_side_name"),
                 b_side_overrides=dict(entry.get("b_side_overrides", {})),
                 b_side_active_modifiers=tuple(entry.get("b_side_active_modifiers", ())),
+                campaign_id=entry.get("campaign_id", "default"),
+                description=entry.get("description", ""),
             )
         )
     if not stages:
         raise ValueError(f"nenhuma fase definida em {stages_path}")
     return tuple(stages)
+
+
+def campaign_ids(stages: Tuple[StageDef, ...]) -> Tuple[str, ...]:
+    """Ids de campanha distintos entre as fases CURADAS (`not
+    selectable_mode`) de `stages`, na ordem de PRIMEIRA aparicao --
+    fonte unica compartilhada por `HertzGameLoop.campaign_ids` (Carrossel)
+    e `texture_bank.build_and_register_overlay_surfaces` (cabecalhos),
+    pra nunca divergirem."""
+    seen: list = []
+    for stage in stages:
+        if not stage.selectable_mode and stage.campaign_id not in seen:
+            seen.append(stage.campaign_id)
+    return tuple(seen)
 
 
 def resolve_stage_config(base_config: HertzConfig, stage: StageDef) -> HertzConfig:

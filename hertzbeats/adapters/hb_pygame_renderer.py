@@ -1126,10 +1126,13 @@ class HBPygameRenderer(PygameRenderer):
 
     def _draw_carousel_overlay(self, center_x: int) -> None:
         """Carrossel: SO a entrada em foco toma o centro da tela (nunca a
-        lista inteira) -- nome, BPM/duracao, Rank Maximo e Medalhas dessa
-        musica especifica, mais a fileira de pontos "N de M". Uma fase de
-        Campanha ainda trancada troca o resumo de progresso por um aviso
-        (nao ha rank/medalha relevante numa fase nunca jogada)."""
+        lista inteira) -- nome, a frase de lore/imersao da fase
+        (`StageDef.description`), BPM/duracao, Rank Maximo e Medalhas
+        dessa musica especifica, mais a fileira de pontos "N de M". Uma
+        fase de Campanha ainda trancada troca o resumo de progresso por
+        um aviso (nao ha rank/medalha relevante numa fase nunca jogada).
+        `cycle_view_next`/`cycle_view_prev` (TAB/Q/E) trocam a campanha
+        em foco sem sair daqui -- ver `HertzGameLoop._cycle_carousel_view`."""
         category = self._overlay_carousel_category or "free_play"
         y = int(self._height * 0.10)
         y += self._blit_centered(f"carousel_category_{category}", center_x, y) + 30
@@ -1137,10 +1140,12 @@ class HBPygameRenderer(PygameRenderer):
         stage_index = self._overlay_carousel_stage_index
         if stage_index is None:
             self._blit_centered("carousel_empty", center_x, y + 20)
+            self._blit_centered("hint_carousel_switch_view", center_x, self._height - 78)
             self._blit_centered("hint_carousel", center_x, self._height - 54)
             return
 
         y += self._blit_centered(f"stage_{stage_index}_sel", center_x, y) + 34
+        y += self._blit_centered(f"stage_{stage_index}_description", center_x, y) + 16
         if self._overlay_carousel_locked:
             self._blit_centered("carousel_locked_badge", center_x, y)
             y += 40
@@ -1155,6 +1160,7 @@ class HBPygameRenderer(PygameRenderer):
             y += self._blit_duration_centered("label_duration", self._overlay_carousel_duration_seconds, center_x, y) + 20
 
         self._draw_dot_row(self._overlay_carousel_count, self._overlay_carousel_position, center_x, y)
+        self._blit_centered("hint_carousel_switch_view", center_x, self._height - 78)
         self._blit_centered("hint_carousel", center_x, self._height - 54)
 
     def _draw_preflight_overlay(self, center_x: int) -> None:

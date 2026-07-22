@@ -1,11 +1,14 @@
 """Monta o HUD (placar/combo/veredito/vida) por aritmetica de digitos sobre sprites pre-criados."""
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
 
 from ouroboros.core.memory.memory_manager import MemoryManager
 from ouroboros.core.systems.base_system import ISystem
 from ouroboros.core.world import World
+from ouroboros.interfaces.audio_clock import IAudioClock
 
 from hertzbeats.components.texture_ids import (
     BUMP_FADE_STEPS,
@@ -48,6 +51,15 @@ class UIRenderSystem(ISystem):
     timer decai -- um "retorno suave ao branco" feito de estagios
     PRE-renderizados (`BUMP_FADE_STEPS`), nunca um recolorimento em
     tempo real (o `draw_batch` so aplica alfa a sprites com textura).
+
+    ESQUELETO -- Crossfading Vocal (`HertzConfig.karaoke_sync`): os 4
+    parametros `karaoke_*` preparam o MESMO cursor monotonico do
+    `TutorialSystem` (array crescente `karaoke_line_until_seconds`
+    comparado ao `IAudioClock`, escolhendo qual `karaoke_line_texture_ids[i]`
+    mostrar num unico sprite-banner) para o dia em que uma fase vier com
+    legendas reais. Hoje NENHUMA fase popula esses arrays -- todos os 4
+    ficam `None` por padrao e `_advance_karaoke_subtitles` e' um no-op
+    completo nesse caso (ver o metodo).
     """
 
     def __init__(
@@ -64,10 +76,18 @@ class UIRenderSystem(ISystem):
         combo_label_entity_index: int = None,
         combo_bump_threshold: int = 50,
         combo_bump_seconds: float = 0.5,
+        karaoke_audio_clock: Optional[IAudioClock] = None,
+        karaoke_line_until_seconds: Optional[np.ndarray] = None,
+        karaoke_line_texture_ids: Optional[np.ndarray] = None,
+        karaoke_banner_entity_index: Optional[int] = None,
     ) -> None:
         """Os arrays de indices de entidade do HUD (int64, ordem: digito
         menos significativo primeiro) sao pre-alocados pela composicao.
         Buffers de trabalho dimensionados aqui, nunca no update.
+
+        `karaoke_*`: TODOS opcionais, default `None` -- qualquer um
+        ausente desliga o esqueleto de legendas por completo (mesmo
+        criterio de `flow_combo_threshold=None` ja usado acima).
         """
         self._sprite_pool = memory_manager.get_pool("sprite")
         self._game_state = game_state
@@ -83,6 +103,14 @@ class UIRenderSystem(ISystem):
         self._combo_bump_seconds = float(combo_bump_seconds)
         self._last_combo_seen = 0
         self._bump_timer_seconds = 0.0
+
+        self._karaoke_audio_clock = karaoke_audio_clock
+        self._karaoke_line_until_seconds = karaoke_line_until_seconds
+        self._karaoke_line_texture_ids = karaoke_line_texture_ids
+        self._karaoke_banner_entity_index = (
+            int(karaoke_banner_entity_index) if karaoke_banner_entity_index is not None else None
+        )
+        self._karaoke_line_index = 0
 
         score_digits = score_digit_entity_indices.shape[0]
         combo_digits = combo_digit_entity_indices.shape[0]
@@ -166,6 +194,43 @@ class UIRenderSystem(ISystem):
                 sprite_view["tint_a"][pip_row] = 0
             else:
                 sprite_view["tint_a"][pip_row] = 255 if pip < state.health else 45
+
+        self._advance_karaoke_subtitles()
+
+    def _advance_karaoke_subtitles(self) -> None:
+        """ESQUELETO -- Crossfading Vocal: MESMO cursor monotonico do
+        `TutorialSystem.update` (array crescente de `until_seconds`
+        comparado ao `IAudioClock` compensado de latencia, avancando UM
+        indice por vez contra o relogio -- nunca reavaliado do zero).
+        No-op completo enquanto qualquer um dos 4 parametros `karaoke_*`
+        do construtor for `None` (o caso de TODA fase hoje -- nenhuma
+        popula esses arrays ainda)."""
+        if (
+            self._karaoke_audio_clock is None
+            or self._karaoke_line_until_seconds is None
+            or self._karaoke_line_texture_ids is None
+            or self._karaoke_banner_entity_index is None
+        ):
+            return
+
+        now_effective = max(
+            0.0,
+            self._karaoke_audio_clock.now_seconds() - self._karaoke_audio_clock.get_output_latency_seconds(),
+        )
+        line_count = self._karaoke_line_until_seconds.shape[0]
+        while (
+            self._karaoke_line_index < line_count
+            and now_effective >= self._karaoke_line_until_seconds[self._karaoke_line_index]
+        ):
+            self._karaoke_line_index += 1
+
+        sprite_view = self._sprite_pool.active_view()
+        banner_row = self._sprite_pool.dense_row_of(self._karaoke_banner_entity_index)
+        if self._karaoke_line_index < line_count:
+            sprite_view["texture_id"][banner_row] = self._karaoke_line_texture_ids[self._karaoke_line_index]
+            sprite_view["tint_a"][banner_row] = 255
+        else:
+            sprite_view["tint_a"][banner_row] = 0
 
     def _hide_everything(self, sprite_view: np.ndarray) -> None:
         """Flow State: apaga score, combo, palavra de veredito e pips de

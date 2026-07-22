@@ -4,6 +4,8 @@
       "stage_id": "tutorial",
       "name": "TUTORIAL",
       "subtitle": "80 BPM - aprenda o basico",
+      "campaign_id": "defender_core",
+      "description": "O nucleo desperta pela primeira vez -- aprenda a defende-lo.",
       "track_path": "data/tracks/tutorial.wav",
       "beatmap_path": "data/beatmaps/tutorial.beatmap.json",
       "synth": { "bpm": 80.0, "bars": 21, "style": "calm" },
@@ -25,6 +27,8 @@
       "stage_id": "defender_1_iniciacao",
       "name": "1 - INICIACAO",
       "subtitle": "100 BPM - so o basico do Defensor",
+      "campaign_id": "defender_core",
+      "description": "As primeiras ameacas testam seus reflexos.",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
       "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
@@ -40,9 +44,27 @@
       "active_modifiers": []
     },
     {
+      "stage_id": "stage_notas_longas",
+      "name": "2 - NOTAS LONGAS",
+      "subtitle": "segure o gatilho + a mira | beatmap da fase 1",
+      "campaign_id": "defender_core",
+      "description": "Sustente o contato -- soltar cedo demais custa caro.",
+      "track_path": "data/tracks/stage1_pulso_leve.wav",
+      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
+      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
+      "overrides": {
+        "approach_seconds": 2.4,
+        "max_health": 4,
+        "aim_tolerance_degrees": 40.0
+      },
+      "active_modifiers": ["holds"]
+    },
+    {
       "stage_id": "defender_2_despertar",
-      "name": "2 - DESPERTAR",
+      "name": "3 - DESPERTAR",
       "subtitle": "128 BPM - os aneis-aviso entram em cena",
+      "campaign_id": "defender_core",
+      "description": "Os Aneis de Convergencia comecam a sussurrar o proximo golpe.",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
@@ -67,8 +89,10 @@
     },
     {
       "stage_id": "defender_3_ikaruga",
-      "name": "3 - IKARUGA",
+      "name": "4 - IKARUGA",
       "subtitle": "150 BPM - azul/rosa + Parry | beatmap da fase 3",
+      "campaign_id": "defender_core",
+      "description": "Azul contra rosa -- so a polaridade certa perfura o inimigo.",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
       "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
@@ -84,8 +108,10 @@
     },
     {
       "stage_id": "defender_4_clausura",
-      "name": "4 - CLAUSURA",
+      "name": "5 - CLAUSURA",
       "subtitle": "150 BPM - Escudos Rotativos | beatmap da fase 3",
+      "campaign_id": "defender_core",
+      "description": "Escudos rotativos selam o nucleo -- encontre a brecha.",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
       "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
@@ -100,8 +126,10 @@
     },
     {
       "stage_id": "defender_5_pesadelo",
-      "name": "5 - PESADELO",
+      "name": "6 - PESADELO",
       "subtitle": "150 BPM - tudo ligado | beatmap da fase 3",
+      "campaign_id": "defender_core",
+      "description": "Tudo o que o nucleo aprendeu, de uma so vez.",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
       "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
@@ -129,8 +157,10 @@
     },
     {
       "stage_id": "stage5_arcade_4k",
-      "name": "6 - ARCADE 4K",
+      "name": "1 - ARCADE 4K",
       "subtitle": "A S W D | beatmap da fase 2",
+      "campaign_id": "arcade_matrix",
+      "description": "Quatro colunas, um so ritmo -- bem-vindo a Matrix.",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
@@ -140,23 +170,11 @@
       }
     },
     {
-      "stage_id": "stage_notas_longas",
-      "name": "7 - NOTAS LONGAS",
-      "subtitle": "segure o gatilho + a mira | beatmap da fase 1",
-      "track_path": "data/tracks/stage1_pulso_leve.wav",
-      "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
-      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
-      "overrides": {
-        "approach_seconds": 2.4,
-        "max_health": 4,
-        "aim_tolerance_degrees": 40.0
-      },
-      "active_modifiers": ["holds"]
-    },
-    {
       "stage_id": "stage9_arcade_notas_longas",
-      "name": "8 - ARCADE: NOTAS LONGAS",
+      "name": "2 - ARCADE: NOTAS LONGAS",
       "subtitle": "segure a coluna + Shield | fase 2",
+      "campaign_id": "arcade_matrix",
+      "description": "Segure a coluna enquanto o Shield absorve o impacto.",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
       "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },

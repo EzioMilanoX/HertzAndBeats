@@ -296,6 +296,17 @@ class HertzConfig:
     shockwave_duration_seconds: float = 0.2
     shockwave_trigger_shake_px: float = 8.0
 
+    # -- Preparacao para Crossfading Vocal (esqueleto, ainda inerte):
+    #    marca que a faixa da fase tem legendas/vocal sincronizados por
+    #    tempo -- hoje NENHUMA fase popula os arrays cronologicos que o
+    #    `UIRenderSystem` esta preparado para ler (mesmo cursor
+    #    monotonico do `TutorialSystem`), e `HBPygameAudioEngine.
+    #    muffle_vocals` ainda nao muda audio nenhum (exigiria uma 2a
+    #    camada de audio -- stem instrumental -- que nao existe). Este
+    #    campo so existe pra ja ter onde declarar o opt-in quando essa
+    #    pipeline for construida de verdade.
+    karaoke_sync: bool = False
+
     # -- Defensor: Colapso de Visao (Visual Tunnel) -- opt-in via
     #    "vision_tunnel" em `active_modifiers`. Tolerancia Organica:
     #    substitui o antigo "Colapso do Anel de Julgamento", que mutava
@@ -420,6 +431,7 @@ class HertzConfig:
             shockwave_max_radius=raw.get("shockwave_max_radius", 260.0),
             shockwave_duration_seconds=raw.get("shockwave_duration_seconds", 0.2),
             shockwave_trigger_shake_px=raw.get("shockwave_trigger_shake_px", 8.0),
+            karaoke_sync=raw.get("karaoke_sync", False),
         )
 
 

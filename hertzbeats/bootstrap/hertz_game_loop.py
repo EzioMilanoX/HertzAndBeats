@@ -34,7 +34,7 @@ from hertzbeats.config import HertzConfig
 from hertzbeats.game_state import RANK_ORDER, compute_hit_error_histogram, compute_rank
 from hertzbeats.player_progress import PLAYER_PROGRESS_PATH, load_progress, record_stage_cleared
 from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_stats
-from hertzbeats.stages import StageDef, read_stage_bpm_and_duration, resolve_stage_config
+from hertzbeats.stages import StageDef, campaign_ids, read_stage_bpm_and_duration, resolve_stage_config
 from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
 from hertzbeats.user_settings import USER_SETTINGS_PATH, save_user_latency, save_user_palette_id
 
@@ -332,8 +332,8 @@ class HertzGameLoop(GameLoop):
 
         # O Novo Fluxo de Menus (Experiencia Arcade)
         self._hub_cursor = 0
-        self._carousel_category: Optional[str] = None  # "campaign" | "free_play"
-        self._carousel_index_by_category = {"campaign": 0, "free_play": 0}
+        self._carousel_category: Optional[str] = None  # um `campaign_id` (ex. "defender_core") ou "free_play"
+        self._carousel_index_by_category: dict = {}  # visao -> posicao lembrada (criada sob demanda)
         self._preflight_stage_index: Optional[int] = None
         self._calibration_taps: list = []
         self._calibration_last_offset_seconds: Optional[float] = None
@@ -371,8 +371,10 @@ class HertzGameLoop(GameLoop):
 
     @property
     def carousel_category(self) -> Optional[str]:
-        """Categoria do Carrossel ATUAL ("campaign"/"free_play"), ou
-        `None` fora do Carrossel."""
+        """Visao do Carrossel ATUAL: um `campaign_id` (ex.
+        "defender_core"/"arcade_matrix") ou o sentinela "free_play", ou
+        `None` fora do Carrossel. Alternada por `cycle_view_next`/
+        `cycle_view_prev` (TAB/Q/E) sem precisar voltar ao HUB."""
         return self._carousel_category
 
     # -- carga/troca de fase (fase de carregamento: alocacao permitida) --
@@ -797,8 +799,15 @@ class HertzGameLoop(GameLoop):
 
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
             category = HUB_CATEGORIES[self._hub_cursor]
-            if category in ("campaign", "free_play"):
-                self._carousel_category = category
+            if category == "campaign":
+                # entra na PRIMEIRA campanha (ordem de `stages.json`) --
+                # de dentro do Carrossel, TAB/Q-E ja alcancam as demais
+                # sem precisar voltar aqui (ver `_advance_carousel`).
+                ids = self.campaign_ids()
+                self._carousel_category = ids[0] if ids else "free_play"
+                self._flow = FLOW_CAROUSEL
+            elif category == "free_play":
+                self._carousel_category = "free_play"
                 self._flow = FLOW_CAROUSEL
             elif category == "vault":
                 self._flow = FLOW_VAULT
@@ -811,12 +820,41 @@ class HertzGameLoop(GameLoop):
 
     # -- Carrossel de Musicas ------------------------------------------------
 
+    def campaign_ids(self) -> Tuple[str, ...]:
+        """Ids de campanha distintos entre as fases curadas de
+        `self._stages`, na ordem de primeira aparicao (`stages.
+        campaign_ids`, fonte unica compartilhada com a pre-renderizacao
+        de texturas em `texture_bank.py`)."""
+        return campaign_ids(self._stages)
+
+    def carousel_views(self) -> Tuple[str, ...]:
+        """Todas as visoes que `cycle_view_next`/`cycle_view_prev`
+        (TAB/Q/E) alcancam dentro do Carrossel: cada campanha (na ordem
+        de `campaign_ids()`) mais o sentinela "free_play" por ultimo
+        (musicas do jogador -- sempre uma visao disponivel, mesmo
+        vazia)."""
+        return self.campaign_ids() + ("free_play",)
+
     def campaign_entries(self):
-        """Lista `(indice_original, StageDef)` das fases CURADAS
-        (`not selectable_mode`), na mesma ordem de `self._stages` -- a
-        ordem em que aparecem em `stages.json` E a ordem de progressao
-        da Campanha."""
+        """Lista `(indice_original, StageDef)` de TODAS as fases
+        CURADAS (`not selectable_mode`), na mesma ordem de
+        `self._stages`, cruzando QUALQUER `campaign_id` -- usado por
+        quem precisa da Campanha inteira de uma vez (ex.: o gauntlet
+        Ironman). O Carrossel usa `campaign_entries_for` (uma campanha
+        por vez); os dois nunca divergem porque ambos so filtram
+        `self._stages`, nunca mantem uma copia paralela."""
         return [(i, s) for i, s in enumerate(self._stages) if not s.selectable_mode]
+
+    def campaign_entries_for(self, campaign_id: str):
+        """Lista `(indice_original, StageDef)` das fases CURADAS de UMA
+        campanha especifica, na mesma ordem de `self._stages` -- a ordem
+        em que aparecem em `stages.json` E a ordem de progressao
+        DAQUELA campanha (cada campanha progride de forma independente,
+        ver `is_campaign_entry_locked`)."""
+        return [
+            (i, s) for i, s in enumerate(self._stages)
+            if not s.selectable_mode and s.campaign_id == campaign_id
+        ]
 
     def free_play_entries(self):
         """Lista `(indice_original, StageDef)` das musicas do jogador
@@ -824,39 +862,57 @@ class HertzGameLoop(GameLoop):
         return [(i, s) for i, s in enumerate(self._stages) if s.selectable_mode]
 
     def carousel_entries(self):
-        """Entradas da categoria do Carrossel ATUAL (`campaign`/`free_play`)."""
-        if self._carousel_category == "campaign":
-            return self.campaign_entries()
-        return self.free_play_entries()
+        """Entradas da VISAO atual do Carrossel (`self._carousel_category`
+        -- um `campaign_id` ou o sentinela "free_play")."""
+        if self._carousel_category == "free_play":
+            return self.free_play_entries()
+        return self.campaign_entries_for(self._carousel_category)
 
     def carousel_index(self) -> int:
-        """Posicao em foco DENTRO da lista filtrada da categoria atual
+        """Posicao em foco DENTRO da lista filtrada da visao atual
         (nao um indice de `self._stages`)."""
         return self._carousel_index_by_category.get(self._carousel_category, 0)
 
     def carousel_focused_stage_index(self) -> Optional[int]:
         """Indice ORIGINAL em `self._stages` da entrada em foco no
-        Carrossel, ou `None` se a categoria estiver vazia (ex.: nenhuma
+        Carrossel, ou `None` se a visao estiver vazia (ex.: nenhuma
         musica ainda em `musicas/`)."""
         entries = self.carousel_entries()
         if not entries:
             return None
         return entries[self.carousel_index() % len(entries)][0]
 
-    def is_campaign_entry_locked(self, position: int) -> bool:
-        """Progressao da Campanha: a fase curada na posicao `position`
-        (dentro da lista SO de fases curadas) fica trancada ate a
-        ANTERIOR ter sido vencida ao menos uma vez
-        (`stage_id in player_progress`) -- a primeira posicao (o
-        tutorial) nunca tranca."""
+    def is_campaign_entry_locked(self, campaign_id: str, position: int) -> bool:
+        """Progressao de UMA campanha: a fase curada na posicao
+        `position` (dentro da lista SO daquela campanha) fica trancada
+        ate a ANTERIOR (na MESMA campanha) ter sido vencida ao menos uma
+        vez (`stage_id in player_progress`) -- a PRIMEIRA posicao de
+        CADA campanha nunca tranca (progressoes independentes: comecar
+        o Arcade nao exige terminar o Defensor antes)."""
         if position <= 0:
             return False
-        entries = self.campaign_entries()
+        entries = self.campaign_entries_for(campaign_id)
         previous_stage_id = entries[position - 1][1].stage_id
         return previous_stage_id not in self._player_progress
 
+    def _cycle_carousel_view(self, direction: int) -> None:
+        """TAB/Q-E no Carrossel: alterna `self._carousel_category` entre
+        `carousel_views()` (cada campanha + Free Play), enrolando nas
+        duas pontas -- a posicao lembrada de CADA visao (`_carousel_index_by_category`)
+        e' preservada entre trocas, nunca reiniciada."""
+        views = self.carousel_views()
+        if not views:
+            return
+        current = views.index(self._carousel_category) if self._carousel_category in views else 0
+        self._carousel_category = views[(current + direction) % len(views)]
+
     def _advance_carousel(self) -> None:
         inp = self._input_provider
+        if inp.is_action_pressed("cycle_view_next"):
+            self._cycle_carousel_view(+1)
+        elif inp.is_action_pressed("cycle_view_prev"):
+            self._cycle_carousel_view(-1)
+
         entries = self.carousel_entries()
         if not entries:
             if inp.is_action_pressed("pause"):
@@ -871,7 +927,9 @@ class HertzGameLoop(GameLoop):
         self._carousel_index_by_category[self._carousel_category] = index
 
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
-            if self._carousel_category == "campaign" and self.is_campaign_entry_locked(index):
+            if self._carousel_category != "free_play" and self.is_campaign_entry_locked(
+                self._carousel_category, index
+            ):
                 self._notice_key = "stage_locked"
                 self._notice_timer = _NOTICE_SECONDS
             else:
@@ -1301,8 +1359,8 @@ class HertzGameLoop(GameLoop):
                     carousel_position = self.carousel_index() % len(entries)
                     carousel_stage_index = entries[carousel_position][0]
                     carousel_locked = (
-                        self._carousel_category == "campaign"
-                        and self.is_campaign_entry_locked(carousel_position)
+                        self._carousel_category != "free_play"
+                        and self.is_campaign_entry_locked(self._carousel_category, carousel_position)
                     )
                     stage = self._stages[carousel_stage_index]
                     carousel_progress = self._player_progress.get(stage.stage_id)

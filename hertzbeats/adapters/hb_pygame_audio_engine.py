@@ -19,6 +19,33 @@ class HBPygameAudioEngine(PygameAudioEngine):
     sem nenhum estado extra; `unpause()` retoma do exato ponto.
     """
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._vocals_muffled = False
+
+    @property
+    def vocals_muffled(self) -> bool:
+        """ESQUELETO -- Crossfading Vocal: intencao ATUAL registrada por
+        `muffle_vocals`, nunca lida por nenhum sistema de gameplay
+        ainda -- so' exposta pra inspecao/teste do proprio esqueleto."""
+        return self._vocals_muffled
+
+    def muffle_vocals(self, muffled: bool) -> None:
+        """ESQUELETO -- Crossfading Vocal (`HertzConfig.karaoke_sync`):
+        o plano futuro e' abafar SO a voz (nunca o instrumental) quando
+        o jogador errar uma nota, cruzando entre 2 camadas de audio -- o
+        mix completo tocando e um stem SO instrumental em paralelo,
+        crossfadeados por volume. `pygame.mixer.music` (streaming de
+        canal unico, sem EQ/filtro de frequencia) nao consegue isolar
+        uma faixa dentro do MESMO arquivo -- a implementacao de verdade
+        exige essa 2a camada de audio, que ainda nao existe (nenhuma
+        fase tem um stem instrumental separado hoje). Por enquanto so
+        registra a INTENCAO (`self._vocals_muffled`); nenhum audio real
+        muda ainda -- mesma honestidade de escopo de `set_track_volume`
+        acima (aproximacao ao inves de fingir um efeito que o backend
+        nao suporta)."""
+        self._vocals_muffled = bool(muffled)
+
     def preload_one_shot(self, sound_id: str) -> None:
         """Carrega um SFX para o cache ANTES do gameplay (o primeiro
         `play_one_shot` deixaria de tocar no tempo por causa do I/O)."""

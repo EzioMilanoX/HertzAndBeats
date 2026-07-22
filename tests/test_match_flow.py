@@ -59,7 +59,7 @@ def flow_game(tmp_path, null_input):
 
     def _make(
         stage_threat_lists, overrides_list=None, selectable_list=None, active_modifiers_list=None,
-        b_side_list=None, tutorial_list=None,
+        b_side_list=None, tutorial_list=None, campaign_id_list=None, description_list=None,
     ):
         stages = []
         beatmap_path = None
@@ -70,6 +70,8 @@ def flow_game(tmp_path, null_input):
             active_modifiers = active_modifiers_list[i] if active_modifiers_list else ()
             b_side = b_side_list[i] if b_side_list else None
             is_tutorial = tutorial_list[i] if tutorial_list else False
+            campaign_id = campaign_id_list[i] if campaign_id_list else "default"
+            description = description_list[i] if description_list else ""
             stages.append(
                 StageDef(
                     stage_id=f"stage{i}",
@@ -86,6 +88,8 @@ def flow_game(tmp_path, null_input):
                     b_side_overrides=b_side.get("overrides", {}) if b_side else {},
                     b_side_active_modifiers=b_side.get("active_modifiers", ()) if b_side else (),
                     tutorial_steps=({"until_seconds": 1.0, "text": "x"},) if is_tutorial else (),
+                    campaign_id=campaign_id,
+                    description=description,
                 )
             )
         audio_engine = NullAudioEngine()
@@ -268,12 +272,12 @@ def test_free_play_carousel_with_no_songs_shows_empty_state_and_esc_still_works(
 
 def test_campaign_first_stage_is_never_locked(flow_game, null_input):
     loop, _ = flow_game([[_basic(3.0)], [_basic(3.0)]], selectable_list=[False, False])
-    assert loop.is_campaign_entry_locked(0) is False
+    assert loop.is_campaign_entry_locked("default", 0) is False
 
 
 def test_a_later_campaign_stage_is_locked_until_the_previous_one_clears(flow_game, null_input):
     loop, _ = flow_game([[_basic(3.0)], [_basic(3.0)]], selectable_list=[False, False])
-    assert loop.is_campaign_entry_locked(1) is True
+    assert loop.is_campaign_entry_locked("default", 1) is True
 
 
 def test_confirm_on_a_locked_campaign_stage_shows_a_notice_and_stays_in_carousel(flow_game, null_input):
@@ -296,7 +300,7 @@ def test_clearing_a_campaign_stage_unlocks_the_next_one(flow_game, null_input):
     loop, clock = flow_game(
         [[_basic(3.0, lane=0)], [_basic(3.0, lane=1)]], selectable_list=[False, False],
     )
-    assert loop.is_campaign_entry_locked(1) is True
+    assert loop.is_campaign_entry_locked("default", 1) is True
 
     _goto_preflight(loop, null_input, "campaign", 0)
     _press(loop, null_input, "confirm")
@@ -304,7 +308,7 @@ def test_clearing_a_campaign_stage_unlocks_the_next_one(flow_game, null_input):
 
     _play_to_results(loop, clock, null_input)
     assert loop.flow == FLOW_RESULTS
-    assert loop.is_campaign_entry_locked(1) is False
+    assert loop.is_campaign_entry_locked("default", 1) is False
 
 
 # -- Pre-Voo: fase curada (so-leitura + START) ---------------------------

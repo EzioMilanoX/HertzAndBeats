@@ -32,6 +32,7 @@ from hertzbeats.components.texture_ids import (
 )
 from hertzbeats.game_state import RANK_ORDER
 from hertzbeats.palettes import PALETTE_CATALOG
+from hertzbeats.stages import campaign_ids
 
 LANE_KEY_LABELS = ("A", "S", "W", "D")
 """Rotulos exibidos sob os receptores do Arcade 4K (espelham os
@@ -374,6 +375,13 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
             hint_text = _GENERIC_GAME_MODE_HINTS.get(stage_mode, "")
         register_text(f"stage_{i}_hint", hint_font, hint_text, _GOOD_COLOR)
 
+        # Fases e Campanhas: frase curta de imersao/lore da fase (`StageDef.
+        # description`), mostrada no Carrossel logo abaixo do nome em foco.
+        # String vazia (musicas do jogador, ou uma fase curada sem lore
+        # escrita) so' renderiza uma textura de largura ~0 -- inofensivo,
+        # mesmo criterio de `stage_{i}_hint` com `hint_text=""`.
+        register_text(f"stage_{i}_description", hint_font, stage.description, _LABEL_COLOR)
+
         # Progressao de Campanha -- Lado B/Remix: so fases curadas com
         # `StageDef.b_side_name` ganham as 2 texturas (dica de toggle A/D
         # + o proprio nome, mostrado quando escolhido) -- cor de perigo
@@ -424,15 +432,25 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         "SETAS ou W/S escolhem  |  ENTER ou ESPACO confirma  |  ESC volta ao Titulo", _LABEL_COLOR,
     )
 
-    # Carrossel: cabecalho de categoria + estado vazio (Free Play sem
-    # nenhuma musica em musicas/) + dica de navegacao.
-    register_text("carousel_category_campaign", hint_font, "CAMPANHA", _LABEL_COLOR)
+    # Carrossel: um cabecalho POR campanha (`StageDef.campaign_id`,
+    # auto-derivado do proprio id -- "defender_core" -> "CAMPANHA:
+    # DEFENDER CORE" -- nunca hardcoded, entao uma campanha nova em
+    # `stages.json` sempre ganha cabecalho, nunca fica em branco) + Free
+    # Play + estado vazio (nenhuma musica em musicas/) + dicas de
+    # navegacao/troca de visao.
+    for c_id in campaign_ids(stages):
+        label = "CAMPANHA: " + c_id.replace("_", " ").upper()
+        register_text(f"carousel_category_{c_id}", hint_font, label, _LABEL_COLOR)
     register_text("carousel_category_free_play", hint_font, "FREE PLAY", _LABEL_COLOR)
     register_text("carousel_empty", stage_font, "Nenhuma musica encontrada em musicas/", _LABEL_COLOR)
     register_text("carousel_locked_badge", stage_font, "FASE TRANCADA", _MISS_COLOR)
     register_text(
         "hint_carousel", hint_font,
         "SETAS ou W/S escolhem  |  ENTER ou ESPACO confirma  |  ESC volta ao HUB", _LABEL_COLOR,
+    )
+    register_text(
+        "hint_carousel_switch_view", hint_font,
+        "Q/E ou TAB: trocar campanha/Free Play", _LABEL_COLOR,
     )
     register_text("label_bpm", stage_font, "BPM", _LABEL_COLOR)
     register_text("label_duration", stage_font, "DURACAO", _LABEL_COLOR)

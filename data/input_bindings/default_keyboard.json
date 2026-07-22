@@ -18,5 +18,7 @@
   "scratch_right": "KEY_X",
   "toggle_practice": "KEY_T",
   "latency_up": "KEY_=",
-  "latency_down": "KEY_-"
+  "latency_down": "KEY_-",
+  "cycle_view_next": ["KEY_TAB", "KEY_E"],
+  "cycle_view_prev": "KEY_Q"
 }
