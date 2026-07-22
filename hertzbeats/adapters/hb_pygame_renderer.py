@@ -201,6 +201,21 @@ _PALETTE_RING_BLEND_FACTOR = 0.5
 `GameState.current_palette` -- 0.5 harmoniza com a capa do video sem
 perder contraste/legibilidade contra a arena."""
 
+_DOWNLOAD_PREVIEW_THUMBNAIL_SIZE = (240, 240)
+_DOWNLOAD_TITLE_FONT_SIZE = 36
+_DOWNLOAD_LABEL_FONT_SIZE = 26
+_DOWNLOAD_TEXT_COLOR = (235, 235, 255)
+_DOWNLOAD_ERROR_COLOR = (255, 80, 96)
+_DOWNLOAD_TITLE_MAX_CHARS = 42
+_DOWNLOAD_ERROR_MAX_CHARS = 80
+"""Pipeline de Importacao Direta -- Previa: titulo/canal/mensagem de
+erro sao conteudo DINAMICO (o video importado muda toda vez), entao NAO
+da pra pre-renderizar em `texture_bank.py` (que so conhece strings
+FIXAS de antemao) -- `set_download_preview`/`set_download_error`
+renderizam sob demanda, UMA vez quando o dado chega (nunca por frame),
+truncando pra nunca estourar a largura da janela (mesmo criterio ja
+usado pelos nomes de fase curados)."""
+
 
 class HBPygameRenderer(PygameRenderer):
     """
@@ -276,6 +291,20 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_calibration_progress: Optional[tuple] = None
         self._overlay_hit_error_histogram: Optional[tuple] = None
         self._overlay_b_side_info: Optional[dict] = None
+        self._overlay_download_stage: Optional[str] = None
+        # Pipeline de Importacao Direta: titulo/canal/miniatura da Previa
+        # e a mensagem de erro sao conteudo DINAMICO (o video importado
+        # muda toda vez) -- ao contrario do resto do overlay (textos
+        # FIXOS pre-renderizados em `texture_bank.py`), essas 3 Surfaces
+        # so podem ser preparadas quando o dado chega de verdade
+        # (`set_download_preview`/`set_download_error`, UMA vez cada,
+        # nunca por frame -- mesmo criterio de "fase de carregamento" do
+        # resto do jogo, so que aqui o "carregamento" e' o instante em
+        # que a Previa/erro chega pela fila).
+        self._download_preview_title_surface: Optional[pygame.Surface] = None
+        self._download_preview_uploader_surface: Optional[pygame.Surface] = None
+        self._download_preview_thumbnail_surface: Optional[pygame.Surface] = None
+        self._download_error_surface: Optional[pygame.Surface] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
@@ -350,29 +379,36 @@ class HBPygameRenderer(PygameRenderer):
         calibration_progress: Optional[tuple] = None,
         hit_error_histogram: Optional[tuple] = None,
         b_side_info: Optional[dict] = None,
+        download_stage: Optional[str] = None,
     ) -> None:
         """Publica o estado do Novo Fluxo de Menus (Experiencia Arcade) a
         desenhar sobre o frame: `None` (jogando, sem overlay) ou uma das
         `FLOW_*` de `hertz_game_loop.py` ("title", "hub", "carousel",
         "preflight", "vault", "calibration", "paused", "game_over",
-        "results"). `modifier_panel`/`practice_enabled` (Pre-Voo, so
-        musicas do jogador -- `None` em fase curada) sao o MESMO painel
-        de checkboxes de sempre. `rank` (Meta-Jogo, so em "results").
-        `hub_cursor` (indice em `HUB_CATEGORIES`). `carousel_*` (Meta-Jogo
-        -- Carrossel): SO a entrada em FOCO (posicao/contagem/indice
-        original/trancada/progresso salvo), nunca a lista inteira -- o
-        Carrossel mostra uma musica de cada vez no centro da tela.
-        `preflight_stage_index` + `score_multiplier` (Meta-Jogo --
-        Multiplicador de Pontuacao, previa ao vivo). `vault_stats`/
-        `calibration_progress`: dados agregados das telas dedicadas.
-        `hit_error_histogram` (Acessibilidade, so em "results"): tupla de
-        `RESULTS_HISTOGRAM_BIN_COUNT` contagens ja prontas
-        (`compute_hit_error_histogram`, calculada 1x na transicao).
-        `carousel_neighbor_stage_ids` (Carrossel Horizontal): janela de
-        `stage_id`s ao REDOR do foco (tamanho impar, o do meio e' o
-        foco, `None` em slots sem musica) -- usada so pra escolher qual
-        miniatura CACHEADA blitar em cada posicao do filme (nunca
-        recalculada aqui, ver `cache_carousel_visuals`).
+        "results", "download_hub"). `modifier_panel`/`practice_enabled`
+        (Pre-Voo, so musicas do jogador -- `None` em fase curada) sao o
+        MESMO painel de checkboxes de sempre. `rank` (Meta-Jogo, so em
+        "results"). `hub_cursor` (indice em `HUB_CATEGORIES`).
+        `carousel_*` (Meta-Jogo -- Carrossel): SO a entrada em FOCO
+        (posicao/contagem/indice original/trancada/progresso salvo),
+        nunca a lista inteira -- o Carrossel mostra uma musica de cada
+        vez no centro da tela. `preflight_stage_index` + `score_multiplier`
+        (Meta-Jogo -- Multiplicador de Pontuacao, previa ao vivo).
+        `vault_stats`/`calibration_progress`: dados agregados das telas
+        dedicadas. `hit_error_histogram` (Acessibilidade, so em
+        "results"): tupla de `RESULTS_HISTOGRAM_BIN_COUNT` contagens ja
+        prontas (`compute_hit_error_histogram`, calculada 1x na
+        transicao). `carousel_neighbor_stage_ids` (Carrossel Horizontal):
+        janela de `stage_id`s ao REDOR do foco (tamanho impar, o do meio
+        e' o foco, `None` em slots sem musica) -- usada so pra escolher
+        qual miniatura CACHEADA blitar em cada posicao do filme (nunca
+        recalculada aqui, ver `cache_carousel_visuals`). `download_stage`
+        (Pipeline de Importacao Direta, so em "download_hub"): sub-estado
+        atual (`_DOWNLOAD_STAGE_*` de `hertz_game_loop.py`) -- o
+        titulo/canal/miniatura da Previa e a mensagem de erro (conteudo
+        DINAMICO) sao publicados por `set_download_preview`/
+        `set_download_error`, chamados SO' quando o dado muda (nunca
+        aqui, que roda todo frame).
         Chamado pelo `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_modifier_panel = modifier_panel
@@ -394,6 +430,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_calibration_progress = calibration_progress
         self._overlay_hit_error_histogram = hit_error_histogram
         self._overlay_b_side_info = b_side_info
+        self._overlay_download_stage = download_stage
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -1112,13 +1149,8 @@ class HBPygameRenderer(PygameRenderer):
             self._draw_hub_overlay(center_x)
         elif self._overlay_mode == "carousel":
             self._draw_carousel_overlay(center_x)
-        elif self._overlay_mode == "importing":
-            # Pipeline de Importacao Direta: sem cancelamento (thread de
-            # background nao interrompivel com seguranca), so um aviso
-            # estatico -- nenhum spinner/animacao, evita qualquer
-            # tentacao de font.render por frame so pra "pontinhos".
-            self._blit_centered("importing_title", center_x, int(self._height * 0.40))
-            self._blit_centered("hint_importing", center_x, self._height - 110)
+        elif self._overlay_mode == "download_hub":
+            self._draw_download_hub_overlay(center_x)
         elif self._overlay_mode == "preflight":
             self._draw_preflight_overlay(center_x)
         elif self._overlay_mode == "vault":
@@ -1257,6 +1289,110 @@ class HBPygameRenderer(PygameRenderer):
             int(base_channel * (1.0 - factor) + tint_channel * factor)
             for base_channel, tint_channel in zip(base_color, self._palette_tint)
         )
+
+    # -- Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB) ------------------
+
+    def set_download_preview(self, title: str, uploader: str, thumbnail_path: Optional[str]) -> None:
+        """Previa confirmada: renderiza titulo/canal (conteudo DINAMICO,
+        so conhecido quando o video chega -- por isso NAO da pra
+        pre-renderizar em `texture_bank.py`, que so conhece strings
+        FIXAS de antemao) e carrega a miniatura, UMA vez, quando a
+        Previa chega -- nunca por frame. Chamado por
+        `HertzGameLoop._poll_download_worker`."""
+        if not pygame.font.get_init():
+            pygame.font.init()
+        title_font = pygame.font.Font(None, _DOWNLOAD_TITLE_FONT_SIZE)
+        label_font = pygame.font.Font(None, _DOWNLOAD_LABEL_FONT_SIZE)
+
+        display_title = title if title else "(sem titulo)"
+        if len(display_title) > _DOWNLOAD_TITLE_MAX_CHARS:
+            display_title = display_title[: _DOWNLOAD_TITLE_MAX_CHARS - 3].rstrip() + "..."
+        self._download_preview_title_surface = title_font.render(
+            display_title, True, _DOWNLOAD_TEXT_COLOR
+        ).convert_alpha()
+        self._download_preview_uploader_surface = label_font.render(
+            uploader or "(canal desconhecido)", True, _DOWNLOAD_TEXT_COLOR
+        ).convert_alpha()
+
+        self._download_preview_thumbnail_surface = None
+        if thumbnail_path is not None:
+            try:
+                raw = pygame.image.load(thumbnail_path).convert()
+                self._download_preview_thumbnail_surface = pygame.transform.smoothscale(
+                    raw, _DOWNLOAD_PREVIEW_THUMBNAIL_SIZE
+                )
+            except (pygame.error, FileNotFoundError, OSError):
+                pass
+
+    def set_download_error(self, message: str) -> None:
+        """Mensagem de erro (URL invalida, FFmpeg ausente, video
+        indisponivel, ...) -- conteudo DINAMICO, renderizada sob demanda
+        UMA vez quando o erro chega, nunca por frame."""
+        if not pygame.font.get_init():
+            pygame.font.init()
+        label_font = pygame.font.Font(None, _DOWNLOAD_LABEL_FONT_SIZE)
+        display_message = message
+        if len(display_message) > _DOWNLOAD_ERROR_MAX_CHARS:
+            display_message = display_message[: _DOWNLOAD_ERROR_MAX_CHARS - 3].rstrip() + "..."
+        self._download_error_surface = label_font.render(
+            display_message, True, _DOWNLOAD_ERROR_COLOR
+        ).convert_alpha()
+
+    def clear_download_preview(self) -> None:
+        """Reseta a Previa/erro renderizados -- chamado ao entrar/sair
+        de `FLOW_DOWNLOAD_HUB` ou cancelar, pra nunca mostrar dado
+        DESATUALIZADO (o video/erro da tentativa ANTERIOR) numa nova
+        tentativa."""
+        self._download_preview_title_surface = None
+        self._download_preview_uploader_surface = None
+        self._download_preview_thumbnail_surface = None
+        self._download_error_surface = None
+
+    def _draw_download_hub_overlay(self, center_x: int) -> None:
+        """Desenha o sub-estado ATUAL de `FLOW_DOWNLOAD_HUB`
+        (`self._overlay_download_stage`) -- os 4 alertas fixos
+        ("Aguardando Link...", "Buscando Previa...", "Baixando Audio e
+        Gerando Beatmap...", "Sucesso!") vem do Atlas de Fonte JA
+        REGISTRADO em `texture_bank.py` (nenhum `font.render` aqui); so'
+        o titulo/canal da Previa e a mensagem de erro (conteudo
+        DINAMICO) usam as Surfaces preparadas por
+        `set_download_preview`/`set_download_error`. Cada ramo cuida do
+        proprio rodape (hint contextual), nunca um fallback generico."""
+        y = int(self._height * 0.14)
+        y += self._blit_centered("download_hub_title", center_x, y) + 40
+        stage = self._overlay_download_stage
+
+        if stage == "preview_ready":
+            if self._download_preview_thumbnail_surface is not None:
+                thumb = self._download_preview_thumbnail_surface
+                self._surface.blit(thumb, (center_x - thumb.get_width() // 2, y))
+                y += thumb.get_height() + 16
+            if self._download_preview_title_surface is not None:
+                title = self._download_preview_title_surface
+                self._surface.blit(title, (center_x - title.get_width() // 2, y))
+                y += title.get_height() + 6
+            if self._download_preview_uploader_surface is not None:
+                uploader = self._download_preview_uploader_surface
+                self._surface.blit(uploader, (center_x - uploader.get_width() // 2, y))
+                y += uploader.get_height() + 10
+            self._blit_centered("hint_download_hub_confirm", center_x, self._height - 110)
+        elif stage == "error":
+            self._blit_centered("download_hub_error_title", center_x, y)
+            y += 40
+            if self._download_error_surface is not None:
+                error = self._download_error_surface
+                self._surface.blit(error, (center_x - error.get_width() // 2, y))
+            self._blit_centered("hint_download_hub_back", center_x, self._height - 110)
+        elif stage == "success":
+            self._blit_centered("download_hub_success", center_x, y)
+            self._blit_centered("hint_download_hub_back", center_x, self._height - 110)
+        elif stage == "fetching_preview":
+            self._blit_centered("download_hub_fetching_preview", center_x, y)
+        elif stage == "downloading":
+            self._blit_centered("download_hub_downloading", center_x, y)
+        else:  # "waiting" (ou qualquer valor inesperado -- nunca deixa a tela em branco)
+            self._blit_centered("download_hub_waiting", center_x, y)
+            self._blit_centered("hint_download_hub_waiting", center_x, self._height - 110)
 
     # -- O Novo Fluxo de Menus (Experiencia Arcade) -----------------------
 

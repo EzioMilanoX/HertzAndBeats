@@ -272,7 +272,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>541 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<p>Total: <strong>556 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
 <details><summary><code>test_announcer.py</code> — Meta-Jogo -- Announcer: stinger sintetizado (nao fala real) em marcos de combo e Rank. (8 testes)</summary><ul><li><code>test_combo_announcer_fires_when_crossing_the_threshold</code></li><li><code>test_combo_announcer_does_not_fire_below_the_threshold</code></li><li><code>test_combo_announcer_never_refires_within_the_same_tier</code></li><li><code>test_combo_announcer_fires_again_at_the_next_tier</code></li><li><code>test_combo_announcer_is_silent_outside_playing</code></li><li><code>test_combo_announcer_tier_resets_on_a_fresh_stage</code></li><li><code>test_rank_ss_clear_triggers_the_rank_stinger</code></li><li><code>test_a_low_rank_clear_never_triggers_the_rank_stinger</code></li></ul></details>
 <details><summary><code>test_audio_ducking.py</code> — Audio Ducking: um MISS/dano abaixa a musica para duck_volume_fraction, restaurando gradualmente. (5 testes)</summary><ul><li><code>test_duck_multiplier_is_minimum_right_when_the_timer_is_fresh</code></li><li><code>test_duck_multiplier_recovers_to_normal_as_the_timer_decays</code></li><li><code>test_duck_multiplier_is_a_no_op_outside_the_ducking_window</code></li><li><code>test_a_miss_ducks_the_track_volume_and_it_recovers_over_time</code></li><li><code>test_a_second_miss_before_recovery_restarts_the_ducking_window</code></li></ul></details>
 <details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
@@ -340,8 +340,8 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_ui_bump.py</code> — UI Bump (Juice Visual): digitos do combo destacam ao cruzar um multiplo de 50, esmaecendo de volta. (5 testes)</summary><ul><li><code>test_crossing_a_multiple_of_50_arms_the_bump_timer</code></li><li><code>test_a_piercing_kill_style_jump_that_skips_over_50_still_triggers_the_bump</code></li><li><code>test_bump_timer_decays_with_delta_time_and_never_retriggers_on_a_miss</code></li><li><code>test_combo_digit_texture_base_is_the_bump_gradient_while_armed_and_default_after</code></li><li><code>test_score_digits_never_use_the_bump_texture_base</code></li></ul></details>
 <details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
 <details><summary><code>test_vignette_flash.py</code> — Vignette Flash (&quot;Cegueira Ritmica&quot;): GameState.blindness_timer_sec, decaimento e o overlay pre-renderizado. (4 testes)</summary><ul><li><code>test_trigger_blindness_takes_the_larger_of_overlapping_triggers</code></li><li><code>test_camera_shake_system_also_decays_blindness_timer</code></li><li><code>test_vignette_surface_is_window_sized_with_a_transparent_hole_at_the_judgment_line</code></li><li><code>test_sync_blindness_publishes_game_state_to_the_renderer</code></li></ul></details>
-<details><summary><code>test_youtube_direct_import.py</code> — Pipeline de Importacao Direta (Ctrl+V): deteccao de tecla, thread de background, FLOW_IMPORTING e volta ao Carrossel na musica nova. (10 testes)</summary><ul><li><code>test_ctrl_v_sets_the_paste_action</code></li><li><code>test_v_alone_without_control_does_not_set_paste</code></li><li><code>test_pasting_text_without_a_youtube_url_is_a_no_op</code></li><li><code>test_pasting_a_youtube_url_enters_the_importing_flow_and_starts_a_thread</code></li><li><code>test_a_successful_import_returns_to_the_carousel_pointing_at_the_new_song</code></li><li><code>test_a_successful_import_preserves_curated_and_other_user_songs</code></li><li><code>test_a_failed_import_shows_a_notice_and_returns_to_the_carousel</code></li><li><code>test_re_importing_the_same_video_replaces_it_instead_of_duplicating</code></li><li><code>test_importing_overlay_textures_are_registered</code></li><li><code>test_draw_overlay_handles_the_importing_mode_without_crashing</code></li></ul></details>
-<details><summary><code>test_youtube_import.py</code> — Pipeline de Importacao Direta: deteccao de URL, download via yt-dlp (subprocess FAKE, nunca rede de verdade) e scan de musicas/youtube/. (16 testes)</summary><ul><li><code>test_extract_youtube_url_recognizes_common_formats</code></li><li><code>test_extract_youtube_url_normalizes_a_schemeless_link</code></li><li><code>test_extract_youtube_url_returns_none_without_a_match</code></li><li><code>test_extract_video_id_returns_none_for_a_non_youtube_url</code></li><li><code>test_download_youtube_song_rejects_an_unrecognized_url</code></li><li><code>test_download_youtube_song_builds_the_expected_yt_dlp_command</code></li><li><code>test_download_youtube_song_raises_on_a_nonzero_exit_code</code></li><li><code>test_download_youtube_song_renames_info_json_and_thumbnail_to_canonical_names</code></li><li><code>test_parse_youtube_metadata_normalizes_chapters</code></li><li><code>test_parse_youtube_metadata_falls_back_gracefully_on_missing_fields</code></li><li><code>test_scan_youtube_songs_builds_a_stage_with_real_metadata</code></li><li><code>test_scan_youtube_songs_falls_back_to_folder_name_without_metadata</code></li><li><code>test_scan_youtube_songs_skips_a_folder_without_audio</code></li><li><code>test_scan_youtube_songs_returns_empty_without_the_youtube_subfolder</code></li><li><code>test_scan_user_songs_combines_flat_files_and_youtube_folders</code></li><li><code>test_import_youtube_song_downloads_then_scans_and_returns_the_new_stage</code></li></ul></details>
+<details><summary><code>test_youtube_direct_import.py</code> — Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): deteccao de Ctrl+V, tela dedicada em 2 etapas (Previa -&gt; Download), thread persistente e tratamento de erros. (18 testes)</summary><ul><li><code>test_ctrl_v_sets_the_paste_action</code></li><li><code>test_v_alone_without_control_does_not_set_paste</code></li><li><code>test_download_music_category_reaches_the_dedicated_screen</code></li><li><code>test_esc_from_waiting_returns_to_the_hub</code></li><li><code>test_pasting_text_without_a_youtube_url_shows_a_notice_and_starts_no_thread</code></li><li><code>test_pasting_a_valid_url_enters_fetching_preview_and_starts_the_worker</code></li><li><code>test_a_successful_preview_transitions_to_preview_ready_and_notifies_the_renderer</code></li><li><code>test_enter_from_preview_ready_starts_the_download_stage</code></li><li><code>test_a_successful_download_merges_the_catalog_and_enter_navigates_to_the_new_song</code></li><li><code>test_esc_from_success_returns_to_the_hub_without_navigating</code></li><li><code>test_esc_from_preview_ready_cancels_and_removes_the_partial_folder</code></li><li><code>test_a_failed_preview_transitions_to_error_and_notifies_the_renderer</code></li><li><code>test_a_failed_download_transitions_to_error_including_ffmpeg_missing</code></li><li><code>test_enter_or_esc_from_error_returns_to_waiting_for_a_retry</code></li><li><code>test_fetching_preview_and_downloading_ignore_esc</code></li><li><code>test_reentering_the_download_hub_resets_to_waiting</code></li><li><code>test_download_hub_overlay_textures_are_registered</code></li><li><code>test_draw_overlay_handles_every_download_hub_stage_without_crashing</code></li></ul></details>
+<details><summary><code>test_youtube_import.py</code> — Pipeline de Importacao Direta: deteccao de URL, Previa (Etapa 1) e Download (Etapa 2) via yt-dlp (subprocess FAKE, nunca rede de verdade). (23 testes)</summary><ul><li><code>test_extract_youtube_url_recognizes_common_formats</code></li><li><code>test_extract_youtube_url_normalizes_a_schemeless_link</code></li><li><code>test_extract_youtube_url_returns_none_without_a_match</code></li><li><code>test_extract_video_id_returns_none_for_a_non_youtube_url</code></li><li><code>test_ffmpeg_available_reflects_which_fn_result</code></li><li><code>test_fetch_youtube_preview_rejects_an_unrecognized_url</code></li><li><code>test_fetch_youtube_preview_builds_a_skip_download_command</code></li><li><code>test_fetch_youtube_preview_parses_metadata_and_locates_the_thumbnail</code></li><li><code>test_fetch_youtube_preview_thumbnail_is_none_when_not_written</code></li><li><code>test_fetch_youtube_preview_raises_on_a_nonzero_exit_code</code></li><li><code>test_fetch_youtube_preview_raises_on_invalid_json</code></li><li><code>test_fetch_youtube_preview_falls_back_to_channel_field</code></li><li><code>test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subprocess</code></li><li><code>test_download_and_analyze_builds_an_extract_audio_command_reusing_the_preview_folder</code></li><li><code>test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_cover</code></li><li><code>test_download_and_analyze_raises_on_a_nonzero_exit_code</code></li><li><code>test_parse_youtube_metadata_normalizes_chapters</code></li><li><code>test_parse_youtube_metadata_falls_back_gracefully_on_missing_fields</code></li><li><code>test_scan_youtube_songs_builds_a_stage_with_real_metadata</code></li><li><code>test_scan_youtube_songs_falls_back_to_folder_name_without_metadata</code></li><li><code>test_scan_youtube_songs_skips_a_folder_without_audio</code></li><li><code>test_scan_youtube_songs_returns_empty_without_the_youtube_subfolder</code></li><li><code>test_scan_user_songs_combines_flat_files_and_youtube_folders</code></li></ul></details>
 <p>Rodar: <code>python -m pytest</code> (na raiz). A suíte inclui <strong>invariantes de jogabilidade</strong>
 sobre os beatmaps versionados: densidade média/pico dentro do humanamente jogável, espaçamento mínimo entre
 janelas de julgamento, margem de fim de faixa (anti-softlock) e pista completa para a primeira ameaça.</p>
@@ -443,7 +443,7 @@ sobre todas as teclas de cada acao, mais os eixos de mira.</pre>
 </details>
 <details class="module" id="hertzbeats-adapters-hb_pygame_renderer"><summary><code>hertzbeats/adapters/hb_pygame_renderer.py</code> — PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</summary>
 <pre class="doc">PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</pre>
-<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_GLITCH_BAR_COLOR</code>, <code>_GLITCH_MAX_BARS</code>, <code>_RESULTS_HISTOGRAM_BAR_WIDTH</code>, <code>_RESULTS_HISTOGRAM_BAR_GAP</code>, <code>_RESULTS_HISTOGRAM_MAX_HEIGHT</code>, <code>_RESULTS_HISTOGRAM_COLOR</code>, <code>_RESULTS_HISTOGRAM_CENTER_COLOR</code>, <code>_HIT_ERROR_METER_WIDTH</code>, <code>_HIT_ERROR_METER_RANGE_SECONDS</code>, <code>_HIT_ERROR_METER_RECENT_TICKS</code>, <code>_HIT_ERROR_METER_COLOR</code>, <code>_REACTIVE_BG_BAR_COUNT</code>, <code>_REACTIVE_BG_MAX_HEIGHT</code>, <code>_REACTIVE_BG_COLOR</code>, <code>_GHOST_TRAIL_LENGTH</code>, <code>_GHOST_TRAIL_COLOR</code>, <code>_GHOST_TRAIL_MAX_RADIUS</code>, <code>_HEARTBEAT_DECAY_RATE</code>, <code>_HEARTBEAT_RING_ZOOM</code>, <code>_HEARTBEAT_LANE_WARP</code>, <code>_METRONOME_BAR_WIDTH</code>, <code>_METRONOME_COLOR</code>, <code>_SPARK_COLOR</code>, <code>_ARENA_BG_COLOR</code>, <code>_TUNNEL_COLOR</code>, <code>_MEDAL_GLYPH_SIZE</code>, <code>_MEDAL_GLYPH_GAP</code>, <code>_MEDAL_GLYPH_COLOR</code>, <code>_MEDAL_MAX_GLYPHS</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code>, <code>_HUB_CATEGORIES</code>, <code>_CAROUSEL_DOT_RADIUS</code>, <code>_CAROUSEL_DOT_GAP</code>, <code>_CAROUSEL_DOT_COLOR</code>, <code>_CAROUSEL_DOT_FOCUSED_COLOR</code>, <code>_CALIBRATION_ONTIME_THRESHOLD_SECONDS</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_CAROUSEL_THUMBNAIL_FOCUSED_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_SPACING_PX</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN</code>, <code>_BLUR_DOWNSCALE_DIVISOR</code>, <code>_PALETTE_RING_BLEND_FACTOR</code></p>
+<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_GLITCH_BAR_COLOR</code>, <code>_GLITCH_MAX_BARS</code>, <code>_RESULTS_HISTOGRAM_BAR_WIDTH</code>, <code>_RESULTS_HISTOGRAM_BAR_GAP</code>, <code>_RESULTS_HISTOGRAM_MAX_HEIGHT</code>, <code>_RESULTS_HISTOGRAM_COLOR</code>, <code>_RESULTS_HISTOGRAM_CENTER_COLOR</code>, <code>_HIT_ERROR_METER_WIDTH</code>, <code>_HIT_ERROR_METER_RANGE_SECONDS</code>, <code>_HIT_ERROR_METER_RECENT_TICKS</code>, <code>_HIT_ERROR_METER_COLOR</code>, <code>_REACTIVE_BG_BAR_COUNT</code>, <code>_REACTIVE_BG_MAX_HEIGHT</code>, <code>_REACTIVE_BG_COLOR</code>, <code>_GHOST_TRAIL_LENGTH</code>, <code>_GHOST_TRAIL_COLOR</code>, <code>_GHOST_TRAIL_MAX_RADIUS</code>, <code>_HEARTBEAT_DECAY_RATE</code>, <code>_HEARTBEAT_RING_ZOOM</code>, <code>_HEARTBEAT_LANE_WARP</code>, <code>_METRONOME_BAR_WIDTH</code>, <code>_METRONOME_COLOR</code>, <code>_SPARK_COLOR</code>, <code>_ARENA_BG_COLOR</code>, <code>_TUNNEL_COLOR</code>, <code>_MEDAL_GLYPH_SIZE</code>, <code>_MEDAL_GLYPH_GAP</code>, <code>_MEDAL_GLYPH_COLOR</code>, <code>_MEDAL_MAX_GLYPHS</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code>, <code>_HUB_CATEGORIES</code>, <code>_CAROUSEL_DOT_RADIUS</code>, <code>_CAROUSEL_DOT_GAP</code>, <code>_CAROUSEL_DOT_COLOR</code>, <code>_CAROUSEL_DOT_FOCUSED_COLOR</code>, <code>_CALIBRATION_ONTIME_THRESHOLD_SECONDS</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_CAROUSEL_THUMBNAIL_FOCUSED_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_SPACING_PX</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN</code>, <code>_BLUR_DOWNSCALE_DIVISOR</code>, <code>_PALETTE_RING_BLEND_FACTOR</code>, <code>_DOWNLOAD_PREVIEW_THUMBNAIL_SIZE</code>, <code>_DOWNLOAD_TITLE_FONT_SIZE</code>, <code>_DOWNLOAD_LABEL_FONT_SIZE</code>, <code>_DOWNLOAD_TEXT_COLOR</code>, <code>_DOWNLOAD_ERROR_COLOR</code>, <code>_DOWNLOAD_TITLE_MAX_CHARS</code>, <code>_DOWNLOAD_ERROR_MAX_CHARS</code></p>
 <h3>classe <code>HBPygameRenderer</code></h3><pre class="doc">`PygameRenderer` da engine estendido para o Hertz &amp; Beats com:
 
     - `register_texture(texture_id, surface)`: associa um inteiro de
@@ -497,24 +497,30 @@ composicao. Chaves consumidas por `_draw_overlay`.</pre>
 desenhar sobre o frame: `None` (jogando, sem overlay) ou uma das
 `FLOW_*` de `hertz_game_loop.py` (&quot;title&quot;, &quot;hub&quot;, &quot;carousel&quot;,
 &quot;preflight&quot;, &quot;vault&quot;, &quot;calibration&quot;, &quot;paused&quot;, &quot;game_over&quot;,
-&quot;results&quot;). `modifier_panel`/`practice_enabled` (Pre-Voo, so
-musicas do jogador -- `None` em fase curada) sao o MESMO painel
-de checkboxes de sempre. `rank` (Meta-Jogo, so em &quot;results&quot;).
-`hub_cursor` (indice em `HUB_CATEGORIES`). `carousel_*` (Meta-Jogo
--- Carrossel): SO a entrada em FOCO (posicao/contagem/indice
-original/trancada/progresso salvo), nunca a lista inteira -- o
-Carrossel mostra uma musica de cada vez no centro da tela.
-`preflight_stage_index` + `score_multiplier` (Meta-Jogo --
-Multiplicador de Pontuacao, previa ao vivo). `vault_stats`/
-`calibration_progress`: dados agregados das telas dedicadas.
-`hit_error_histogram` (Acessibilidade, so em &quot;results&quot;): tupla de
-`RESULTS_HISTOGRAM_BIN_COUNT` contagens ja prontas
-(`compute_hit_error_histogram`, calculada 1x na transicao).
-`carousel_neighbor_stage_ids` (Carrossel Horizontal): janela de
-`stage_id`s ao REDOR do foco (tamanho impar, o do meio e&#x27; o
-foco, `None` em slots sem musica) -- usada so pra escolher qual
-miniatura CACHEADA blitar em cada posicao do filme (nunca
-recalculada aqui, ver `cache_carousel_visuals`).
+&quot;results&quot;, &quot;download_hub&quot;). `modifier_panel`/`practice_enabled`
+(Pre-Voo, so musicas do jogador -- `None` em fase curada) sao o
+MESMO painel de checkboxes de sempre. `rank` (Meta-Jogo, so em
+&quot;results&quot;). `hub_cursor` (indice em `HUB_CATEGORIES`).
+`carousel_*` (Meta-Jogo -- Carrossel): SO a entrada em FOCO
+(posicao/contagem/indice original/trancada/progresso salvo),
+nunca a lista inteira -- o Carrossel mostra uma musica de cada
+vez no centro da tela. `preflight_stage_index` + `score_multiplier`
+(Meta-Jogo -- Multiplicador de Pontuacao, previa ao vivo).
+`vault_stats`/`calibration_progress`: dados agregados das telas
+dedicadas. `hit_error_histogram` (Acessibilidade, so em
+&quot;results&quot;): tupla de `RESULTS_HISTOGRAM_BIN_COUNT` contagens ja
+prontas (`compute_hit_error_histogram`, calculada 1x na
+transicao). `carousel_neighbor_stage_ids` (Carrossel Horizontal):
+janela de `stage_id`s ao REDOR do foco (tamanho impar, o do meio
+e&#x27; o foco, `None` em slots sem musica) -- usada so pra escolher
+qual miniatura CACHEADA blitar em cada posicao do filme (nunca
+recalculada aqui, ver `cache_carousel_visuals`). `download_stage`
+(Pipeline de Importacao Direta, so em &quot;download_hub&quot;): sub-estado
+atual (`_DOWNLOAD_STAGE_*` de `hertz_game_loop.py`) -- o
+titulo/canal/miniatura da Previa e a mensagem de erro (conteudo
+DINAMICO) sao publicados por `set_download_preview`/
+`set_download_error`, chamados SO&#x27; quando o dado muda (nunca
+aqui, que roda todo frame).
 Chamado pelo `HertzGameLoop` a cada frame.</pre>
 <h4><code>.set_notice()</code></h4><pre class="doc">Aviso transiente (superficie de overlay pre-registrada, ex.
 calibracao de latencia), desenhado no topo em QUALQUER estado --
@@ -781,6 +787,28 @@ Dinamica da fase ANTERIOR nos aneis-guia.</pre>
 `self._palette_tint` (`_PALETTE_RING_BLEND_FACTOR`) -- sem tint
 ativo (`None`, o normal pra fases sem miniatura), devolve
 `base_color` intocada.</pre>
+<h4><code>.set_download_preview()</code></h4><pre class="doc">Previa confirmada: renderiza titulo/canal (conteudo DINAMICO,
+so conhecido quando o video chega -- por isso NAO da pra
+pre-renderizar em `texture_bank.py`, que so conhece strings
+FIXAS de antemao) e carrega a miniatura, UMA vez, quando a
+Previa chega -- nunca por frame. Chamado por
+`HertzGameLoop._poll_download_worker`.</pre>
+<h4><code>.set_download_error()</code></h4><pre class="doc">Mensagem de erro (URL invalida, FFmpeg ausente, video
+indisponivel, ...) -- conteudo DINAMICO, renderizada sob demanda
+UMA vez quando o erro chega, nunca por frame.</pre>
+<h4><code>.clear_download_preview()</code></h4><pre class="doc">Reseta a Previa/erro renderizados -- chamado ao entrar/sair
+de `FLOW_DOWNLOAD_HUB` ou cancelar, pra nunca mostrar dado
+DESATUALIZADO (o video/erro da tentativa ANTERIOR) numa nova
+tentativa.</pre>
+<h4><code>._draw_download_hub_overlay()</code></h4><pre class="doc">Desenha o sub-estado ATUAL de `FLOW_DOWNLOAD_HUB`
+(`self._overlay_download_stage`) -- os 4 alertas fixos
+(&quot;Aguardando Link...&quot;, &quot;Buscando Previa...&quot;, &quot;Baixando Audio e
+Gerando Beatmap...&quot;, &quot;Sucesso!&quot;) vem do Atlas de Fonte JA
+REGISTRADO em `texture_bank.py` (nenhum `font.render` aqui); so&#x27;
+o titulo/canal da Previa e a mensagem de erro (conteudo
+DINAMICO) usam as Surfaces preparadas por
+`set_download_preview`/`set_download_error`. Cada ramo cuida do
+proprio rodape (hint contextual), nunca um fallback generico.</pre>
 <h4><code>._draw_title_overlay()</code></h4><pre class="doc">Tela de Titulo: logo pulsando no `beat_phase` (MESMO
 `_heartbeat_pulse` do Anel de Julgamento/Grid Warp -- um &quot;thump&quot;
 seco no inicio de cada compasso, nunca uma oscilacao simetrica) e
@@ -941,7 +969,7 @@ primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
-<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_IMPORTING</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
+<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_DOWNLOAD_HUB</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_DOWNLOAD_STAGE_WAITING</code>, <code>_DOWNLOAD_STAGE_FETCHING_PREVIEW</code>, <code>_DOWNLOAD_STAGE_PREVIEW_READY</code>, <code>_DOWNLOAD_STAGE_DOWNLOADING</code>, <code>_DOWNLOAD_STAGE_SUCCESS</code>, <code>_DOWNLOAD_STAGE_ERROR</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
 <h4><code>compute_duck_multiplier()</code></h4><pre class="doc">Audio Ducking: fracao MULTIPLICATIVA do volume da faixa (1.0 =
 normal). `duck_timer_seconds` (contagem regressiva, MESMO idioma dos
 outros timers do jogo) em `duck_duration_seconds`: `duck_volume_fraction`
@@ -971,8 +999,9 @@ O Novo Fluxo de Menus (Experiencia Arcade):
 
     TITLE -&gt; (confirmar) -&gt; HUB -&gt; CAMPANHA/FREE PLAY -&gt; CAROUSEL
     CAROUSEL -&gt; (confirmar) -&gt; PREFLIGHT -&gt; (START) -&gt; PLAYING &lt;-&gt; PAUSED
-    CAROUSEL -&gt; (CTRL+V, URL do YouTube) -&gt; IMPORTING -&gt; CAROUSEL
-                                             (Free Play, na musica nova)
+    HUB -&gt; IMPORTAR MUSICA -&gt; DOWNLOAD_HUB (CTRL+V -&gt; Previa -&gt; ENTER
+                               confirma -&gt; Download -&gt; HUB, Free Play
+                               na musica nova)
     HUB -&gt; ARQUIVOS -&gt; VAULT (so-leitura)
     HUB -&gt; CALIBRACAO -&gt; CALIBRATION (metronomo + tecla no tempo)
     PLAYING -&gt; vida zerada -&gt; GAME_OVER -&gt; (R) repete / (M) HUB
@@ -1152,36 +1181,61 @@ o Arcade nao exige terminar o Defensor antes).</pre>
 `carousel_views()` (cada campanha + Free Play), enrolando nas
 duas pontas -- a posicao lembrada de CADA visao (`_carousel_index_by_category`)
 e&#x27; preservada entre trocas, nunca reiniciada.</pre>
-<h4><code>._try_import_from_clipboard()</code></h4><pre class="doc">CTRL+V no Carrossel: le o clipboard (`self._clipboard_reader`,
-injetavel -- testes NUNCA tocam o clipboard de verdade), procura
-uma URL do YouTube (`youtube_import.extract_youtube_url`, pura)
-e, se achar, inicia o download em BACKGROUND
-(`_start_youtube_import`). Clipboard sem nenhuma URL reconhecivel
-e&#x27; um no-op silencioso -- colar algo que nao e&#x27; uma URL do
-YouTube nao deveria fazer nada visivel.</pre>
-<h4><code>._start_youtube_import()</code></h4><pre class="doc">Dispara a thread de background do Pipeline de Importacao
-Direta -- `_run_youtube_import_thread` roda INTEIRAMENTE nela
-(download via subprocess + analise do beatmap via librosa, as 2
-etapas de I/O BLOQUEANTE), nunca na thread principal do jogo
-(que so deve tocar pygame/ECS -- SDL/pygame nao e thread-safe
-pra chamadas de renderizacao). O resultado volta por uma
-`queue.Queue` (thread-safe por natureza), consumida em
-`_advance_importing`.</pre>
-<h4><code>._run_youtube_import_thread()</code></h4><pre class="doc">Corpo da thread de background -- NUNCA toca pygame/Surface/
-renderer aqui (regra de thread-safety do SDL). Qualquer falha
-(rede, subprocess, beatmap corrompido) vira uma mensagem na
-fila em vez de derrubar a thread silenciosamente.</pre>
-<h4><code>._advance_importing()</code></h4><pre class="doc">FLOW_IMPORTING: so espera a thread de background terminar --
-NAO cancelavel (encerrar uma thread Python no meio de I/O de
-rede/subprocess nao e seguro, e o download real seria
-interrompido de qualquer forma). So consome o resultado da fila
-quando disponivel, sem bloquear o frame (`get_nowait`).</pre>
-<h4><code>._apply_youtube_import_result()</code></h4><pre class="doc">Substitui SO a fatia `youtube_*` do catalogo (preserva fases
+<h4><code>._enter_download_hub()</code></h4><pre class="doc">HUB -&gt; `[ IMPORTAR MUSICA ]` -&gt; `FLOW_DOWNLOAD_HUB`: sempre
+comeca limpo (WAITING), mesmo se a ultima visita terminou em
+sucesso/erro.</pre>
+<h4><code>._advance_download_hub()</code></h4><pre class="doc">Maquina de sub-estados de UMA UNICA tela -- so WAITING/
+PREVIEW_READY(cancelar)/SUCCESS/ERROR respondem a input;
+FETCHING_PREVIEW/DOWNLOADING sao NAO-cancelaveis (a thread de
+background continua rodando de qualquer forma).</pre>
+<h4><code>._try_paste_youtube_url()</code></h4><pre class="doc">CTRL+V em WAITING: valida com REGEX (`extract_youtube_url`,
+PURA) ANTES de cogitar qualquer thread -- uma URL invalida vira
+so&#x27; um aviso transitorio (`_notice_key`, mesmo mecanismo de
+`stage_locked`), nunca aciona I/O de rede.</pre>
+<h4><code>._confirm_download()</code></h4><pre class="doc">ENTER na Previa: manda a ETAPA 2 (Download de verdade) pra
+fila da thread -- `self._download_preview` (guardado quando a
+Previa chegou) carrega tudo que a etapa 2 precisa (URL, pasta
+ja criada, video_id), nenhuma nova chamada de rede duplicada.</pre>
+<h4><code>._cancel_preview()</code></h4><pre class="doc">ESC na Previa: descarta a pasta parcial (so tem a miniatura
+da Previa, nunca audio) e volta pra WAITING, pronto pra outra
+URL -- &quot;cancelar&quot; fica DENTRO da tela, nunca kicks o jogador
+pro HUB (so ESC em WAITING faz isso).</pre>
+<h4><code>._go_to_new_song_in_carousel()</code></h4><pre class="doc">Tela de Sucesso, ENTER: sai de `FLOW_DOWNLOAD_HUB` e ja
+aponta o Carrossel (Free Play) pra musica recem-importada --
+&quot;instantaneo&quot; do ponto de vista do jogador (o catalogo ja foi
+mesclado em `_apply_download_success`, no exato instante em que
+o resultado chegou -- esta funcao so&#x27; NAVEGA).</pre>
+<h4><code>._ensure_download_worker_started()</code></h4><pre class="doc">Inicia a thread de background PERSISTENTE sob demanda -- SO&#x27;
+quando a 1a requisicao chega, nunca no construtor (nao vale
+gastar uma thread ociosa se o jogador nunca abrir esta tela).
+UMA so&#x27; thread pro jogo inteiro: se a anterior ainda estiver
+viva (nunca deveria, ja que so enfileiramos DEPOIS de receber o
+resultado da requisicao anterior), reusa em vez de duplicar.</pre>
+<h4><code>._download_worker_loop()</code></h4><pre class="doc">Corpo da thread de background PERSISTENTE -- consome
+requisicoes de `self._download_request_queue` (bloqueante,
+custo ZERO enquanto ociosa) e devolve status/resultados por
+`self._download_result_queue`. NUNCA toca pygame/Surface aqui
+(regra de thread-safety do SDL) -- so&#x27; dicts simples pela fila.</pre>
+<h4><code>._run_preview_request()</code></h4><pre class="doc">ETAPA 1 (Previa) dentro da thread -- qualquer excecao
+(`yt-dlp`/rede/JSON invalido) vira `{&quot;status&quot;: &quot;error&quot;}` na
+fila, NUNCA derruba a thread (ela precisa continuar viva pra
+aceitar a proxima requisicao).</pre>
+<h4><code>._run_download_request()</code></h4><pre class="doc">ETAPA 2 (Download+Beatmap) dentro da thread -- MESMO
+criterio de blindagem de excecao da Previa (inclui
+`FFmpegNotFoundError`, que `download_and_analyze_youtube_song`
+levanta ANTES de chamar `yt-dlp --extract-audio` se `ffmpeg`
+nao estiver no PATH).</pre>
+<h4><code>._poll_download_worker()</code></h4><pre class="doc">Consome UMA mensagem de status/resultado por frame, sem
+bloquear (`get_nowait`) -- chamado todo frame que
+`FLOW_DOWNLOAD_HUB` estiver ativo, de dentro de
+`_advance_download_hub`.</pre>
+<h4><code>._apply_download_success()</code></h4><pre class="doc">Substitui SO a fatia `youtube_*` do catalogo (preserva fases
 curadas e musicas soltas intactas -- `youtube_stages` ja vem
 COMPLETA de `scan_youtube_songs`, incluindo importacoes
-anteriores) e volta ao Carrossel (Free Play) ja apontando pra
-musica recem-importada, &quot;instantaneamente&quot; do ponto de vista do
-jogador.
+anteriores). NAO navega ainda -- so guarda `video_id` pra
+`_go_to_new_song_in_carousel` usar quando o jogador confirmar a
+tela de Sucesso (ENTER); ate la o jogador pode ficar lendo &quot;Sucesso!&quot;
+sem pressa.
 
 Limitacao aceita: indices de preferencia por-musica
 (`_chosen_game_mode`/`_chosen_modifiers`/etc., chaveados por
@@ -2994,80 +3048,89 @@ valor decide o fallback se o id salvo nao existir mais).</pre>
 INDEPENDENTE (preserva `output_latency_seconds` ja salvo, e
 vice-versa: `save_user_latency` preserva este campo).</pre>
 </details>
-<details class="module" id="hertzbeats-youtube_import"><summary><code>hertzbeats/youtube_import.py</code> — Pipeline de Importacao Direta (Ctrl+V): baixa um video do YouTube via yt-dlp (subprocess) e devolve o catalogo atualizado.</summary>
-<pre class="doc">Pipeline de Importacao Direta (Ctrl+V): baixa um video do YouTube via yt-dlp (subprocess) e devolve o catalogo atualizado.
+<details class="module" id="hertzbeats-youtube_import"><summary><code>hertzbeats/youtube_import.py</code> — Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): busca uma previa (titulo/canal/miniatura) via yt-dlp, so baixa o audio de verdade apos o jogador confirmar.</summary>
+<pre class="doc">Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): busca uma previa (titulo/canal/miniatura) via yt-dlp, so baixa o audio de verdade apos o jogador confirmar.
 
-Chamado INTEIRAMENTE de dentro de uma thread de background
-(`HertzGameLoop._run_youtube_import_thread`) -- nunca na thread
-principal do jogo, que so deve tocar pygame/ECS. As duas etapas
-bloqueantes (a chamada de rede do `yt-dlp` e a analise offline do
-beatmap via librosa) acontecem aqui; o resultado (video_id + catalogo
-`StageDef` atualizado) e devolvido por uma `queue.Queue` -- NUNCA um
-`pygame.Surface`/textura e criado ou tocado neste modulo (SDL/pygame
-nao e thread-safe para chamadas de renderizacao).</pre>
-<p class='constants'>Constantes: <code>_YOUTUBE_HOST_PATTERN</code>, <code>_YOUTUBE_URL_PATTERN</code>, <code>_YOUTUBE_VIDEO_ID_PATTERN</code>, <code>DEFAULT_YT_DLP_COMMAND</code></p>
+Chamado INTEIRAMENTE de dentro da thread de background PERSISTENTE
+(`HertzGameLoop._download_worker_loop`) -- nunca na thread principal do
+jogo, que so deve tocar pygame/ECS. NUNCA cria/toca um `pygame.Surface`
+aqui (SDL/pygame nao e thread-safe para chamadas de renderizacao) -- as
+funcoes deste modulo so devolvem dicts/tuplas simples, postados na
+`queue.Queue` de resultados pelo chamador.</pre>
+<p class='constants'>Constantes: <code>_YOUTUBE_HOST_PATTERN</code>, <code>_YOUTUBE_URL_PATTERN</code>, <code>_YOUTUBE_VIDEO_ID_PATTERN</code>, <code>DEFAULT_YT_DLP_COMMAND</code>, <code>PREVIEW_THUMBNAIL_FILENAME</code></p>
 <h4><code>extract_youtube_url()</code></h4><pre class="doc">Encontra a PRIMEIRA URL do YouTube (watch/shorts/embed/youtu.be)
 num texto arbitrario (ex.: conteudo colado do clipboard via
 Ctrl+V) -- funcao PURA, nenhuma chamada de rede. `None` se nada
 bater. Normaliza pra sempre incluir o esquema (`https://`), mesmo
 se o texto colado nao tiver um (comum ao colar so o dominio sem o
-`https://` na frente).</pre>
+`https://` na frente). Chamada SEMPRE antes de qualquer thread
+(`HertzGameLoop._advance_download_hub`) -- uma URL invalida nunca
+chega perto de `yt-dlp`.</pre>
 <h4><code>extract_video_id()</code></h4><pre class="doc">Extrai o ID do video (11+ caracteres) a partir da URL -- usado
 como nome de pasta ESTAVEL (`musicas/youtube/&lt;video_id&gt;/`) sem
 precisar de nenhuma chamada de rede pra decidir onde salvar (o
-titulo real so vem depois, no `metadata.json` baixado).</pre>
-<h4><code>read_system_clipboard()</code></h4><pre class="doc">Leitura REAL do clipboard do sistema (CTRL+V no Carrossel) --
-via `tkinter` (stdlib, disponivel em qualquer instalacao padrao de
-Python) em vez de `pygame.scrap` (exige um modo de video ja ativo e
-tem suporte inconsistente entre plataformas/versoes do SDL). Uma
-janela Tk invisivel (`withdraw`), destruida imediatamente apos ler.
-String vazia se o clipboard estiver vazio ou nao for texto --
-NUNCA levanta, quem chama (`HertzGameLoop._try_import_from_clipboard`)
-so trata &quot;nenhuma URL encontrada&quot; de um jeito, com ou sem essa
-distincao.</pre>
+titulo real so vem da Previa, ETAPA 1).</pre>
+<h4><code>read_system_clipboard()</code></h4><pre class="doc">Leitura REAL do clipboard do sistema (CTRL+V em FLOW_DOWNLOAD_HUB)
+-- via `tkinter` (stdlib, disponivel em qualquer instalacao padrao
+de Python) em vez de `pygame.scrap` (exige um modo de video ja
+ativo e tem suporte inconsistente entre plataformas/versoes do
+SDL). Uma janela Tk invisivel (`withdraw`), destruida imediatamente
+apos ler. String vazia se o clipboard estiver vazio ou nao for
+texto -- NUNCA levanta, quem chama
+(`HertzGameLoop._advance_download_hub`) so trata &quot;nenhuma URL
+encontrada&quot; de um jeito, com ou sem essa distincao.</pre>
+<h4><code>ffmpeg_available()</code></h4><pre class="doc">Presenca do `ffmpeg` no sistema (`shutil.which`, injetavel pra
+testes) -- checado PROATIVAMENTE na Etapa 2 (Download), antes de
+`yt-dlp --extract-audio`.</pre>
 <h4><code>_rename_if_exists()</code></h4><pre class="doc">`yt-dlp` deriva os nomes de info-json/miniatura do template de
-saida (`audio.%(ext)s` -&gt; `audio.info.json`/`audio.jpg`) -- renomeia
-pros nomes FIXOS que `music_library.scan_youtube_songs` espera
-(`metadata.json`/`cover.jpg`), sem depender de qual extensao exata o
-yt-dlp escolheu pra miniatura.</pre>
-<h4><code>download_youtube_song()</code></h4><pre class="doc">Baixa audio + `metadata.json` + miniatura de UM video via
-`yt-dlp` (subprocess -- NUNCA a biblioteca `yt-dlp` importada
-diretamente, pra manter o processo do jogo livre de qualquer
-travamento/exception interna dela; um subprocess isolado tambem
-sobrevive a uma versao de yt-dlp instalada globalmente, sem
-precisar ser a mesma que o ambiente Python do jogo usa).
+saida (`audio.%(ext)s` -&gt; `audio.info.json`) -- renomeia pro nome
+FIXO que `music_library.scan_youtube_songs` espera
+(`metadata.json`), sem depender de detalhes do template.</pre>
+<h4><code>_destination_folder()</code></h4><pre class="doc">Pasta ESTAVEL (`musicas/youtube/&lt;video_id&gt;/`) compartilhada
+pelas 2 etapas -- o `video_id` vem da URL sem nenhuma chamada de
+rede, entao a Previa (Etapa 1) e o Download (Etapa 2, rodando numa
+invocacao SEPARADA da thread) sempre concordam em onde salvar.</pre>
+<h4><code>fetch_youtube_preview()</code></h4><pre class="doc">ETAPA 1 (Previa): SO metadados + miniatura, NUNCA audio
+(`--skip-download`) -- `--dump-json` imprime o JSON no STDOUT
+(nenhum arquivo `.info.json` precisa existir so pra isso);
+`--write-thumbnail` grava JUNTO a miniatura (`preview.jpg`, apos
+`--convert-thumbnails jpg`) na MESMA pasta estavel que a Etapa 2 vai
+reusar -- um UNICO subprocess faz as 2 coisas, nenhuma chamada de
+rede repetida.
 
-Layout de saida (contrato lido por `music_library.scan_youtube_songs`):
-    &lt;music_dir&gt;/youtube/&lt;video_id&gt;/audio.&lt;ext&gt;
-    &lt;music_dir&gt;/youtube/&lt;video_id&gt;/metadata.json
-    &lt;music_dir&gt;/youtube/&lt;video_id&gt;/cover.jpg
+Retorna um dict pronto pra exibir (`title`/`uploader`/
+`duration_seconds`/`chapters`/`thumbnail_path`) MAIS o que a Etapa 2
+precisa pra continuar exatamente daqui (`video_id`/`url`/
+`preview_folder`).
 
-`video_id` (extraido da URL, SEM chamada de rede) e&#x27; o nome de
-pasta -- dispensa uma 1a chamada de rede so pra descobrir o titulo
-antes de decidir onde salvar, e e&#x27; estavel/unico por natureza.
+Levanta `YoutubeImportError` se a URL nao tiver um video ID
+reconhecivel, se o subprocess falhar, ou se a saida nao for um JSON
+valido (yt-dlp desatualizado/pagina de erro capturada por engano).</pre>
+<h4><code>download_and_analyze_youtube_song()</code></h4><pre class="doc">ETAPA 2 (Download): so&#x27; chamada depois que o jogador CONFIRMA a
+Previa (ENTER) -- baixa o audio de verdade (`--extract-audio`) na
+MESMA pasta da Previa (reusa `preview[&quot;preview_folder&quot;]`, nunca
+busca a miniatura de novo) e IMEDIATAMENTE analisa o beatmap
+(`music_library.scan_youtube_songs`, mesma IA offline de sempre).
 
-`run_subprocess` e&#x27; injetavel (default `subprocess.run`) -- testes
-NUNCA disparam uma chamada de rede de verdade, so verificam que os
-argumentos/comando montados estao corretos contra um FAKE.
+Verifica `ffmpeg_checker()` (default `ffmpeg_available`, ou seja
+`shutil.which(&quot;ffmpeg&quot;)`) PROATIVAMENTE antes do subprocess --
+`yt-dlp --extract-audio` depende dele pra converter o audio
+baixado; sem isso, levanta `FFmpegNotFoundError` com uma mensagem
+clara em vez de deixar o yt-dlp falhar com um erro interno
+criptico.
 
-Retorna o `Path` da pasta pronta. Levanta `YoutubeImportError` se a
-URL nao tiver um video ID reconhecivel ou se o subprocess retornar
-codigo de saida diferente de zero.</pre>
-<h4><code>import_youtube_song()</code></h4><pre class="doc">Ponto de entrada da thread de background: baixa
-(`download_youtube_song`) e IMEDIATAMENTE re-varre
-`musicas/youtube/` (`music_library.scan_youtube_songs`, que analisa
-qualquer pasta nova via a MESMA IA offline usada por musicas
-soltas) -- as duas etapas de I/O bloqueante (rede + librosa) na
-MESMA thread secundaria, nunca na thread principal do jogo.
-
-Retorna `(video_id, stages)`: `video_id` identifica qual entrada de
-`stages` e&#x27; a recem-importada (`stage_id == f&quot;youtube_{video_id}&quot;`);
-`stages` e&#x27; a lista COMPLETA e atualizada de musicas do YouTube
-(inclui as ja importadas antes, nao so a nova) -- `HertzGameLoop.
-_apply_youtube_import_result` substitui so essa fatia do catalogo,
-preservando fases curadas e musicas soltas intactas.</pre>
+Retorna `(video_id, stages)`: `stages` e&#x27; a lista COMPLETA e
+atualizada de musicas do YouTube (inclui importacoes anteriores,
+nao so a nova) -- `HertzGameLoop._apply_download_success` substitui
+so essa fatia do catalogo, preservando fases curadas e musicas
+soltas intactas.</pre>
 <h3>classe <code>YoutubeImportError</code></h3><pre class="doc">URL do YouTube nao reconhecida, ou `yt-dlp`/a analise de beatmap
 falharam durante o Pipeline de Importacao Direta.</pre>
+<h3>classe <code>FFmpegNotFoundError</code></h3><pre class="doc">`ffmpeg` nao encontrado no PATH -- `yt-dlp --extract-audio`
+depende dele pra converter o audio baixado. Verificado PROATIVAMENTE
+na Etapa 2 (Download), antes de chamar o subprocess, pra dar um
+erro CLARO em vez de deixar o yt-dlp falhar com uma mensagem
+interna criptica.</pre>
 </details>
 
 <p class="muted" style="margin-top:4rem">Gerado por <code>tools/build_docs.py</code> a partir do código e

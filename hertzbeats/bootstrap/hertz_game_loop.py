@@ -4,9 +4,11 @@ from __future__ import annotations
 import dataclasses
 import queue
 import random
+import shutil
 import threading
 import time
-from typing import Callable, Optional, Tuple
+from pathlib import Path
+from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -42,12 +44,19 @@ from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_
 from hertzbeats.stages import StageDef, campaign_ids, read_stage_bpm_and_duration, resolve_stage_config
 from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
 from hertzbeats.user_settings import USER_SETTINGS_PATH, save_user_latency, save_user_palette_id
-from hertzbeats.youtube_import import extract_youtube_url, import_youtube_song, read_system_clipboard
+from hertzbeats.youtube_import import (
+    FFmpegNotFoundError,
+    YoutubeImportError,
+    download_and_analyze_youtube_song,
+    extract_youtube_url,
+    fetch_youtube_preview,
+    read_system_clipboard,
+)
 
 FLOW_TITLE = "title"
 FLOW_HUB = "hub"
 FLOW_CAROUSEL = "carousel"
-FLOW_IMPORTING = "importing"
+FLOW_DOWNLOAD_HUB = "download_hub"
 FLOW_PREFLIGHT = "preflight"
 FLOW_VAULT = "vault"
 FLOW_CALIBRATION = "calibration"
@@ -56,14 +65,32 @@ FLOW_PAUSED = "paused"
 FLOW_GAME_OVER = "game_over"
 FLOW_RESULTS = "results"
 
-HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration", "ironman")
-"""O Novo Fluxo de Menus (Experiencia Arcade): 5 categorias grandes do
+HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration", "ironman", "download_music")
+"""O Novo Fluxo de Menus (Experiencia Arcade): 6 categorias grandes do
 HUB principal, nesta ORDEM fixa -- `HertzGameLoop._hub_cursor` e um
 indice nesta tupla. "campaign"/"free_play" levam ao Carrossel
 (`FLOW_CAROUSEL`, filtrado por `StageDef.selectable_mode`); "vault" e
 "calibration" sao telas dedicadas proprias; "ironman" NAO tem tela
 propria -- confirma-la ja inicia o gauntlet (`_start_ironman_run`),
-pulando Carrossel/Pre-Voo por completo (ver `_advance_hub`)."""
+pulando Carrossel/Pre-Voo por completo (ver `_advance_hub`);
+"download_music" leva a `FLOW_DOWNLOAD_HUB` (Pipeline de Importacao
+Direta -- tela DEDICADA, substituindo o antigo Ctrl+V escondido dentro
+do Carrossel, fragil pra navegacao)."""
+
+_DOWNLOAD_STAGE_WAITING = "waiting"
+_DOWNLOAD_STAGE_FETCHING_PREVIEW = "fetching_preview"
+_DOWNLOAD_STAGE_PREVIEW_READY = "preview_ready"
+_DOWNLOAD_STAGE_DOWNLOADING = "downloading"
+_DOWNLOAD_STAGE_SUCCESS = "success"
+_DOWNLOAD_STAGE_ERROR = "error"
+"""Sub-estados de UMA UNICA tela (`FLOW_DOWNLOAD_HUB`) -- nunca FLOW_*
+separados, ja que e' sempre a MESMA tela mudando so a mensagem/prompt
+exibido (`HBPygameRenderer._draw_download_hub_overlay`). Transicoes:
+WAITING -(Ctrl+V, URL valida)-> FETCHING_PREVIEW -(previa OK)->
+PREVIEW_READY -(ENTER)-> DOWNLOADING -(sucesso)-> SUCCESS; qualquer
+etapa pode cair em ERROR. So WAITING/PREVIEW_READY(cancelar)/SUCCESS/
+ERROR aceitam ESC -- FETCHING_PREVIEW/DOWNLOADING sao NAO-cancelaveis
+(encerrar a thread no meio de subprocess/rede nao e seguro)."""
 
 _RESULTS_GRACE_SECONDS = 1.0
 """Pausa dramatica entre a ultima ameaca resolvida e a tela de resultados."""
@@ -260,8 +287,9 @@ class HertzGameLoop(GameLoop):
 
         TITLE -> (confirmar) -> HUB -> CAMPANHA/FREE PLAY -> CAROUSEL
         CAROUSEL -> (confirmar) -> PREFLIGHT -> (START) -> PLAYING <-> PAUSED
-        CAROUSEL -> (CTRL+V, URL do YouTube) -> IMPORTING -> CAROUSEL
-                                                 (Free Play, na musica nova)
+        HUB -> IMPORTAR MUSICA -> DOWNLOAD_HUB (CTRL+V -> Previa -> ENTER
+                                   confirma -> Download -> HUB, Free Play
+                                   na musica nova)
         HUB -> ARQUIVOS -> VAULT (so-leitura)
         HUB -> CALIBRACAO -> CALIBRATION (metronomo + tecla no tempo)
         PLAYING -> vida zerada -> GAME_OVER -> (R) repete / (M) HUB
@@ -308,7 +336,8 @@ class HertzGameLoop(GameLoop):
         music_dir: str = USER_MUSIC_DIR,
         beatmap_dir: str = USER_BEATMAP_DIR,
         clipboard_reader: Callable[[], str] = read_system_clipboard,
-        youtube_importer: Callable[..., Tuple[str, Tuple[StageDef, ...]]] = import_youtube_song,
+        preview_fetcher: Callable[..., Dict] = fetch_youtube_preview,
+        song_downloader: Callable[..., Tuple[str, Tuple[StageDef, ...]]] = download_and_analyze_youtube_song,
     ) -> None:
         """Compoe a fase 0 imediatamente (sem tocar musica) para que a
         Tela de Titulo ja tenha uma arena renderizavel ao fundo.
@@ -325,12 +354,13 @@ class HertzGameLoop(GameLoop):
         cores em si ja vem prontas em `base_config.threat_blue_rgb`/
         `threat_pink_rgb`, este parametro so serve para o Vault
         mostrar/ciclar QUAL id esta selecionado. `music_dir`/`beatmap_dir`
-        (default os caminhos reais de `musicas/`) e
-        `clipboard_reader`/`youtube_importer` (default a leitura REAL do
-        clipboard/`youtube_import.import_youtube_song`) existem pro
-        Pipeline de Importacao Direta (CTRL+V) -- testes isolam em
-        `tmp_path` e injetam FAKEs, nunca tocando o clipboard ou a rede
-        de verdade."""
+        (default os caminhos reais de `musicas/`) e `clipboard_reader`/
+        `preview_fetcher`/`song_downloader` (default a leitura REAL do
+        clipboard/`youtube_import.fetch_youtube_preview`/
+        `youtube_import.download_and_analyze_youtube_song`) existem pro
+        Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB) -- testes
+        isolam em `tmp_path` e injetam FAKEs, nunca tocando o clipboard,
+        a rede ou `yt-dlp` de verdade."""
         self._base_config = base_config
         self._stages = stages
         self._audio_clock = audio_clock
@@ -342,9 +372,20 @@ class HertzGameLoop(GameLoop):
         self._music_dir = music_dir
         self._beatmap_dir = beatmap_dir
         self._clipboard_reader = clipboard_reader
-        self._youtube_importer = youtube_importer
-        self._import_thread: Optional[threading.Thread] = None
-        self._import_result_queue: "queue.Queue" = queue.Queue()
+        self._preview_fetcher = preview_fetcher
+        self._song_downloader = song_downloader
+        # Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): UMA thread
+        # de background PERSISTENTE (iniciada sob demanda, nunca no
+        # construtor -- nao vale gastar uma thread ociosa se o jogador
+        # nunca abrir essa tela) consome requisicoes desta fila e
+        # devolve status/resultados pela fila de resultado.
+        self._download_worker_thread: Optional[threading.Thread] = None
+        self._download_request_queue: "queue.Queue" = queue.Queue()
+        self._download_result_queue: "queue.Queue" = queue.Queue()
+        self._download_stage = _DOWNLOAD_STAGE_WAITING
+        self._download_preview: Optional[Dict] = None
+        self._download_error_message: Optional[str] = None
+        self._download_new_stage_id: Optional[str] = None
         self._loaded_stage = 0
         self._flow = FLOW_TITLE
         self._results_grace = 0.0
@@ -846,8 +887,8 @@ class HertzGameLoop(GameLoop):
             self._advance_hub()
         elif self._flow == FLOW_CAROUSEL:
             self._advance_carousel()
-        elif self._flow == FLOW_IMPORTING:
-            self._advance_importing()
+        elif self._flow == FLOW_DOWNLOAD_HUB:
+            self._advance_download_hub()
         elif self._flow == FLOW_PREFLIGHT:
             self._advance_preflight()
         elif self._flow == FLOW_VAULT:
@@ -908,6 +949,8 @@ class HertzGameLoop(GameLoop):
                 self._enter_calibration()
             elif category == "ironman":
                 self._start_ironman_run()
+            elif category == "download_music":
+                self._enter_download_hub()
         elif inp.is_action_pressed("pause"):
             self._enter_title()  # ESC no HUB volta pra Tela de Titulo (nunca encerra o jogo daqui)
 
@@ -1021,13 +1064,6 @@ class HertzGameLoop(GameLoop):
         elif inp.is_action_pressed("cycle_view_prev"):
             self._cycle_carousel_view(-1)
 
-        if inp.is_action_pressed("paste"):
-            # Pipeline de Importacao Direta: pode mudar `self._flow` pra
-            # FLOW_IMPORTING -- nao processa mais nada este frame (a
-            # fila/navegacao do Carrossel nao fazem sentido em transito).
-            self._try_import_from_clipboard()
-            return
-
         entries = self.carousel_entries()
         if not entries:
             if inp.is_action_pressed("pause"):
@@ -1054,76 +1090,195 @@ class HertzGameLoop(GameLoop):
         elif inp.is_action_pressed("pause"):
             self._flow = FLOW_HUB
 
-    # -- Pipeline de Importacao Direta (CTRL+V) ------------------------------
+    # -- Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB) -------------------
+    #
+    # Tela DEDICADA (substitui o antigo Ctrl+V escondido dentro do
+    # Carrossel, fragil pra navegacao -- o jogador nao sabia que aquele
+    # atalho existia nem via feedback claro de progresso/erro). Fluxo
+    # em 2 ETAPAS: Previa (so metadados+miniatura, nunca audio) exige
+    # confirmacao explicita (ENTER) antes do Download de verdade
+    # (audio+beatmap) comecar -- colar uma URL errada nunca desperdica
+    # uma chamada de rede pesada.
 
-    def _try_import_from_clipboard(self) -> None:
-        """CTRL+V no Carrossel: le o clipboard (`self._clipboard_reader`,
-        injetavel -- testes NUNCA tocam o clipboard de verdade), procura
-        uma URL do YouTube (`youtube_import.extract_youtube_url`, pura)
-        e, se achar, inicia o download em BACKGROUND
-        (`_start_youtube_import`). Clipboard sem nenhuma URL reconhecivel
-        e' um no-op silencioso -- colar algo que nao e' uma URL do
-        YouTube nao deveria fazer nada visivel."""
+    def _enter_download_hub(self) -> None:
+        """HUB -> `[ IMPORTAR MUSICA ]` -> `FLOW_DOWNLOAD_HUB`: sempre
+        comeca limpo (WAITING), mesmo se a ultima visita terminou em
+        sucesso/erro."""
+        self._flow = FLOW_DOWNLOAD_HUB
+        self._reset_download_hub_state()
+
+    def _reset_download_hub_state(self) -> None:
+        self._download_stage = _DOWNLOAD_STAGE_WAITING
+        self._download_preview = None
+        self._download_error_message = None
+        self._download_new_stage_id = None
+        if hasattr(self._renderer, "clear_download_preview"):
+            self._renderer.clear_download_preview()
+
+    def _advance_download_hub(self) -> None:
+        """Maquina de sub-estados de UMA UNICA tela -- so WAITING/
+        PREVIEW_READY(cancelar)/SUCCESS/ERROR respondem a input;
+        FETCHING_PREVIEW/DOWNLOADING sao NAO-cancelaveis (a thread de
+        background continua rodando de qualquer forma)."""
+        self._poll_download_worker()
+        inp = self._input_provider
+        stage = self._download_stage
+
+        if stage == _DOWNLOAD_STAGE_WAITING:
+            if inp.is_action_pressed("paste"):
+                self._try_paste_youtube_url()
+            elif inp.is_action_pressed("pause"):
+                self._flow = FLOW_HUB
+        elif stage == _DOWNLOAD_STAGE_PREVIEW_READY:
+            if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+                self._confirm_download()
+            elif inp.is_action_pressed("pause"):
+                self._cancel_preview()
+        elif stage == _DOWNLOAD_STAGE_SUCCESS:
+            if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+                self._go_to_new_song_in_carousel()
+            elif inp.is_action_pressed("pause"):
+                self._flow = FLOW_HUB
+        elif stage == _DOWNLOAD_STAGE_ERROR:
+            if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire") or inp.is_action_pressed("pause"):
+                self._download_stage = _DOWNLOAD_STAGE_WAITING
+                self._download_error_message = None
+
+    def _try_paste_youtube_url(self) -> None:
+        """CTRL+V em WAITING: valida com REGEX (`extract_youtube_url`,
+        PURA) ANTES de cogitar qualquer thread -- uma URL invalida vira
+        so' um aviso transitorio (`_notice_key`, mesmo mecanismo de
+        `stage_locked`), nunca aciona I/O de rede."""
         text = self._clipboard_reader()
         url = extract_youtube_url(text)
-        if url is not None:
-            self._start_youtube_import(url)
+        if url is None:
+            self._notice_key = "invalid_url_notice"
+            self._notice_timer = _NOTICE_SECONDS
+            return
+        self._download_stage = _DOWNLOAD_STAGE_FETCHING_PREVIEW
+        self._enqueue_download_request(("preview", url))
 
-    def _start_youtube_import(self, url: str) -> None:
-        """Dispara a thread de background do Pipeline de Importacao
-        Direta -- `_run_youtube_import_thread` roda INTEIRAMENTE nela
-        (download via subprocess + analise do beatmap via librosa, as 2
-        etapas de I/O BLOQUEANTE), nunca na thread principal do jogo
-        (que so deve tocar pygame/ECS -- SDL/pygame nao e thread-safe
-        pra chamadas de renderizacao). O resultado volta por uma
-        `queue.Queue` (thread-safe por natureza), consumida em
-        `_advance_importing`."""
-        self._import_result_queue = queue.Queue()
-        self._import_thread = threading.Thread(
-            target=self._run_youtube_import_thread, args=(url,), daemon=True,
-        )
-        self._flow = FLOW_IMPORTING
-        self._import_thread.start()
+    def _confirm_download(self) -> None:
+        """ENTER na Previa: manda a ETAPA 2 (Download de verdade) pra
+        fila da thread -- `self._download_preview` (guardado quando a
+        Previa chegou) carrega tudo que a etapa 2 precisa (URL, pasta
+        ja criada, video_id), nenhuma nova chamada de rede duplicada."""
+        self._download_stage = _DOWNLOAD_STAGE_DOWNLOADING
+        self._enqueue_download_request(("download", self._download_preview))
 
-    def _run_youtube_import_thread(self, url: str) -> None:
-        """Corpo da thread de background -- NUNCA toca pygame/Surface/
-        renderer aqui (regra de thread-safety do SDL). Qualquer falha
-        (rede, subprocess, beatmap corrompido) vira uma mensagem na
-        fila em vez de derrubar a thread silenciosamente."""
-        try:
-            video_id, stages = self._youtube_importer(
-                url, music_dir=self._music_dir, beatmap_dir=self._beatmap_dir,
+    def _cancel_preview(self) -> None:
+        """ESC na Previa: descarta a pasta parcial (so tem a miniatura
+        da Previa, nunca audio) e volta pra WAITING, pronto pra outra
+        URL -- "cancelar" fica DENTRO da tela, nunca kicks o jogador
+        pro HUB (so ESC em WAITING faz isso)."""
+        if self._download_preview is not None:
+            shutil.rmtree(Path(self._download_preview["preview_folder"]), ignore_errors=True)
+        self._reset_download_hub_state()
+
+    def _go_to_new_song_in_carousel(self) -> None:
+        """Tela de Sucesso, ENTER: sai de `FLOW_DOWNLOAD_HUB` e ja
+        aponta o Carrossel (Free Play) pra musica recem-importada --
+        "instantaneo" do ponto de vista do jogador (o catalogo ja foi
+        mesclado em `_apply_download_success`, no exato instante em que
+        o resultado chegou -- esta funcao so' NAVEGA)."""
+        self._enter_carousel("free_play")
+        if self._download_new_stage_id is not None:
+            for position, (_original_index, stage) in enumerate(self.free_play_entries()):
+                if stage.stage_id == self._download_new_stage_id:
+                    self._carousel_index_by_category["free_play"] = position
+                    break
+
+    def _ensure_download_worker_started(self) -> None:
+        """Inicia a thread de background PERSISTENTE sob demanda -- SO'
+        quando a 1a requisicao chega, nunca no construtor (nao vale
+        gastar uma thread ociosa se o jogador nunca abrir esta tela).
+        UMA so' thread pro jogo inteiro: se a anterior ainda estiver
+        viva (nunca deveria, ja que so enfileiramos DEPOIS de receber o
+        resultado da requisicao anterior), reusa em vez de duplicar."""
+        if self._download_worker_thread is None or not self._download_worker_thread.is_alive():
+            self._download_worker_thread = threading.Thread(
+                target=self._download_worker_loop, daemon=True,
             )
-            self._import_result_queue.put(("ok", (video_id, stages)))
-        except Exception as exc:  # noqa: BLE001 -- qualquer falha vira uma mensagem, nunca derruba o jogo
-            self._import_result_queue.put(("error", str(exc)))
+            self._download_worker_thread.start()
 
-    def _advance_importing(self) -> None:
-        """FLOW_IMPORTING: so espera a thread de background terminar --
-        NAO cancelavel (encerrar uma thread Python no meio de I/O de
-        rede/subprocess nao e seguro, e o download real seria
-        interrompido de qualquer forma). So consome o resultado da fila
-        quando disponivel, sem bloquear o frame (`get_nowait`)."""
+    def _enqueue_download_request(self, request: Tuple[str, object]) -> None:
+        self._ensure_download_worker_started()
+        self._download_request_queue.put(request)
+
+    def _download_worker_loop(self) -> None:
+        """Corpo da thread de background PERSISTENTE -- consome
+        requisicoes de `self._download_request_queue` (bloqueante,
+        custo ZERO enquanto ociosa) e devolve status/resultados por
+        `self._download_result_queue`. NUNCA toca pygame/Surface aqui
+        (regra de thread-safety do SDL) -- so' dicts simples pela fila."""
+        while True:
+            kind, payload = self._download_request_queue.get()
+            if kind == "preview":
+                self._run_preview_request(payload)
+            elif kind == "download":
+                self._run_download_request(payload)
+
+    def _run_preview_request(self, url: str) -> None:
+        """ETAPA 1 (Previa) dentro da thread -- qualquer excecao
+        (`yt-dlp`/rede/JSON invalido) vira `{"status": "error"}` na
+        fila, NUNCA derruba a thread (ela precisa continuar viva pra
+        aceitar a proxima requisicao)."""
         try:
-            kind, payload = self._import_result_queue.get_nowait()
+            preview = self._preview_fetcher(url, music_dir=self._music_dir)
+            self._download_result_queue.put({"status": "preview_ready", "preview": preview})
+        except Exception as exc:  # noqa: BLE001 -- qualquer falha vira mensagem, nunca derruba a thread
+            self._download_result_queue.put({"status": "error", "msg": str(exc)})
+
+    def _run_download_request(self, preview: Dict) -> None:
+        """ETAPA 2 (Download+Beatmap) dentro da thread -- MESMO
+        criterio de blindagem de excecao da Previa (inclui
+        `FFmpegNotFoundError`, que `download_and_analyze_youtube_song`
+        levanta ANTES de chamar `yt-dlp --extract-audio` se `ffmpeg`
+        nao estiver no PATH)."""
+        try:
+            video_id, stages = self._song_downloader(
+                preview, music_dir=self._music_dir, beatmap_dir=self._beatmap_dir,
+            )
+            self._download_result_queue.put({"status": "success", "video_id": video_id, "stages": stages})
+        except Exception as exc:  # noqa: BLE001
+            self._download_result_queue.put({"status": "error", "msg": str(exc)})
+
+    def _poll_download_worker(self) -> None:
+        """Consome UMA mensagem de status/resultado por frame, sem
+        bloquear (`get_nowait`) -- chamado todo frame que
+        `FLOW_DOWNLOAD_HUB` estiver ativo, de dentro de
+        `_advance_download_hub`."""
+        try:
+            message = self._download_result_queue.get_nowait()
         except queue.Empty:
             return
-        if kind == "ok":
-            video_id, stages = payload
-            self._apply_youtube_import_result(video_id, stages)
-        else:
-            self._notice_key = "import_failed"
-            self._notice_timer = _NOTICE_SECONDS
-            self._flow = FLOW_CAROUSEL
-        self._import_thread = None
+        status = message["status"]
+        if status == "preview_ready":
+            self._download_preview = message["preview"]
+            self._download_stage = _DOWNLOAD_STAGE_PREVIEW_READY
+            if hasattr(self._renderer, "set_download_preview"):
+                self._renderer.set_download_preview(
+                    self._download_preview["title"],
+                    self._download_preview["uploader"],
+                    self._download_preview["thumbnail_path"],
+                )
+        elif status == "success":
+            self._apply_download_success(message["video_id"], message["stages"])
+            self._download_stage = _DOWNLOAD_STAGE_SUCCESS
+        elif status == "error":
+            self._download_error_message = message["msg"]
+            self._download_stage = _DOWNLOAD_STAGE_ERROR
+            if hasattr(self._renderer, "set_download_error"):
+                self._renderer.set_download_error(self._download_error_message)
 
-    def _apply_youtube_import_result(self, video_id: str, youtube_stages: Tuple[StageDef, ...]) -> None:
+    def _apply_download_success(self, video_id: str, youtube_stages: Tuple[StageDef, ...]) -> None:
         """Substitui SO a fatia `youtube_*` do catalogo (preserva fases
         curadas e musicas soltas intactas -- `youtube_stages` ja vem
         COMPLETA de `scan_youtube_songs`, incluindo importacoes
-        anteriores) e volta ao Carrossel (Free Play) ja apontando pra
-        musica recem-importada, "instantaneamente" do ponto de vista do
-        jogador.
+        anteriores). NAO navega ainda -- so guarda `video_id` pra
+        `_go_to_new_song_in_carousel` usar quando o jogador confirmar a
+        tela de Sucesso (ENTER); ate la o jogador pode ficar lendo "Sucesso!"
+        sem pressa.
 
         Limitacao aceita: indices de preferencia por-musica
         (`_chosen_game_mode`/`_chosen_modifiers`/etc., chaveados por
@@ -1134,12 +1289,7 @@ class HertzGameLoop(GameLoop):
         de preferencia pra chavear por `stage_id`."""
         other_stages = tuple(s for s in self._stages if not s.stage_id.startswith("youtube_"))
         self._stages = other_stages + youtube_stages
-        self._enter_carousel("free_play")
-        new_stage_id = f"youtube_{video_id}"
-        for position, (_original_index, stage) in enumerate(self.free_play_entries()):
-            if stage.stage_id == new_stage_id:
-                self._carousel_index_by_category["free_play"] = position
-                break
+        self._download_new_stage_id = f"youtube_{video_id}"
 
     def _sync_carousel_preview(self, delta_time: float) -> None:
         """Audio Preview: chamado TODO frame (nao so dentro do
@@ -1646,6 +1796,7 @@ class HertzGameLoop(GameLoop):
                 calibration_progress=(
                     self.calibration_progress() if self._flow == FLOW_CALIBRATION else None
                 ),
+                download_stage=(self._download_stage if self._flow == FLOW_DOWNLOAD_HUB else None),
             )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)

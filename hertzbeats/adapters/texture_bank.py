@@ -281,10 +281,12 @@ _HUB_CATEGORY_LABELS = {
     "vault": "[ ARQUIVOS (VAULT) ]",
     "calibration": "[ CALIBRACAO ]",
     "ironman": "[ IRONMAN ]",
+    "download_music": "[ IMPORTAR MUSICA ]",
 }
-"""HUB Principal: rotulo de cada uma das 5 categorias grandes
+"""HUB Principal: rotulo de cada uma das 6 categorias grandes
 (`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa. "ironman" nao
-tem tela propria -- confirma-la ja inicia o gauntlet."""
+tem tela propria -- confirma-la ja inicia o gauntlet. "download_music"
+leva a `FLOW_DOWNLOAD_HUB` (Pipeline de Importacao Direta)."""
 
 _SCORE_MULTIPLIER_MIN = 0.10
 _SCORE_MULTIPLIER_STEP = 0.05
@@ -422,11 +424,30 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text("slash", stage_font, "/", _LABEL_COLOR)
     register_text("colon", stage_font, ":", _LABEL_COLOR)
 
-    # Pipeline de Importacao Direta (Ctrl+V): tela de espera (sem
-    # cancelamento) + aviso de falha (Carrossel, `_notice_key`).
-    register_text("importing_title", big_font, "IMPORTANDO DO YOUTUBE...", _DIGIT_COLOR)
-    register_text("hint_importing", hint_font, "Baixando audio e gerando o beatmap -- aguarde", _LABEL_COLOR)
-    register_text("import_failed", hint_font, "Falha ao importar -- confira a URL e tente de novo", _MISS_COLOR)
+    # Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): titulo fixo da
+    # tela + os 4 alertas de estado (Aguardando/Buscando Previa/
+    # Baixando/Sucesso) + os hints por sub-estado + o aviso transiente
+    # de URL invalida (`_notice_key`, mesmo mecanismo de "stage_locked").
+    # Titulo/canal da Previa e a mensagem de erro sao DINAMICOS --
+    # renderizados sob demanda em `HBPygameRenderer.set_download_preview`/
+    # `set_download_error`, nunca aqui (nao sao strings fixas conhecidas
+    # de antemao).
+    register_text("download_hub_title", big_font, "IMPORTAR DO YOUTUBE", _DIGIT_COLOR)
+    register_text("download_hub_waiting", hint_font, "AGUARDANDO LINK...", _LABEL_COLOR)
+    register_text("download_hub_fetching_preview", hint_font, "BUSCANDO PREVIA...", _LABEL_COLOR)
+    register_text("download_hub_downloading", hint_font, "BAIXANDO AUDIO E GERANDO BEATMAP...", _LABEL_COLOR)
+    register_text("download_hub_success", hint_font, "SUCESSO!", _GOOD_COLOR)
+    register_text("download_hub_error_title", hint_font, "FALHA NA IMPORTACAO", _MISS_COLOR)
+    register_text(
+        "hint_download_hub_waiting", hint_font,
+        "Copie uma URL do YouTube e pressione CTRL+V  |  ESC volta ao HUB", _LABEL_COLOR,
+    )
+    register_text(
+        "hint_download_hub_confirm", hint_font,
+        "[ ENTER ] Confirmar Download  |  [ ESC ] Cancelar", _PERFECT_COLOR,
+    )
+    register_text("hint_download_hub_back", hint_font, "ENTER ou ESC volta", _LABEL_COLOR)
+    register_text("invalid_url_notice", hint_font, "URL Invalida", _MISS_COLOR)
 
     # HUB Principal: 4 categorias grandes, normal + foco ("_sel", MESMO
     # estilo "> X <" dourado das linhas de fase do antigo menu unico).

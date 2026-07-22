@@ -1,4 +1,4 @@
-"""Pipeline de Importacao Direta: deteccao de URL, download via yt-dlp (subprocess FAKE, nunca rede de verdade) e scan de musicas/youtube/."""
+"""Pipeline de Importacao Direta: deteccao de URL, Previa (Etapa 1) e Download (Etapa 2) via yt-dlp (subprocess FAKE, nunca rede de verdade)."""
 import json
 from pathlib import Path
 
@@ -6,11 +6,13 @@ import pytest
 
 from hertzbeats.music_library import parse_youtube_metadata, scan_user_songs, scan_youtube_songs
 from hertzbeats.youtube_import import (
+    FFmpegNotFoundError,
     YoutubeImportError,
-    download_youtube_song,
+    download_and_analyze_youtube_song,
     extract_video_id,
     extract_youtube_url,
-    import_youtube_song,
+    fetch_youtube_preview,
+    ffmpeg_available,
 )
 
 
@@ -51,16 +53,25 @@ def test_extract_video_id_returns_none_for_a_non_youtube_url():
     assert extract_video_id("https://vimeo.com/12345") is None
 
 
-# -- download_youtube_song (subprocess FAKE, nunca chamada de rede) ----------
+# -- ffmpeg_available (injetavel, nunca toca o sistema de verdade) ----------
+
+
+def test_ffmpeg_available_reflects_which_fn_result():
+    assert ffmpeg_available(which_fn=lambda name: "/usr/bin/ffmpeg") is True
+    assert ffmpeg_available(which_fn=lambda name: None) is False
+
+
+# -- fetch_youtube_preview (ETAPA 1 -- subprocess FAKE, nunca rede) ----------
 
 
 class _FakeCompletedProcess:
-    def __init__(self, returncode: int, stderr: str = ""):
+    def __init__(self, returncode: int, stdout: str = "", stderr: str = ""):
         self.returncode = returncode
+        self.stdout = stdout
         self.stderr = stderr
 
 
-def test_download_youtube_song_rejects_an_unrecognized_url(tmp_path):
+def test_fetch_youtube_preview_rejects_an_unrecognized_url(tmp_path):
     calls = []
 
     def fake_run(*args, **kwargs):
@@ -68,58 +79,205 @@ def test_download_youtube_song_rejects_an_unrecognized_url(tmp_path):
         return _FakeCompletedProcess(0)
 
     with pytest.raises(YoutubeImportError):
-        download_youtube_song("https://vimeo.com/12345", music_dir=str(tmp_path), run_subprocess=fake_run)
+        fetch_youtube_preview("https://vimeo.com/12345", music_dir=str(tmp_path), run_subprocess=fake_run)
     assert calls == []  # nunca chega a chamar o subprocess com uma URL invalida
 
 
-def test_download_youtube_song_builds_the_expected_yt_dlp_command(tmp_path):
+def test_fetch_youtube_preview_builds_a_skip_download_command(tmp_path):
     captured = {}
 
     def fake_run(command, **kwargs):
         captured["command"] = command
         captured["kwargs"] = kwargs
-        return _FakeCompletedProcess(0)
+        return _FakeCompletedProcess(0, stdout=json.dumps({"title": "T", "uploader": "U"}))
 
-    folder = download_youtube_song(
-        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
-    )
-    assert folder == tmp_path / "youtube" / "dQw4w9WgXcQ"
-    assert folder.is_dir()  # pasta de destino ja criada antes do subprocess rodar
+    fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run)
 
     command = captured["command"]
     assert command[0] == "yt-dlp"
+    assert "--dump-json" in command
+    assert "--skip-download" in command  # ETAPA 1 NUNCA baixa audio
+    assert "--extract-audio" not in command
     assert "https://youtu.be/dQw4w9WgXcQ" in command
-    assert "-o" in command
-    output_index = command.index("-o") + 1
-    assert command[output_index] == str(folder / "audio.%(ext)s")
     assert captured["kwargs"]["capture_output"] is True
 
 
-def test_download_youtube_song_raises_on_a_nonzero_exit_code(tmp_path):
+def test_fetch_youtube_preview_parses_metadata_and_locates_the_thumbnail(tmp_path):
+    def fake_run(command, **kwargs):
+        output_index = command.index("-o") + 1
+        folder = Path(command[output_index]).parent
+        (folder / "preview.jpg").write_bytes(b"fake jpg")
+        metadata = {
+            "title": "Cool Song",
+            "uploader": "Cool Channel",
+            "duration": 187.5,
+            "chapters": [{"start_time": 85.0, "title": "Drop"}],
+        }
+        return _FakeCompletedProcess(0, stdout=json.dumps(metadata))
+
+    preview = fetch_youtube_preview(
+        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+    )
+    assert preview["video_id"] == "dQw4w9WgXcQ"
+    assert preview["url"] == "https://youtu.be/dQw4w9WgXcQ"
+    assert preview["title"] == "Cool Song"
+    assert preview["uploader"] == "Cool Channel"
+    assert preview["duration_seconds"] == pytest.approx(187.5)
+    assert preview["chapters"] == ({"start_time_seconds": 85.0, "title": "Drop"},)
+    assert preview["thumbnail_path"] == str(Path(tmp_path) / "youtube" / "dQw4w9WgXcQ" / "preview.jpg")
+
+
+def test_fetch_youtube_preview_thumbnail_is_none_when_not_written(tmp_path):
+    def fake_run(command, **kwargs):
+        return _FakeCompletedProcess(0, stdout=json.dumps({"title": "T", "uploader": "U"}))
+
+    preview = fetch_youtube_preview(
+        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+    )
+    assert preview["thumbnail_path"] is None
+
+
+def test_fetch_youtube_preview_raises_on_a_nonzero_exit_code(tmp_path):
     def failing_run(*args, **kwargs):
         return _FakeCompletedProcess(1, stderr="ERROR: video unavailable")
 
     with pytest.raises(YoutubeImportError, match="video unavailable"):
-        download_youtube_song("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=failing_run)
+        fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=failing_run)
 
 
-def test_download_youtube_song_renames_info_json_and_thumbnail_to_canonical_names(tmp_path):
+def test_fetch_youtube_preview_raises_on_invalid_json(tmp_path):
+    def fake_run(*args, **kwargs):
+        return _FakeCompletedProcess(0, stdout="isso nao e um json")
+
+    with pytest.raises(YoutubeImportError):
+        fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run)
+
+
+def test_fetch_youtube_preview_falls_back_to_channel_field(tmp_path):
+    def fake_run(*args, **kwargs):
+        return _FakeCompletedProcess(0, stdout=json.dumps({"title": "T", "channel": "Canal Via Channel"}))
+
+    preview = fetch_youtube_preview("https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run)
+    assert preview["uploader"] == "Canal Via Channel"
+
+
+# -- download_and_analyze_youtube_song (ETAPA 2) -----------------------------
+
+
+def _make_preview(tmp_path, video_id="newsong123", with_thumbnail=True):
+    folder = tmp_path / "musicas" / "youtube" / video_id
+    folder.mkdir(parents=True)
+    if with_thumbnail:
+        (folder / "preview.jpg").write_bytes(b"fake preview jpg")
+    return {
+        "video_id": video_id,
+        "url": f"https://youtu.be/{video_id}",
+        "preview_folder": str(folder),
+        "title": "Brand New Song",
+        "uploader": "Someone",
+        "duration_seconds": 99.0,
+        "chapters": (),
+        "thumbnail_path": str(folder / "preview.jpg") if with_thumbnail else None,
+    }
+
+
+def _fake_analyzer(audio_path, beatmap_path, track_id):
+    beatmap_path.parent.mkdir(parents=True, exist_ok=True)
+    beatmap_path.write_text(
+        json.dumps({"bpm": 120.0, "threats": [{"timestamp_seconds": 1.0}], "mapper_version": 1}),
+        encoding="utf-8",
+    )
+
+
+def test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subprocess(tmp_path):
+    preview = _make_preview(tmp_path)
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _FakeCompletedProcess(0)
+
+    with pytest.raises(FFmpegNotFoundError):
+        download_and_analyze_youtube_song(
+            preview,
+            music_dir=str(tmp_path / "musicas"),
+            beatmap_dir=str(tmp_path / "beatmaps"),
+            run_subprocess=fake_run,
+            ffmpeg_checker=lambda: False,
+            analyzer=_fake_analyzer,
+        )
+    assert calls == []  # nunca chega a chamar yt-dlp sem ffmpeg
+
+
+def test_download_and_analyze_builds_an_extract_audio_command_reusing_the_preview_folder(tmp_path):
+    preview = _make_preview(tmp_path)
+    captured = {}
+
     def fake_run(command, **kwargs):
+        captured["command"] = command
         output_index = command.index("-o") + 1
         folder = Path(command[output_index]).parent
         (folder / "audio.mp3").write_bytes(b"fake audio")
-        (folder / "audio.info.json").write_text(json.dumps({"title": "Fake Song"}), encoding="utf-8")
-        (folder / "audio.jpg").write_bytes(b"fake jpg")
+        (folder / "audio.info.json").write_text(json.dumps({"title": "Brand New Song"}), encoding="utf-8")
         return _FakeCompletedProcess(0)
 
-    folder = download_youtube_song(
-        "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=fake_run,
+    download_and_analyze_youtube_song(
+        preview,
+        music_dir=str(tmp_path / "musicas"),
+        beatmap_dir=str(tmp_path / "beatmaps"),
+        run_subprocess=fake_run,
+        ffmpeg_checker=lambda: True,
+        analyzer=_fake_analyzer,
     )
-    assert (folder / "audio.mp3").exists()
+    command = captured["command"]
+    assert "--extract-audio" in command
+    assert "--write-thumbnail" not in command  # reusa a miniatura da Previa, nao busca de novo
+    output_index = command.index("-o") + 1
+    assert Path(command[output_index]).parent == Path(preview["preview_folder"])
+
+
+def test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_cover(tmp_path):
+    preview = _make_preview(tmp_path)
+    folder = Path(preview["preview_folder"])
+
+    def fake_run(command, **kwargs):
+        (folder / "audio.mp3").write_bytes(b"fake audio")
+        (folder / "audio.info.json").write_text(json.dumps({"title": "Brand New Song"}), encoding="utf-8")
+        return _FakeCompletedProcess(0)
+
+    video_id, stages = download_and_analyze_youtube_song(
+        preview,
+        music_dir=str(tmp_path / "musicas"),
+        beatmap_dir=str(tmp_path / "beatmaps"),
+        run_subprocess=fake_run,
+        ffmpeg_checker=lambda: True,
+        analyzer=_fake_analyzer,
+    )
+    assert video_id == "newsong123"
     assert (folder / "metadata.json").exists()
     assert not (folder / "audio.info.json").exists()
     assert (folder / "cover.jpg").exists()
-    assert not (folder / "audio.jpg").exists()
+    assert not (folder / "preview.jpg").exists()
+    assert len(stages) == 1
+    assert stages[0].stage_id == "youtube_newsong123"
+    assert stages[0].name == "Brand New Song"
+
+
+def test_download_and_analyze_raises_on_a_nonzero_exit_code(tmp_path):
+    preview = _make_preview(tmp_path)
+
+    def failing_run(*args, **kwargs):
+        return _FakeCompletedProcess(1, stderr="ERROR: video unavailable")
+
+    with pytest.raises(YoutubeImportError, match="video unavailable"):
+        download_and_analyze_youtube_song(
+            preview,
+            music_dir=str(tmp_path / "musicas"),
+            beatmap_dir=str(tmp_path / "beatmaps"),
+            run_subprocess=failing_run,
+            ffmpeg_checker=lambda: True,
+            analyzer=_fake_analyzer,
+        )
 
 
 # -- parse_youtube_metadata ---------------------------------------------------
@@ -159,14 +317,6 @@ def test_parse_youtube_metadata_falls_back_gracefully_on_missing_fields(tmp_path
 
 
 # -- scan_youtube_songs / scan_user_songs (com um analyzer FAKE, sem librosa) --
-
-
-def _fake_analyzer(audio_path, beatmap_path, track_id):
-    beatmap_path.parent.mkdir(parents=True, exist_ok=True)
-    beatmap_path.write_text(
-        json.dumps({"bpm": 120.0, "threats": [{"timestamp_seconds": 1.0}], "mapper_version": 1}),
-        encoding="utf-8",
-    )
 
 
 def _make_youtube_song_folder(music_dir, video_id: str, with_metadata: bool = True, with_thumbnail: bool = True):
@@ -247,33 +397,3 @@ def test_scan_user_songs_combines_flat_files_and_youtube_folders(tmp_path):
     stage_ids = {s.stage_id for s in stages}
     assert stage_ids == {"user_minha_musica", "youtube_yt1"}
     assert all(s.selectable_mode for s in stages)
-
-
-# -- import_youtube_song (download FAKE + scan combinados) -------------------
-
-
-def test_import_youtube_song_downloads_then_scans_and_returns_the_new_stage(tmp_path):
-    music_dir = tmp_path / "musicas"
-    beatmap_dir = tmp_path / "beatmaps"
-
-    def fake_run(command, **kwargs):
-        output_index = command.index("-o") + 1
-        folder = Path(command[output_index]).parent
-        (folder / "audio.mp3").write_bytes(b"fake audio")
-        (folder / "audio.info.json").write_text(
-            json.dumps({"title": "Brand New Song", "uploader": "Someone", "duration": 99.0}),
-            encoding="utf-8",
-        )
-        return _FakeCompletedProcess(0)
-
-    video_id, stages = import_youtube_song(
-        "https://youtu.be/newsong123",
-        music_dir=str(music_dir),
-        beatmap_dir=str(beatmap_dir),
-        run_subprocess=fake_run,
-        analyzer=_fake_analyzer,
-    )
-    assert video_id == "newsong123"
-    assert len(stages) == 1
-    assert stages[0].stage_id == "youtube_newsong123"
-    assert stages[0].name == "Brand New Song"

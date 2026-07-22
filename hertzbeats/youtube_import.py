@@ -1,22 +1,28 @@
-"""Pipeline de Importacao Direta (Ctrl+V): baixa um video do YouTube via yt-dlp (subprocess) e devolve o catalogo atualizado.
+"""Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): busca uma previa (titulo/canal/miniatura) via yt-dlp, so baixa o audio de verdade apos o jogador confirmar.
 
-Chamado INTEIRAMENTE de dentro de uma thread de background
-(`HertzGameLoop._run_youtube_import_thread`) -- nunca na thread
-principal do jogo, que so deve tocar pygame/ECS. As duas etapas
-bloqueantes (a chamada de rede do `yt-dlp` e a analise offline do
-beatmap via librosa) acontecem aqui; o resultado (video_id + catalogo
-`StageDef` atualizado) e devolvido por uma `queue.Queue` -- NUNCA um
-`pygame.Surface`/textura e criado ou tocado neste modulo (SDL/pygame
-nao e thread-safe para chamadas de renderizacao).
+Chamado INTEIRAMENTE de dentro da thread de background PERSISTENTE
+(`HertzGameLoop._download_worker_loop`) -- nunca na thread principal do
+jogo, que so deve tocar pygame/ECS. NUNCA cria/toca um `pygame.Surface`
+aqui (SDL/pygame nao e thread-safe para chamadas de renderizacao) -- as
+funcoes deste modulo so devolvem dicts/tuplas simples, postados na
+`queue.Queue` de resultados pelo chamador.
 """
 from __future__ import annotations
 
+import json
 import re
+import shutil
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
-from hertzbeats.music_library import USER_BEATMAP_DIR, USER_MUSIC_DIR, YOUTUBE_IMPORT_SUBDIR, analyze_song
+from hertzbeats.music_library import (
+    USER_BEATMAP_DIR,
+    USER_MUSIC_DIR,
+    YOUTUBE_IMPORT_SUBDIR,
+    analyze_song,
+    scan_youtube_songs,
+)
 from hertzbeats.stages import StageDef
 
 _YOUTUBE_HOST_PATTERN = (
@@ -26,11 +32,20 @@ _YOUTUBE_URL_PATTERN = re.compile(_YOUTUBE_HOST_PATTERN + r"[A-Za-z0-9_-]{6,}(?:
 _YOUTUBE_VIDEO_ID_PATTERN = re.compile(_YOUTUBE_HOST_PATTERN + r"([A-Za-z0-9_-]{6,})")
 
 DEFAULT_YT_DLP_COMMAND = "yt-dlp"
+PREVIEW_THUMBNAIL_FILENAME = "preview.jpg"
 
 
 class YoutubeImportError(RuntimeError):
     """URL do YouTube nao reconhecida, ou `yt-dlp`/a analise de beatmap
     falharam durante o Pipeline de Importacao Direta."""
+
+
+class FFmpegNotFoundError(YoutubeImportError):
+    """`ffmpeg` nao encontrado no PATH -- `yt-dlp --extract-audio`
+    depende dele pra converter o audio baixado. Verificado PROATIVAMENTE
+    na Etapa 2 (Download), antes de chamar o subprocess, pra dar um
+    erro CLARO em vez de deixar o yt-dlp falhar com uma mensagem
+    interna criptica."""
 
 
 def extract_youtube_url(text: str) -> Optional[str]:
@@ -39,7 +54,9 @@ def extract_youtube_url(text: str) -> Optional[str]:
     Ctrl+V) -- funcao PURA, nenhuma chamada de rede. `None` se nada
     bater. Normaliza pra sempre incluir o esquema (`https://`), mesmo
     se o texto colado nao tiver um (comum ao colar so o dominio sem o
-    `https://` na frente)."""
+    `https://` na frente). Chamada SEMPRE antes de qualquer thread
+    (`HertzGameLoop._advance_download_hub`) -- uma URL invalida nunca
+    chega perto de `yt-dlp`."""
     match = _YOUTUBE_URL_PATTERN.search(text or "")
     if match is None:
         return None
@@ -51,21 +68,21 @@ def extract_video_id(url: str) -> Optional[str]:
     """Extrai o ID do video (11+ caracteres) a partir da URL -- usado
     como nome de pasta ESTAVEL (`musicas/youtube/<video_id>/`) sem
     precisar de nenhuma chamada de rede pra decidir onde salvar (o
-    titulo real so vem depois, no `metadata.json` baixado)."""
+    titulo real so vem da Previa, ETAPA 1)."""
     match = _YOUTUBE_VIDEO_ID_PATTERN.search(url or "")
     return match.group(1) if match else None
 
 
 def read_system_clipboard() -> str:
-    """Leitura REAL do clipboard do sistema (CTRL+V no Carrossel) --
-    via `tkinter` (stdlib, disponivel em qualquer instalacao padrao de
-    Python) em vez de `pygame.scrap` (exige um modo de video ja ativo e
-    tem suporte inconsistente entre plataformas/versoes do SDL). Uma
-    janela Tk invisivel (`withdraw`), destruida imediatamente apos ler.
-    String vazia se o clipboard estiver vazio ou nao for texto --
-    NUNCA levanta, quem chama (`HertzGameLoop._try_import_from_clipboard`)
-    so trata "nenhuma URL encontrada" de um jeito, com ou sem essa
-    distincao."""
+    """Leitura REAL do clipboard do sistema (CTRL+V em FLOW_DOWNLOAD_HUB)
+    -- via `tkinter` (stdlib, disponivel em qualquer instalacao padrao
+    de Python) em vez de `pygame.scrap` (exige um modo de video ja
+    ativo e tem suporte inconsistente entre plataformas/versoes do
+    SDL). Uma janela Tk invisivel (`withdraw`), destruida imediatamente
+    apos ler. String vazia se o clipboard estiver vazio ou nao for
+    texto -- NUNCA levanta, quem chama
+    (`HertzGameLoop._advance_download_hub`) so trata "nenhuma URL
+    encontrada" de um jeito, com ou sem essa distincao."""
     import tkinter
 
     root = tkinter.Tk()
@@ -78,60 +95,66 @@ def read_system_clipboard() -> str:
         root.destroy()
 
 
+def ffmpeg_available(which_fn: Callable[[str], Optional[str]] = shutil.which) -> bool:
+    """Presenca do `ffmpeg` no sistema (`shutil.which`, injetavel pra
+    testes) -- checado PROATIVAMENTE na Etapa 2 (Download), antes de
+    `yt-dlp --extract-audio`."""
+    return which_fn("ffmpeg") is not None
+
+
 def _rename_if_exists(folder: Path, expected_name: str, final_name: str) -> None:
     """`yt-dlp` deriva os nomes de info-json/miniatura do template de
-    saida (`audio.%(ext)s` -> `audio.info.json`/`audio.jpg`) -- renomeia
-    pros nomes FIXOS que `music_library.scan_youtube_songs` espera
-    (`metadata.json`/`cover.jpg`), sem depender de qual extensao exata o
-    yt-dlp escolheu pra miniatura."""
+    saida (`audio.%(ext)s` -> `audio.info.json`) -- renomeia pro nome
+    FIXO que `music_library.scan_youtube_songs` espera
+    (`metadata.json`), sem depender de detalhes do template."""
     source = folder / expected_name
     if source.exists():
         source.replace(folder / final_name)
 
 
-def download_youtube_song(
+def _destination_folder(url: str, music_dir: str) -> Path:
+    """Pasta ESTAVEL (`musicas/youtube/<video_id>/`) compartilhada
+    pelas 2 etapas -- o `video_id` vem da URL sem nenhuma chamada de
+    rede, entao a Previa (Etapa 1) e o Download (Etapa 2, rodando numa
+    invocacao SEPARADA da thread) sempre concordam em onde salvar."""
+    video_id = extract_video_id(url)
+    if video_id is None:
+        raise YoutubeImportError(f"URL do YouTube nao reconhecida: {url!r}")
+    folder = Path(music_dir) / YOUTUBE_IMPORT_SUBDIR / video_id
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def fetch_youtube_preview(
     url: str,
     music_dir: str = USER_MUSIC_DIR,
     run_subprocess: Callable[..., "subprocess.CompletedProcess"] = subprocess.run,
     yt_dlp_command: str = DEFAULT_YT_DLP_COMMAND,
-) -> Path:
-    """Baixa audio + `metadata.json` + miniatura de UM video via
-    `yt-dlp` (subprocess -- NUNCA a biblioteca `yt-dlp` importada
-    diretamente, pra manter o processo do jogo livre de qualquer
-    travamento/exception interna dela; um subprocess isolado tambem
-    sobrevive a uma versao de yt-dlp instalada globalmente, sem
-    precisar ser a mesma que o ambiente Python do jogo usa).
+) -> Dict:
+    """ETAPA 1 (Previa): SO metadados + miniatura, NUNCA audio
+    (`--skip-download`) -- `--dump-json` imprime o JSON no STDOUT
+    (nenhum arquivo `.info.json` precisa existir so pra isso);
+    `--write-thumbnail` grava JUNTO a miniatura (`preview.jpg`, apos
+    `--convert-thumbnails jpg`) na MESMA pasta estavel que a Etapa 2 vai
+    reusar -- um UNICO subprocess faz as 2 coisas, nenhuma chamada de
+    rede repetida.
 
-    Layout de saida (contrato lido por `music_library.scan_youtube_songs`):
-        <music_dir>/youtube/<video_id>/audio.<ext>
-        <music_dir>/youtube/<video_id>/metadata.json
-        <music_dir>/youtube/<video_id>/cover.jpg
+    Retorna um dict pronto pra exibir (`title`/`uploader`/
+    `duration_seconds`/`chapters`/`thumbnail_path`) MAIS o que a Etapa 2
+    precisa pra continuar exatamente daqui (`video_id`/`url`/
+    `preview_folder`).
 
-    `video_id` (extraido da URL, SEM chamada de rede) e' o nome de
-    pasta -- dispensa uma 1a chamada de rede so pra descobrir o titulo
-    antes de decidir onde salvar, e e' estavel/unico por natureza.
-
-    `run_subprocess` e' injetavel (default `subprocess.run`) -- testes
-    NUNCA disparam uma chamada de rede de verdade, so verificam que os
-    argumentos/comando montados estao corretos contra um FAKE.
-
-    Retorna o `Path` da pasta pronta. Levanta `YoutubeImportError` se a
-    URL nao tiver um video ID reconhecivel ou se o subprocess retornar
-    codigo de saida diferente de zero."""
-    video_id = extract_video_id(url)
-    if video_id is None:
-        raise YoutubeImportError(f"URL do YouTube nao reconhecida: {url!r}")
-
-    dest_folder = Path(music_dir) / YOUTUBE_IMPORT_SUBDIR / video_id
-    dest_folder.mkdir(parents=True, exist_ok=True)
-    output_template = str(dest_folder / "audio.%(ext)s")
+    Levanta `YoutubeImportError` se a URL nao tiver um video ID
+    reconhecivel, se o subprocess falhar, ou se a saida nao for um JSON
+    valido (yt-dlp desatualizado/pagina de erro capturada por engano)."""
+    folder = _destination_folder(url, music_dir)
+    output_template = str(folder / "preview.%(ext)s")
 
     result = run_subprocess(
         [
             yt_dlp_command,
-            "--extract-audio",
-            "--audio-format", "mp3",
-            "--write-info-json",
+            "--dump-json",
+            "--skip-download",
             "--write-thumbnail",
             "--convert-thumbnails", "jpg",
             "--no-playlist",
@@ -143,36 +166,90 @@ def download_youtube_song(
     )
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
-        raise YoutubeImportError(f"yt-dlp falhou (codigo {result.returncode}) pra {url!r}: {stderr}")
+        raise YoutubeImportError(f"yt-dlp (previa) falhou (codigo {result.returncode}) pra {url!r}: {stderr}")
 
-    _rename_if_exists(dest_folder, "audio.info.json", "metadata.json")
-    _rename_if_exists(dest_folder, "audio.jpg", "cover.jpg")
-    return dest_folder
+    try:
+        metadata = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise YoutubeImportError(f"yt-dlp nao devolveu um JSON valido pra {url!r}: {exc}") from exc
+
+    chapters = tuple(
+        {
+            "start_time_seconds": float(chapter.get("start_time", 0.0)),
+            "title": str(chapter.get("title", "")),
+        }
+        for chapter in (metadata.get("chapters") or ())
+    )
+    duration = metadata.get("duration")
+    thumbnail_path = folder / PREVIEW_THUMBNAIL_FILENAME
+
+    return {
+        "video_id": folder.name,
+        "url": url,
+        "preview_folder": str(folder),
+        "title": str(metadata.get("title") or ""),
+        "uploader": str(metadata.get("uploader") or metadata.get("channel") or ""),
+        "duration_seconds": float(duration) if duration is not None else None,
+        "chapters": chapters,
+        "thumbnail_path": str(thumbnail_path) if thumbnail_path.exists() else None,
+    }
 
 
-def import_youtube_song(
-    url: str,
+def download_and_analyze_youtube_song(
+    preview: Dict,
     music_dir: str = USER_MUSIC_DIR,
     beatmap_dir: str = USER_BEATMAP_DIR,
     run_subprocess: Callable[..., "subprocess.CompletedProcess"] = subprocess.run,
+    yt_dlp_command: str = DEFAULT_YT_DLP_COMMAND,
+    ffmpeg_checker: Callable[[], bool] = ffmpeg_available,
     analyzer: Callable[[Path, Path, str], None] = analyze_song,
 ) -> Tuple[str, Tuple[StageDef, ...]]:
-    """Ponto de entrada da thread de background: baixa
-    (`download_youtube_song`) e IMEDIATAMENTE re-varre
-    `musicas/youtube/` (`music_library.scan_youtube_songs`, que analisa
-    qualquer pasta nova via a MESMA IA offline usada por musicas
-    soltas) -- as duas etapas de I/O bloqueante (rede + librosa) na
-    MESMA thread secundaria, nunca na thread principal do jogo.
+    """ETAPA 2 (Download): so' chamada depois que o jogador CONFIRMA a
+    Previa (ENTER) -- baixa o audio de verdade (`--extract-audio`) na
+    MESMA pasta da Previa (reusa `preview["preview_folder"]`, nunca
+    busca a miniatura de novo) e IMEDIATAMENTE analisa o beatmap
+    (`music_library.scan_youtube_songs`, mesma IA offline de sempre).
 
-    Retorna `(video_id, stages)`: `video_id` identifica qual entrada de
-    `stages` e' a recem-importada (`stage_id == f"youtube_{video_id}"`);
-    `stages` e' a lista COMPLETA e atualizada de musicas do YouTube
-    (inclui as ja importadas antes, nao so a nova) -- `HertzGameLoop.
-    _apply_youtube_import_result` substitui so essa fatia do catalogo,
-    preservando fases curadas e musicas soltas intactas."""
-    from hertzbeats.music_library import scan_youtube_songs
+    Verifica `ffmpeg_checker()` (default `ffmpeg_available`, ou seja
+    `shutil.which("ffmpeg")`) PROATIVAMENTE antes do subprocess --
+    `yt-dlp --extract-audio` depende dele pra converter o audio
+    baixado; sem isso, levanta `FFmpegNotFoundError` com uma mensagem
+    clara em vez de deixar o yt-dlp falhar com um erro interno
+    criptico.
 
-    folder = download_youtube_song(url, music_dir=music_dir, run_subprocess=run_subprocess)
-    video_id = folder.name
+    Retorna `(video_id, stages)`: `stages` e' a lista COMPLETA e
+    atualizada de musicas do YouTube (inclui importacoes anteriores,
+    nao so a nova) -- `HertzGameLoop._apply_download_success` substitui
+    so essa fatia do catalogo, preservando fases curadas e musicas
+    soltas intactas."""
+    if not ffmpeg_checker():
+        raise FFmpegNotFoundError("FFmpeg nao encontrado no sistema -- instale e garanta que esta no PATH")
+
+    folder = Path(preview["preview_folder"])
+    output_template = str(folder / "audio.%(ext)s")
+
+    result = run_subprocess(
+        [
+            yt_dlp_command,
+            "--extract-audio",
+            "--audio-format", "mp3",
+            "--write-info-json",
+            "--no-playlist",
+            "-o", output_template,
+            preview["url"],
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        raise YoutubeImportError(f"yt-dlp (download) falhou (codigo {result.returncode}): {stderr}")
+
+    _rename_if_exists(folder, "audio.info.json", "metadata.json")
+    preview_thumbnail = folder / PREVIEW_THUMBNAIL_FILENAME
+    cover_path = folder / "cover.jpg"
+    if preview_thumbnail.exists() and not cover_path.exists():
+        preview_thumbnail.replace(cover_path)
+
     stages = scan_youtube_songs(music_dir=music_dir, beatmap_dir=beatmap_dir, analyzer=analyzer)
-    return video_id, stages
+    return preview["video_id"], stages
