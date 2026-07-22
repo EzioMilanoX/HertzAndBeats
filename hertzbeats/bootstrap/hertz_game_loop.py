@@ -30,15 +30,28 @@ from hertzbeats.bootstrap.rhythm_composition_root import (
 )
 from hertzbeats.components.schemas import MODE_TAG_LANES
 from hertzbeats.config import HertzConfig
-from hertzbeats.game_state import compute_rank
-from hertzbeats.player_progress import load_progress, record_stage_cleared
-from hertzbeats.stages import StageDef, resolve_stage_config
+from hertzbeats.game_state import RANK_ORDER, compute_rank
+from hertzbeats.player_progress import PLAYER_PROGRESS_PATH, load_progress, record_stage_cleared
+from hertzbeats.stages import StageDef, read_stage_bpm_and_duration, resolve_stage_config
+from hertzbeats.user_settings import save_user_latency
 
-FLOW_MENU = "menu"
+FLOW_TITLE = "title"
+FLOW_HUB = "hub"
+FLOW_CAROUSEL = "carousel"
+FLOW_PREFLIGHT = "preflight"
+FLOW_VAULT = "vault"
+FLOW_CALIBRATION = "calibration"
 FLOW_PLAYING = "playing"
 FLOW_PAUSED = "paused"
 FLOW_GAME_OVER = "game_over"
 FLOW_RESULTS = "results"
+
+HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration")
+"""O Novo Fluxo de Menus (Experiencia Arcade): 4 categorias grandes do
+HUB principal, nesta ORDEM fixa -- `HertzGameLoop._hub_cursor` e um
+indice nesta tupla. "campaign"/"free_play" levam ao Carrossel
+(`FLOW_CAROUSEL`, filtrado por `StageDef.selectable_mode`); "vault" e
+"calibration" sao telas dedicadas proprias."""
 
 _RESULTS_GRACE_SECONDS = 1.0
 """Pausa dramatica entre a ultima ameaca resolvida e a tela de resultados."""
@@ -62,6 +75,50 @@ def compute_duck_multiplier(
         return 1.0
     recovered_fraction = 1.0 - (duck_timer_seconds / duck_duration_seconds)
     return duck_volume_fraction + (1.0 - duck_volume_fraction) * recovered_fraction
+
+MODIFIER_SCORE_BONUS = {
+    "orbital_eclipses": 0.20,
+    "twin_threats": 0.20,
+    "orbital_shields": 0.15,
+    "overload": 0.15,
+    "vision_tunnel": 0.15,
+    "bombs": 0.15,
+    "polarity": 0.10,
+    "holds": 0.10,
+    "telegraph_rings": 0.0,
+    "heal": -0.05,
+}
+"""Meta-Jogo -- Multiplicador de Pontuacao (tela de Pre-Voo): bonus
+FRACIONARIO por modifier ligado, somado a 1.0. Modifiers mais cruéis
+(Eclipses, Gemeos, Overload, Colapso de Visao, Bombas) valem mais --
+incentiva o jogador a ligar as mecanicas dificeis pra tentar um Rank SS
+com pontuacao maior. "heal" reduz levemente (ajuda o jogador, entao vale
+menos); "telegraph_rings" e puramente decorativo (0). Modifiers ausentes
+daqui (ex.: nenhum -- todo modifier do catalogo tem uma entrada) valem
+0 por seguranca (`dict.get(m, 0.0)`)."""
+
+PRACTICE_MODE_SCORE_PENALTY = 0.5
+"""Meta-Jogo: Modo Treino ("Facil / Dano Reduzido") custa -50% na
+pontuacao -- ele já reduz densidade E remove risco de vida, um desafio
+bem menor merece uma pontuacao bem menor."""
+
+MIN_SCORE_MULTIPLIER = 0.1
+"""Piso do multiplicador -- nunca deixa a pontuacao cair a zero/negativa
+mesmo empilhando Modo Treino com poucos modifiers."""
+
+
+def compute_score_multiplier(active_modifiers, practice_mode: bool) -> float:
+    """Meta-Jogo -- Multiplicador de Pontuacao: pura e sem estado,
+    testavel sem `HertzGameLoop`. Chamada tanto para a PREVIA ao vivo na
+    tela de Pre-Voo (`HertzGameLoop._current_score_multiplier`) quanto
+    para o valor final aplicado na composicao (`HertzConfig.
+    score_multiplier`, resolvido em `_compose_stage`) -- a MESMA formula
+    em ambos os lugares, nunca calculada duas vezes de jeitos diferentes."""
+    multiplier = 1.0 + sum(MODIFIER_SCORE_BONUS.get(m, 0.0) for m in active_modifiers)
+    if practice_mode:
+        multiplier -= PRACTICE_MODE_SCORE_PENALTY
+    return max(MIN_SCORE_MULTIPLIER, multiplier)
+
 
 GAME_MODE_ROW = "game_mode"
 """Sentinela: SEMPRE a PRIMEIRA linha do menu de opcoes do seletor de
@@ -138,12 +195,16 @@ def modifier_rows_for_game_mode(game_mode: str) -> Tuple[str, ...]:
 
 class HertzGameLoop(GameLoop):
     """
-    `GameLoop` da engine estendido com a maquina de estados da partida:
+    `GameLoop` da engine estendido com a maquina de estados da partida --
+    O Novo Fluxo de Menus (Experiencia Arcade):
 
-        MENU -> (confirmar) -> PLAYING <-> PAUSED
-        PLAYING -> vida zerada -> GAME_OVER -> (R) repete / (M) menu
+        TITLE -> (confirmar) -> HUB -> CAMPANHA/FREE PLAY -> CAROUSEL
+        CAROUSEL -> (confirmar) -> PREFLIGHT -> (START) -> PLAYING <-> PAUSED
+        HUB -> ARQUIVOS -> VAULT (so-leitura)
+        HUB -> CALIBRACAO -> CALIBRATION (metronomo + tecla no tempo)
+        PLAYING -> vida zerada -> GAME_OVER -> (R) repete / (M) HUB
         PLAYING -> fase limpa  -> RESULTS  -> (ENTER) proxima fase /
-                                              (R) repete / (M) menu
+                                              (R) repete / (M) HUB
 
     Papel arquitetural: o fluxo NAO vive em nenhum `ISystem` -- sistemas
     julgam UMA fase em andamento; trocar/reiniciar fase e recomposicao
@@ -161,11 +222,11 @@ class HertzGameLoop(GameLoop):
     pausado/menu/telas finais -- mas o frame continua sendo renderizado
     (arena visivel ao fundo dos overlays).
 
-    Os overlays (menu/PAUSADO/GAME OVER/FASE CONCLUIDA) sao desenhados
-    pelo adapter concreto via `set_overlay` (superficies pre-
-    renderizadas na composicao); com um renderer sem esse metodo (ex.:
-    `NullRenderer` nos testes headless), o fluxo roda identico, apenas
-    sem apresentacao.
+    Os overlays (title/hub/carousel/preflight/vault/calibration/
+    paused/game_over/results) sao desenhados pelo adapter concreto via
+    `set_overlay` (superficies pre-renderizadas na composicao); com um
+    renderer sem esse metodo (ex.: `NullRenderer` nos testes headless),
+    o fluxo roda identico, apenas sem apresentacao.
     """
 
     def __init__(
@@ -176,25 +237,34 @@ class HertzGameLoop(GameLoop):
         input_provider: IInputProvider,
         audio_engine: IAudioEngine,
         audio_clock: IAudioClock,
+        title_track_path: Optional[str] = None,
+        calibration_track_path: Optional[str] = None,
+        player_progress_path: str = PLAYER_PROGRESS_PATH,
     ) -> None:
-        """Compoe a fase 0 imediatamente (sem tocar musica) para que o
-        menu ja tenha uma arena renderizavel ao fundo."""
+        """Compoe a fase 0 imediatamente (sem tocar musica) para que a
+        Tela de Titulo ja tenha uma arena renderizavel ao fundo.
+        `title_track_path`/`calibration_track_path` (opcionais -- `None`
+        e um no-op gracioso, usado pelos testes headless) sao faixas
+        JA GARANTIDAS em disco por `RhythmCompositionRoot.build()`.
+        `player_progress_path` (default o save real do jogador) existe
+        para os testes isolarem em `tmp_path` -- sem isso, qualquer teste
+        que completa uma fase escreveria no save de VERDADE do jogo."""
         self._base_config = base_config
         self._stages = stages
         self._audio_clock = audio_clock
         self._input_provider = input_provider  # tambem setado por GameLoop.__init__
         self._audio_engine = audio_engine  # idem -- precisa existir ANTES de _compose_stage(0) abaixo
-        self._selected_stage = 0
+        self._title_track_path = title_track_path
+        self._calibration_track_path = calibration_track_path
         self._loaded_stage = 0
-        self._flow = FLOW_MENU
+        self._flow = FLOW_TITLE
         self._results_grace = 0.0
         self._notice_key: Optional[str] = None
         self._notice_timer = 0.0
         self._chosen_game_mode: dict = {}  # fase selectable_mode -> "defender"/"lanes"
         self._chosen_heavy_mechanic: dict = {}  # fase selectable_mode -> "none"/"polarity"/"holds"
         self._chosen_modifiers: dict = {}  # fase selectable_mode -> frozenset dos modifiers booleanos ligados
-        self._menu_cursor_index: dict = {}  # fase selectable_mode -> indice da linha em foco no menu de opcoes
-        self._options_focused: dict = {}  # fase selectable_mode -> cursor esta DENTRO do menu de opcoes?
+        self._menu_cursor_index: dict = {}  # fase selectable_mode -> indice da linha em foco no Pre-Voo
         self._practice_mode: dict = {}  # fase selectable_mode -> Modo Treino ligado?
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
@@ -202,7 +272,16 @@ class HertzGameLoop(GameLoop):
         self._last_miss_count_seen = 0  # Audio Ducking: baseline pra detectar um NOVO miss/dano
         self._duck_timer_seconds = 0.0
         self._results_rank = "-"  # Meta-Jogo -- Rank: calculado ao entrar em FLOW_RESULTS
-        self._player_progress = load_progress()  # Meta-Jogo -- Medalhas: lido 1x, atualizado in-memory
+        self._player_progress_path = player_progress_path
+        self._player_progress = load_progress(player_progress_path)  # lido 1x, atualizado in-memory
+
+        # O Novo Fluxo de Menus (Experiencia Arcade)
+        self._hub_cursor = 0
+        self._carousel_category: Optional[str] = None  # "campaign" | "free_play"
+        self._carousel_index_by_category = {"campaign": 0, "free_play": 0}
+        self._preflight_stage_index: Optional[int] = None
+        self._calibration_taps: list = []
+        self._calibration_last_offset_seconds: Optional[float] = None
 
         composed = self._compose_stage(0)
         super().__init__(
@@ -213,6 +292,7 @@ class HertzGameLoop(GameLoop):
             target_fps=base_config.target_fps,
         )
         self._apply_playfield()
+        self._enter_title()
 
     @property
     def flow(self) -> str:
@@ -225,14 +305,20 @@ class HertzGameLoop(GameLoop):
         return self._composed
 
     @property
-    def selected_stage(self) -> int:
-        """Indice da fase selecionada no menu."""
-        return self._selected_stage
-
-    @property
     def loaded_stage(self) -> int:
         """Indice da fase atualmente composta/carregada."""
         return self._loaded_stage
+
+    @property
+    def hub_cursor(self) -> int:
+        """Categoria em foco no HUB principal (indice em `HUB_CATEGORIES`)."""
+        return self._hub_cursor
+
+    @property
+    def carousel_category(self) -> Optional[str]:
+        """Categoria do Carrossel ATUAL ("campaign"/"free_play"), ou
+        `None` fora do Carrossel."""
+        return self._carousel_category
 
     # -- carga/troca de fase (fase de carregamento: alocacao permitida) --
 
@@ -274,15 +360,6 @@ class HertzGameLoop(GameLoop):
         `GAME_MODE_ROW` (indice 0, presente em qualquer lista)."""
         rows = self.modifier_rows(stage_index)
         return self._menu_cursor_index.get(stage_index, 0) % len(rows)
-
-    def options_focused(self, stage_index: int) -> bool:
-        """True quando o cursor esta DENTRO do menu de opcoes dessa fase
-        (W/S navegam as linhas do menu, A/D alteram a linha focada,
-        ESPACO/ENTER agem sobre ela) -- False enquanto o jogador ainda
-        so navega a LISTA de fases/musicas (W/S trocam de fase,
-        ESPACO/ENTER entram no menu de opcoes ou iniciam uma fase
-        curada direto)."""
-        return self._options_focused.get(stage_index, False)
 
     def _cycle_game_mode(self, stage_index: int, direction: int) -> None:
         """A/D na linha `GAME_MODE_ROW`: alterna Defensor<->Arcade 4K.
@@ -340,6 +417,17 @@ class HertzGameLoop(GameLoop):
                 game_mode=self.chosen_game_mode(stage_index),
                 active_modifiers=tuple(self.chosen_modifiers(stage_index)),
             )
+        # Meta-Jogo -- Multiplicador de Pontuacao: resolvido AQUI, depois
+        # que `active_modifiers`/`practice_mode` ja estao no valor FINAL
+        # (curada ou escolhida no Pre-Voo) -- a MESMA formula da previa
+        # ao vivo (`_current_score_multiplier`), nunca calculada por
+        # acerto em tempo real (so uma vez, na composicao).
+        stage_config = dataclasses.replace(
+            stage_config,
+            score_multiplier=compute_score_multiplier(
+                frozenset(stage_config.active_modifiers), stage_config.practice_mode
+            ),
+        )
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
         composed = compose_world(
@@ -476,10 +564,10 @@ class HertzGameLoop(GameLoop):
         self._results_grace = 0.0
 
     def start_stage(self, stage_index: int) -> None:
-        """Entrada publica: pula o menu e inicia `stage_index` direto
-        (usada pelo atalho de CLI `--stage`)."""
-        self._selected_stage = stage_index % len(self._stages)
-        self._start_stage(self._selected_stage)
+        """Entrada publica: pula direto pra `stage_index` (usada pelo
+        atalho de CLI `--stage`), sem passar por Titulo/HUB/Carrossel/
+        Pre-Voo."""
+        self._start_stage(stage_index % len(self._stages))
 
     def _stop_music(self) -> None:
         stage = self._stages[self._loaded_stage]
@@ -522,8 +610,18 @@ class HertzGameLoop(GameLoop):
             self._notice_timer -= delta_time
         if self._flow in (FLOW_PLAYING, FLOW_PAUSED):
             self._handle_latency_keys()
-        if self._flow == FLOW_MENU:
-            self._advance_menu()
+        if self._flow == FLOW_TITLE:
+            self._advance_title()
+        elif self._flow == FLOW_HUB:
+            self._advance_hub()
+        elif self._flow == FLOW_CAROUSEL:
+            self._advance_carousel()
+        elif self._flow == FLOW_PREFLIGHT:
+            self._advance_preflight()
+        elif self._flow == FLOW_VAULT:
+            self._advance_vault()
+        elif self._flow == FLOW_CALIBRATION:
+            self._advance_calibration()
         elif self._flow == FLOW_PLAYING:
             self._advance_playing(delta_time)
         elif self._flow == FLOW_PAUSED:
@@ -533,54 +631,164 @@ class HertzGameLoop(GameLoop):
         elif self._flow == FLOW_RESULTS:
             self._advance_results()
 
-    def _advance_menu(self) -> None:
-        """Padrao universal de Arcade/RPG: W/S sempre no eixo VERTICAL,
-        A/D sempre alteram uma opcao de multipla escolha,
-        ESPACO/ENTER sempre e o botao de "Acao" da linha focada -- o
-        SIGNIFICADO exato depende de ONDE o cursor esta:
-          - Fora do menu de opcoes (`options_focused()` False):
-            W/S trocam a FASE/musica selecionada; ESPACO/ENTER numa
-            fase curada inicia direto, numa musica do jogador ENTRA no
-            menu de opcoes dela.
-          - Dentro do menu de opcoes (`options_focused()` True):
-            delega pra `_advance_menu_options` -- W/S navegam as
-            linhas do menu, A/D alteram a linha de multipla escolha
-            focada, ESPACO/ENTER agem sobre a linha focada (liga/desliga
-            um modifier booleano, ou inicia a fase se for `START_ROW`).
-            ESC sai do menu de opcoes de volta pra lista de fases (nunca
-            encerra o jogo enquanto o cursor estiver aqui dentro)."""
+    # -- Tela de Titulo ---------------------------------------------------
+
+    def _enter_title(self) -> None:
+        """Titulo pulsando com `beat_phase` + BGM em loop (faixa JA
+        garantida por `RhythmCompositionRoot.build()`, opcional -- `None`
+        e um no-op gracioso, o caso comum dos testes headless)."""
+        self._flow = FLOW_TITLE
+        if self._title_track_path and hasattr(self._audio_engine, "load_track"):
+            self._audio_engine.load_track("title", self._title_track_path)
+            self._audio_engine.play_track("title", loop=True)
+
+    def _advance_title(self) -> None:
         inp = self._input_provider
-        stage_index = self._selected_stage
-        current_stage = self._stages[stage_index]
+        if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+            if self._title_track_path and hasattr(self._audio_engine, "stop_track"):
+                self._audio_engine.stop_track("title")
+            self._flow = FLOW_HUB
+        elif inp.is_action_pressed("pause"):
+            self.stop()  # ESC na Tela de Titulo encerra o jogo (e a tela mais externa)
 
-        if current_stage.selectable_mode and inp.is_action_pressed("toggle_practice"):
-            self._practice_mode[stage_index] = not self.practice_mode_on(stage_index)
+    # -- HUB Principal ------------------------------------------------------
 
-        if current_stage.selectable_mode and self.options_focused(stage_index):
-            self._advance_menu_options(stage_index)
-            return
-
-        stage_count = len(self._stages)
+    def _advance_hub(self) -> None:
+        inp = self._input_provider
         if inp.is_action_pressed("menu_down"):
-            self._selected_stage = (self._selected_stage + 1) % stage_count
+            self._hub_cursor = (self._hub_cursor + 1) % len(HUB_CATEGORIES)
         if inp.is_action_pressed("menu_up"):
-            self._selected_stage = (self._selected_stage - 1) % stage_count
+            self._hub_cursor = (self._hub_cursor - 1) % len(HUB_CATEGORIES)
 
         if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
-            if current_stage.selectable_mode:
-                self._options_focused[stage_index] = True  # entra no menu de opcoes
-            else:
-                self._start_stage(stage_index)
+            category = HUB_CATEGORIES[self._hub_cursor]
+            if category in ("campaign", "free_play"):
+                self._carousel_category = category
+                self._flow = FLOW_CAROUSEL
+            elif category == "vault":
+                self._flow = FLOW_VAULT
+            elif category == "calibration":
+                self._enter_calibration()
         elif inp.is_action_pressed("pause"):
-            self.stop()  # ESC fora do menu de opcoes encerra o jogo
+            self._enter_title()  # ESC no HUB volta pra Tela de Titulo (nunca encerra o jogo daqui)
 
-    def _advance_menu_options(self, stage_index: int) -> None:
-        """W/S navegam as linhas do menu de opcoes; A/D alteram a linha
-        de multipla escolha focada (`GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`,
+    # -- Carrossel de Musicas ------------------------------------------------
+
+    def campaign_entries(self):
+        """Lista `(indice_original, StageDef)` das fases CURADAS
+        (`not selectable_mode`), na mesma ordem de `self._stages` -- a
+        ordem em que aparecem em `stages.json` E a ordem de progressao
+        da Campanha."""
+        return [(i, s) for i, s in enumerate(self._stages) if not s.selectable_mode]
+
+    def free_play_entries(self):
+        """Lista `(indice_original, StageDef)` das musicas do jogador
+        (`selectable_mode`)."""
+        return [(i, s) for i, s in enumerate(self._stages) if s.selectable_mode]
+
+    def carousel_entries(self):
+        """Entradas da categoria do Carrossel ATUAL (`campaign`/`free_play`)."""
+        if self._carousel_category == "campaign":
+            return self.campaign_entries()
+        return self.free_play_entries()
+
+    def carousel_index(self) -> int:
+        """Posicao em foco DENTRO da lista filtrada da categoria atual
+        (nao um indice de `self._stages`)."""
+        return self._carousel_index_by_category.get(self._carousel_category, 0)
+
+    def carousel_focused_stage_index(self) -> Optional[int]:
+        """Indice ORIGINAL em `self._stages` da entrada em foco no
+        Carrossel, ou `None` se a categoria estiver vazia (ex.: nenhuma
+        musica ainda em `musicas/`)."""
+        entries = self.carousel_entries()
+        if not entries:
+            return None
+        return entries[self.carousel_index() % len(entries)][0]
+
+    def is_campaign_entry_locked(self, position: int) -> bool:
+        """Progressao da Campanha: a fase curada na posicao `position`
+        (dentro da lista SO de fases curadas) fica trancada ate a
+        ANTERIOR ter sido vencida ao menos uma vez
+        (`stage_id in player_progress`) -- a primeira posicao (o
+        tutorial) nunca tranca."""
+        if position <= 0:
+            return False
+        entries = self.campaign_entries()
+        previous_stage_id = entries[position - 1][1].stage_id
+        return previous_stage_id not in self._player_progress
+
+    def _advance_carousel(self) -> None:
+        inp = self._input_provider
+        entries = self.carousel_entries()
+        if not entries:
+            if inp.is_action_pressed("pause"):
+                self._flow = FLOW_HUB
+            return
+
+        index = self.carousel_index() % len(entries)
+        if inp.is_action_pressed("menu_down"):
+            index = (index + 1) % len(entries)
+        if inp.is_action_pressed("menu_up"):
+            index = (index - 1) % len(entries)
+        self._carousel_index_by_category[self._carousel_category] = index
+
+        if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+            if self._carousel_category == "campaign" and self.is_campaign_entry_locked(index):
+                self._notice_key = "stage_locked"
+                self._notice_timer = _NOTICE_SECONDS
+            else:
+                original_index, _stage = entries[index]
+                self._preflight_stage_index = original_index
+                self._flow = FLOW_PREFLIGHT
+        elif inp.is_action_pressed("pause"):
+            self._flow = FLOW_HUB
+
+    # -- Pre-Voo (Modificadores + Multiplicador de Pontuacao) ----------------
+
+    def _current_score_multiplier(self, stage_index: int) -> float:
+        """Previa AO VIVO do Multiplicador de Pontuacao pra tela de
+        Pre-Voo -- MESMA formula (`compute_score_multiplier`) aplicada de
+        verdade na composicao (`_compose_stage`), nunca recalculada de
+        um jeito diferente."""
+        stage = self._stages[stage_index]
+        if stage.selectable_mode:
+            modifiers = self.chosen_modifiers(stage_index)
+            practice = self.practice_mode_on(stage_index)
+        else:
+            stage_config = resolve_stage_config(self._base_config, stage)
+            modifiers = frozenset(stage_config.active_modifiers)
+            practice = stage_config.practice_mode
+        return compute_score_multiplier(modifiers, practice)
+
+    def _advance_preflight(self) -> None:
+        """Tela de Pre-Voo: musicas do jogador (`selectable_mode`) tem o
+        painel de opcoes completo e interativo (`_advance_preflight_options`,
+        o antigo "menu de opcoes" -- MESMA logica, agora sua PROPRIA tela
+        em vez de aninhada); fases curadas mostram os modifiers FIXOS
+        (so leitura -- a Campanha existe justamente pela dificuldade
+        curada e crescente) com um unico botao interativo, START."""
+        inp = self._input_provider
+        stage_index = self._preflight_stage_index
+        stage = self._stages[stage_index]
+
+        if stage.selectable_mode:
+            if inp.is_action_pressed("toggle_practice"):
+                self._practice_mode[stage_index] = not self.practice_mode_on(stage_index)
+            self._advance_preflight_options(stage_index)
+        else:
+            if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+                self._start_stage(stage_index)
+            elif inp.is_action_pressed("pause"):
+                self._flow = FLOW_CAROUSEL
+
+    def _advance_preflight_options(self, stage_index: int) -> None:
+        """W/S navegam as linhas do painel; A/D alteram a linha de
+        multipla escolha focada (`GAME_MODE_ROW`/`HEAVY_MECHANIC_ROW`,
         nao fazem nada nas demais); ESPACO/ENTER agem sobre a linha
         focada (liga/desliga um modifier booleano, ou inicia a fase se
         for `START_ROW` -- SO nesse caso, nunca em outra linha); ESC
-        volta pra lista de fases sem iniciar nada."""
+        volta pro Carrossel sem iniciar nada."""
         inp = self._input_provider
         rows = self.modifier_rows(stage_index)
 
@@ -607,7 +815,95 @@ class HertzGameLoop(GameLoop):
             elif row not in (GAME_MODE_ROW, HEAVY_MECHANIC_ROW):
                 self._toggle_modifier(stage_index, row)
         elif inp.is_action_pressed("pause"):
-            self._options_focused[stage_index] = False  # ESC sai do menu de opcoes, sem iniciar nada
+            self._flow = FLOW_CAROUSEL  # ESC volta pro Carrossel, sem iniciar nada
+
+    # -- Arquivos (Vault) -----------------------------------------------------
+
+    def vault_stats(self) -> dict:
+        """Meta-Jogo -- Arquivos (Vault): agregados simples sobre
+        `player_progress.json` -- quantas fases distintas ja foram
+        vencidas (de quantas existem ao todo), quantas medalhas de
+        modificador ao todo, e quantas vezes cada Rank ja foi o MELHOR
+        alcancado nalguma fase."""
+        rank_counts = {rank: 0 for rank in RANK_ORDER}
+        total_medals = 0
+        for entry in self._player_progress.values():
+            total_medals += len(entry["modifiers"])
+            if entry["best_rank"] in rank_counts:
+                rank_counts[entry["best_rank"]] += 1
+        return {
+            "stages_cleared": len(self._player_progress),
+            "total_stages": len(self._stages),
+            "total_medals": total_medals,
+            "rank_counts": rank_counts,
+        }
+
+    def _advance_vault(self) -> None:
+        inp = self._input_provider
+        if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire") or inp.is_action_pressed("pause"):
+            self._flow = FLOW_HUB
+
+    # -- Calibracao (metronomo + tecla no tempo) -----------------------------
+
+    def _enter_calibration(self) -> None:
+        self._calibration_taps = []
+        self._calibration_last_offset_seconds = None
+        self._flow = FLOW_CALIBRATION
+        if self._calibration_track_path and hasattr(self._audio_engine, "load_track"):
+            self._audio_engine.load_track("calibration", self._calibration_track_path)
+            self._audio_engine.play_track("calibration", loop=True)
+
+    def _stop_calibration_track(self) -> None:
+        if self._calibration_track_path and hasattr(self._audio_engine, "stop_track"):
+            self._audio_engine.stop_track("calibration")
+
+    def calibration_progress(self) -> Tuple[int, int, Optional[float]]:
+        """`(taps_dados, taps_alvo, ultimo_offset_segundos)` -- pro
+        renderer mostrar um contador `N/alvo` e um feedback de
+        cedo/tarde por tecla."""
+        return (
+            len(self._calibration_taps),
+            self._base_config.calibration_target_taps,
+            self._calibration_last_offset_seconds,
+        )
+
+    def _advance_calibration(self) -> None:
+        """Bate a tecla `confirm`/`fire` no tempo do metronomo
+        (`calibration_bpm`, faixa dedicada) -- cada aperto grava o
+        DESVIO assinado ate a batida mais proxima (negativo = cedo,
+        positivo = tarde). Apos `calibration_target_taps` batidas, a
+        MEDIA dos desvios ajusta `IAudioClock.calibrate_latency` (clamp
+        em `[0, _LATENCY_MAX_SECONDS]`, mesmo limite de `_adjust_latency`)
+        e persiste via `save_user_latency` IMEDIATAMENTE -- uma tela
+        dedicada de calibracao deve confirmar o resultado na hora, nao
+        so ao fechar o jogo."""
+        inp = self._input_provider
+        if inp.is_action_pressed("pause"):
+            self._stop_calibration_track()
+            self._flow = FLOW_HUB
+            return
+        if not (inp.is_action_pressed("confirm") or inp.is_action_pressed("fire")):
+            return
+
+        beat_duration = 60.0 / self._base_config.calibration_bpm
+        now_seconds = self._audio_clock.now_seconds()
+        phase = now_seconds % beat_duration
+        offset = phase if phase <= beat_duration / 2.0 else phase - beat_duration
+        self._calibration_taps.append(offset)
+        self._calibration_last_offset_seconds = offset
+
+        if len(self._calibration_taps) < self._base_config.calibration_target_taps:
+            return
+        average_offset = sum(self._calibration_taps) / len(self._calibration_taps)
+        current_latency = self._audio_clock.get_output_latency_seconds()
+        new_latency = min(max(round(current_latency + average_offset, 3), 0.0), _LATENCY_MAX_SECONDS)
+        self._audio_clock.calibrate_latency(new_latency)
+        save_user_latency(new_latency)
+        self._notice_key = f"latency_{int(round(new_latency * 100))}"
+        self._notice_timer = _NOTICE_SECONDS
+        self._stop_calibration_track()
+        self._calibration_taps = []
+        self._flow = FLOW_HUB
 
     def _advance_playing(self, delta_time: float) -> None:
         inp = self._input_provider
@@ -647,14 +943,19 @@ class HertzGameLoop(GameLoop):
             self._results_grace = 0.0
 
     def _save_stage_medal(self) -> None:
-        """Meta-Jogo -- Medalhas: registra os `active_modifiers` da fase
-        RECEM-CONCLUIDA em `player_progress.json` (uniao com o que ja
-        estava salvo, ver `record_stage_cleared`) -- chamado UMA vez, no
-        instante exato da transicao pra resultados. Atualiza o cache
-        em-memoria (`self._player_progress`) na mesma chamada, pro menu
-        ja mostrar o glifo novo sem precisar reler o arquivo."""
+        """Meta-Jogo -- Medalhas + Rank Maximo: registra os
+        `active_modifiers` da fase RECEM-CONCLUIDA e o `_results_rank`
+        desta partida em `player_progress.json` (uniao de modifiers,
+        Rank so melhora -- ver `record_stage_cleared`) -- chamado UMA
+        vez, no instante exato da transicao pra resultados. Atualiza o
+        cache em-memoria (`self._player_progress`) na mesma chamada, pro
+        Carrossel/Vault ja mostrarem o glifo/rank novo sem precisar reler
+        o arquivo."""
         stage = self._stages[self._loaded_stage]
-        self._player_progress = record_stage_cleared(stage.stage_id, self._stage_config.active_modifiers)
+        self._player_progress = record_stage_cleared(
+            stage.stage_id, self._stage_config.active_modifiers,
+            rank=self._results_rank, path=self._player_progress_path,
+        )
 
     def _advance_flow_state(self, state) -> None:
         """Flow State ("vidro quebrado", Arcade 4K): detecta a
@@ -695,58 +996,97 @@ class HertzGameLoop(GameLoop):
             self._resume_music()
         elif inp.is_action_pressed("to_menu"):
             self._stop_music()
-            self._flow = FLOW_MENU
+            self._flow = FLOW_HUB
 
     def _advance_game_over(self) -> None:
         inp = self._input_provider
         if inp.is_action_pressed("retry"):
             self._start_stage(self._loaded_stage)
         elif inp.is_action_pressed("to_menu") or inp.is_action_pressed("pause"):
-            self._flow = FLOW_MENU
+            self._flow = FLOW_HUB
 
     def _advance_results(self) -> None:
         inp = self._input_provider
         if inp.is_action_pressed("confirm"):
-            self._selected_stage = (self._loaded_stage + 1) % len(self._stages)
-            self._start_stage(self._selected_stage)
+            self._start_stage((self._loaded_stage + 1) % len(self._stages))
         elif inp.is_action_pressed("retry"):
             self._start_stage(self._loaded_stage)
         elif inp.is_action_pressed("to_menu") or inp.is_action_pressed("pause"):
             self._stop_music()
-            self._flow = FLOW_MENU
+            self._flow = FLOW_HUB
 
     # -- laco principal ---------------------------------------------------
 
     def _sync_overlay(self) -> None:
         """Publica o estado do fluxo no renderer concreto (no-op com um
-        renderer sem suporte a overlay, ex. NullRenderer)."""
+        renderer sem suporte a overlay, ex. NullRenderer). O Carrossel
+        so publica a entrada EM FOCO (o "carrossel" mostra uma musica
+        por vez no centro da tela, ver o pedido) -- nunca a lista
+        inteira."""
         if hasattr(self._renderer, "set_overlay"):
             overlay_mode = None if self._flow == FLOW_PLAYING else self._flow
-            is_selectable = self._stages[self._selected_stage].selectable_mode
+
             modifier_panel = None
-            if is_selectable:
-                stage_index = self._selected_stage
-                modifier_panel = {
-                    "game_mode": self.chosen_game_mode(stage_index),
-                    "heavy_mechanic": self.chosen_heavy_mechanic(stage_index),
-                    "modifiers": self.chosen_modifiers(stage_index),
-                    "rows": self.modifier_rows(stage_index),
-                    "cursor": self.menu_cursor_index(stage_index),
-                    "focused": self.options_focused(stage_index),
-                }
-            practice_enabled = self.practice_mode_on(self._selected_stage) if is_selectable else None
-            # Meta-Jogo -- Medalhas: contagem de modifiers ja vencidos
-            # POR FASE (paralelo a `self._stages`, nao so as visiveis --
-            # poucas dezenas de fases no maximo, custo desprezivel numa
-            # sincronizacao que ja roda 1x por frame de qualquer jeito).
-            medal_counts = tuple(
-                len(self._player_progress.get(stage.stage_id, ())) for stage in self._stages
-            )
+            practice_enabled = None
+            score_multiplier = 1.0
+            if self._flow == FLOW_PREFLIGHT:
+                stage_index = self._preflight_stage_index
+                stage = self._stages[stage_index]
+                if stage.selectable_mode:
+                    modifier_panel = {
+                        "game_mode": self.chosen_game_mode(stage_index),
+                        "heavy_mechanic": self.chosen_heavy_mechanic(stage_index),
+                        "modifiers": self.chosen_modifiers(stage_index),
+                        "rows": self.modifier_rows(stage_index),
+                        "cursor": self.menu_cursor_index(stage_index),
+                        "focused": True,
+                    }
+                    practice_enabled = self.practice_mode_on(stage_index)
+                score_multiplier = self._current_score_multiplier(stage_index)
+
+            carousel_stage_index = None
+            carousel_position = 0
+            carousel_count = 0
+            carousel_locked = False
+            carousel_progress = None
+            carousel_bpm = 0.0
+            carousel_duration_seconds = 0.0
+            if self._flow == FLOW_CAROUSEL:
+                entries = self.carousel_entries()
+                carousel_count = len(entries)
+                if entries:
+                    carousel_position = self.carousel_index() % len(entries)
+                    carousel_stage_index = entries[carousel_position][0]
+                    carousel_locked = (
+                        self._carousel_category == "campaign"
+                        and self.is_campaign_entry_locked(carousel_position)
+                    )
+                    stage = self._stages[carousel_stage_index]
+                    carousel_progress = self._player_progress.get(stage.stage_id)
+                    carousel_bpm, carousel_duration_seconds = read_stage_bpm_and_duration(stage)
+
             self._renderer.set_overlay(
-                overlay_mode, self._selected_stage, len(self._stages),
-                modifier_panel=modifier_panel, practice_enabled=practice_enabled,
+                overlay_mode,
+                modifier_panel=modifier_panel,
+                practice_enabled=practice_enabled,
                 rank=(self._results_rank if self._flow == FLOW_RESULTS else None),
-                medal_counts=medal_counts,
+                hub_cursor=self._hub_cursor,
+                carousel_category=self._carousel_category,
+                carousel_stage_index=carousel_stage_index,
+                carousel_position=carousel_position,
+                carousel_count=carousel_count,
+                carousel_locked=carousel_locked,
+                carousel_progress=carousel_progress,
+                carousel_bpm=carousel_bpm,
+                carousel_duration_seconds=carousel_duration_seconds,
+                preflight_stage_index=(
+                    self._preflight_stage_index if self._flow == FLOW_PREFLIGHT else None
+                ),
+                score_multiplier=score_multiplier,
+                vault_stats=(self.vault_stats() if self._flow == FLOW_VAULT else None),
+                calibration_progress=(
+                    self.calibration_progress() if self._flow == FLOW_CALIBRATION else None
+                ),
             )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)

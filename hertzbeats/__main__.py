@@ -43,7 +43,7 @@ def main(argv=None) -> int:
         game_loop.start_stage(args.stage)
 
     try:
-        game_loop.run()  # menu de fases -> jogo; ESC no menu encerra
+        game_loop.run()  # Tela de Titulo -> HUB -> Carrossel -> Pre-Voo -> jogo; ESC na Tela de Titulo encerra
     finally:
         from hertzbeats.user_settings import save_user_latency
 

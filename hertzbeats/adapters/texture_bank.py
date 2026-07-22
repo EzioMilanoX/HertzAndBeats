@@ -270,6 +270,25 @@ antigos checkboxes independentes "polarity"/"holds" -- as duas
 mecanicas sao mutuamente exclusivas (mesmo `threat_type` "pesada"), uma
 multipla escolha de 3 valores torna isso estrutural."""
 
+_HUB_CATEGORY_LABELS = {
+    "campaign": "[ CAMPANHA ]",
+    "free_play": "[ FREE PLAY ]",
+    "vault": "[ ARQUIVOS (VAULT) ]",
+    "calibration": "[ CALIBRACAO ]",
+}
+"""HUB Principal: rotulo de cada uma das 4 categorias grandes
+(`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa."""
+
+_SCORE_MULTIPLIER_MIN = 0.10
+_SCORE_MULTIPLIER_STEP = 0.05
+_SCORE_MULTIPLIER_STEPS = 40
+"""Pre-Voo -- Multiplicador de Pontuacao: DUPLICA de proposito as
+constantes privadas de `hb_pygame_renderer._draw_preflight_overlay`
+(mesmo criterio de `MAX_LATENCY_STEPS` acima, que ja duplica o limite de
+`hertz_game_loop._LATENCY_MAX_SECONDS`) -- o adapter de texturas nao
+importa estado privado do renderer, so respeita a MESMA faixa por
+convencao/comentario."""
+
 _START_ROW_LABEL = ">>>  INICIAR FASE  <<<"
 """Rotulo da linha ESPECIAL `START_ROW` (sempre a ULTIMA do menu de
 opcoes) -- o UNICO lugar onde ESPACO/ENTER de fato inicia a fase de uma
@@ -369,6 +388,71 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         register_text(f"modifier_row_{modifier_name}", hint_font, label, _GOOD_COLOR)
     register_text("scroll_up", hint_font, "^ ^ ^", _LABEL_COLOR)
     register_text("scroll_down", hint_font, "v v v", _LABEL_COLOR)
+
+    # -- O Novo Fluxo de Menus (Experiencia Arcade) -----------------------
+
+    register_text("press_space", hint_font, "PRESSIONE ESPACO", _DIGIT_COLOR)
+    register_text("stage_locked", hint_font, "TRANCADA -- vença a fase anterior primeiro", _MISS_COLOR)
+    register_text("slash", stage_font, "/", _LABEL_COLOR)
+    register_text("colon", stage_font, ":", _LABEL_COLOR)
+
+    # HUB Principal: 4 categorias grandes, normal + foco ("_sel", MESMO
+    # estilo "> X <" dourado das linhas de fase do antigo menu unico).
+    for category, label in _HUB_CATEGORY_LABELS.items():
+        register_text(f"hub_category_{category}", stage_font, label, _LABEL_COLOR)
+        register_text(f"hub_category_{category}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
+    register_text(
+        "hint_hub", hint_font,
+        "SETAS ou W/S escolhem  |  ENTER ou ESPACO confirma  |  ESC volta ao Titulo", _LABEL_COLOR,
+    )
+
+    # Carrossel: cabecalho de categoria + estado vazio (Free Play sem
+    # nenhuma musica em musicas/) + dica de navegacao.
+    register_text("carousel_category_campaign", hint_font, "CAMPANHA", _LABEL_COLOR)
+    register_text("carousel_category_free_play", hint_font, "FREE PLAY", _LABEL_COLOR)
+    register_text("carousel_empty", stage_font, "Nenhuma musica encontrada em musicas/", _LABEL_COLOR)
+    register_text("carousel_locked_badge", stage_font, "FASE TRANCADA", _MISS_COLOR)
+    register_text(
+        "hint_carousel", hint_font,
+        "SETAS ou W/S escolhem  |  ENTER ou ESPACO confirma  |  ESC volta ao HUB", _LABEL_COLOR,
+    )
+    register_text("label_bpm", stage_font, "BPM", _LABEL_COLOR)
+    register_text("label_duration", stage_font, "DURACAO", _LABEL_COLOR)
+
+    # Pre-Voo: previa ao vivo do Multiplicador de Pontuacao (passos de
+    # 0.05, mesmo criterio de `latency_{step}` acima) + dicas por tipo de
+    # fase (musica do jogador com painel completo vs. fase curada so-
+    # leitura).
+    for step in range(_SCORE_MULTIPLIER_STEPS + 1):
+        value = _SCORE_MULTIPLIER_MIN + step * _SCORE_MULTIPLIER_STEP
+        color = _GOOD_COLOR if value >= 1.0 else _MISS_COLOR
+        register_text(f"score_multiplier_{step}", hint_font, f"MULTIPLICADOR DE PONTUACAO: x{value:.2f}", color)
+    register_text(
+        "hint_preflight_options", hint_font,
+        "SETAS escolhem  |  A/D altera  |  ENTER liga/inicia  |  ESC volta ao Carrossel", _LABEL_COLOR,
+    )
+    register_text(
+        "hint_preflight_curated", hint_font,
+        "ENTER ou ESPACO inicia a fase  |  ESC volta ao Carrossel", _LABEL_COLOR,
+    )
+
+    # Arquivos (Vault): agregados globais de player_progress.json.
+    register_text("vault_title", big_font, "ARQUIVOS (VAULT)", _DIGIT_COLOR)
+    register_text("label_cleared", hint_font, "FASES VENCIDAS", _LABEL_COLOR)
+    register_text("label_medals", hint_font, "MEDALHAS", _LABEL_COLOR)
+    register_text("hint_vault", hint_font, "ENTER, ESPACO ou ESC volta ao HUB", _LABEL_COLOR)
+
+    # Calibracao: instrucao fixa + contador de toques + feedback de
+    # cedo/tarde/no tempo do ULTIMO toque (3 texturas discretas).
+    register_text(
+        "calibration_hint", hint_font,
+        "Acompanhe o metronomo e aperte ESPACO no tempo de cada batida", _DIGIT_COLOR,
+    )
+    register_text("label_taps", hint_font, "TOQUES DADOS", _LABEL_COLOR)
+    register_text("calibration_early", hint_font, "CEDO", _DODGE_COLOR)
+    register_text("calibration_late", hint_font, "TARDE", _MISS_COLOR)
+    register_text("calibration_ontime", hint_font, "NO TEMPO", _GOOD_COLOR)
+    register_text("hint_calibration", hint_font, "ESC volta ao HUB", _LABEL_COLOR)
 
 
 def build_and_register_tutorial_textures(renderer: HBPygameRenderer, stages) -> None:

@@ -8,7 +8,7 @@ from ouroboros.interfaces.null.null_audio_engine import NullAudioEngine
 from ouroboros.interfaces.null.null_renderer import NullRenderer
 from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 
-from hertzbeats.bootstrap.hertz_game_loop import HertzGameLoop
+from hertzbeats.bootstrap.hertz_game_loop import FLOW_PLAYING, HUB_CATEGORIES, HertzGameLoop
 from hertzbeats.bootstrap.rhythm_composition_root import compose_world
 from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.stages import StageDef
@@ -98,6 +98,7 @@ def selectable_loop(tmp_path, null_input):
     loop = HertzGameLoop(
         base_config=make_config(beatmap_path), stages=(stage,), renderer=NullRenderer(),
         input_provider=null_input, audio_engine=audio_engine, audio_clock=audio_engine.get_clock(),
+        player_progress_path=str(tmp_path / "player_progress.json"),
     )
     return loop
 
@@ -110,35 +111,45 @@ def _press(loop, null_input, action: str) -> None:
     null_input.poll()
 
 
-def _enter_options_and_reach_start(loop, null_input) -> None:
-    """Modo Treino (T) funciona tanto navegando a lista de fases quanto
-    dentro do menu de opcoes -- mas so `START_ROW` de fato inicia a
-    fase agora (padrao Arcade/RPG, ver `HertzGameLoop._advance_menu_options`),
-    entao os testes precisam entrar no menu e navegar ate la antes do
-    `confirm` final."""
-    _press(loop, null_input, "confirm")  # entra no menu de opcoes
-    assert loop.options_focused(0) is True
+def _enter_preflight(loop, null_input) -> None:
+    """O Novo Fluxo de Menus (Experiencia Arcade): TITLE -> HUB -> Free
+    Play -> Carrossel -> Pre-Voo (unica musica cadastrada, sempre na
+    posicao 0 de cada tela)."""
+    _press(loop, null_input, "confirm")  # TITLE -> HUB
+    target = HUB_CATEGORIES.index("free_play")
+    while loop.hub_cursor != target:
+        _press(loop, null_input, "menu_down")
+    _press(loop, null_input, "confirm")  # HUB -> CAROUSEL
+    _press(loop, null_input, "confirm")  # CAROUSEL -> PREFLIGHT
+
+
+def _reach_start_row(loop, null_input) -> None:
+    """So `START_ROW` de fato inicia a fase (padrao Arcade/RPG, ver
+    `HertzGameLoop._advance_preflight_options`) -- os testes precisam
+    navegar ate la antes do `confirm` final."""
     start_index = loop.modifier_rows(0).index("start")
     while loop.menu_cursor_index(0) != start_index:
         _press(loop, null_input, "menu_down")
 
 
-def test_toggling_practice_mode_in_the_menu_carries_into_the_composed_stage(selectable_loop, null_input):
+def test_toggling_practice_mode_in_preflight_carries_into_the_composed_stage(selectable_loop, null_input):
+    _enter_preflight(selectable_loop, null_input)
     assert selectable_loop.practice_mode_on(0) is False
     _press(selectable_loop, null_input, "toggle_practice")
     assert selectable_loop.practice_mode_on(0) is True
 
-    _enter_options_and_reach_start(selectable_loop, null_input)
+    _reach_start_row(selectable_loop, null_input)
     _press(selectable_loop, null_input, "confirm")
-    assert selectable_loop.flow == "playing"
+    assert selectable_loop.flow == FLOW_PLAYING
     assert selectable_loop._stage_config.practice_mode is True
 
 
 def test_toggling_practice_mode_off_again_restores_normal_config(selectable_loop, null_input):
+    _enter_preflight(selectable_loop, null_input)
     _press(selectable_loop, null_input, "toggle_practice")
     _press(selectable_loop, null_input, "toggle_practice")
     assert selectable_loop.practice_mode_on(0) is False
 
-    _enter_options_and_reach_start(selectable_loop, null_input)
+    _reach_start_row(selectable_loop, null_input)
     _press(selectable_loop, null_input, "confirm")
     assert selectable_loop._stage_config.practice_mode is False

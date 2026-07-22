@@ -166,3 +166,42 @@ def synthesize_demo_track(
 def ensure_demo_track(track_path: str) -> str:
     """Compat: garante a faixa demo (estilo `standard`, 128 BPM, 24 compassos)."""
     return ensure_track(track_path, {"bpm": DEMO_TRACK_BPM, "bars": DEMO_TRACK_BARS, "style": "standard"})
+
+
+def synthesize_metronome_track(
+    bpm: float, bars: int, sample_rate: int = DEMO_TRACK_SAMPLE_RATE
+) -> np.ndarray:
+    """Meta-Jogo -- tela de Calibracao: faixa de metronomo PURO (so um
+    clique seco e limpo em CADA batida, nada mais) -- ao contrario das
+    faixas de fase (bateria completa), aqui a clareza do instante exato
+    da batida importa mais que qualquer groove, pro jogador acertar a
+    tecla no tempo com precisao."""
+    beat_seconds = 60.0 / bpm
+    total_seconds = bars * 4 * beat_seconds
+    n_samples = int(total_seconds * sample_rate)
+    mix = np.zeros(n_samples, dtype=np.float64)
+
+    length = int(0.05 * sample_rate)
+    tt = np.arange(length) / sample_rate
+    click = np.exp(-tt * 90.0) * np.sin(2.0 * np.pi * 1800.0 * tt)
+
+    beat_count = bars * 4
+    for beat in range(beat_count):
+        start = int(beat * beat_seconds * sample_rate)
+        end = min(start + length, n_samples)
+        if start < n_samples:
+            mix[start:end] += click[: end - start]
+
+    peak = np.max(np.abs(mix))
+    if peak > 0.0:
+        mix /= peak * 1.05
+    return mix
+
+
+def ensure_metronome_track(track_path: str, bpm: float, bars: int = 64) -> str:
+    """Garante a faixa de metronomo da Calibracao, re-sintetizada
+    deterministicamente se ausente (mesmo criterio de `ensure_track`)."""
+    path = Path(track_path)
+    if not path.exists():
+        write_wav(synthesize_metronome_track(bpm=bpm, bars=bars), path, sample_rate=DEMO_TRACK_SAMPLE_RATE)
+    return str(path)

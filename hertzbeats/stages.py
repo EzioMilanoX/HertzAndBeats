@@ -112,3 +112,32 @@ def resolve_stage_config(base_config: HertzConfig, stage: StageDef) -> HertzConf
         active_modifiers=stage.active_modifiers,
         **stage.overrides,
     )
+
+
+def read_stage_bpm_and_duration(stage: StageDef) -> Tuple[float, float]:
+    """Meta-Jogo -- Carrossel: BPM e duracao aproximada da fase, SO a
+    partir de dados JA em disco (`beatmap.json` + `synth` spec) -- nunca
+    abre o audio real (evitaria puxar uma lib de decodificacao so pra
+    mostrar duracao numa tela de selecao). Fases com `synth` (curadas ou
+    re-sintetizadas): duracao EXATA (`bars*4*60/bpm`, a MESMA formula de
+    `synthesize_track`). Musicas do jogador (`synth=None`): aproximada
+    pelo ultimo instante de ameaca do beatmap + uma folga -- boa o
+    bastante pra exibicao, NUNCA usada por nenhum calculo de
+    jogabilidade (o `IAudioClock` real e sempre quem manda nisso)."""
+    try:
+        with open(stage.beatmap_path, "r", encoding="utf-8") as f:
+            beatmap = json.load(f)
+        bpm = float(beatmap.get("bpm", 120.0))
+        threats = beatmap.get("threats", [])
+        last_hit = max((float(t["timestamp_seconds"]) for t in threats), default=0.0)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        bpm = 120.0
+        last_hit = 0.0
+
+    if stage.synth is not None:
+        synth_bpm = float(stage.synth.get("bpm", bpm))
+        bars = int(stage.synth.get("bars", 0))
+        duration = bars * 4 * (60.0 / synth_bpm) if bars > 0 else last_hit + 3.0
+    else:
+        duration = last_hit + 3.0
+    return bpm, duration

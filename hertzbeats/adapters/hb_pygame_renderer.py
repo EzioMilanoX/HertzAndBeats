@@ -11,6 +11,7 @@ from ouroboros.adapters.pygame_backend.pygame_renderer import PygameRenderer
 
 from hertzbeats.components.texture_ids import (
     TEX_CONVERGENCE_RING,
+    TEX_DIGIT_BASE,
     TEX_PLAYER_CORE_BLUE,
     TEX_PLAYER_CORE_PINK,
     TEX_THREAT_POLARITY_BLUE,
@@ -96,6 +97,35 @@ desenhados em TEMPO REAL (`pygame.draw.rect`), nunca pre-renderizados
 retangulo simples nao precisa de `font.render`, so o ROTULO de texto de
 cada linha e uma Surface pronta)."""
 
+_HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration")
+"""Duplicado de proposito de `hertz_game_loop.HUB_CATEGORIES` (mesmo
+criterio de `_GAME_MODE_ROW` acima -- adapter nao importa o game loop):
+ordem das 4 categorias grandes do HUB, indexada por `hub_cursor`."""
+
+_CAROUSEL_DOT_RADIUS = 4
+_CAROUSEL_DOT_GAP = 14
+_CAROUSEL_DOT_COLOR = (110, 100, 150)
+_CAROUSEL_DOT_FOCUSED_COLOR = (255, 214, 64)
+"""Indicador de posicao do Carrossel ("2 de 5"): fileira de pontos
+procedurais (mesmo criterio dos glifos de medalha -- um numero pequeno
+e variavel de itens nao pede uma textura pre-renderizada por contagem),
+o ponto da entrada em foco pintado em destaque."""
+
+_CALIBRATION_ONTIME_THRESHOLD_SECONDS = 0.02
+"""Tela de Calibracao: um toque com desvio absoluto ate isso do tempo do
+metronomo mostra o feedback "NO TEMPO" em vez de "CEDO"/"TARDE" -- so 3
+texturas discretas de feedback, nunca o valor continuo do desvio."""
+
+_SCORE_MULTIPLIER_STEP = 0.05
+_SCORE_MULTIPLIER_MIN = 0.10
+_SCORE_MULTIPLIER_STEPS = 40
+"""Previa do Multiplicador de Pontuacao no Pre-Voo: MESMO criterio da
+calibracao de latencia ao vivo (`latency_{step}`, passos de 10 ms) --
+uma textura por passo discreto de 0.05 entre 0.10 e 2.10 (`MIN_SCORE_
+MULTIPLIER` ate acima de qualquer combinacao real de bonus), nunca
+`font.render` no loop. `_draw_overlay` so ARREDONDA o float continuo
+(`compute_score_multiplier`) pro passo mais proximo."""
+
 
 class HBPygameRenderer(PygameRenderer):
     """
@@ -152,12 +182,22 @@ class HBPygameRenderer(PygameRenderer):
         self._playfield_params: Dict = {}
         self._overlay_surfaces: Dict[str, pygame.Surface] = {}
         self._overlay_mode: Optional[str] = None
-        self._overlay_selected: int = 0
-        self._overlay_stage_count: int = 0
         self._overlay_modifier_panel: Optional[dict] = None
         self._overlay_practice_enabled: Optional[bool] = None
         self._overlay_rank: Optional[str] = None
-        self._overlay_medal_counts: tuple = ()
+        self._overlay_hub_cursor: int = 0
+        self._overlay_carousel_category: Optional[str] = None
+        self._overlay_carousel_stage_index: Optional[int] = None
+        self._overlay_carousel_position: int = 0
+        self._overlay_carousel_count: int = 0
+        self._overlay_carousel_locked: bool = False
+        self._overlay_carousel_progress: Optional[dict] = None
+        self._overlay_carousel_bpm: float = 0.0
+        self._overlay_carousel_duration_seconds: float = 0.0
+        self._overlay_preflight_stage_index: Optional[int] = None
+        self._overlay_score_multiplier: float = 1.0
+        self._overlay_vault_stats: Optional[dict] = None
+        self._overlay_calibration_progress: Optional[tuple] = None
         self._notice_key: Optional[str] = None
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
@@ -190,36 +230,55 @@ class HBPygameRenderer(PygameRenderer):
     def set_overlay(
         self,
         mode: Optional[str],
-        selected_index: int = 0,
-        stage_count: int = 0,
         modifier_panel: Optional[dict] = None,
         practice_enabled: Optional[bool] = None,
         rank: Optional[str] = None,
-        medal_counts: tuple = (),
+        hub_cursor: int = 0,
+        carousel_category: Optional[str] = None,
+        carousel_stage_index: Optional[int] = None,
+        carousel_position: int = 0,
+        carousel_count: int = 0,
+        carousel_locked: bool = False,
+        carousel_progress: Optional[dict] = None,
+        carousel_bpm: float = 0.0,
+        carousel_duration_seconds: float = 0.0,
+        preflight_stage_index: Optional[int] = None,
+        score_multiplier: float = 1.0,
+        vault_stats: Optional[dict] = None,
+        calibration_progress: Optional[tuple] = None,
     ) -> None:
-        """Publica o estado de fluxo a desenhar sobre o frame: `None`
-        (jogando, sem overlay), "menu", "paused", "game_over" ou
-        "results". `modifier_panel` (fases de musica do jogador, `None`
-        em fases curadas) troca a dica fixa da fase pelo painel de
-        checkboxes do seletor de minigame -- um dict
-        `{"game_mode", "modifiers", "rows", "cursor"}` (ver
-        `HertzGameLoop._sync_overlay`). `practice_enabled` (`None` em
-        fases curadas, `True`/`False` nas musicas do jogador) mostra o
-        estado do Modo Treino junto do painel. `rank` (Meta-Jogo, so
-        preenchido em "results"): letra ja calculada por
-        `hertzbeats.game_state.compute_rank`, blitada como
-        `rank_{letra}`. `medal_counts` (Meta-Jogo): tupla PARALELA a
-        lista de fases -- quantos modifiers distintos ja foram vencidos
-        em cada uma (`player_progress.json`), desenhada como glifos ao
-        lado do rotulo de cada fase visivel no menu. Chamado pelo
-        `HertzGameLoop` a cada frame."""
+        """Publica o estado do Novo Fluxo de Menus (Experiencia Arcade) a
+        desenhar sobre o frame: `None` (jogando, sem overlay) ou uma das
+        `FLOW_*` de `hertz_game_loop.py` ("title", "hub", "carousel",
+        "preflight", "vault", "calibration", "paused", "game_over",
+        "results"). `modifier_panel`/`practice_enabled` (Pre-Voo, so
+        musicas do jogador -- `None` em fase curada) sao o MESMO painel
+        de checkboxes de sempre. `rank` (Meta-Jogo, so em "results").
+        `hub_cursor` (indice em `HUB_CATEGORIES`). `carousel_*` (Meta-Jogo
+        -- Carrossel): SO a entrada em FOCO (posicao/contagem/indice
+        original/trancada/progresso salvo), nunca a lista inteira -- o
+        Carrossel mostra uma musica de cada vez no centro da tela.
+        `preflight_stage_index` + `score_multiplier` (Meta-Jogo --
+        Multiplicador de Pontuacao, previa ao vivo). `vault_stats`/
+        `calibration_progress`: dados agregados das telas dedicadas.
+        Chamado pelo `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
-        self._overlay_selected = int(selected_index)
-        self._overlay_stage_count = int(stage_count)
         self._overlay_modifier_panel = modifier_panel
         self._overlay_practice_enabled = practice_enabled
         self._overlay_rank = rank
-        self._overlay_medal_counts = medal_counts
+        self._overlay_hub_cursor = int(hub_cursor)
+        self._overlay_carousel_category = carousel_category
+        self._overlay_carousel_stage_index = carousel_stage_index
+        self._overlay_carousel_position = int(carousel_position)
+        self._overlay_carousel_count = int(carousel_count)
+        self._overlay_carousel_locked = bool(carousel_locked)
+        self._overlay_carousel_progress = carousel_progress
+        self._overlay_carousel_bpm = float(carousel_bpm)
+        self._overlay_carousel_duration_seconds = float(carousel_duration_seconds)
+        self._overlay_preflight_stage_index = preflight_stage_index
+        self._overlay_score_multiplier = float(score_multiplier)
+        self._overlay_vault_stats = vault_stats
+        self._overlay_calibration_progress = calibration_progress
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -525,6 +584,127 @@ class HBPygameRenderer(PygameRenderer):
         self._surface.blit(surface, (center_x - surface.get_width() // 2, y))
         return surface.get_height()
 
+    def _digit_surface(self, digit: int) -> Optional["pygame.Surface"]:
+        return self._textures.get(TEX_DIGIT_BASE + digit)
+
+    def _measure_number(self, value: int) -> Tuple[int, int]:
+        """Largura/altura que `_blit_number(value, ...)` vai consumir,
+        SEM desenhar -- pro chamador centralizar um grupo (numero + rotulo
+        + separador) antes de blitar qualquer coisa."""
+        width = 0
+        height = 0
+        for char in str(max(0, int(value))):
+            surface = self._digit_surface(int(char))
+            if surface is not None:
+                width += surface.get_width()
+                height = max(height, surface.get_height())
+        return width, height
+
+    def _blit_number(self, value: int, x: int, y: int) -> int:
+        """Blita `value` (inteiro >= 0) digito a digito com os MESMOS
+        sprites 0-9 do HUD de jogo (`TEX_DIGIT_BASE`, ja registrados por
+        `build_and_register_hud_textures`) -- nenhuma textura nova por
+        numero exibido nos menus, so aritmetica sobre os 10 digitos que
+        ja existem (mesma preferencia de "aritmetica sobre arrays" do
+        pacote de Juice/Meta-Jogo anterior). Desenha a partir de `x`
+        (esquerda) e retorna a largura total consumida."""
+        cursor_x = x
+        for char in str(max(0, int(value))):
+            surface = self._digit_surface(int(char))
+            if surface is not None:
+                self._surface.blit(surface, (cursor_x, y))
+                cursor_x += surface.get_width()
+        return cursor_x - x
+
+    def _blit_seconds_padded(self, seconds: int, x: int, y: int) -> int:
+        """MESMO `_blit_number`, mas com um "0" a esquerda se `seconds`
+        tiver 1 digito -- um relogio mm:ss sempre mostra 2 digitos de
+        segundos (`3:05`, nunca `3:5`)."""
+        seconds = max(0, int(seconds))
+        cursor_x = x
+        if seconds < 10:
+            zero = self._digit_surface(0)
+            if zero is not None:
+                self._surface.blit(zero, (cursor_x, y))
+                cursor_x += zero.get_width()
+        cursor_x += self._blit_number(seconds, cursor_x, y)
+        return cursor_x - x
+
+    def _blit_fraction_centered(self, numerator: int, denominator: int, center_x: int, y: int) -> int:
+        """`numerador / denominador` centralizado em `center_x` (Meta-
+        Jogo -- Arquivos/Calibracao: fases vencidas de quantas existem,
+        toques dados de quantos faltam) -- o separador "/" e a UNICA
+        Surface pre-renderizada aqui, os numeros vem do atlas de digitos
+        do HUD (`_blit_number`)."""
+        num_w, num_h = self._measure_number(numerator)
+        den_w, den_h = self._measure_number(denominator)
+        slash = self._overlay_surfaces.get("slash")
+        slash_w = slash.get_width() if slash is not None else 0
+        slash_h = slash.get_height() if slash is not None else 0
+        total_width = num_w + slash_w + den_w
+        x = center_x - total_width // 2
+        x += self._blit_number(numerator, x, y)
+        if slash is not None:
+            self._surface.blit(slash, (x, y))
+            x += slash_w
+        self._blit_number(denominator, x, y)
+        return max(num_h, slash_h, den_h)
+
+    def _blit_label_and_number_centered(self, label_key: str, value: int, center_x: int, y: int, gap: int = 8) -> int:
+        """`rotulo NUMERO` centralizado (ex.: "BPM 128") -- rotulo
+        pre-renderizado, numero pelo atlas de digitos do HUD."""
+        label = self._overlay_surfaces.get(label_key)
+        label_w = label.get_width() if label is not None else 0
+        label_h = label.get_height() if label is not None else 0
+        num_w, num_h = self._measure_number(value)
+        total_gap = gap if label is not None else 0
+        x = center_x - (label_w + total_gap + num_w) // 2
+        if label is not None:
+            self._surface.blit(label, (x, y))
+            x += label_w + total_gap
+        self._blit_number(value, x, y)
+        return max(label_h, num_h)
+
+    def _blit_duration_centered(self, label_key: str, total_seconds: float, center_x: int, y: int, gap: int = 8) -> int:
+        """`rotulo mm:ss` centralizado (ex.: "DURACAO 2:45") -- MESMO
+        criterio de `_blit_label_and_number_centered`, com os segundos
+        sempre em 2 digitos (`_blit_seconds_padded`)."""
+        minutes = int(total_seconds // 60)
+        seconds = int(total_seconds % 60)
+        label = self._overlay_surfaces.get(label_key)
+        colon = self._overlay_surfaces.get("colon")
+        label_w = label.get_width() if label is not None else 0
+        label_h = label.get_height() if label is not None else 0
+        min_w, min_h = self._measure_number(minutes)
+        colon_w = colon.get_width() if colon is not None else 0
+        sec_w, sec_h = self._measure_number(seconds if seconds >= 10 else seconds + 10)
+        total_gap = gap if label is not None else 0
+        x = center_x - (label_w + total_gap + min_w + colon_w + sec_w) // 2
+        if label is not None:
+            self._surface.blit(label, (x, y))
+            x += label_w + total_gap
+        x += self._blit_number(minutes, x, y)
+        if colon is not None:
+            self._surface.blit(colon, (x, y))
+            x += colon_w
+        self._blit_seconds_padded(seconds, x, y)
+        return max(label_h, min_h, sec_h)
+
+    def _draw_dot_row(self, count: int, focused_index: int, center_x: int, y: int) -> int:
+        """Meta-Jogo -- Carrossel: fileira de pontos procedurais
+        indicando "posicao N de `count`" -- desenhados em TEMPO REAL
+        (mesmo criterio dos glifos de medalha), nunca uma textura por
+        contagem possivel."""
+        if count <= 1:
+            return 0
+        total_width = (count - 1) * _CAROUSEL_DOT_GAP
+        start_x = center_x - total_width // 2
+        radius = _CAROUSEL_DOT_RADIUS
+        for i in range(count):
+            color = _CAROUSEL_DOT_FOCUSED_COLOR if i == focused_index else _CAROUSEL_DOT_COLOR
+            pygame.draw.circle(self._surface, color, (start_x + i * _CAROUSEL_DOT_GAP, y + radius), radius)
+        return radius * 2
+
     def _draw_stage_row(self, key: str, medal_count: int, center_x: int, y: int) -> int:
         """Meta-Jogo -- Medalhas: blita o rotulo de UMA fase (mesmo
         `_blit_centered` de sempre) e, se `medal_count > 0`, desenha uma
@@ -552,6 +732,22 @@ class HBPygameRenderer(PygameRenderer):
                 )
                 pygame.draw.rect(self._surface, _MEDAL_GLYPH_COLOR, rect)
         return height
+
+    def _draw_medal_glyphs_centered(self, medal_count: int, center_x: int, y: int) -> int:
+        """MESMOS glifos de `_draw_stage_row`, mas centralizados sozinhos
+        (sem rotulo ao lado) -- usado pelo Carrossel, que ja mostra o
+        nome da fase em foco numa linha propria acima."""
+        glyph_count = min(medal_count, _MEDAL_MAX_GLYPHS)
+        if glyph_count <= 0:
+            return 0
+        total_width = glyph_count * _MEDAL_GLYPH_SIZE + (glyph_count - 1) * _MEDAL_GLYPH_GAP
+        glyph_x = center_x - total_width // 2
+        for i in range(glyph_count):
+            rect = pygame.Rect(
+                glyph_x + i * (_MEDAL_GLYPH_SIZE + _MEDAL_GLYPH_GAP), y, _MEDAL_GLYPH_SIZE, _MEDAL_GLYPH_SIZE,
+            )
+            pygame.draw.rect(self._surface, _MEDAL_GLYPH_COLOR, rect)
+        return _MEDAL_GLYPH_SIZE
 
     def _draw_modifier_row(self, label_key: str, checked, is_cursor: bool, center_x: int, y: int) -> int:
         """Desenha UMA linha do painel de checkboxes do seletor de
@@ -597,55 +793,18 @@ class HBPygameRenderer(PygameRenderer):
         self._surface.blit(self._dim_surface, (0, 0))
         center_x = self._width // 2
 
-        if self._overlay_mode == "menu":
-            y = int(self._height * 0.09)
-            y += self._blit_centered("title", center_x, y) + 10
-            y += self._blit_centered("subtitle", center_x, y) + 30
-
-            # janela rolavel: com muitas musicas, mostra ate MAX_VISIBLE
-            # fases centradas na selecao, com setas de "ha mais"
-            MAX_VISIBLE = 8
-            count = self._overlay_stage_count
-            first = 0
-            if count > MAX_VISIBLE:
-                first = min(max(self._overlay_selected - MAX_VISIBLE // 2, 0), count - MAX_VISIBLE)
-            if first > 0:
-                y += self._blit_centered("scroll_up", center_x, y) + 8
-            for i in range(first, min(first + MAX_VISIBLE, count)):
-                key = f"stage_{i}_sel" if i == self._overlay_selected else f"stage_{i}"
-                medal_count = self._overlay_medal_counts[i] if i < len(self._overlay_medal_counts) else 0
-                y += self._draw_stage_row(key, medal_count, center_x, y) + 16
-            if first + MAX_VISIBLE < count:
-                y += self._blit_centered("scroll_down", center_x, y) + 8
-
-            # fase de musica do jogador: menu de opcoes (Mecanicas
-            # Modulares, padrao Arcade/RPG) + Modo Treino; fase curada:
-            # dica fixa de controles do modo dela
-            panel = self._overlay_modifier_panel
-            if panel is not None:
-                y += 14
-                for i, row_name in enumerate(panel["rows"]):
-                    # o destaque da linha em foco SO aparece com o
-                    # cursor DENTRO do menu de opcoes (`panel["focused"]`)
-                    # -- fora dele, o jogador ainda so navega a lista de
-                    # fases, nenhuma linha do menu esta "em edicao".
-                    is_cursor = panel["focused"] and i == panel["cursor"]
-                    if row_name == _GAME_MODE_ROW:
-                        label_key = f"modifier_row_game_mode_{panel['game_mode']}"
-                        y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
-                    elif row_name == _HEAVY_MECHANIC_ROW:
-                        label_key = f"modifier_row_heavy_mechanic_{panel['heavy_mechanic']}"
-                        y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
-                    elif row_name == _START_ROW:
-                        y += self._draw_modifier_row("modifier_row_start", None, is_cursor, center_x, y) + 6
-                    else:
-                        checked = row_name in panel["modifiers"]
-                        y += self._draw_modifier_row(f"modifier_row_{row_name}", checked, is_cursor, center_x, y) + 6
-                practice_key = "practice_on" if self._overlay_practice_enabled else "practice_off"
-                self._blit_centered(practice_key, center_x, y + 6)
-            else:
-                self._blit_centered(f"stage_{self._overlay_selected}_hint", center_x, y + 16)
-            self._blit_centered("hint_menu", center_x, self._height - 54)
+        if self._overlay_mode == "title":
+            self._draw_title_overlay(center_x)
+        elif self._overlay_mode == "hub":
+            self._draw_hub_overlay(center_x)
+        elif self._overlay_mode == "carousel":
+            self._draw_carousel_overlay(center_x)
+        elif self._overlay_mode == "preflight":
+            self._draw_preflight_overlay(center_x)
+        elif self._overlay_mode == "vault":
+            self._draw_vault_overlay(center_x)
+        elif self._overlay_mode == "calibration":
+            self._draw_calibration_overlay(center_x)
         elif self._overlay_mode == "paused":
             self._blit_centered("paused", center_x, int(self._height * 0.40))
             self._blit_centered("hint_paused", center_x, self._height - 110)
@@ -660,6 +819,152 @@ class HBPygameRenderer(PygameRenderer):
             if self._overlay_rank is not None:
                 y += self._blit_centered(f"rank_{self._overlay_rank}", center_x, y) + 10
             self._blit_centered("hint_results", center_x, self._height - 110)
+
+    # -- O Novo Fluxo de Menus (Experiencia Arcade) -----------------------
+
+    def _draw_title_overlay(self, center_x: int) -> None:
+        """Tela de Titulo: logo pulsando no `beat_phase` (MESMO
+        `_heartbeat_pulse` do Anel de Julgamento/Grid Warp -- um "thump"
+        seco no inicio de cada compasso, nunca uma oscilacao simetrica) e
+        "PRESSIONE ESPACO" piscando (alfa em seno sobre o relogio de
+        parede, mesmo criterio de `_judgment_line_color`)."""
+        y = int(self._height * 0.32)
+        title = self._overlay_surfaces.get("title")
+        if title is not None:
+            scale = 1.0 + _HEARTBEAT_RING_ZOOM * self._heartbeat_pulse()
+            size = (max(1, int(title.get_width() * scale)), max(1, int(title.get_height() * scale)))
+            scaled = pygame.transform.smoothscale(title, size)
+            self._surface.blit(scaled, (center_x - size[0] // 2, y - (size[1] - title.get_height()) // 2))
+            y += title.get_height() + 14
+        y += self._blit_centered("subtitle", center_x, y) + 60
+
+        press_space = self._overlay_surfaces.get("press_space")
+        if press_space is not None:
+            blink = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 260.0)
+            press_space.set_alpha(int(90 + blink * 165))
+            self._surface.blit(press_space, (center_x - press_space.get_width() // 2, y))
+            press_space.set_alpha(255)
+
+    def _draw_hub_overlay(self, center_x: int) -> None:
+        """HUB Principal: as 4 categorias grandes (`_HUB_CATEGORIES`),
+        a em foco (`hub_cursor`) destacada pela MESMA variante "_sel"
+        (setas + dourado) das linhas de fase do antigo menu unico."""
+        y = int(self._height * 0.22)
+        y += self._blit_centered("title", center_x, y) + 70
+        for i, category in enumerate(_HUB_CATEGORIES):
+            key = f"hub_category_{category}_sel" if i == self._overlay_hub_cursor else f"hub_category_{category}"
+            y += self._blit_centered(key, center_x, y) + 26
+        self._blit_centered("hint_hub", center_x, self._height - 54)
+
+    def _draw_carousel_overlay(self, center_x: int) -> None:
+        """Carrossel: SO a entrada em foco toma o centro da tela (nunca a
+        lista inteira) -- nome, BPM/duracao, Rank Maximo e Medalhas dessa
+        musica especifica, mais a fileira de pontos "N de M". Uma fase de
+        Campanha ainda trancada troca o resumo de progresso por um aviso
+        (nao ha rank/medalha relevante numa fase nunca jogada)."""
+        category = self._overlay_carousel_category or "free_play"
+        y = int(self._height * 0.10)
+        y += self._blit_centered(f"carousel_category_{category}", center_x, y) + 30
+
+        stage_index = self._overlay_carousel_stage_index
+        if stage_index is None:
+            self._blit_centered("carousel_empty", center_x, y + 20)
+            self._blit_centered("hint_carousel", center_x, self._height - 54)
+            return
+
+        y += self._blit_centered(f"stage_{stage_index}_sel", center_x, y) + 34
+        if self._overlay_carousel_locked:
+            self._blit_centered("carousel_locked_badge", center_x, y)
+            y += 40
+        else:
+            progress = self._overlay_carousel_progress or {}
+            best_rank = progress.get("best_rank") or "-"
+            medal_count = len(progress.get("modifiers", ()))
+            y += self._blit_centered(f"rank_{best_rank}", center_x, y) + 8
+            if medal_count > 0:
+                y += self._draw_medal_glyphs_centered(medal_count, center_x, y) + 10
+            y += self._blit_label_and_number_centered("label_bpm", int(round(self._overlay_carousel_bpm)), center_x, y) + 6
+            y += self._blit_duration_centered("label_duration", self._overlay_carousel_duration_seconds, center_x, y) + 20
+
+        self._draw_dot_row(self._overlay_carousel_count, self._overlay_carousel_position, center_x, y)
+        self._blit_centered("hint_carousel", center_x, self._height - 54)
+
+    def _draw_preflight_overlay(self, center_x: int) -> None:
+        """Pre-Voo: o Multiplicador de Pontuacao ao vivo no topo (MESMA
+        formula `compute_score_multiplier` da composicao real, nunca uma
+        conta paralela) seguido do painel de opcoes completo (musicas do
+        jogador) ou dos modifiers FIXOS em modo leitura (fases curadas da
+        Campanha -- a dificuldade curada e o ponto da Campanha, entao so
+        o botao START e interativo aqui)."""
+        y = int(self._height * 0.14)
+        step = int(round((self._overlay_score_multiplier - _SCORE_MULTIPLIER_MIN) / _SCORE_MULTIPLIER_STEP))
+        step = max(0, min(_SCORE_MULTIPLIER_STEPS, step))
+        y += self._blit_centered(f"score_multiplier_{step}", center_x, y) + 40
+
+        panel = self._overlay_modifier_panel
+        if panel is not None:
+            for i, row_name in enumerate(panel["rows"]):
+                is_cursor = panel["focused"] and i == panel["cursor"]
+                if row_name == _GAME_MODE_ROW:
+                    label_key = f"modifier_row_game_mode_{panel['game_mode']}"
+                    y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
+                elif row_name == _HEAVY_MECHANIC_ROW:
+                    label_key = f"modifier_row_heavy_mechanic_{panel['heavy_mechanic']}"
+                    y += self._draw_modifier_row(label_key, None, is_cursor, center_x, y) + 6
+                elif row_name == _START_ROW:
+                    y += self._draw_modifier_row("modifier_row_start", None, is_cursor, center_x, y) + 6
+                else:
+                    checked = row_name in panel["modifiers"]
+                    y += self._draw_modifier_row(f"modifier_row_{row_name}", checked, is_cursor, center_x, y) + 6
+            practice_key = "practice_on" if self._overlay_practice_enabled else "practice_off"
+            y += self._blit_centered(practice_key, center_x, y + 6) + 10
+            self._blit_centered("hint_preflight_options", center_x, self._height - 54)
+        else:
+            stage_index = self._overlay_preflight_stage_index
+            if stage_index is not None:
+                y += self._blit_centered(f"stage_{stage_index}_hint", center_x, y + 10) + 10
+            self._blit_centered("hint_preflight_curated", center_x, self._height - 54)
+
+    def _draw_vault_overlay(self, center_x: int) -> None:
+        """Arquivos (Vault): agregados globais de `player_progress.json`
+        -- fases vencidas de quantas existem, medalhas totais e quantas
+        vezes cada Rank ja foi o MELHOR alcancado nalguma fase. Todo
+        numero vem do atlas de digitos do HUD (`_blit_number`), nunca de
+        uma textura nova por valor possivel."""
+        stats = self._overlay_vault_stats or {}
+        y = int(self._height * 0.14)
+        y += self._blit_centered("vault_title", center_x, y) + 50
+        y += self._blit_centered("label_cleared", center_x, y) + 6
+        y += self._blit_fraction_centered(
+            stats.get("stages_cleared", 0), stats.get("total_stages", 0), center_x, y
+        ) + 24
+        y += self._blit_label_and_number_centered("label_medals", stats.get("total_medals", 0), center_x, y) + 34
+
+        for rank, count in stats.get("rank_counts", {}).items():
+            y += self._blit_label_and_number_centered(f"rank_{rank}", count, center_x, y) + 10
+        self._blit_centered("hint_vault", center_x, self._height - 54)
+
+    def _draw_calibration_overlay(self, center_x: int) -> None:
+        """Calibracao: instrucao fixa + contador `toques dados/alvo` +
+        feedback de cedo/tarde/no tempo do ULTIMO toque (3 texturas
+        discretas -- nunca o valor continuo do desvio em segundos, que
+        exigiria `font.render` no loop)."""
+        y = int(self._height * 0.20)
+        y += self._blit_centered("calibration_hint", center_x, y) + 40
+
+        taps_given, taps_target, last_offset = self._overlay_calibration_progress or (0, 0, None)
+        y += self._blit_centered("label_taps", center_x, y) + 6
+        y += self._blit_fraction_centered(taps_given, taps_target, center_x, y) + 30
+
+        if last_offset is not None:
+            if last_offset < -_CALIBRATION_ONTIME_THRESHOLD_SECONDS:
+                feedback_key = "calibration_early"
+            elif last_offset > _CALIBRATION_ONTIME_THRESHOLD_SECONDS:
+                feedback_key = "calibration_late"
+            else:
+                feedback_key = "calibration_ontime"
+            self._blit_centered(feedback_key, center_x, y)
+        self._blit_centered("hint_calibration", center_x, self._height - 54)
 
     def draw_batch(
         self,

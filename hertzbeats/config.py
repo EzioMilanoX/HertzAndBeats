@@ -173,9 +173,20 @@ class HertzConfig:
     duck_volume_fraction: float = 0.3
     duck_duration_seconds: float = 0.5
 
+    # -- Meta-Jogo: Multiplicador de Pontuacao -- resolvido pelo
+    #    HertzGameLoop na tela de Pre-Voo (`compute_score_multiplier`,
+    #    a partir dos modifiers/Modo Treino escolhidos) e aplicado UMA
+    #    vez na composicao (score_perfect/score_good efetivos, nunca em
+    #    tempo real por acerto) -- ver `_compose_stage`/`compose_world`.
+    score_multiplier: float = 1.0
+
     # -- Modo Treino (musicas do jogador, alternado no menu com T) --
     practice_mode: bool = False
     practice_density_keep_fraction: float = 0.5
+
+    # -- Meta-Jogo: tela de Calibracao (metronomo + tecla no tempo) --
+    calibration_bpm: float = 120.0
+    calibration_target_taps: int = 8
 
     # -- Arcade 4K: Notas Toxicas (Bombas) -- opt-in por presenca do
     #    tipo "rhythm_threat_bomb" em `threat_type_ids` (sem flag extra,
@@ -333,6 +344,9 @@ class HertzConfig:
             combo_bump_seconds=raw.get("combo_bump_seconds", 0.5),
             duck_volume_fraction=raw.get("duck_volume_fraction", 0.3),
             duck_duration_seconds=raw.get("duck_duration_seconds", 0.5),
+            score_multiplier=raw.get("score_multiplier", 1.0),
+            calibration_bpm=raw.get("calibration_bpm", 120.0),
+            calibration_target_taps=raw.get("calibration_target_taps", 8),
             practice_mode=raw.get("practice_mode", False),
             practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),
             bomb_hit_shake_px=raw.get("bomb_hit_shake_px", 18.0),

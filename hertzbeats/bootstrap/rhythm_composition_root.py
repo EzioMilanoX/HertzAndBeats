@@ -216,6 +216,8 @@ class _ModeContext:
         "player_entity_index",
         "crosshair_entity_index",
         "modchart_events",
+        "effective_score_perfect",
+        "effective_score_good",
         "lane_choreography_system",
         "lane_geometry_y",
         "spark_system",
@@ -422,8 +424,8 @@ def _compose_defender_mode(ctx: _ModeContext):
             good_window_seconds=config.good_window_seconds,
             miss_window_seconds=config.miss_window_seconds,
             aim_tolerance_rad=math.radians(config.aim_tolerance_degrees),
-            score_perfect=config.score_perfect,
-            score_good=config.score_good,
+            score_perfect=ctx.effective_score_perfect,
+            score_good=ctx.effective_score_good,
             judgment_display_seconds=config.judgment_display_seconds,
             misfire_breaks_combo=config.misfire_breaks_combo,
             misfire_jam_seconds=config.misfire_jam_seconds,
@@ -501,7 +503,7 @@ def _compose_defender_mode(ctx: _ModeContext):
                 player_entity_index=ctx.player_entity_index,
                 center_xy=(center_x, center_y),
                 spawn_radius=config.spawn_radius,
-                score_per_kill=config.score_good,
+                score_per_kill=ctx.effective_score_good,
                 impact_shake_px=config.parry_impact_shake_px,
             )
         )
@@ -523,7 +525,7 @@ def _compose_defender_mode(ctx: _ModeContext):
                 min_radius=config.shockwave_min_radius,
                 max_radius=config.shockwave_max_radius,
                 duration_seconds=config.shockwave_duration_seconds,
-                score_per_kill=config.score_good,
+                score_per_kill=ctx.effective_score_good,
                 heavy_threat_type_id=heavy_threat_type_id,
                 orbit_threat_type_id=orbit_threat_type_id,
                 trigger_shake_px=config.shockwave_trigger_shake_px,
@@ -773,8 +775,8 @@ def _compose_lanes_mode(ctx: _ModeContext):
             perfect_window_seconds=config.perfect_window_seconds,
             good_window_seconds=config.good_window_seconds,
             miss_window_seconds=config.miss_window_seconds,
-            score_perfect=config.score_perfect,
-            score_good=config.score_good,
+            score_perfect=ctx.effective_score_perfect,
+            score_good=ctx.effective_score_good,
             judgment_display_seconds=config.judgment_display_seconds,
             audio_engine=ctx.audio_engine,
             ghost_tap_sound_id=SFX_TAP,
@@ -808,7 +810,7 @@ def _compose_lanes_mode(ctx: _ModeContext):
             game_state=ctx.game_state,
             min_energy=config.scratch_min_energy,
             judgment_display_seconds=config.judgment_display_seconds,
-            score_perfect=config.score_perfect,
+            score_perfect=ctx.effective_score_perfect,
         )
     )
     # Pistas Dinamicas: o balanco reage aos MESMOS instantes que abrem
@@ -915,6 +917,15 @@ def compose_world(
     100% game-side, nao existe no `beatmap.json` da engine.
     """
     center_x, center_y = config.center_xy
+
+    # Meta-Jogo -- Multiplicador de Pontuacao: resolvido no Pre-Voo
+    # (`hertz_game_loop.compute_score_multiplier`, a partir dos
+    # modifiers/Modo Treino escolhidos) e aplicado UMA vez aqui --
+    # score_perfect/score_good EFETIVOS (`ctx.effective_score_*`)
+    # substituem os valores crus de `config` em todo sistema que
+    # pontua, nunca recalculado por acerto em tempo real.
+    effective_score_perfect = max(1, round(config.score_perfect * config.score_multiplier))
+    effective_score_good = max(1, round(config.score_good * config.score_multiplier))
 
     # 2. MemoryManager: pools genericas do nucleo + pools do produto.
     memory_manager = MemoryManager(entity_capacity=config.entity_capacity)
@@ -1032,6 +1043,8 @@ def compose_world(
         player_entity_index=player_entity_index,
         crosshair_entity_index=crosshair_entity_index,
         modchart_events=modchart_events,
+        effective_score_perfect=effective_score_perfect,
+        effective_score_good=effective_score_good,
     )
     spawner_systems, collision_system = mode_composer(context)
     if tutorial_steps:
@@ -1232,7 +1245,7 @@ class RhythmCompositionRoot:
             build_and_register_tutorial_textures,
             build_and_register_vignette_surface,
         )
-        from hertzbeats.audio.demo_track_synth import ensure_track
+        from hertzbeats.audio.demo_track_synth import ensure_metronome_track, ensure_track
         from hertzbeats.audio.sfx_synth import (
             SFX_BOMB,
             SFX_CANNON,
@@ -1311,6 +1324,16 @@ class RhythmCompositionRoot:
             )
         )
         stages = stages + user_songs
+
+        # Tela de Titulo (BGM em loop) + Calibracao (metronomo puro):
+        # faixas dedicadas, re-sintetizadas deterministicamente se
+        # ausentes -- mesmo criterio das faixas de fase (nunca
+        # versionadas no repositorio).
+        title_track_path = ensure_track("data/tracks/title_theme.wav", {"bpm": 96.0, "bars": 16, "style": "calm"})
+        calibration_track_path = ensure_metronome_track(
+            "data/tracks/calibration_metronome.wav", bpm=config.calibration_bpm
+        )
+
         game_loop = HertzGameLoop(
             base_config=config,
             stages=stages,
@@ -1318,6 +1341,8 @@ class RhythmCompositionRoot:
             input_provider=input_provider,
             audio_engine=audio_engine,
             audio_clock=audio_clock,
+            title_track_path=title_track_path,
+            calibration_track_path=calibration_track_path,
         )
 
         # Texturas de HUD, overlays e textos de tutorial pre-renderizados
