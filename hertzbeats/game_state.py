@@ -1,6 +1,8 @@
 """Placar global da partida: o equivalente das "variaveis globais no World" da arquitetura."""
 from __future__ import annotations
 
+from typing import Tuple
+
 import numpy as np
 
 from hertzbeats.components.schemas import JUDGMENT_PENDING
@@ -114,6 +116,7 @@ class GameState:
         "overload_requested",
         "tunnel_radius",
         "bpm",
+        "current_palette",
         "hit_delta_buffer",
         "hit_delta_write_index",
         "hit_delta_filled_count",
@@ -127,6 +130,7 @@ class GameState:
         judgment_radius: float = 0.0,
         tunnel_radius: float = 0.0,
         bpm: float = 120.0,
+        current_palette: Tuple[int, int, int] = (255, 255, 255),
     ) -> None:
         self.score: int = 0
         self.combo_count: int = 0
@@ -254,6 +258,16 @@ class GameState:
         (60/bpm) / (60/bpm)`) para pulsar o Anel de Julgamento/pistas e
         o Metronomo Periferico -- puramente cosmetico, nenhum julgamento
         le este campo."""
+        self.current_palette: Tuple[int, int, int] = tuple(current_palette)
+        """Estetica Reativa (Paleta Dinamica): cor RGB media da miniatura
+        do video em exibicao (`pygame.transform.average_color`,
+        calculada UMA vez ao cachear a miniatura no Carrossel -- nunca
+        por frame), ou `(255, 255, 255)` (neutro -- multiplicar por
+        branco nao muda nada) pra fases SEM miniatura (todo o repositorio
+        hoje). `HBPygameRenderer.apply_palette_tint`/o anel de julgamento
+        e os digitos NEUTROS do HUD (`UIRenderSystem`) adotam esta cor
+        como tint base -- FIXA desde a composicao, nunca mutada por
+        nenhum sistema depois disso (mesmo criterio de `bpm`)."""
         self.hit_delta_buffer: np.ndarray = np.zeros(HIT_ERROR_BUFFER_CAPACITY, dtype=np.float64)
         self.hit_delta_write_index: int = 0
         self.hit_delta_filled_count: int = 0

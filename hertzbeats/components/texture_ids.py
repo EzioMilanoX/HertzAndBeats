@@ -67,6 +67,16 @@ BUMP_FADE_STEPS: int = 3
 padrao (`TEX_DIGIT_BASE`) -- o "branco" e o proprio digito de sempre,
 nao um 4o estagio duplicado aqui."""
 
+TEX_DIGIT_PALETTE_BASE: int = 500
+"""Estetica Reativa -- Paleta Dinamica: digito `d` recolorido pela cor
+media da miniatura do video = `TEX_DIGIT_PALETTE_BASE + d`, registrado
+por `HBPygameRenderer.apply_palette_tint` (copia de `TEX_DIGIT_BASE`
+multiplicada pela cor -- UMA vez por carregamento de fase, nunca por
+frame). `UIRenderSystem` so troca pra esta base quando a fase tem uma
+Paleta Dinamica ativa (`neutral_digit_texture_base` na composicao);
+sem isso, o HUD continua com `TEX_DIGIT_BASE` (branco), comportamento
+identico ao de antes desta feature."""
+
 TEX_WORD_PERFECT: int = 110
 TEX_WORD_GOOD: int = 111
 TEX_WORD_MISS: int = 112

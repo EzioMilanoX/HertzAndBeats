@@ -13,6 +13,15 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+# Pipeline de Importacao Direta (Ctrl+V no Carrossel): opcional, mesmo
+# criterio de `librosa` (usada pela IA offline de beatmap, tambem fora
+# de `dependencies` -- o jogo funciona sem, so essa feature especifica
+# degrada graciosamente com um aviso). `yt-dlp` e chamado como
+# subprocess (nunca importado como biblioteca Python), entao instalar
+# via `pip` so garante que o executavel `yt-dlp` exista no PATH.
+youtube = [
+    "yt-dlp>=2024.1.1",
+]
 
 [project.scripts]
 hertz-beats = "hertzbeats.__main__:main"

@@ -422,6 +422,12 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text("slash", stage_font, "/", _LABEL_COLOR)
     register_text("colon", stage_font, ":", _LABEL_COLOR)
 
+    # Pipeline de Importacao Direta (Ctrl+V): tela de espera (sem
+    # cancelamento) + aviso de falha (Carrossel, `_notice_key`).
+    register_text("importing_title", big_font, "IMPORTANDO DO YOUTUBE...", _DIGIT_COLOR)
+    register_text("hint_importing", hint_font, "Baixando audio e gerando o beatmap -- aguarde", _LABEL_COLOR)
+    register_text("import_failed", hint_font, "Falha ao importar -- confira a URL e tente de novo", _MISS_COLOR)
+
     # HUB Principal: 4 categorias grandes, normal + foco ("_sel", MESMO
     # estilo "> X <" dourado das linhas de fase do antigo menu unico).
     for category, label in _HUB_CATEGORY_LABELS.items():

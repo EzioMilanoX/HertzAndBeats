@@ -88,6 +88,29 @@ class StageDef:
             textura na composicao, `stage_{i}_description` -- nunca
             `font.render` por frame). String vazia (default, e o normal
             pras musicas do jogador) so' nao desenha nada.
+        thumbnail_path: caminho da miniatura (`cover.jpg`/`thumbnail.webp`)
+            baixada junto do audio pelo Pipeline de Importacao Direta
+            (`youtube_import.py`) -- `None` (default, o normal pras fases
+            curadas do repositorio) desliga toda a Estetica Reativa pra
+            essa fase (fundo padrao, sem Paleta Dinamica). Carregada e
+            cacheada UMA vez ao entrar no Carrossel
+            (`HBPygameRenderer.cache_carousel_visuals`), nunca por frame.
+        uploader: nome do canal/uploader do video, so' exibicao (Carrossel).
+        known_duration_seconds: duracao EXATA do video (`metadata.json`),
+            quando disponivel -- substitui a duracao APROXIMADA que
+            `read_stage_bpm_and_duration` estimaria pelo beatmap pra
+            musicas sem essa informacao. Tambem e' a base do Audio
+            Preview (30% desse tempo, ver `HertzGameLoop._start_carousel_preview`).
+            `None` (default) mantem o comportamento antigo (estimativa).
+        chapters: capitulos do YouTube (`metadata.json`, `[{"start_time_seconds",
+            "title"}, ...]`), 100% GAME-side (nao existe no `beatmap.json`
+            da engine, mesmo espirito de `modchart_events`). Convertidos
+            em eventos de Modchart sinteticos por
+            `modchart.chapters_to_modchart_events` quando o titulo de um
+            capitulo contem uma palavra-chave de intensidade
+            (`HertzConfig.chapter_event_keywords`) -- ver Eventos de
+            Gameplay via Capitulos do YouTube. Tupla vazia (default) e'
+            um no-op completo.
     """
 
     stage_id: str
@@ -107,6 +130,10 @@ class StageDef:
     b_side_active_modifiers: Tuple[str, ...] = ()
     campaign_id: str = "default"
     description: str = ""
+    thumbnail_path: Optional[str] = None
+    uploader: str = ""
+    known_duration_seconds: Optional[float] = None
+    chapters: Tuple[Dict, ...] = ()
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
@@ -133,6 +160,10 @@ def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
                 b_side_active_modifiers=tuple(entry.get("b_side_active_modifiers", ())),
                 campaign_id=entry.get("campaign_id", "default"),
                 description=entry.get("description", ""),
+                thumbnail_path=entry.get("thumbnail_path"),
+                uploader=entry.get("uploader", ""),
+                known_duration_seconds=entry.get("known_duration_seconds"),
+                chapters=tuple(entry.get("chapters", ())),
             )
         )
     if not stages:
@@ -171,15 +202,19 @@ def resolve_stage_config(base_config: HertzConfig, stage: StageDef) -> HertzConf
 
 
 def read_stage_bpm_and_duration(stage: StageDef) -> Tuple[float, float]:
-    """Meta-Jogo -- Carrossel: BPM e duracao aproximada da fase, SO a
-    partir de dados JA em disco (`beatmap.json` + `synth` spec) -- nunca
-    abre o audio real (evitaria puxar uma lib de decodificacao so pra
-    mostrar duracao numa tela de selecao). Fases com `synth` (curadas ou
-    re-sintetizadas): duracao EXATA (`bars*4*60/bpm`, a MESMA formula de
-    `synthesize_track`). Musicas do jogador (`synth=None`): aproximada
-    pelo ultimo instante de ameaca do beatmap + uma folga -- boa o
-    bastante pra exibicao, NUNCA usada por nenhum calculo de
-    jogabilidade (o `IAudioClock` real e sempre quem manda nisso)."""
+    """Meta-Jogo -- Carrossel: BPM e duracao da fase, SO a partir de
+    dados JA em disco (`beatmap.json` + `synth` spec, ou
+    `StageDef.known_duration_seconds` quando vem de metadados reais do
+    YouTube) -- nunca abre o audio real (evitaria puxar uma lib de
+    decodificacao so pra mostrar duracao numa tela de selecao). Fases
+    com `synth` (curadas ou re-sintetizadas): duracao EXATA
+    (`bars*4*60/bpm`, a MESMA formula de `synthesize_track`). Musicas
+    do jogador (`synth=None`): `known_duration_seconds` (Pipeline de
+    Importacao Direta, EXATA -- vem do `metadata.json` do video) se
+    disponivel, senao aproximada pelo ultimo instante de ameaca do
+    beatmap + uma folga -- em ambos os casos NUNCA usada por nenhum
+    calculo de jogabilidade (o `IAudioClock` real e sempre quem manda
+    nisso)."""
     try:
         with open(stage.beatmap_path, "r", encoding="utf-8") as f:
             beatmap = json.load(f)
@@ -194,6 +229,8 @@ def read_stage_bpm_and_duration(stage: StageDef) -> Tuple[float, float]:
         synth_bpm = float(stage.synth.get("bpm", bpm))
         bars = int(stage.synth.get("bars", 0))
         duration = bars * 4 * (60.0 / synth_bpm) if bars > 0 else last_hit + 3.0
+    elif stage.known_duration_seconds is not None:
+        duration = float(stage.known_duration_seconds)
     else:
         duration = last_hit + 3.0
     return bpm, duration

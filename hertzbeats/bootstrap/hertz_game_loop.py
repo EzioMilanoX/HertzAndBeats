@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import dataclasses
+import queue
 import random
+import threading
 import time
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 
@@ -30,17 +32,22 @@ from hertzbeats.bootstrap.rhythm_composition_root import (
     lane_center_positions,
 )
 from hertzbeats.components.schemas import MODE_TAG_LANES
+from hertzbeats.components.texture_ids import TEX_DIGIT_BASE, TEX_DIGIT_PALETTE_BASE
 from hertzbeats.config import HertzConfig
+from hertzbeats.modchart import chapters_to_modchart_events
 from hertzbeats.game_state import RANK_ORDER, compute_hit_error_histogram, compute_rank
+from hertzbeats.music_library import USER_BEATMAP_DIR, USER_MUSIC_DIR
 from hertzbeats.player_progress import PLAYER_PROGRESS_PATH, load_progress, record_stage_cleared
 from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_stats
 from hertzbeats.stages import StageDef, campaign_ids, read_stage_bpm_and_duration, resolve_stage_config
 from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
 from hertzbeats.user_settings import USER_SETTINGS_PATH, save_user_latency, save_user_palette_id
+from hertzbeats.youtube_import import extract_youtube_url, import_youtube_song, read_system_clipboard
 
 FLOW_TITLE = "title"
 FLOW_HUB = "hub"
 FLOW_CAROUSEL = "carousel"
+FLOW_IMPORTING = "importing"
 FLOW_PREFLIGHT = "preflight"
 FLOW_VAULT = "vault"
 FLOW_CALIBRATION = "calibration"
@@ -64,6 +71,11 @@ _RESULTS_GRACE_SECONDS = 1.0
 _LATENCY_STEP_SECONDS = 0.01
 _LATENCY_MAX_SECONDS = 0.30
 _NOTICE_SECONDS = 1.6
+
+_NEUTRAL_PALETTE_RGB = (255, 255, 255)
+"""Estetica Reativa -- Paleta Dinamica: "sem tint ativo" (multiplicar
+por branco nao muda nada) -- o valor pra QUALQUER fase sem miniatura
+cacheada (todo o repositorio curado hoje)."""
 
 REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS = 0.5
 REACTIVE_BACKGROUND_MAX_COUNT = 6
@@ -225,6 +237,22 @@ def modifier_rows_for_game_mode(game_mode: str) -> Tuple[str, ...]:
     return (GAME_MODE_ROW, HEAVY_MECHANIC_ROW) + rows + (START_ROW,)
 
 
+def carousel_neighbor_window(entry_stage_ids: Tuple[str, ...], position: int) -> Tuple[Optional[str], ...]:
+    """Carrossel Horizontal: janela de ate 5 `stage_id`s ao REDOR de
+    `position` (o do meio e' sempre o foco) -- PURA, sem estado,
+    testavel isolada. `half_window` (`min(2, (len-1)//2)`) ENCOLHE em
+    catalogos pequenos especificamente pra NUNCA repetir a MESMA musica
+    duas vezes por causa do wraparound (ex.: 4 entradas com
+    half_window=2 mostrariam a oposta duas vezes, uma de cada lado --
+    `(4-1)//2 == 1` evita exatamente esse caso). Tupla vazia se
+    `entry_stage_ids` estiver vazia (visao sem nenhuma musica)."""
+    count = len(entry_stage_ids)
+    if count == 0:
+        return ()
+    half_window = min(2, (count - 1) // 2)
+    return tuple(entry_stage_ids[(position + offset) % count] for offset in range(-half_window, half_window + 1))
+
+
 class HertzGameLoop(GameLoop):
     """
     `GameLoop` da engine estendido com a maquina de estados da partida --
@@ -232,6 +260,8 @@ class HertzGameLoop(GameLoop):
 
         TITLE -> (confirmar) -> HUB -> CAMPANHA/FREE PLAY -> CAROUSEL
         CAROUSEL -> (confirmar) -> PREFLIGHT -> (START) -> PLAYING <-> PAUSED
+        CAROUSEL -> (CTRL+V, URL do YouTube) -> IMPORTING -> CAROUSEL
+                                                 (Free Play, na musica nova)
         HUB -> ARQUIVOS -> VAULT (so-leitura)
         HUB -> CALIBRACAO -> CALIBRATION (metronomo + tecla no tempo)
         PLAYING -> vida zerada -> GAME_OVER -> (R) repete / (M) HUB
@@ -275,6 +305,10 @@ class HertzGameLoop(GameLoop):
         player_stats_path: str = PLAYER_STATS_PATH,
         user_settings_path: str = USER_SETTINGS_PATH,
         palette_id: str = DEFAULT_PALETTE_ID,
+        music_dir: str = USER_MUSIC_DIR,
+        beatmap_dir: str = USER_BEATMAP_DIR,
+        clipboard_reader: Callable[[], str] = read_system_clipboard,
+        youtube_importer: Callable[..., Tuple[str, Tuple[StageDef, ...]]] = import_youtube_song,
     ) -> None:
         """Compoe a fase 0 imediatamente (sem tocar musica) para que a
         Tela de Titulo ja tenha uma arena renderizavel ao fundo.
@@ -290,14 +324,27 @@ class HertzGameLoop(GameLoop):
         build()` a partir de `user_settings.load_user_palette_id` -- as
         cores em si ja vem prontas em `base_config.threat_blue_rgb`/
         `threat_pink_rgb`, este parametro so serve para o Vault
-        mostrar/ciclar QUAL id esta selecionado."""
+        mostrar/ciclar QUAL id esta selecionado. `music_dir`/`beatmap_dir`
+        (default os caminhos reais de `musicas/`) e
+        `clipboard_reader`/`youtube_importer` (default a leitura REAL do
+        clipboard/`youtube_import.import_youtube_song`) existem pro
+        Pipeline de Importacao Direta (CTRL+V) -- testes isolam em
+        `tmp_path` e injetam FAKEs, nunca tocando o clipboard ou a rede
+        de verdade."""
         self._base_config = base_config
         self._stages = stages
         self._audio_clock = audio_clock
         self._input_provider = input_provider  # tambem setado por GameLoop.__init__
         self._audio_engine = audio_engine  # idem -- precisa existir ANTES de _compose_stage(0) abaixo
+        self._renderer = renderer  # idem -- Estetica Reativa (palette/fundo) tambem le o renderer na composicao
         self._title_track_path = title_track_path
         self._calibration_track_path = calibration_track_path
+        self._music_dir = music_dir
+        self._beatmap_dir = beatmap_dir
+        self._clipboard_reader = clipboard_reader
+        self._youtube_importer = youtube_importer
+        self._import_thread: Optional[threading.Thread] = None
+        self._import_result_queue: "queue.Queue" = queue.Queue()
         self._loaded_stage = 0
         self._flow = FLOW_TITLE
         self._results_grace = 0.0
@@ -334,6 +381,12 @@ class HertzGameLoop(GameLoop):
         self._hub_cursor = 0
         self._carousel_category: Optional[str] = None  # um `campaign_id` (ex. "defender_core") ou "free_play"
         self._carousel_index_by_category: dict = {}  # visao -> posicao lembrada (criada sob demanda)
+        # Carrossel Horizontal -- Audio Preview: cursor "repousando" na
+        # musica em foco por `carousel_preview_hover_seconds` antes do
+        # preview comecar (ver `_sync_carousel_preview`).
+        self._carousel_hover_stage_id: Optional[str] = None
+        self._carousel_hover_seconds: float = 0.0
+        self._carousel_preview_stage_id: Optional[str] = None
         self._preflight_stage_index: Optional[int] = None
         self._calibration_taps: list = []
         self._calibration_last_offset_seconds: Optional[float] = None
@@ -524,6 +577,43 @@ class HertzGameLoop(GameLoop):
         )
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
+
+        # Estetica Reativa -- Paleta Dinamica/Fundo Imersivo: resolvidos
+        # ANTES de compor. `renderer` pode nao existir ainda na 1a
+        # chamada (dentro de `__init__`, ANTES de `super().__init__`
+        # guardar `self._renderer`) -- `getattr` com default cobre isso,
+        # mesmo criterio ja usado por `_apply_playfield`.
+        renderer = getattr(self, "_renderer", None)
+        palette_rgb = _NEUTRAL_PALETTE_RGB
+        neutral_digit_texture_base = TEX_DIGIT_BASE
+        if renderer is not None and hasattr(renderer, "thumbnail_average_color"):
+            cached_rgb = renderer.thumbnail_average_color(stage.stage_id)
+            if cached_rgb != _NEUTRAL_PALETTE_RGB:
+                palette_rgb = cached_rgb
+                neutral_digit_texture_base = TEX_DIGIT_PALETTE_BASE
+                if hasattr(renderer, "apply_palette_tint"):
+                    renderer.apply_palette_tint(palette_rgb)
+            elif hasattr(renderer, "clear_palette_tint"):
+                renderer.clear_palette_tint()
+        if renderer is not None and hasattr(renderer, "set_background_image"):
+            background = (
+                renderer.thumbnail_background(stage.stage_id)
+                if hasattr(renderer, "thumbnail_background") else None
+            )
+            renderer.set_background_image(background)
+
+        # Eventos de Gameplay via Capitulos do YouTube: `StageDef.chapters`
+        # (metadata.json) viram eventos de Modchart SINTETICOS (funcao
+        # pura, `modchart.chapters_to_modchart_events`) e se juntam aos
+        # `modchart_events` normais da fase -- fases sem `chapters`
+        # (todo o repositorio curado hoje) nao ganham nada extra aqui.
+        modchart_events = stage.modchart_events + chapters_to_modchart_events(
+            stage.chapters,
+            self._base_config.chapter_event_keywords,
+            stage_config.game_mode,
+            self._base_config.arena_warp_shake_px,
+        )
+
         composed = compose_world(
             stage_config,
             self._input_provider,
@@ -531,7 +621,9 @@ class HertzGameLoop(GameLoop):
             tutorial_steps=stage.tutorial_steps,
             stage_ordinal=stage_index,
             audio_engine=self._audio_engine,
-            modchart_events=stage.modchart_events,
+            modchart_events=modchart_events,
+            palette_rgb=palette_rgb,
+            neutral_digit_texture_base=neutral_digit_texture_base,
         )
         self._composed = composed
         self._stage_config = stage_config
@@ -747,12 +839,15 @@ class HertzGameLoop(GameLoop):
             self._notice_timer -= delta_time
         if self._flow in (FLOW_PLAYING, FLOW_PAUSED):
             self._handle_latency_keys()
+        self._sync_carousel_preview(delta_time)
         if self._flow == FLOW_TITLE:
             self._advance_title()
         elif self._flow == FLOW_HUB:
             self._advance_hub()
         elif self._flow == FLOW_CAROUSEL:
             self._advance_carousel()
+        elif self._flow == FLOW_IMPORTING:
+            self._advance_importing()
         elif self._flow == FLOW_PREFLIGHT:
             self._advance_preflight()
         elif self._flow == FLOW_VAULT:
@@ -804,11 +899,9 @@ class HertzGameLoop(GameLoop):
                 # de dentro do Carrossel, TAB/Q-E ja alcancam as demais
                 # sem precisar voltar aqui (ver `_advance_carousel`).
                 ids = self.campaign_ids()
-                self._carousel_category = ids[0] if ids else "free_play"
-                self._flow = FLOW_CAROUSEL
+                self._enter_carousel(ids[0] if ids else "free_play")
             elif category == "free_play":
-                self._carousel_category = "free_play"
-                self._flow = FLOW_CAROUSEL
+                self._enter_carousel("free_play")
             elif category == "vault":
                 self._flow = FLOW_VAULT
             elif category == "calibration":
@@ -819,6 +912,21 @@ class HertzGameLoop(GameLoop):
             self._enter_title()  # ESC no HUB volta pra Tela de Titulo (nunca encerra o jogo daqui)
 
     # -- Carrossel de Musicas ------------------------------------------------
+
+    def _enter_carousel(self, category: str) -> None:
+        """Entra no Carrossel numa VISAO especifica (`campaign_id` ou
+        "free_play") -- ponto UNICO onde a Estetica Reativa pre-cacheia
+        miniatura/fundo/paleta de TODO o catalogo (`cache_carousel_visuals`,
+        so fases com `StageDef.thumbnail_path` custam algo), UMA vez ao
+        entrar, nunca por frame; ciclar visoes com Q/E/TAB dentro do
+        Carrossel (`_cycle_carousel_view`) NAO re-executa isso, o
+        catalogo inteiro ja foi cacheado aqui."""
+        self._carousel_category = category
+        self._flow = FLOW_CAROUSEL
+        if hasattr(self._renderer, "cache_carousel_visuals"):
+            self._renderer.cache_carousel_visuals(
+                self._stages, darken_fraction=self._base_config.carousel_background_darken_fraction
+            )
 
     def campaign_ids(self) -> Tuple[str, ...]:
         """Ids de campanha distintos entre as fases curadas de
@@ -913,6 +1021,13 @@ class HertzGameLoop(GameLoop):
         elif inp.is_action_pressed("cycle_view_prev"):
             self._cycle_carousel_view(-1)
 
+        if inp.is_action_pressed("paste"):
+            # Pipeline de Importacao Direta: pode mudar `self._flow` pra
+            # FLOW_IMPORTING -- nao processa mais nada este frame (a
+            # fila/navegacao do Carrossel nao fazem sentido em transito).
+            self._try_import_from_clipboard()
+            return
+
         entries = self.carousel_entries()
         if not entries:
             if inp.is_action_pressed("pause"):
@@ -938,6 +1053,143 @@ class HertzGameLoop(GameLoop):
                 self._flow = FLOW_PREFLIGHT
         elif inp.is_action_pressed("pause"):
             self._flow = FLOW_HUB
+
+    # -- Pipeline de Importacao Direta (CTRL+V) ------------------------------
+
+    def _try_import_from_clipboard(self) -> None:
+        """CTRL+V no Carrossel: le o clipboard (`self._clipboard_reader`,
+        injetavel -- testes NUNCA tocam o clipboard de verdade), procura
+        uma URL do YouTube (`youtube_import.extract_youtube_url`, pura)
+        e, se achar, inicia o download em BACKGROUND
+        (`_start_youtube_import`). Clipboard sem nenhuma URL reconhecivel
+        e' um no-op silencioso -- colar algo que nao e' uma URL do
+        YouTube nao deveria fazer nada visivel."""
+        text = self._clipboard_reader()
+        url = extract_youtube_url(text)
+        if url is not None:
+            self._start_youtube_import(url)
+
+    def _start_youtube_import(self, url: str) -> None:
+        """Dispara a thread de background do Pipeline de Importacao
+        Direta -- `_run_youtube_import_thread` roda INTEIRAMENTE nela
+        (download via subprocess + analise do beatmap via librosa, as 2
+        etapas de I/O BLOQUEANTE), nunca na thread principal do jogo
+        (que so deve tocar pygame/ECS -- SDL/pygame nao e thread-safe
+        pra chamadas de renderizacao). O resultado volta por uma
+        `queue.Queue` (thread-safe por natureza), consumida em
+        `_advance_importing`."""
+        self._import_result_queue = queue.Queue()
+        self._import_thread = threading.Thread(
+            target=self._run_youtube_import_thread, args=(url,), daemon=True,
+        )
+        self._flow = FLOW_IMPORTING
+        self._import_thread.start()
+
+    def _run_youtube_import_thread(self, url: str) -> None:
+        """Corpo da thread de background -- NUNCA toca pygame/Surface/
+        renderer aqui (regra de thread-safety do SDL). Qualquer falha
+        (rede, subprocess, beatmap corrompido) vira uma mensagem na
+        fila em vez de derrubar a thread silenciosamente."""
+        try:
+            video_id, stages = self._youtube_importer(
+                url, music_dir=self._music_dir, beatmap_dir=self._beatmap_dir,
+            )
+            self._import_result_queue.put(("ok", (video_id, stages)))
+        except Exception as exc:  # noqa: BLE001 -- qualquer falha vira uma mensagem, nunca derruba o jogo
+            self._import_result_queue.put(("error", str(exc)))
+
+    def _advance_importing(self) -> None:
+        """FLOW_IMPORTING: so espera a thread de background terminar --
+        NAO cancelavel (encerrar uma thread Python no meio de I/O de
+        rede/subprocess nao e seguro, e o download real seria
+        interrompido de qualquer forma). So consome o resultado da fila
+        quando disponivel, sem bloquear o frame (`get_nowait`)."""
+        try:
+            kind, payload = self._import_result_queue.get_nowait()
+        except queue.Empty:
+            return
+        if kind == "ok":
+            video_id, stages = payload
+            self._apply_youtube_import_result(video_id, stages)
+        else:
+            self._notice_key = "import_failed"
+            self._notice_timer = _NOTICE_SECONDS
+            self._flow = FLOW_CAROUSEL
+        self._import_thread = None
+
+    def _apply_youtube_import_result(self, video_id: str, youtube_stages: Tuple[StageDef, ...]) -> None:
+        """Substitui SO a fatia `youtube_*` do catalogo (preserva fases
+        curadas e musicas soltas intactas -- `youtube_stages` ja vem
+        COMPLETA de `scan_youtube_songs`, incluindo importacoes
+        anteriores) e volta ao Carrossel (Free Play) ja apontando pra
+        musica recem-importada, "instantaneamente" do ponto de vista do
+        jogador.
+
+        Limitacao aceita: indices de preferencia por-musica
+        (`_chosen_game_mode`/`_chosen_modifiers`/etc., chaveados por
+        posicao em `self._stages`) de OUTRAS musicas do YouTube podem
+        deslocar se o `video_id` novo ordenar alfabeticamente antes
+        delas -- edge case raro (configurar uma musica enquanto outra
+        importa), documentado aqui em vez de re-arquitetar os ~6 dicts
+        de preferencia pra chavear por `stage_id`."""
+        other_stages = tuple(s for s in self._stages if not s.stage_id.startswith("youtube_"))
+        self._stages = other_stages + youtube_stages
+        self._enter_carousel("free_play")
+        new_stage_id = f"youtube_{video_id}"
+        for position, (_original_index, stage) in enumerate(self.free_play_entries()):
+            if stage.stage_id == new_stage_id:
+                self._carousel_index_by_category["free_play"] = position
+                break
+
+    def _sync_carousel_preview(self, delta_time: float) -> None:
+        """Audio Preview: chamado TODO frame (nao so dentro do
+        Carrossel) -- fora dele, para qualquer preview tocando e sai. O
+        cursor "repousa" na musica em foco por
+        `carousel_preview_hover_seconds` (zerado a cada troca de foco OU
+        de visao) antes do preview comecar; mudar de musica ANTES disso
+        so cancela o timer, nunca chega a tocar nada."""
+        if self._flow != FLOW_CAROUSEL:
+            if self._carousel_preview_stage_id is not None:
+                self._stop_carousel_preview()
+            return
+
+        focused_index = self.carousel_focused_stage_index()
+        focused_stage_id = self._stages[focused_index].stage_id if focused_index is not None else None
+        if focused_stage_id != self._carousel_hover_stage_id:
+            self._carousel_hover_stage_id = focused_stage_id
+            self._carousel_hover_seconds = 0.0
+            if self._carousel_preview_stage_id is not None:
+                self._stop_carousel_preview()
+            return
+        if focused_stage_id is None or self._carousel_preview_stage_id == focused_stage_id:
+            return
+
+        self._carousel_hover_seconds += delta_time
+        if self._carousel_hover_seconds >= self._base_config.carousel_preview_hover_seconds:
+            self._start_carousel_preview(focused_index)
+
+    def _start_carousel_preview(self, stage_index: int) -> None:
+        """Audio Preview: toca a partir de `carousel_preview_start_fraction`
+        (30% por padrao -- pula a intro, cai perto do groove principal)
+        da duracao TOTAL da musica, com fade-in de
+        `carousel_preview_fade_ms` -- so' com um `IAudioEngine` que
+        suporte (`play_preview`, ver `HBPygameAudioEngine`; `NullAudioEngine`
+        dos testes de fluxo nao precisa, o preview e' puramente
+        cosmetico/audio, nunca afeta `carousel_entries()`/navegacao)."""
+        stage = self._stages[stage_index]
+        if not stage.track_path or not hasattr(self._audio_engine, "play_preview"):
+            return
+        config = self._base_config
+        _bpm, duration_seconds = read_stage_bpm_and_duration(stage)
+        start_offset = max(0.0, duration_seconds * config.carousel_preview_start_fraction)
+        self._audio_engine.load_track(stage.stage_id, stage.track_path)
+        self._audio_engine.play_preview(stage.stage_id, start_offset, fade_ms=config.carousel_preview_fade_ms)
+        self._carousel_preview_stage_id = stage.stage_id
+
+    def _stop_carousel_preview(self) -> None:
+        if self._carousel_preview_stage_id is not None and hasattr(self._audio_engine, "stop_track"):
+            self._audio_engine.stop_track(self._carousel_preview_stage_id)
+        self._carousel_preview_stage_id = None
 
     # -- Pre-Voo (Modificadores + Multiplicador de Pontuacao) ----------------
 
@@ -1352,6 +1604,7 @@ class HertzGameLoop(GameLoop):
             carousel_progress = None
             carousel_bpm = 0.0
             carousel_duration_seconds = 0.0
+            carousel_neighbor_stage_ids: Tuple[Optional[str], ...] = ()
             if self._flow == FLOW_CAROUSEL:
                 entries = self.carousel_entries()
                 carousel_count = len(entries)
@@ -1365,6 +1618,8 @@ class HertzGameLoop(GameLoop):
                     stage = self._stages[carousel_stage_index]
                     carousel_progress = self._player_progress.get(stage.stage_id)
                     carousel_bpm, carousel_duration_seconds = read_stage_bpm_and_duration(stage)
+                    entry_stage_ids = tuple(self._stages[i].stage_id for i, _s in entries)
+                    carousel_neighbor_stage_ids = carousel_neighbor_window(entry_stage_ids, carousel_position)
 
             self._renderer.set_overlay(
                 overlay_mode,
@@ -1381,6 +1636,7 @@ class HertzGameLoop(GameLoop):
                 carousel_progress=carousel_progress,
                 carousel_bpm=carousel_bpm,
                 carousel_duration_seconds=carousel_duration_seconds,
+                carousel_neighbor_stage_ids=carousel_neighbor_stage_ids,
                 preflight_stage_index=(
                     self._preflight_stage_index if self._flow == FLOW_PREFLIGHT else None
                 ),

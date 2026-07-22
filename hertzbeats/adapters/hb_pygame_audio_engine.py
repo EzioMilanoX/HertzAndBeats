@@ -69,3 +69,18 @@ class HBPygameAudioEngine(PygameAudioEngine):
         quando o Flow comeca -- um efeito real e audivel, sem fingir um
         grave que o backend nao pode produzir."""
         pygame.mixer.music.set_volume(max(0.0, min(1.0, volume)))
+
+    def play_preview(self, track_id: str, start_offset_seconds: float, fade_ms: int = 1000) -> None:
+        """Audio Preview (Carrossel Horizontal): toca um TRECHO da
+        musica `track_id` (ja carregada via `load_track`) a partir de
+        `start_offset_seconds`, com fade-in de `fade_ms` -- MESMO
+        `pygame.mixer.music.play(start=...)` que `play_track` ja usa
+        (arg `fade_ms` nativo do pygame, so' nunca precisou dele ate
+        agora). Carregar a musica de novo (`.load()`) troca
+        implicitamente a faixa anterior tocando -- pygame so admite UM
+        canal de musica por vez, entao nao precisa de nenhum `stop_track`
+        explicito ao trocar de preview."""
+        file_path = self._loaded_tracks[track_id]
+        pygame.mixer.music.load(file_path)
+        pygame.mixer.music.play(loops=0, start=max(0.0, start_offset_seconds), fade_ms=int(fade_ms))
+        self._current_track_id = track_id

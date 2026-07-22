@@ -161,3 +161,55 @@ def compute_tunnel_radius(
         )
         radius = radius + (target_radius - radius) * progress
     return radius
+
+
+def parse_arena_warp_events(raw_events: Sequence[Dict]) -> Tuple[Tuple[float, float], ...]:
+    """Normaliza a lista crua de `stages.json`/eventos sinteticos de
+    capitulos do YouTube (`{"type": "arena_warp", "time_seconds",
+    "shake_px"}`) em tuplas `(time_seconds, shake_px)` ORDENADAS por
+    tempo. Ao contrario de swap/reverse_scroll/vision_tunnel (Lerps
+    CONTINUOS), "arena_warp" e' um disparo UNICO -- so aciona
+    `GameState.trigger_shake` no instante exato em que o cursor cruza
+    cada timestamp (ver `ChapterEventSystem`), nunca interpolado."""
+    events = []
+    for raw in raw_events:
+        if raw.get("type") != "arena_warp":
+            continue
+        events.append((float(raw["time_seconds"]), float(raw.get("shake_px", 24.0))))
+    events.sort(key=lambda event: event[0])
+    return tuple(events)
+
+
+def chapters_to_modchart_events(
+    chapters: Sequence[Dict], keywords: Sequence[str], game_mode: str, shake_px: float = 24.0
+) -> Tuple[Dict, ...]:
+    """Eventos de Gameplay via Capitulos do YouTube: converte
+    `StageDef.chapters` (`{"start_time_seconds", "title"}`, de
+    `metadata.json`) em eventos de Modchart SINTETICOS -- um capitulo
+    cujo titulo contenha (case-insensitive) alguma palavra de
+    `keywords` (`HertzConfig.chapter_event_keywords`, ex. "drop",
+    "chorus") sempre gera um "arena_warp" (tremor de tela, os 2 modos)
+    e, no Arcade 4K (`game_mode == "lanes"`), TAMBEM um "reverse_scroll"
+    -- reaproveita a coreografia global JA existente
+    (`ReverseScrollSystem`/`compute_scroll_flip_fraction`), nenhum
+    sistema novo precisou ser inventado pra essa parte. Capitulos sem
+    nenhuma palavra-chave sao ignorados. Pura -- nenhuma chamada de
+    rede/IO, testavel isolada."""
+    lowered_keywords = tuple(k.lower() for k in keywords)
+    events = []
+    for chapter in chapters:
+        title = str(chapter.get("title", "")).lower()
+        if not any(keyword in title for keyword in lowered_keywords):
+            continue
+        time_seconds = float(chapter.get("start_time_seconds", 0.0))
+        events.append({"type": "arena_warp", "time_seconds": time_seconds, "shake_px": float(shake_px)})
+        if game_mode == "lanes":
+            events.append(
+                {
+                    "type": "reverse_scroll",
+                    "time_seconds": time_seconds,
+                    "duration_seconds": 1.0,
+                    "reversed": True,
+                }
+            )
+    return tuple(events)

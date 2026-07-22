@@ -30,6 +30,7 @@ import dataclasses
 import json
 import math
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 
@@ -61,12 +62,14 @@ from hertzbeats.audio.sfx_synth import (
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
 from hertzbeats.lane_scratch_clustering import build_lane_schedule_with_scratches
 from hertzbeats.modchart import (
+    parse_arena_warp_events,
     parse_reverse_scroll_events,
     parse_swap_events,
     parse_vision_tunnel_events,
 )
 from hertzbeats.practice_thinning import thin_schedule_for_practice
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
+from hertzbeats.systems.chapter_event_system import ChapterEventSystem
 from hertzbeats.systems.convergence_ring_system import (
     CONVERGENCE_RING_DTYPE,
     ConvergenceRingSystem,
@@ -91,6 +94,7 @@ from hertzbeats.systems.spark_system import SparkSystem
 from hertzbeats.components.texture_ids import (
     MAX_TUTORIAL_STEPS,
     TEX_CROSSHAIR,
+    TEX_DIGIT_BASE,
     TEX_HEALTH_PIP,
     TEX_LABEL_COMBO,
     TEX_LABEL_SCORE,
@@ -946,6 +950,8 @@ def compose_world(
     stage_ordinal: int = 0,
     audio_engine=None,
     modchart_events: tuple = (),
+    palette_rgb: Tuple[int, int, int] = (255, 255, 255),
+    neutral_digit_texture_base: int = TEX_DIGIT_BASE,
 ) -> ComposedGame:
     """Composicao PURA (sem pygame): pools, arquetipos, entidades
     persistentes (nucleo, mira, HUD), beatmap e a ordem exata dos
@@ -959,7 +965,15 @@ def compose_world(
     liga os eventos de Modchart (troca de colunas com Lerp) no
     `LaneChoreographySystem` quando `game_mode == "lanes"` -- dado
     100% game-side, nao existe no `beatmap.json` da engine.
-    """
+
+    `palette_rgb`/`neutral_digit_texture_base` (Estetica Reativa --
+    Paleta Dinamica): resolvidos ANTES desta chamada por
+    `HertzGameLoop._compose_stage` (o renderer, que faz o recolorimento
+    de verdade via `apply_palette_tint`, nao e visivel daqui dentro --
+    esta funcao so guarda `palette_rgb` no `GameState` e escolhe qual
+    base de textura de digito o `UIRenderSystem` usa). Neutro
+    (`(255,255,255)`/`TEX_DIGIT_BASE`) para QUALQUER fase sem miniatura
+    -- comportamento IDENTICO ao de antes desta feature."""
     center_x, center_y = config.center_xy
 
     # Meta-Jogo -- Multiplicador de Pontuacao: resolvido no Pre-Voo
@@ -1046,6 +1060,7 @@ def compose_world(
         # nunca em runtime) -- `beat_phase` (`HertzGameLoop._sync_beat_phase`)
         # deriva dele.
         bpm=bpm,
+        current_palette=palette_rgb,
     )
 
     # Entidades persistentes -----------------------------------------
@@ -1115,6 +1130,16 @@ def compose_world(
     # chamar o mesmo metodo, sem registrar nada extra aqui.
     world.register_system(CameraShakeSystem(game_state, config.shake_decay_per_second))
 
+    # Eventos de Gameplay via Capitulos do YouTube ("Deformacao de
+    # Arena"): comum aos 2 modos, so registrado quando ha PELO MENOS um
+    # evento "arena_warp" (`StageDef.chapters` convertidos por
+    # `modchart.chapters_to_modchart_events` ANTES desta chamada, em
+    # `HertzGameLoop._compose_stage`) -- sem isso, zero custo extra por
+    # frame (mesma filosofia "so paga quem usa" de toda Mecanica Modular).
+    arena_warp_events = parse_arena_warp_events(modchart_events)
+    if arena_warp_events:
+        world.register_system(ChapterEventSystem(audio_clock, game_state, arena_warp_events))
+
     world.register_system(
         UIRenderSystem(
             memory_manager=memory_manager,
@@ -1132,6 +1157,7 @@ def compose_world(
             combo_label_entity_index=combo_label_index,
             combo_bump_threshold=config.combo_bump_threshold,
             combo_bump_seconds=config.combo_bump_seconds,
+            neutral_digit_texture_base=neutral_digit_texture_base,
         )
     )
 

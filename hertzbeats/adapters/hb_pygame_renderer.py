@@ -12,6 +12,7 @@ from ouroboros.adapters.pygame_backend.pygame_renderer import PygameRenderer
 from hertzbeats.components.texture_ids import (
     TEX_CONVERGENCE_RING,
     TEX_DIGIT_BASE,
+    TEX_DIGIT_PALETTE_BASE,
     TEX_PLAYER_CORE_BLUE,
     TEX_PLAYER_CORE_PINK,
     TEX_THREAT_POLARITY_BLUE,
@@ -176,6 +177,30 @@ MULTIPLIER` ate acima de qualquer combinacao real de bonus), nunca
 `font.render` no loop. `_draw_overlay` so ARREDONDA o float continuo
 (`compute_score_multiplier`) pro passo mais proximo."""
 
+_CAROUSEL_THUMBNAIL_FOCUSED_SIZE = (220, 220)
+_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE = (130, 130)
+_CAROUSEL_THUMBNAIL_SPACING_PX = 170
+_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN = 90
+"""Carrossel Horizontal: a miniatura em FOCO usa
+`_CAROUSEL_THUMBNAIL_FOCUSED_SIZE` (grande/brilhante); as vizinhas usam
+`_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE` (menor) MULTIPLICADAS por
+`_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN` (0-255, `BLEND_RGB_MULT` -- mesma
+tecnica ja usada por `_draw_low_health_danger`) uma unica vez no cache
+(`cache_carousel_visuals`), nunca recalculado por frame. Espacadas
+horizontalmente por `_CAROUSEL_THUMBNAIL_SPACING_PX` a partir do centro."""
+
+_BLUR_DOWNSCALE_DIVISOR = 16
+"""Estetica Reativa -- fundo desfocado: reduz a miniatura pra 1/16 do
+tamanho da janela e escala de volta com interpolacao suave
+(`smoothscale`) -- um "blur" barato e determinístico sem depender de
+PIL/scipy, so pygame. Feito UMA vez ao cachear a miniatura, nunca por
+frame."""
+
+_PALETTE_RING_BLEND_FACTOR = 0.5
+"""Paleta Dinamica: fracao do Lerp entre a cor NEUTRA do anel-guia e
+`GameState.current_palette` -- 0.5 harmoniza com a capa do video sem
+perder contraste/legibilidade contra a arena."""
+
 
 class HBPygameRenderer(PygameRenderer):
     """
@@ -244,6 +269,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_carousel_progress: Optional[dict] = None
         self._overlay_carousel_bpm: float = 0.0
         self._overlay_carousel_duration_seconds: float = 0.0
+        self._overlay_carousel_neighbor_stage_ids: Tuple[Optional[str], ...] = ()
         self._overlay_preflight_stage_index: Optional[int] = None
         self._overlay_score_multiplier: float = 1.0
         self._overlay_vault_stats: Optional[dict] = None
@@ -282,6 +308,14 @@ class HBPygameRenderer(PygameRenderer):
         self._spark_alphas = None
         self._spark_count: int = 0
         self._beat_phase: float = 0.0
+        # Carrossel Horizontal + Estetica Reativa: miniaturas/fundo/paleta
+        # CACHEADOS por stage_id -- construidos UMA vez (ao entrar no
+        # Carrossel, via `cache_carousel_visuals`), nunca por frame. Fases
+        # sem miniatura (todo o repositorio hoje) nunca aparecem aqui --
+        # `_draw_carousel_overlay` cai pro placeholder generico.
+        self._thumbnail_cache: Dict[str, Dict] = {}
+        self._background_surface: Optional[pygame.Surface] = None
+        self._palette_tint: Optional[Tuple[int, int, int]] = None
 
     def register_texture(self, texture_id: int, surface: "pygame.Surface") -> None:
         """Registra `surface` (ja convertida com alpha) para `texture_id`.
@@ -309,6 +343,7 @@ class HBPygameRenderer(PygameRenderer):
         carousel_progress: Optional[dict] = None,
         carousel_bpm: float = 0.0,
         carousel_duration_seconds: float = 0.0,
+        carousel_neighbor_stage_ids: Tuple[Optional[str], ...] = (),
         preflight_stage_index: Optional[int] = None,
         score_multiplier: float = 1.0,
         vault_stats: Optional[dict] = None,
@@ -333,6 +368,11 @@ class HBPygameRenderer(PygameRenderer):
         `hit_error_histogram` (Acessibilidade, so em "results"): tupla de
         `RESULTS_HISTOGRAM_BIN_COUNT` contagens ja prontas
         (`compute_hit_error_histogram`, calculada 1x na transicao).
+        `carousel_neighbor_stage_ids` (Carrossel Horizontal): janela de
+        `stage_id`s ao REDOR do foco (tamanho impar, o do meio e' o
+        foco, `None` em slots sem musica) -- usada so pra escolher qual
+        miniatura CACHEADA blitar em cada posicao do filme (nunca
+        recalculada aqui, ver `cache_carousel_visuals`).
         Chamado pelo `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_modifier_panel = modifier_panel
@@ -346,6 +386,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_carousel_locked = bool(carousel_locked)
         self._overlay_carousel_progress = carousel_progress
         self._overlay_carousel_bpm = float(carousel_bpm)
+        self._overlay_carousel_neighbor_stage_ids = tuple(carousel_neighbor_stage_ids)
         self._overlay_carousel_duration_seconds = float(carousel_duration_seconds)
         self._overlay_preflight_stage_index = preflight_stage_index
         self._overlay_score_multiplier = float(score_multiplier)
@@ -661,6 +702,11 @@ class HBPygameRenderer(PygameRenderer):
         if self._freeze_active:
             return  # Juice de Parry: repete o ultimo frame desenhado, pixel por pixel
         self._surface.fill((2, 1, 6) if self._flow_mode_active else (8, 6, 20))
+        if self._background_surface is not None:
+            # Fundo Imersivo (Estetica Reativa): imagem ESTATICA ja pronta
+            # (desfocada/escurecida uma vez em `cache_carousel_visuals`) --
+            # so um blit, nenhum calculo por frame.
+            self._surface.blit(self._background_surface, (0, 0))
         self._draw_reactive_background()
         kind = self._playfield_kind
         if kind is None:
@@ -670,8 +716,8 @@ class HBPygameRenderer(PygameRenderer):
         if kind == "radial":
             center = (int(params["center_x"]), int(params["center_y"]))
             judgment_radius = float(params["judgment_radius"]) * (1.0 + _HEARTBEAT_RING_ZOOM * pulse)
-            pygame.draw.circle(self._surface, (36, 28, 70), center, int(params["spawn_radius"]), 1)
-            pygame.draw.circle(self._surface, (90, 70, 160), center, int(judgment_radius), 2)
+            pygame.draw.circle(self._surface, self._tinted_ring_color((36, 28, 70)), center, int(params["spawn_radius"]), 1)
+            pygame.draw.circle(self._surface, self._tinted_ring_color((90, 70, 160)), center, int(judgment_radius), 2)
             self._draw_ghost_trail()
         if kind == "lanes":
             height = int(params["height"])
@@ -1066,6 +1112,13 @@ class HBPygameRenderer(PygameRenderer):
             self._draw_hub_overlay(center_x)
         elif self._overlay_mode == "carousel":
             self._draw_carousel_overlay(center_x)
+        elif self._overlay_mode == "importing":
+            # Pipeline de Importacao Direta: sem cancelamento (thread de
+            # background nao interrompivel com seguranca), so um aviso
+            # estatico -- nenhum spinner/animacao, evita qualquer
+            # tentacao de font.render por frame so pra "pontinhos".
+            self._blit_centered("importing_title", center_x, int(self._height * 0.40))
+            self._blit_centered("hint_importing", center_x, self._height - 110)
         elif self._overlay_mode == "preflight":
             self._draw_preflight_overlay(center_x)
         elif self._overlay_mode == "vault":
@@ -1087,6 +1140,123 @@ class HBPygameRenderer(PygameRenderer):
                 y += self._blit_centered(f"rank_{self._overlay_rank}", center_x, y) + 10
             y += self._draw_hit_error_histogram(center_x, y + 8)
             self._blit_centered("hint_results", center_x, self._height - 110)
+
+    # -- Carrossel Horizontal + Estetica Reativa (YouTube) -----------------
+
+    def cache_carousel_visuals(self, stages, darken_fraction: float = 0.85) -> None:
+        """Pre-cacheia, POR `stage_id`, tudo que a Estetica Reativa
+        precisa: a miniatura em foco (grande/brilhante) e vizinha
+        (pequena/escurecida via `BLEND_RGB_MULT`, mascara pre-aplicada
+        UMA vez aqui -- nunca por frame), a cor media
+        (`pygame.transform.average_color`, Paleta Dinamica) e o fundo
+        desfocado/escurecido (`_make_blurred_background`,
+        `darken_fraction` = `HertzConfig.carousel_background_darken_fraction`).
+        Chamado UMA vez ao ENTRAR no `FLOW_CAROUSEL`
+        (`HertzGameLoop._enter_carousel`), nunca por frame -- fases sem
+        `StageDef.thumbnail_path` (todo o repositorio curado hoje) ou ja
+        cacheadas custam zero aqui."""
+        for stage in stages:
+            if stage.thumbnail_path is None or stage.stage_id in self._thumbnail_cache:
+                continue
+            try:
+                raw = pygame.image.load(stage.thumbnail_path).convert()
+            except (pygame.error, FileNotFoundError, OSError):
+                continue
+
+            average_color = tuple(int(c) for c in pygame.transform.average_color(raw)[:3])
+            focused = pygame.transform.smoothscale(raw, _CAROUSEL_THUMBNAIL_FOCUSED_SIZE)
+            neighbor = pygame.transform.smoothscale(raw, _CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE)
+            darken = pygame.Surface(_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE)
+            darken.fill((_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN,) * 3)
+            neighbor.blit(darken, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+
+            self._thumbnail_cache[stage.stage_id] = {
+                "focused": focused,
+                "neighbor": neighbor,
+                "average_color": average_color,
+                "background": self._make_blurred_background(raw, darken_fraction),
+            }
+
+    def _make_blurred_background(self, source: "pygame.Surface", darken_fraction: float) -> "pygame.Surface":
+        """Fundo Imersivo: copia escalada pro tamanho REAL da janela
+        (nunca 1080p fixo -- a janela deste jogo e QUADRADA e pode ser
+        redimensionada por `fit_config_to_display`), "borrada" reduzindo
+        pra 1/`_BLUR_DOWNSCALE_DIVISOR` do tamanho e escalando de volta
+        com interpolacao suave (blur barato, sem depender de PIL/scipy),
+        escurecida multiplicando por um cinza (`BLEND_RGB_MULT`, mesma
+        tecnica de `_draw_low_health_danger`) por `darken_fraction`
+        (0.85 = so 15% do brilho original sobrevive)."""
+        small_w = max(1, self._width // _BLUR_DOWNSCALE_DIVISOR)
+        small_h = max(1, self._height // _BLUR_DOWNSCALE_DIVISOR)
+        small = pygame.transform.smoothscale(source, (small_w, small_h))
+        blurred = pygame.transform.smoothscale(small, (self._width, self._height)).convert()
+        darken_channel = max(0, min(255, int(255 * (1.0 - darken_fraction))))
+        darken = pygame.Surface((self._width, self._height))
+        darken.fill((darken_channel,) * 3)
+        blurred.blit(darken, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        return blurred
+
+    def thumbnail_average_color(self, stage_id: Optional[str]) -> Tuple[int, int, int]:
+        """Paleta Dinamica: cor media CACHEADA da miniatura de
+        `stage_id`, ou branco neutro -- `(255,255,255)` multiplicado por
+        qualquer cor a deixa intocada, o "sem paleta ativa" -- pra fases
+        sem miniatura (a maioria hoje). Lido por
+        `HertzGameLoop._compose_stage` pra popular `GameState.
+        current_palette`."""
+        entry = self._thumbnail_cache.get(stage_id)
+        return entry["average_color"] if entry is not None else (255, 255, 255)
+
+    def thumbnail_background(self, stage_id: Optional[str]) -> Optional["pygame.Surface"]:
+        """Fundo desfocado/escurecido CACHEADO de `stage_id`, ou `None`
+        se a fase nao tiver miniatura (fundo solido padrao)."""
+        entry = self._thumbnail_cache.get(stage_id)
+        return entry["background"] if entry is not None else None
+
+    def set_background_image(self, surface: Optional["pygame.Surface"]) -> None:
+        """Fundo Imersivo: define a imagem ESTATICA (ja pronta, ver
+        `_make_blurred_background`) blitada por TRAS da arena em
+        `begin_frame` -- `None` volta ao fundo solido padrao."""
+        self._background_surface = surface
+
+    def apply_palette_tint(self, rgb: Tuple[int, int, int]) -> None:
+        """Paleta Dinamica: (a) guarda `rgb` pra tingir os aneis-guia
+        procedurais (`begin_frame`/`_tinted_ring_color`); (b) recolore
+        UMA COPIA do atlas de digitos branco (`TEX_DIGIT_BASE`)
+        multiplicando por `rgb`, registrada sob `TEX_DIGIT_PALETTE_BASE`
+        -- feito UMA vez por CARREGAMENTO de fase (fase de carregamento,
+        onde alocar e permitido), nunca por frame. `draw_batch` so
+        aplica ALFA a sprites com textura (nunca RGB) -- recolorir a
+        textura em si, uma vez, e o unico jeito correto de "tingir" um
+        sprite ja pre-renderizado sem mutar a Surface COMPARTILHADA de
+        `TEX_DIGIT_BASE` (que fases SEM Paleta Dinamica continuam usando
+        intocada)."""
+        self._palette_tint = tuple(int(c) for c in rgb)
+        for digit in range(10):
+            base_surface = self._textures.get(TEX_DIGIT_BASE + digit)
+            if base_surface is None:
+                continue
+            tinted = base_surface.copy()
+            tinted.fill((*self._palette_tint, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            self.register_texture(TEX_DIGIT_PALETTE_BASE + digit, tinted)
+
+    def clear_palette_tint(self) -> None:
+        """Paleta Dinamica: reseta pra nenhum tint ativo -- chamado
+        quando a fase NOVA nao tem miniatura, pra nao vazar a Paleta
+        Dinamica da fase ANTERIOR nos aneis-guia."""
+        self._palette_tint = None
+
+    def _tinted_ring_color(self, base_color: Tuple[int, int, int]) -> Tuple[int, int, int]:
+        """Paleta Dinamica: Lerp entre a cor NEUTRA do anel-guia e
+        `self._palette_tint` (`_PALETTE_RING_BLEND_FACTOR`) -- sem tint
+        ativo (`None`, o normal pra fases sem miniatura), devolve
+        `base_color` intocada."""
+        if self._palette_tint is None:
+            return base_color
+        factor = _PALETTE_RING_BLEND_FACTOR
+        return tuple(
+            int(base_channel * (1.0 - factor) + tint_channel * factor)
+            for base_channel, tint_channel in zip(base_color, self._palette_tint)
+        )
 
     # -- O Novo Fluxo de Menus (Experiencia Arcade) -----------------------
 
@@ -1137,6 +1307,10 @@ class HBPygameRenderer(PygameRenderer):
         y = int(self._height * 0.10)
         y += self._blit_centered(f"carousel_category_{category}", center_x, y) + 30
 
+        filmstrip_height = self._draw_carousel_filmstrip(center_x, y)
+        if filmstrip_height > 0:
+            y += filmstrip_height + 16
+
         stage_index = self._overlay_carousel_stage_index
         if stage_index is None:
             self._blit_centered("carousel_empty", center_x, y + 20)
@@ -1162,6 +1336,33 @@ class HBPygameRenderer(PygameRenderer):
         self._draw_dot_row(self._overlay_carousel_count, self._overlay_carousel_position, center_x, y)
         self._blit_centered("hint_carousel_switch_view", center_x, self._height - 78)
         self._blit_centered("hint_carousel", center_x, self._height - 54)
+
+    def _draw_carousel_filmstrip(self, center_x: int, y: int) -> int:
+        """Carrossel Horizontal: a miniatura em FOCO (offset 0, grande/
+        brilhante) no centro, vizinhas (pequenas/escuras) espalhadas
+        pros lados por `_CAROUSEL_THUMBNAIL_SPACING_PX` -- so blita
+        Surfaces JA CACHEADAS (`cache_carousel_visuals`); um slot sem
+        miniatura cacheada (fase sem `StageDef.thumbnail_path`, vizinho
+        vazio ou catalogo pequeno demais pra preencher a janela) nao
+        desenha nada, o layout de texto abaixo continua identico.
+        Retorna a altura consumida (0 se nada foi desenhado)."""
+        neighbor_ids = self._overlay_carousel_neighbor_stage_ids
+        if not neighbor_ids:
+            return 0
+        center_offset = len(neighbor_ids) // 2
+        tallest = 0
+        for slot, stage_id in enumerate(neighbor_ids):
+            if stage_id is None:
+                continue
+            entry = self._thumbnail_cache.get(stage_id)
+            if entry is None:
+                continue
+            offset = slot - center_offset
+            surface = entry["focused"] if offset == 0 else entry["neighbor"]
+            x = center_x + offset * _CAROUSEL_THUMBNAIL_SPACING_PX
+            self._surface.blit(surface, (x - surface.get_width() // 2, y))
+            tallest = max(tallest, surface.get_height())
+        return tallest
 
     def _draw_preflight_overlay(self, center_x: int) -> None:
         """Pre-Voo: o Multiplicador de Pontuacao ao vivo no topo (MESMA

@@ -142,6 +142,15 @@ class HBPygameInputProvider(PygameInputProvider):
                     held = True
                     break
             current[action_name] = held
+
+        # Pipeline de Importacao Direta (Ctrl+V): um CASO UNICO de
+        # combinacao de teclas -- fora do esquema geral de
+        # `data/input_bindings/*.json` (um codigo por acao, OR entre
+        # varios) de proposito, ja que nenhuma OUTRA acao do jogo
+        # precisa de uma combinacao (nunca vale a pena generalizar um
+        # mecanismo de "chord" pra um unico caso de uso).
+        current["paste"] = bool(keys[pygame.K_v]) and (bool(keys[pygame.K_LCTRL]) or bool(keys[pygame.K_RCTRL]))
+
         self._current_held = current
 
         mouse_x, mouse_y = pygame.mouse.get_pos()

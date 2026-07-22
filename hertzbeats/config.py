@@ -322,6 +322,33 @@ class HertzConfig:
     #    "duration_seconds", "target_radius"}`), mesmo dado 100%
     #    game-side ja usado por Swap/Reverse Scroll/Distraction. --
 
+    # -- Carrossel Horizontal (Audio Preview): o cursor precisa REPOUSAR
+    #    numa musica por `carousel_preview_hover_seconds` antes do preview
+    #    comecar (senao navegar rapido dispararia um preview por musica
+    #    visitada) -- toca a partir de `carousel_preview_start_fraction`
+    #    da duracao TOTAL (30% pula a intro, cai perto do groove
+    #    principal) com um fade-in de `carousel_preview_fade_ms`.
+    carousel_preview_hover_seconds: float = 0.5
+    carousel_preview_start_fraction: float = 0.3
+    carousel_preview_fade_ms: int = 1000
+
+    # -- Estetica Reativa: fundo desfocado/escurecido derivado da
+    #    miniatura do video (`HBPygameRenderer.cache_carousel_visuals`) --
+    #    escurecido em `carousel_background_darken_fraction` (0.85 = so
+    #    15% do brilho original sobrevive, o suficiente pra nao competir
+    #    com a arena desenhada por cima).
+    carousel_background_darken_fraction: float = 0.85
+
+    # -- Eventos de Gameplay via Capitulos do YouTube: um capitulo cujo
+    #    titulo contenha (case-insensitive) alguma destas palavras vira
+    #    um evento de Modchart sintetico "arena_warp" (tremor de tela,
+    #    os 2 modos) + "reverse_scroll" no Arcade 4K (reaproveita a
+    #    coreografia global JA existente, ver
+    #    `modchart.chapters_to_modchart_events`). `arena_warp_shake_px`
+    #    e' a intensidade do tremor (`GameState.trigger_shake`).
+    chapter_event_keywords: Tuple[str, ...] = ("drop", "chorus", "climax", "intense")
+    arena_warp_shake_px: float = 24.0
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -432,6 +459,14 @@ class HertzConfig:
             shockwave_duration_seconds=raw.get("shockwave_duration_seconds", 0.2),
             shockwave_trigger_shake_px=raw.get("shockwave_trigger_shake_px", 8.0),
             karaoke_sync=raw.get("karaoke_sync", False),
+            carousel_preview_hover_seconds=raw.get("carousel_preview_hover_seconds", 0.5),
+            carousel_preview_start_fraction=raw.get("carousel_preview_start_fraction", 0.3),
+            carousel_preview_fade_ms=raw.get("carousel_preview_fade_ms", 1000),
+            carousel_background_darken_fraction=raw.get("carousel_background_darken_fraction", 0.85),
+            chapter_event_keywords=tuple(
+                raw.get("chapter_event_keywords", ("drop", "chorus", "climax", "intense"))
+            ),
+            arena_warp_shake_px=raw.get("arena_warp_shake_px", 24.0),
         )
 
 

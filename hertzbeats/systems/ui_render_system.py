@@ -60,6 +60,15 @@ class UIRenderSystem(ISystem):
     legendas reais. Hoje NENHUMA fase popula esses arrays -- todos os 4
     ficam `None` por padrao e `_advance_karaoke_subtitles` e' um no-op
     completo nesse caso (ver o metodo).
+
+    Estetica Reativa -- Paleta Dinamica: `neutral_digit_texture_base`
+    (default `TEX_DIGIT_BASE`, o comportamento de sempre) e' a base
+    "sem bump" dos digitos de placar/combo -- quando a fase tem uma
+    Paleta Dinamica ativa, `HertzGameLoop._compose_stage` passa
+    `TEX_DIGIT_PALETTE_BASE` aqui (a copia recolorida pela cor media da
+    miniatura, ja registrada por `HBPygameRenderer.apply_palette_tint`
+    ANTES desta composicao) -- o UI Bump continua usando
+    `TEX_DIGIT_BUMP_BASE` normalmente, so o "repouso" muda de cor.
     """
 
     def __init__(
@@ -80,6 +89,7 @@ class UIRenderSystem(ISystem):
         karaoke_line_until_seconds: Optional[np.ndarray] = None,
         karaoke_line_texture_ids: Optional[np.ndarray] = None,
         karaoke_banner_entity_index: Optional[int] = None,
+        neutral_digit_texture_base: int = TEX_DIGIT_BASE,
     ) -> None:
         """Os arrays de indices de entidade do HUD (int64, ordem: digito
         menos significativo primeiro) sao pre-alocados pela composicao.
@@ -101,6 +111,7 @@ class UIRenderSystem(ISystem):
         self._combo_label_entity_index = combo_label_entity_index
         self._combo_bump_threshold = int(combo_bump_threshold)
         self._combo_bump_seconds = float(combo_bump_seconds)
+        self._neutral_digit_texture_base = int(neutral_digit_texture_base)
         self._last_combo_seen = 0
         self._bump_timer_seconds = 0.0
 
@@ -165,6 +176,7 @@ class UIRenderSystem(ISystem):
             self._score_powers,
             self._score_digit_buffer,
             self._score_alpha_buffer,
+            digit_texture_base=self._neutral_digit_texture_base,
         )
         self._write_number(
             sprite_view,
@@ -250,9 +262,10 @@ class UIRenderSystem(ISystem):
         estagio de textura dourada (0 = pico, `BUMP_FADE_STEPS-1` = mais
         proximo do branco) por aritmetica sobre a fracao restante do
         timer -- nenhum recolorimento em tempo real, so a ESCOLHA de
-        qual base de digito somar."""
+        qual base de digito somar. Fora do bump, volta pra
+        `_neutral_digit_texture_base` (Paleta Dinamica, se ativa)."""
         if self._bump_timer_seconds <= 0.0 or self._combo_bump_seconds <= 0.0:
-            return TEX_DIGIT_BASE
+            return self._neutral_digit_texture_base
         remaining_fraction = self._bump_timer_seconds / self._combo_bump_seconds
         stage = min(BUMP_FADE_STEPS - 1, int((1.0 - remaining_fraction) * BUMP_FADE_STEPS))
         return TEX_DIGIT_BUMP_BASE + stage * 10

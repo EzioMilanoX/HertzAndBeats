@@ -272,11 +272,13 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>475 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<p>Total: <strong>541 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
 <details><summary><code>test_announcer.py</code> — Meta-Jogo -- Announcer: stinger sintetizado (nao fala real) em marcos de combo e Rank. (8 testes)</summary><ul><li><code>test_combo_announcer_fires_when_crossing_the_threshold</code></li><li><code>test_combo_announcer_does_not_fire_below_the_threshold</code></li><li><code>test_combo_announcer_never_refires_within_the_same_tier</code></li><li><code>test_combo_announcer_fires_again_at_the_next_tier</code></li><li><code>test_combo_announcer_is_silent_outside_playing</code></li><li><code>test_combo_announcer_tier_resets_on_a_fresh_stage</code></li><li><code>test_rank_ss_clear_triggers_the_rank_stinger</code></li><li><code>test_a_low_rank_clear_never_triggers_the_rank_stinger</code></li></ul></details>
 <details><summary><code>test_audio_ducking.py</code> — Audio Ducking: um MISS/dano abaixa a musica para duck_volume_fraction, restaurando gradualmente. (5 testes)</summary><ul><li><code>test_duck_multiplier_is_minimum_right_when_the_timer_is_fresh</code></li><li><code>test_duck_multiplier_recovers_to_normal_as_the_timer_decays</code></li><li><code>test_duck_multiplier_is_a_no_op_outside_the_ducking_window</code></li><li><code>test_a_miss_ducks_the_track_volume_and_it_recovers_over_time</code></li><li><code>test_a_second_miss_before_recovery_restarts_the_ducking_window</code></li></ul></details>
 <details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
 <details><summary><code>test_campaign_carousel.py</code> — Tags de Campanha/Lore + Filtro do Carrossel: `StageDef.campaign_id`/`description`, visoes alternaveis (TAB/Q/E). (15 testes)</summary><ul><li><code>test_stage_def_defaults_campaign_id_to_default_and_description_to_empty</code></li><li><code>test_campaign_ids_returns_distinct_ids_in_first_appearance_order</code></li><li><code>test_campaign_ids_ignores_selectable_stages</code></li><li><code>test_campaign_entries_for_filters_by_campaign_id</code></li><li><code>test_campaign_entries_unfiltered_still_returns_every_curated_stage</code></li><li><code>test_campaign_ids_and_carousel_views_reflect_the_stage_list</code></li><li><code>test_confirming_campaign_from_hub_enters_the_first_campaigns_carousel</code></li><li><code>test_cycle_view_next_visits_every_view_in_order_and_wraps</code></li><li><code>test_cycle_view_prev_moves_backward_and_wraps</code></li><li><code>test_switching_view_preserves_each_views_own_cursor_position</code></li><li><code>test_locking_is_independent_per_campaign</code></li><li><code>test_free_play_is_never_reported_as_locked</code></li><li><code>test_a_stage_view_with_zero_entries_stays_empty_after_cycling_into_it</code></li><li><code>test_every_campaign_id_has_a_registered_carousel_header_texture</code></li><li><code>test_every_stage_has_a_registered_description_texture_even_when_empty</code></li></ul></details>
+<details><summary><code>test_carousel_filmstrip.py</code> — Carrossel Horizontal + Audio Preview: janela de vizinhos, cache de miniaturas/fundo/paleta, e o timer de repouso do cursor. (18 testes)</summary><ul><li><code>test_neighbor_window_with_a_single_entry_shows_only_the_focus</code></li><li><code>test_neighbor_window_with_two_entries_shows_only_the_focus_to_avoid_duplicates</code></li><li><code>test_neighbor_window_with_three_entries_shows_both_immediate_neighbors</code></li><li><code>test_neighbor_window_with_four_entries_avoids_the_opposite_duplicate</code></li><li><code>test_neighbor_window_with_five_or_more_entries_shows_the_full_window</code></li><li><code>test_neighbor_window_wraps_around_both_edges</code></li><li><code>test_neighbor_window_is_empty_for_an_empty_catalog</code></li><li><code>test_preview_does_not_start_before_the_hover_threshold</code></li><li><code>test_preview_starts_after_resting_on_a_song_past_the_hover_threshold</code></li><li><code>test_moving_the_cursor_resets_the_hover_timer_and_stops_a_playing_preview</code></li><li><code>test_leaving_the_carousel_stops_any_playing_preview</code></li><li><code>test_preview_uses_thirty_percent_of_the_known_duration_when_available</code></li><li><code>test_cache_carousel_visuals_builds_focused_and_neighbor_variants</code></li><li><code>test_cache_carousel_visuals_skips_stages_without_a_thumbnail</code></li><li><code>test_cache_carousel_visuals_is_idempotent_for_an_already_cached_stage</code></li><li><code>test_draw_carousel_filmstrip_blits_the_focused_and_neighbor_surfaces</code></li><li><code>test_draw_carousel_filmstrip_is_a_no_op_without_any_neighbor_ids</code></li><li><code>test_play_preview_uses_pygame_mixer_with_start_and_fade</code></li></ul></details>
+<details><summary><code>test_chapter_events.py</code> — Eventos de Gameplay via Capitulos do YouTube: bridge chapters -&gt; Modchart sintetico + ChapterEventSystem (Deformacao de Arena). (12 testes)</summary><ul><li><code>test_parse_arena_warp_events_filters_by_type_and_sorts</code></li><li><code>test_parse_arena_warp_events_is_empty_without_any_matching_type</code></li><li><code>test_chapters_to_modchart_events_matches_keywords_case_insensitively</code></li><li><code>test_chapters_to_modchart_events_adds_reverse_scroll_only_in_lanes_mode</code></li><li><code>test_chapters_to_modchart_events_ignores_chapters_without_a_keyword</code></li><li><code>test_chapters_to_modchart_events_is_empty_without_any_chapters</code></li><li><code>test_chapters_to_modchart_events_uses_the_custom_shake_px</code></li><li><code>test_chapter_event_system_triggers_shake_once_per_crossed_event</code></li><li><code>test_chapter_event_system_never_fires_before_its_timestamp</code></li><li><code>test_compose_world_registers_chapter_event_system_only_with_arena_warp_events</code></li><li><code>test_compose_stage_wires_stage_chapters_into_a_chapter_event_system</code></li><li><code>test_compose_stage_ignores_chapters_without_any_matching_keyword</code></li></ul></details>
 <details><summary><code>test_combo_pitch_shift.py</code> — Combo Pitch Shift: a variante de SFX tocada sobe por indice a cada 10 de combo, nunca pitch-shift em tempo real. (5 testes)</summary><ul><li><code>test_variants_are_five_and_the_first_cannon_variant_is_the_original_sound</code></li><li><code>test_shot_sound_for_combo_climbs_one_variant_per_10_combo_capped_at_the_last</code></li><li><code>test_shot_sound_for_combo_is_a_graceful_no_op_without_variants</code></li><li><code>test_note_hit_sound_for_combo_uses_the_same_arithmetic</code></li><li><code>test_perfect_hit_plays_the_cannon_variant_matching_the_new_combo</code></li></ul></details>
 <details><summary><code>test_composition_smoke.py</code> — Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades. (2 testes)</summary><ul><li><code>test_full_track_without_input_resolves_every_threat</code></li><li><code>test_autoplay_perfect_run</code></li></ul></details>
 <details><summary><code>test_config_scaling.py</code> — fit_config_to_display: a geometria inteira encolhe junto quando o monitor e menor que a janela. (3 testes)</summary><ul><li><code>test_large_display_keeps_config_untouched</code></li><li><code>test_small_display_scales_window_and_geometry_uniformly</code></li><li><code>test_narrow_display_is_limited_by_width</code></li></ul></details>
@@ -328,6 +330,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_radial_spawner_system.py</code> — RadialRhythmSpawnerSystem: nasce na borda, chega ao anel do nucleo exatamente na batida. (4 testes)</summary><ul><li><code>test_spawns_only_when_spawn_time_reached</code></li><li><code>test_spawn_position_velocity_and_rhythm_fields</code></li><li><code>test_threat_edge_touches_core_ring_exactly_on_beat</code></li><li><code>test_heavy_threat_uses_heavy_half_extent</code></li></ul></details>
 <details><summary><code>test_ranks.py</code> — Meta-Jogo -- Ranks: SS/S/A/B/C/D calculados por precisao ponderada a partir dos contadores do GameState. (7 testes)</summary><ul><li><code>test_no_notes_resolved_returns_the_placeholder_rank</code></li><li><code>test_all_perfect_and_nothing_else_is_ss</code></li><li><code>test_a_single_good_among_perfects_is_not_ss_and_the_boundary_is_strict</code></li><li><code>test_precision_tiers_use_strict_greater_than_thresholds</code></li><li><code>test_only_misses_is_d</code></li><li><code>test_good_counts_half_of_a_perfect</code></li><li><code>test_rank_order_lists_every_tier_best_to_worst</code></li></ul></details>
 <details><summary><code>test_reactive_background.py</code> — Juice Visual -- Fundo Reativo: visualizer de fundo escalado por quantos eventos vem pela frente. (7 testes)</summary><ul><li><code>test_background_is_silent_far_from_any_upcoming_event</code></li><li><code>test_background_reacts_to_a_single_upcoming_event</code></li><li><code>test_background_saturates_at_max_count</code></li><li><code>test_background_is_off_outside_playing</code></li><li><code>test_background_turns_off_when_leaving_playing</code></li><li><code>test_draw_reactive_background_is_a_no_op_when_intensity_is_zero</code></li><li><code>test_draw_reactive_background_draws_bars_when_active</code></li></ul></details>
+<details><summary><code>test_reactive_palette.py</code> — Estetica Reativa: Paleta Dinamica (GameState.current_palette, tint dos aneis-guia e dos digitos neutros do HUD) e Fundo Imersivo. (10 testes)</summary><ul><li><code>test_compose_world_defaults_to_the_neutral_palette</code></li><li><code>test_compose_world_propagates_a_custom_palette</code></li><li><code>test_score_digits_use_the_custom_palette_base_when_composed_with_one</code></li><li><code>test_apply_palette_tint_registers_a_recolored_digit_atlas</code></li><li><code>test_apply_palette_tint_never_mutates_the_original_white_digit_surface</code></li><li><code>test_tinted_ring_color_blends_toward_the_active_palette</code></li><li><code>test_clear_palette_tint_resets_the_ring_color_to_neutral</code></li><li><code>test_compose_stage_applies_a_cached_non_neutral_palette</code></li><li><code>test_compose_stage_clears_the_palette_for_a_stage_without_a_cached_thumbnail</code></li><li><code>test_compose_stage_works_without_a_renderer_supporting_the_reactive_aesthetic</code></li></ul></details>
 <details><summary><code>test_render_visuals.py</code> — Regressao VISUAL do renderer (pygame headless): textos blitam como glifos, nunca blocos solidos. (6 testes)</summary><ul><li><code>test_word_texture_has_glyph_holes</code></li><li><code>test_word_texture_survives_alpha_roundtrip</code></li><li><code>test_digit_texture_has_glyph_holes</code></li><li><code>test_hidden_sprite_paints_nothing</code></li><li><code>test_modifier_row_labels_fit_within_the_default_window_width</code></li><li><code>test_curated_stage_labels_fit_within_the_default_window_width</code></li></ul></details>
 <details><summary><code>test_results_histogram.py</code> — Acessibilidade -- Histograma de Resultados: distribuicao de precisao sobre o RingBuffer de deltas. (8 testes)</summary><ul><li><code>test_empty_buffer_returns_all_zero_bins</code></li><li><code>test_a_single_on_time_hit_lands_in_the_center_bin</code></li><li><code>test_hits_out_of_range_are_clamped_into_the_edge_bins</code></li><li><code>test_only_the_filled_slots_are_counted_never_the_rest_of_the_ring_buffer</code></li><li><code>test_bin_count_matches_the_declared_constant</code></li><li><code>test_a_perfect_clear_produces_a_histogram_with_one_hit_in_the_center</code></li><li><code>test_draw_hit_error_histogram_is_a_no_op_when_empty</code></li><li><code>test_draw_hit_error_histogram_draws_bars_when_populated</code></li></ul></details>
 <details><summary><code>test_scratch_input_sources.py</code> — scratch_energy tem 3 fontes independentes (mouse/roda/teclas alternadas) -- combinadas por max(). (7 testes)</summary><ul><li><code>test_energy_pulse_saturates_at_one</code></li><li><code>test_energy_pulse_decays_and_floors_at_zero</code></li><li><code>test_energy_pulse_combines_gain_and_decay_in_the_same_call</code></li><li><code>test_alternating_energy_ignores_the_same_side_repeated</code></li><li><code>test_alternating_energy_spikes_on_a_genuine_switch</code></li><li><code>test_alternating_energy_decays_without_any_press</code></li><li><code>test_real_provider_polls_without_crashing_and_starts_at_zero_energy</code></li></ul></details>
@@ -337,6 +340,8 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_ui_bump.py</code> — UI Bump (Juice Visual): digitos do combo destacam ao cruzar um multiplo de 50, esmaecendo de volta. (5 testes)</summary><ul><li><code>test_crossing_a_multiple_of_50_arms_the_bump_timer</code></li><li><code>test_a_piercing_kill_style_jump_that_skips_over_50_still_triggers_the_bump</code></li><li><code>test_bump_timer_decays_with_delta_time_and_never_retriggers_on_a_miss</code></li><li><code>test_combo_digit_texture_base_is_the_bump_gradient_while_armed_and_default_after</code></li><li><code>test_score_digits_never_use_the_bump_texture_base</code></li></ul></details>
 <details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
 <details><summary><code>test_vignette_flash.py</code> — Vignette Flash (&quot;Cegueira Ritmica&quot;): GameState.blindness_timer_sec, decaimento e o overlay pre-renderizado. (4 testes)</summary><ul><li><code>test_trigger_blindness_takes_the_larger_of_overlapping_triggers</code></li><li><code>test_camera_shake_system_also_decays_blindness_timer</code></li><li><code>test_vignette_surface_is_window_sized_with_a_transparent_hole_at_the_judgment_line</code></li><li><code>test_sync_blindness_publishes_game_state_to_the_renderer</code></li></ul></details>
+<details><summary><code>test_youtube_direct_import.py</code> — Pipeline de Importacao Direta (Ctrl+V): deteccao de tecla, thread de background, FLOW_IMPORTING e volta ao Carrossel na musica nova. (10 testes)</summary><ul><li><code>test_ctrl_v_sets_the_paste_action</code></li><li><code>test_v_alone_without_control_does_not_set_paste</code></li><li><code>test_pasting_text_without_a_youtube_url_is_a_no_op</code></li><li><code>test_pasting_a_youtube_url_enters_the_importing_flow_and_starts_a_thread</code></li><li><code>test_a_successful_import_returns_to_the_carousel_pointing_at_the_new_song</code></li><li><code>test_a_successful_import_preserves_curated_and_other_user_songs</code></li><li><code>test_a_failed_import_shows_a_notice_and_returns_to_the_carousel</code></li><li><code>test_re_importing_the_same_video_replaces_it_instead_of_duplicating</code></li><li><code>test_importing_overlay_textures_are_registered</code></li><li><code>test_draw_overlay_handles_the_importing_mode_without_crashing</code></li></ul></details>
+<details><summary><code>test_youtube_import.py</code> — Pipeline de Importacao Direta: deteccao de URL, download via yt-dlp (subprocess FAKE, nunca rede de verdade) e scan de musicas/youtube/. (16 testes)</summary><ul><li><code>test_extract_youtube_url_recognizes_common_formats</code></li><li><code>test_extract_youtube_url_normalizes_a_schemeless_link</code></li><li><code>test_extract_youtube_url_returns_none_without_a_match</code></li><li><code>test_extract_video_id_returns_none_for_a_non_youtube_url</code></li><li><code>test_download_youtube_song_rejects_an_unrecognized_url</code></li><li><code>test_download_youtube_song_builds_the_expected_yt_dlp_command</code></li><li><code>test_download_youtube_song_raises_on_a_nonzero_exit_code</code></li><li><code>test_download_youtube_song_renames_info_json_and_thumbnail_to_canonical_names</code></li><li><code>test_parse_youtube_metadata_normalizes_chapters</code></li><li><code>test_parse_youtube_metadata_falls_back_gracefully_on_missing_fields</code></li><li><code>test_scan_youtube_songs_builds_a_stage_with_real_metadata</code></li><li><code>test_scan_youtube_songs_falls_back_to_folder_name_without_metadata</code></li><li><code>test_scan_youtube_songs_skips_a_folder_without_audio</code></li><li><code>test_scan_youtube_songs_returns_empty_without_the_youtube_subfolder</code></li><li><code>test_scan_user_songs_combines_flat_files_and_youtube_folders</code></li><li><code>test_import_youtube_song_downloads_then_scans_and_returns_the_new_stage</code></li></ul></details>
 <p>Rodar: <code>python -m pytest</code> (na raiz). A suíte inclui <strong>invariantes de jogabilidade</strong>
 sobre os beatmaps versionados: densidade média/pico dentro do humanamente jogável, espaçamento mínimo entre
 janelas de julgamento, margem de fim de faixa (anti-softlock) e pista completa para a primeira ameaça.</p>
@@ -385,6 +390,15 @@ o jogo toca a faixa normalmente um pouco ABAIXO do volume maximo
 (`1.0 - flow_volume_boost`) e faz um SWELL ate 1.0 exatamente
 quando o Flow comeca -- um efeito real e audivel, sem fingir um
 grave que o backend nao pode produzir.</pre>
+<h4><code>.play_preview()</code></h4><pre class="doc">Audio Preview (Carrossel Horizontal): toca um TRECHO da
+musica `track_id` (ja carregada via `load_track`) a partir de
+`start_offset_seconds`, com fade-in de `fade_ms` -- MESMO
+`pygame.mixer.music.play(start=...)` que `play_track` ja usa
+(arg `fade_ms` nativo do pygame, so&#x27; nunca precisou dele ate
+agora). Carregar a musica de novo (`.load()`) troca
+implicitamente a faixa anterior tocando -- pygame so admite UM
+canal de musica por vez, entao nao precisa de nenhum `stop_track`
+explicito ao trocar de preview.</pre>
 </details>
 <details class="module" id="hertzbeats-adapters-hb_pygame_input_provider"><summary><code>hertzbeats/adapters/hb_pygame_input_provider.py</code> — PygameInputProvider estendido: mira 360 via mouse e bindings MULTI-TECLA por acao.</summary>
 <pre class="doc">PygameInputProvider estendido: mira 360 via mouse e bindings MULTI-TECLA por acao.</pre>
@@ -429,7 +443,7 @@ sobre todas as teclas de cada acao, mais os eixos de mira.</pre>
 </details>
 <details class="module" id="hertzbeats-adapters-hb_pygame_renderer"><summary><code>hertzbeats/adapters/hb_pygame_renderer.py</code> — PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</summary>
 <pre class="doc">PygameRenderer estendido com registro de texturas pre-renderizadas e visual radial.</pre>
-<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_GLITCH_BAR_COLOR</code>, <code>_GLITCH_MAX_BARS</code>, <code>_RESULTS_HISTOGRAM_BAR_WIDTH</code>, <code>_RESULTS_HISTOGRAM_BAR_GAP</code>, <code>_RESULTS_HISTOGRAM_MAX_HEIGHT</code>, <code>_RESULTS_HISTOGRAM_COLOR</code>, <code>_RESULTS_HISTOGRAM_CENTER_COLOR</code>, <code>_HIT_ERROR_METER_WIDTH</code>, <code>_HIT_ERROR_METER_RANGE_SECONDS</code>, <code>_HIT_ERROR_METER_RECENT_TICKS</code>, <code>_HIT_ERROR_METER_COLOR</code>, <code>_REACTIVE_BG_BAR_COUNT</code>, <code>_REACTIVE_BG_MAX_HEIGHT</code>, <code>_REACTIVE_BG_COLOR</code>, <code>_GHOST_TRAIL_LENGTH</code>, <code>_GHOST_TRAIL_COLOR</code>, <code>_GHOST_TRAIL_MAX_RADIUS</code>, <code>_HEARTBEAT_DECAY_RATE</code>, <code>_HEARTBEAT_RING_ZOOM</code>, <code>_HEARTBEAT_LANE_WARP</code>, <code>_METRONOME_BAR_WIDTH</code>, <code>_METRONOME_COLOR</code>, <code>_SPARK_COLOR</code>, <code>_ARENA_BG_COLOR</code>, <code>_TUNNEL_COLOR</code>, <code>_MEDAL_GLYPH_SIZE</code>, <code>_MEDAL_GLYPH_GAP</code>, <code>_MEDAL_GLYPH_COLOR</code>, <code>_MEDAL_MAX_GLYPHS</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code>, <code>_HUB_CATEGORIES</code>, <code>_CAROUSEL_DOT_RADIUS</code>, <code>_CAROUSEL_DOT_GAP</code>, <code>_CAROUSEL_DOT_COLOR</code>, <code>_CAROUSEL_DOT_FOCUSED_COLOR</code>, <code>_CALIBRATION_ONTIME_THRESHOLD_SECONDS</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEPS</code></p>
+<p class='constants'>Constantes: <code>_INNER_MARK_COLOR</code>, <code>_FLOW_TIER_PALETTE</code>, <code>_GAME_MODE_ROW</code>, <code>_HEAVY_MECHANIC_ROW</code>, <code>_START_ROW</code>, <code>_GLITCH_BAR_COLOR</code>, <code>_GLITCH_MAX_BARS</code>, <code>_RESULTS_HISTOGRAM_BAR_WIDTH</code>, <code>_RESULTS_HISTOGRAM_BAR_GAP</code>, <code>_RESULTS_HISTOGRAM_MAX_HEIGHT</code>, <code>_RESULTS_HISTOGRAM_COLOR</code>, <code>_RESULTS_HISTOGRAM_CENTER_COLOR</code>, <code>_HIT_ERROR_METER_WIDTH</code>, <code>_HIT_ERROR_METER_RANGE_SECONDS</code>, <code>_HIT_ERROR_METER_RECENT_TICKS</code>, <code>_HIT_ERROR_METER_COLOR</code>, <code>_REACTIVE_BG_BAR_COUNT</code>, <code>_REACTIVE_BG_MAX_HEIGHT</code>, <code>_REACTIVE_BG_COLOR</code>, <code>_GHOST_TRAIL_LENGTH</code>, <code>_GHOST_TRAIL_COLOR</code>, <code>_GHOST_TRAIL_MAX_RADIUS</code>, <code>_HEARTBEAT_DECAY_RATE</code>, <code>_HEARTBEAT_RING_ZOOM</code>, <code>_HEARTBEAT_LANE_WARP</code>, <code>_METRONOME_BAR_WIDTH</code>, <code>_METRONOME_COLOR</code>, <code>_SPARK_COLOR</code>, <code>_ARENA_BG_COLOR</code>, <code>_TUNNEL_COLOR</code>, <code>_MEDAL_GLYPH_SIZE</code>, <code>_MEDAL_GLYPH_GAP</code>, <code>_MEDAL_GLYPH_COLOR</code>, <code>_MEDAL_MAX_GLYPHS</code>, <code>_CHECKBOX_SIZE</code>, <code>_CHECKBOX_GAP</code>, <code>_CHECKBOX_COLOR</code>, <code>_CURSOR_HIGHLIGHT_COLOR</code>, <code>_CURSOR_HIGHLIGHT_PADDING</code>, <code>_HUB_CATEGORIES</code>, <code>_CAROUSEL_DOT_RADIUS</code>, <code>_CAROUSEL_DOT_GAP</code>, <code>_CAROUSEL_DOT_COLOR</code>, <code>_CAROUSEL_DOT_FOCUSED_COLOR</code>, <code>_CALIBRATION_ONTIME_THRESHOLD_SECONDS</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_CAROUSEL_THUMBNAIL_FOCUSED_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_SIZE</code>, <code>_CAROUSEL_THUMBNAIL_SPACING_PX</code>, <code>_CAROUSEL_THUMBNAIL_NEIGHBOR_DARKEN</code>, <code>_BLUR_DOWNSCALE_DIVISOR</code>, <code>_PALETTE_RING_BLEND_FACTOR</code></p>
 <h3>classe <code>HBPygameRenderer</code></h3><pre class="doc">`PygameRenderer` da engine estendido para o Hertz &amp; Beats com:
 
     - `register_texture(texture_id, surface)`: associa um inteiro de
@@ -496,6 +510,11 @@ Multiplicador de Pontuacao, previa ao vivo). `vault_stats`/
 `hit_error_histogram` (Acessibilidade, so em &quot;results&quot;): tupla de
 `RESULTS_HISTOGRAM_BIN_COUNT` contagens ja prontas
 (`compute_hit_error_histogram`, calculada 1x na transicao).
+`carousel_neighbor_stage_ids` (Carrossel Horizontal): janela de
+`stage_id`s ao REDOR do foco (tamanho impar, o do meio e&#x27; o
+foco, `None` em slots sem musica) -- usada so pra escolher qual
+miniatura CACHEADA blitar em cada posicao do filme (nunca
+recalculada aqui, ver `cache_carousel_visuals`).
 Chamado pelo `HertzGameLoop` a cada frame.</pre>
 <h4><code>.set_notice()</code></h4><pre class="doc">Aviso transiente (superficie de overlay pre-registrada, ex.
 calibracao de latencia), desenhado no topo em QUALQUER estado --
@@ -714,6 +733,54 @@ mesmo contrato de `_blit_centered`, pra encadear no `y` do
 chamador.</pre>
 <h4><code>._draw_overlay()</code></h4><pre class="doc">Desenha o overlay do estado publicado por `set_overlay` usando
 apenas superficies pre-renderizadas (nenhum font.render aqui).</pre>
+<h4><code>.cache_carousel_visuals()</code></h4><pre class="doc">Pre-cacheia, POR `stage_id`, tudo que a Estetica Reativa
+precisa: a miniatura em foco (grande/brilhante) e vizinha
+(pequena/escurecida via `BLEND_RGB_MULT`, mascara pre-aplicada
+UMA vez aqui -- nunca por frame), a cor media
+(`pygame.transform.average_color`, Paleta Dinamica) e o fundo
+desfocado/escurecido (`_make_blurred_background`,
+`darken_fraction` = `HertzConfig.carousel_background_darken_fraction`).
+Chamado UMA vez ao ENTRAR no `FLOW_CAROUSEL`
+(`HertzGameLoop._enter_carousel`), nunca por frame -- fases sem
+`StageDef.thumbnail_path` (todo o repositorio curado hoje) ou ja
+cacheadas custam zero aqui.</pre>
+<h4><code>._make_blurred_background()</code></h4><pre class="doc">Fundo Imersivo: copia escalada pro tamanho REAL da janela
+(nunca 1080p fixo -- a janela deste jogo e QUADRADA e pode ser
+redimensionada por `fit_config_to_display`), &quot;borrada&quot; reduzindo
+pra 1/`_BLUR_DOWNSCALE_DIVISOR` do tamanho e escalando de volta
+com interpolacao suave (blur barato, sem depender de PIL/scipy),
+escurecida multiplicando por um cinza (`BLEND_RGB_MULT`, mesma
+tecnica de `_draw_low_health_danger`) por `darken_fraction`
+(0.85 = so 15% do brilho original sobrevive).</pre>
+<h4><code>.thumbnail_average_color()</code></h4><pre class="doc">Paleta Dinamica: cor media CACHEADA da miniatura de
+`stage_id`, ou branco neutro -- `(255,255,255)` multiplicado por
+qualquer cor a deixa intocada, o &quot;sem paleta ativa&quot; -- pra fases
+sem miniatura (a maioria hoje). Lido por
+`HertzGameLoop._compose_stage` pra popular `GameState.
+current_palette`.</pre>
+<h4><code>.thumbnail_background()</code></h4><pre class="doc">Fundo desfocado/escurecido CACHEADO de `stage_id`, ou `None`
+se a fase nao tiver miniatura (fundo solido padrao).</pre>
+<h4><code>.set_background_image()</code></h4><pre class="doc">Fundo Imersivo: define a imagem ESTATICA (ja pronta, ver
+`_make_blurred_background`) blitada por TRAS da arena em
+`begin_frame` -- `None` volta ao fundo solido padrao.</pre>
+<h4><code>.apply_palette_tint()</code></h4><pre class="doc">Paleta Dinamica: (a) guarda `rgb` pra tingir os aneis-guia
+procedurais (`begin_frame`/`_tinted_ring_color`); (b) recolore
+UMA COPIA do atlas de digitos branco (`TEX_DIGIT_BASE`)
+multiplicando por `rgb`, registrada sob `TEX_DIGIT_PALETTE_BASE`
+-- feito UMA vez por CARREGAMENTO de fase (fase de carregamento,
+onde alocar e permitido), nunca por frame. `draw_batch` so
+aplica ALFA a sprites com textura (nunca RGB) -- recolorir a
+textura em si, uma vez, e o unico jeito correto de &quot;tingir&quot; um
+sprite ja pre-renderizado sem mutar a Surface COMPARTILHADA de
+`TEX_DIGIT_BASE` (que fases SEM Paleta Dinamica continuam usando
+intocada).</pre>
+<h4><code>.clear_palette_tint()</code></h4><pre class="doc">Paleta Dinamica: reseta pra nenhum tint ativo -- chamado
+quando a fase NOVA nao tem miniatura, pra nao vazar a Paleta
+Dinamica da fase ANTERIOR nos aneis-guia.</pre>
+<h4><code>._tinted_ring_color()</code></h4><pre class="doc">Paleta Dinamica: Lerp entre a cor NEUTRA do anel-guia e
+`self._palette_tint` (`_PALETTE_RING_BLEND_FACTOR`) -- sem tint
+ativo (`None`, o normal pra fases sem miniatura), devolve
+`base_color` intocada.</pre>
 <h4><code>._draw_title_overlay()</code></h4><pre class="doc">Tela de Titulo: logo pulsando no `beat_phase` (MESMO
 `_heartbeat_pulse` do Anel de Julgamento/Grid Warp -- um &quot;thump&quot;
 seco no inicio de cada compasso, nunca uma oscilacao simetrica) e
@@ -730,6 +797,14 @@ fase de Campanha ainda trancada troca o resumo de progresso por
 um aviso (nao ha rank/medalha relevante numa fase nunca jogada).
 `cycle_view_next`/`cycle_view_prev` (TAB/Q/E) trocam a campanha
 em foco sem sair daqui -- ver `HertzGameLoop._cycle_carousel_view`.</pre>
+<h4><code>._draw_carousel_filmstrip()</code></h4><pre class="doc">Carrossel Horizontal: a miniatura em FOCO (offset 0, grande/
+brilhante) no centro, vizinhas (pequenas/escuras) espalhadas
+pros lados por `_CAROUSEL_THUMBNAIL_SPACING_PX` -- so blita
+Surfaces JA CACHEADAS (`cache_carousel_visuals`); um slot sem
+miniatura cacheada (fase sem `StageDef.thumbnail_path`, vizinho
+vazio ou catalogo pequeno demais pra preencher a janela) nao
+desenha nada, o layout de texto abaixo continua identico.
+Retorna a altura consumida (0 se nada foi desenhado).</pre>
 <h4><code>._draw_preflight_overlay()</code></h4><pre class="doc">Pre-Voo: o Multiplicador de Pontuacao ao vivo no topo (MESMA
 formula `compute_score_multiplier` da composicao real, nunca uma
 conta paralela) seguido do painel de opcoes completo (musicas do
@@ -866,7 +941,7 @@ primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
-<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
+<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_IMPORTING</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
 <h4><code>compute_duck_multiplier()</code></h4><pre class="doc">Audio Ducking: fracao MULTIPLICATIVA do volume da faixa (1.0 =
 normal). `duck_timer_seconds` (contagem regressiva, MESMO idioma dos
 outros timers do jogo) em `duck_duration_seconds`: `duck_volume_fraction`
@@ -883,11 +958,21 @@ em ambos os lugares, nunca calculada duas vezes de jeitos diferentes.</pre>
 <h4><code>modifier_rows_for_game_mode()</code></h4><pre class="doc">Linhas do menu de opcoes pro `game_mode` dado: SEMPRE
 `GAME_MODE_ROW`, `HEAVY_MECHANIC_ROW`, os modifiers booleanos
 daquele modo, e por fim `START_ROW`.</pre>
+<h4><code>carousel_neighbor_window()</code></h4><pre class="doc">Carrossel Horizontal: janela de ate 5 `stage_id`s ao REDOR de
+`position` (o do meio e&#x27; sempre o foco) -- PURA, sem estado,
+testavel isolada. `half_window` (`min(2, (len-1)//2)`) ENCOLHE em
+catalogos pequenos especificamente pra NUNCA repetir a MESMA musica
+duas vezes por causa do wraparound (ex.: 4 entradas com
+half_window=2 mostrariam a oposta duas vezes, uma de cada lado --
+`(4-1)//2 == 1` evita exatamente esse caso). Tupla vazia se
+`entry_stage_ids` estiver vazia (visao sem nenhuma musica).</pre>
 <h3>classe <code>HertzGameLoop</code></h3><pre class="doc">`GameLoop` da engine estendido com a maquina de estados da partida --
 O Novo Fluxo de Menus (Experiencia Arcade):
 
     TITLE -&gt; (confirmar) -&gt; HUB -&gt; CAMPANHA/FREE PLAY -&gt; CAROUSEL
     CAROUSEL -&gt; (confirmar) -&gt; PREFLIGHT -&gt; (START) -&gt; PLAYING &lt;-&gt; PAUSED
+    CAROUSEL -&gt; (CTRL+V, URL do YouTube) -&gt; IMPORTING -&gt; CAROUSEL
+                                             (Free Play, na musica nova)
     HUB -&gt; ARQUIVOS -&gt; VAULT (so-leitura)
     HUB -&gt; CALIBRACAO -&gt; CALIBRATION (metronomo + tecla no tempo)
     PLAYING -&gt; vida zerada -&gt; GAME_OVER -&gt; (R) repete / (M) HUB
@@ -1020,6 +1105,13 @@ e, apenas em PLAYING, avanca a simulacao (`world.step`).</pre>
 <h4><code>._enter_title()</code></h4><pre class="doc">Titulo pulsando com `beat_phase` + BGM em loop (faixa JA
 garantida por `RhythmCompositionRoot.build()`, opcional -- `None`
 e um no-op gracioso, o caso comum dos testes headless).</pre>
+<h4><code>._enter_carousel()</code></h4><pre class="doc">Entra no Carrossel numa VISAO especifica (`campaign_id` ou
+&quot;free_play&quot;) -- ponto UNICO onde a Estetica Reativa pre-cacheia
+miniatura/fundo/paleta de TODO o catalogo (`cache_carousel_visuals`,
+so fases com `StageDef.thumbnail_path` custam algo), UMA vez ao
+entrar, nunca por frame; ciclar visoes com Q/E/TAB dentro do
+Carrossel (`_cycle_carousel_view`) NAO re-executa isso, o
+catalogo inteiro ja foi cacheado aqui.</pre>
 <h4><code>.campaign_ids()</code></h4><pre class="doc">Ids de campanha distintos entre as fases curadas de
 `self._stages`, na ordem de primeira aparicao (`stages.
 campaign_ids`, fonte unica compartilhada com a pre-renderizacao
@@ -1060,6 +1152,57 @@ o Arcade nao exige terminar o Defensor antes).</pre>
 `carousel_views()` (cada campanha + Free Play), enrolando nas
 duas pontas -- a posicao lembrada de CADA visao (`_carousel_index_by_category`)
 e&#x27; preservada entre trocas, nunca reiniciada.</pre>
+<h4><code>._try_import_from_clipboard()</code></h4><pre class="doc">CTRL+V no Carrossel: le o clipboard (`self._clipboard_reader`,
+injetavel -- testes NUNCA tocam o clipboard de verdade), procura
+uma URL do YouTube (`youtube_import.extract_youtube_url`, pura)
+e, se achar, inicia o download em BACKGROUND
+(`_start_youtube_import`). Clipboard sem nenhuma URL reconhecivel
+e&#x27; um no-op silencioso -- colar algo que nao e&#x27; uma URL do
+YouTube nao deveria fazer nada visivel.</pre>
+<h4><code>._start_youtube_import()</code></h4><pre class="doc">Dispara a thread de background do Pipeline de Importacao
+Direta -- `_run_youtube_import_thread` roda INTEIRAMENTE nela
+(download via subprocess + analise do beatmap via librosa, as 2
+etapas de I/O BLOQUEANTE), nunca na thread principal do jogo
+(que so deve tocar pygame/ECS -- SDL/pygame nao e thread-safe
+pra chamadas de renderizacao). O resultado volta por uma
+`queue.Queue` (thread-safe por natureza), consumida em
+`_advance_importing`.</pre>
+<h4><code>._run_youtube_import_thread()</code></h4><pre class="doc">Corpo da thread de background -- NUNCA toca pygame/Surface/
+renderer aqui (regra de thread-safety do SDL). Qualquer falha
+(rede, subprocess, beatmap corrompido) vira uma mensagem na
+fila em vez de derrubar a thread silenciosamente.</pre>
+<h4><code>._advance_importing()</code></h4><pre class="doc">FLOW_IMPORTING: so espera a thread de background terminar --
+NAO cancelavel (encerrar uma thread Python no meio de I/O de
+rede/subprocess nao e seguro, e o download real seria
+interrompido de qualquer forma). So consome o resultado da fila
+quando disponivel, sem bloquear o frame (`get_nowait`).</pre>
+<h4><code>._apply_youtube_import_result()</code></h4><pre class="doc">Substitui SO a fatia `youtube_*` do catalogo (preserva fases
+curadas e musicas soltas intactas -- `youtube_stages` ja vem
+COMPLETA de `scan_youtube_songs`, incluindo importacoes
+anteriores) e volta ao Carrossel (Free Play) ja apontando pra
+musica recem-importada, &quot;instantaneamente&quot; do ponto de vista do
+jogador.
+
+Limitacao aceita: indices de preferencia por-musica
+(`_chosen_game_mode`/`_chosen_modifiers`/etc., chaveados por
+posicao em `self._stages`) de OUTRAS musicas do YouTube podem
+deslocar se o `video_id` novo ordenar alfabeticamente antes
+delas -- edge case raro (configurar uma musica enquanto outra
+importa), documentado aqui em vez de re-arquitetar os ~6 dicts
+de preferencia pra chavear por `stage_id`.</pre>
+<h4><code>._sync_carousel_preview()</code></h4><pre class="doc">Audio Preview: chamado TODO frame (nao so dentro do
+Carrossel) -- fora dele, para qualquer preview tocando e sai. O
+cursor &quot;repousa&quot; na musica em foco por
+`carousel_preview_hover_seconds` (zerado a cada troca de foco OU
+de visao) antes do preview comecar; mudar de musica ANTES disso
+so cancela o timer, nunca chega a tocar nada.</pre>
+<h4><code>._start_carousel_preview()</code></h4><pre class="doc">Audio Preview: toca a partir de `carousel_preview_start_fraction`
+(30% por padrao -- pula a intro, cai perto do groove principal)
+da duracao TOTAL da musica, com fade-in de
+`carousel_preview_fade_ms` -- so&#x27; com um `IAudioEngine` que
+suporte (`play_preview`, ver `HBPygameAudioEngine`; `NullAudioEngine`
+dos testes de fluxo nao precisa, o preview e&#x27; puramente
+cosmetico/audio, nunca afeta `carousel_entries()`/navegacao).</pre>
 <h4><code>._current_score_multiplier()</code></h4><pre class="doc">Previa AO VIVO do Multiplicador de Pontuacao pra tela de
 Pre-Voo -- MESMA formula (`compute_score_multiplier`) aplicada de
 verdade na composicao (`_compose_stage`), nunca recalculada de
@@ -1351,7 +1494,16 @@ sprite-banner de instrucoes e registra o `TutorialSystem`;
 `modchart_events` (da definicao da fase, `StageDef.modchart_events`)
 liga os eventos de Modchart (troca de colunas com Lerp) no
 `LaneChoreographySystem` quando `game_mode == &quot;lanes&quot;` -- dado
-100% game-side, nao existe no `beatmap.json` da engine.</pre>
+100% game-side, nao existe no `beatmap.json` da engine.
+
+`palette_rgb`/`neutral_digit_texture_base` (Estetica Reativa --
+Paleta Dinamica): resolvidos ANTES desta chamada por
+`HertzGameLoop._compose_stage` (o renderer, que faz o recolorimento
+de verdade via `apply_palette_tint`, nao e visivel daqui dentro --
+esta funcao so guarda `palette_rgb` no `GameState` e escolhe qual
+base de textura de digito o `UIRenderSystem` usa). Neutro
+(`(255,255,255)`/`TEX_DIGIT_BASE`) para QUALQUER fase sem miniatura
+-- comportamento IDENTICO ao de antes desta feature.</pre>
 <h4><code>_create_player_core()</code></h4><pre class="doc">Cria a entidade do nucleo no centro da arena e retorna seu indice.</pre>
 <h4><code>_create_hud_sprite()</code></h4><pre class="doc">Cria uma entidade de HUD (`transform` + `sprite`) com posicao fixa
 escrita UMA unica vez aqui; retorna o indice da entidade.</pre>
@@ -1559,24 +1711,49 @@ ao longo da musica (ex.: encolhe no Drop, expande de volta depois),
 desde que os eventos nao se sobreponham no tempo.
 
 Pura e sem estado -- escalar, testavel sem ECS/pygame.</pre>
+<h4><code>parse_arena_warp_events()</code></h4><pre class="doc">Normaliza a lista crua de `stages.json`/eventos sinteticos de
+capitulos do YouTube (`{&quot;type&quot;: &quot;arena_warp&quot;, &quot;time_seconds&quot;,
+&quot;shake_px&quot;}`) em tuplas `(time_seconds, shake_px)` ORDENADAS por
+tempo. Ao contrario de swap/reverse_scroll/vision_tunnel (Lerps
+CONTINUOS), &quot;arena_warp&quot; e&#x27; um disparo UNICO -- so aciona
+`GameState.trigger_shake` no instante exato em que o cursor cruza
+cada timestamp (ver `ChapterEventSystem`), nunca interpolado.</pre>
+<h4><code>chapters_to_modchart_events()</code></h4><pre class="doc">Eventos de Gameplay via Capitulos do YouTube: converte
+`StageDef.chapters` (`{&quot;start_time_seconds&quot;, &quot;title&quot;}`, de
+`metadata.json`) em eventos de Modchart SINTETICOS -- um capitulo
+cujo titulo contenha (case-insensitive) alguma palavra de
+`keywords` (`HertzConfig.chapter_event_keywords`, ex. &quot;drop&quot;,
+&quot;chorus&quot;) sempre gera um &quot;arena_warp&quot; (tremor de tela, os 2 modos)
+e, no Arcade 4K (`game_mode == &quot;lanes&quot;`), TAMBEM um &quot;reverse_scroll&quot;
+-- reaproveita a coreografia global JA existente
+(`ReverseScrollSystem`/`compute_scroll_flip_fraction`), nenhum
+sistema novo precisou ser inventado pra essa parte. Capitulos sem
+nenhuma palavra-chave sao ignorados. Pura -- nenhuma chamada de
+rede/IO, testavel isolada.</pre>
 </details>
 <details class="module" id="hertzbeats-music_library"><summary><code>hertzbeats/music_library.py</code> — Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`</summary>
 <pre class="doc">Biblioteca de musicas do jogador: qualquer audio jogado em `musicas/`
 vira uma fase do menu, com o MODO escolhivel na hora de jogar.
 
 Fluxo (tudo em fase de carregamento, nunca no loop de gameplay):
-    1. `scan_user_songs` varre `musicas/*.mp3|ogg|wav|flac`.
+    1. `scan_user_songs` varre `musicas/*.mp3|ogg|wav|flac` (arquivos
+       soltos, arrastados manualmente) E `musicas/youtube/&lt;video_id&gt;/`
+       (Pipeline de Importacao Direta -- `youtube_import.py`, cada
+       pasta com `audio.&lt;ext&gt;`/`metadata.json`/`cover.jpg`).
     2. Musica nova (ou alterada desde a ultima analise) passa pela IA
        offline da engine (librosa, importada LAZY so aqui) e ganha um
        beatmap cacheado em `data/beatmaps/user/&lt;slug&gt;.beatmap.json` --
        as proximas aberturas sao instantaneas.
     3. Cada musica vira um `StageDef` com `selectable_mode=True`: no
        menu, A/D (ou setas) alternam Defensor / Arcade 4K e suas
-       variantes antes de comecar.
+       variantes antes de comecar. Musicas do YouTube vem com
+       `uploader`/`known_duration_seconds`/`chapters`/`thumbnail_path`
+       reais (de `metadata.json`); musicas soltas ficam com os defaults
+       (so&#x27; o nome do arquivo).
 
 Sem librosa instalado, musicas ja analisadas continuam jogaveis; novas
 sao puladas com aviso no console.</pre>
-<p class='constants'>Constantes: <code>AUDIO_EXTENSIONS</code>, <code>USER_MUSIC_DIR</code>, <code>USER_BEATMAP_DIR</code>, <code>MAX_DISPLAY_NAME</code></p>
+<p class='constants'>Constantes: <code>AUDIO_EXTENSIONS</code>, <code>USER_MUSIC_DIR</code>, <code>USER_BEATMAP_DIR</code>, <code>MAX_DISPLAY_NAME</code>, <code>YOUTUBE_IMPORT_SUBDIR</code>, <code>METADATA_FILENAME</code>, <code>THUMBNAIL_FILENAMES</code></p>
 <h4><code>song_slug()</code></h4><pre class="doc">Identificador estavel derivado do nome do arquivo (minusculas,
 alfanumerico e &#x27;_&#x27;).</pre>
 <h4><code>display_name()</code></h4><pre class="doc">Nome exibido no menu: limpo, maiusculo e truncado.</pre>
@@ -1591,6 +1768,26 @@ camada -- o melhor padrao para musica arbitraria do jogador.</pre>
 <h4><code>scan_user_songs()</code></h4><pre class="doc">Varre a pasta de musicas do jogador e retorna as fases prontas
 (analisando as novas). `on_progress(nome)` e chamado antes de cada
 analise (tela de carregamento); `analyzer` e injetavel para testes.</pre>
+<h4><code>_find_first_existing()</code></h4>
+<h4><code>parse_youtube_metadata()</code></h4><pre class="doc">Le `metadata.json` (info-json do yt-dlp, ja renomeado pelo
+downloader -- ver `youtube_import.download_youtube_song`) e devolve
+so os campos que o jogo usa, com defaults graciosos pra qualquer
+campo ausente (metadados de video sao inconsistentes entre uploads/
+versoes do yt-dlp). Capitulos (`chapters`) sao normalizados pra
+`{&quot;start_time_seconds&quot;, &quot;title&quot;}` -- ver `StageDef.chapters` e
+`modchart.chapters_to_modchart_events`.</pre>
+<h4><code>scan_youtube_songs()</code></h4><pre class="doc">Varre `&lt;music_dir&gt;/youtube/&lt;video_id&gt;/` (Pipeline de Importacao
+Direta): cada subpasta tem `audio.&lt;ext&gt;` + `metadata.json` (opcional
+-- se faltar, cai pros defaults do nome da pasta) + uma miniatura
+(opcional). MESMO fluxo de analise/cache de beatmap de
+`scan_user_songs` (a IA offline nao se importa se o audio veio de um
+arquivo solto ou de um download), so&#x27; com metadados REAIS (titulo,
+uploader, duracao exata, capitulos do YouTube) em vez de so o nome
+do arquivo -- ver `StageDef.uploader`/`known_duration_seconds`/
+`chapters`/`thumbnail_path`. Chamada tanto pelo scan inicial
+(`scan_user_songs`) quanto de dentro da thread de background do
+Pipeline de Importacao Direta, apos um download novo terminar
+(`HertzGameLoop._apply_youtube_import_result`).</pre>
 </details>
 <details class="module" id="hertzbeats-offline-beatmap_pipeline"><summary><code>hertzbeats/offline/beatmap_pipeline.py</code> — Gera beatmaps do Hertz &amp; Beats com a IA offline da engine -- MAPEADOR v2.</summary>
 <pre class="doc">Gera beatmaps do Hertz &amp; Beats com a IA offline da engine -- MAPEADOR v2.
@@ -1744,15 +1941,19 @@ base. Um campo desconhecido em `overrides` e um erro de dados
 (TypeError), nunca silenciosamente ignorado. `overrides` NAO deve
 conter `active_modifiers` (usar o campo dedicado da fase) -- faria
 `dataclasses.replace` reclamar de argumento duplicado.</pre>
-<h4><code>read_stage_bpm_and_duration()</code></h4><pre class="doc">Meta-Jogo -- Carrossel: BPM e duracao aproximada da fase, SO a
-partir de dados JA em disco (`beatmap.json` + `synth` spec) -- nunca
-abre o audio real (evitaria puxar uma lib de decodificacao so pra
-mostrar duracao numa tela de selecao). Fases com `synth` (curadas ou
-re-sintetizadas): duracao EXATA (`bars*4*60/bpm`, a MESMA formula de
-`synthesize_track`). Musicas do jogador (`synth=None`): aproximada
-pelo ultimo instante de ameaca do beatmap + uma folga -- boa o
-bastante pra exibicao, NUNCA usada por nenhum calculo de
-jogabilidade (o `IAudioClock` real e sempre quem manda nisso).</pre>
+<h4><code>read_stage_bpm_and_duration()</code></h4><pre class="doc">Meta-Jogo -- Carrossel: BPM e duracao da fase, SO a partir de
+dados JA em disco (`beatmap.json` + `synth` spec, ou
+`StageDef.known_duration_seconds` quando vem de metadados reais do
+YouTube) -- nunca abre o audio real (evitaria puxar uma lib de
+decodificacao so pra mostrar duracao numa tela de selecao). Fases
+com `synth` (curadas ou re-sintetizadas): duracao EXATA
+(`bars*4*60/bpm`, a MESMA formula de `synthesize_track`). Musicas
+do jogador (`synth=None`): `known_duration_seconds` (Pipeline de
+Importacao Direta, EXATA -- vem do `metadata.json` do video) se
+disponivel, senao aproximada pelo ultimo instante de ameaca do
+beatmap + uma folga -- em ambos os casos NUNCA usada por nenhum
+calculo de jogabilidade (o `IAudioClock` real e sempre quem manda
+nisso).</pre>
 <h3>classe <code>StageDef</code></h3><pre class="doc">Definicao imutavel de UMA fase, carregada de `stages.json`.
 
 Atributos:
@@ -1828,7 +2029,30 @@ Atributos:
         logo abaixo do nome da fase em foco (pre-renderizada como
         textura na composicao, `stage_{i}_description` -- nunca
         `font.render` por frame). String vazia (default, e o normal
-        pras musicas do jogador) so&#x27; nao desenha nada.</pre>
+        pras musicas do jogador) so&#x27; nao desenha nada.
+    thumbnail_path: caminho da miniatura (`cover.jpg`/`thumbnail.webp`)
+        baixada junto do audio pelo Pipeline de Importacao Direta
+        (`youtube_import.py`) -- `None` (default, o normal pras fases
+        curadas do repositorio) desliga toda a Estetica Reativa pra
+        essa fase (fundo padrao, sem Paleta Dinamica). Carregada e
+        cacheada UMA vez ao entrar no Carrossel
+        (`HBPygameRenderer.cache_carousel_visuals`), nunca por frame.
+    uploader: nome do canal/uploader do video, so&#x27; exibicao (Carrossel).
+    known_duration_seconds: duracao EXATA do video (`metadata.json`),
+        quando disponivel -- substitui a duracao APROXIMADA que
+        `read_stage_bpm_and_duration` estimaria pelo beatmap pra
+        musicas sem essa informacao. Tambem e&#x27; a base do Audio
+        Preview (30% desse tempo, ver `HertzGameLoop._start_carousel_preview`).
+        `None` (default) mantem o comportamento antigo (estimativa).
+    chapters: capitulos do YouTube (`metadata.json`, `[{&quot;start_time_seconds&quot;,
+        &quot;title&quot;}, ...]`), 100% GAME-side (nao existe no `beatmap.json`
+        da engine, mesmo espirito de `modchart_events`). Convertidos
+        em eventos de Modchart sinteticos por
+        `modchart.chapters_to_modchart_events` quando o titulo de um
+        capitulo contem uma palavra-chave de intensidade
+        (`HertzConfig.chapter_event_keywords`) -- ver Eventos de
+        Gameplay via Capitulos do YouTube. Tupla vazia (default) e&#x27;
+        um no-op completo.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-boomerang_threat_system"><summary><code>hertzbeats/systems/boomerang_threat_system.py</code> — Ameacas Bumerangue (Defensor, modifier &quot;boomerang&quot;): nascem no nucleo, voam ate a borda e voltam.</summary>
 <pre class="doc">Ameacas Bumerangue (Defensor, modifier &quot;boomerang&quot;): nascem no nucleo, voam ate a borda e voltam.</pre>
@@ -1892,6 +2116,29 @@ Defensor): um contador de QUADROS de renderizacao, nao de segundos
 -- decresce 1 por `update` (1 `update` = 1 frame real de
 `world.step`), nunca por `delta_time`, entao o congelamento dura o
 mesmo numero de quadros independente do FPS real.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-chapter_event_system"><summary><code>hertzbeats/systems/chapter_event_system.py</code> — Eventos de Gameplay via Capitulos do YouTube: dispara &quot;Deformacao de Arena&quot; (tremor) ao cruzar cada evento arena_warp agendado.</summary>
+<pre class="doc">Eventos de Gameplay via Capitulos do YouTube: dispara &quot;Deformacao de Arena&quot; (tremor) ao cruzar cada evento arena_warp agendado.</pre>
+<h3>classe <code>ChapterEventSystem</code></h3><pre class="doc">Dispara `GameState.trigger_shake` UMA VEZ por evento &quot;arena_warp&quot;
+agendado (`modchart.parse_arena_warp_events`, derivado dos
+capitulos do YouTube com palavra-chave de intensidade -- ver
+`modchart.chapters_to_modchart_events`) -- MESMO cursor monotonico
+do `TutorialSystem`/esqueleto de Karaoke (array crescente de
+`time_seconds` comparado ao `IAudioClock` compensado de latencia,
+avancando UM indice por vez, nunca reavaliado do zero, nunca
+disparado duas vezes pro mesmo evento).
+
+So registrado na composicao quando ha PELO MENOS um evento
+&quot;arena_warp&quot; (ver `rhythm_composition_root.compose_world`) -- sem
+capitulos com palavra-chave, nenhum sistema extra entra, zero custo
+por frame (mesma filosofia &quot;so paga quem usa&quot; de toda Mecanica
+Modular). &quot;Deformacao de Arena&quot; e&#x27; deliberadamente um tremor de tela
+(mecanismo JA existente e testado) em vez de ligar Eclipses/Rastros
+a meio da fase -- isso exigiria tornar `active_modifiers` dinamico
+em tempo real, um escopo maior deixado de fora aqui de proposito
+(ver o Modchart &quot;reverse_scroll&quot; sintetico, ja acionado a parte para
+o Arcade 4K em `chapters_to_modchart_events`, pela coreografia
+global JA existente).</pre>
 </details>
 <details class="module" id="hertzbeats-systems-convergence_ring_system"><summary><code>hertzbeats/systems/convergence_ring_system.py</code> — Aneis de Convergencia do Defensor: o aviso visual que encolhe ate o anel de julgamento no ms do hit.</summary>
 <pre class="doc">Aneis de Convergencia do Defensor: o aviso visual que encolhe ate o anel de julgamento no ms do hit.</pre>
@@ -2633,7 +2880,16 @@ comparado ao `IAudioClock`, escolhendo qual `karaoke_line_texture_ids[i]`
 mostrar num unico sprite-banner) para o dia em que uma fase vier com
 legendas reais. Hoje NENHUMA fase popula esses arrays -- todos os 4
 ficam `None` por padrao e `_advance_karaoke_subtitles` e&#x27; um no-op
-completo nesse caso (ver o metodo).</pre>
+completo nesse caso (ver o metodo).
+
+Estetica Reativa -- Paleta Dinamica: `neutral_digit_texture_base`
+(default `TEX_DIGIT_BASE`, o comportamento de sempre) e&#x27; a base
+&quot;sem bump&quot; dos digitos de placar/combo -- quando a fase tem uma
+Paleta Dinamica ativa, `HertzGameLoop._compose_stage` passa
+`TEX_DIGIT_PALETTE_BASE` aqui (a copia recolorida pela cor media da
+miniatura, ja registrada por `HBPygameRenderer.apply_palette_tint`
+ANTES desta composicao) -- o UI Bump continua usando
+`TEX_DIGIT_BUMP_BASE` normalmente, so o &quot;repouso&quot; muda de cor.</pre>
 <h4><code>.update()</code></h4><pre class="doc">Reescreve texture_id/tint_a dos sprites de HUD a partir do
 `GameState` corrente.</pre>
 <h4><code>._advance_karaoke_subtitles()</code></h4><pre class="doc">ESQUELETO -- Crossfading Vocal: MESMO cursor monotonico do
@@ -2649,7 +2905,8 @@ vida -- so a arena e as notas ficam visiveis.</pre>
 estagio de textura dourada (0 = pico, `BUMP_FADE_STEPS-1` = mais
 proximo do branco) por aritmetica sobre a fracao restante do
 timer -- nenhum recolorimento em tempo real, so a ESCOLHA de
-qual base de digito somar.</pre>
+qual base de digito somar. Fora do bump, volta pra
+`_neutral_digit_texture_base` (Paleta Dinamica, se ativa).</pre>
 <h4><code>._write_number()</code></h4><pre class="doc">Extrai os digitos de `value` (base 10, vetorizado, buffers
 `out=`) e grava textura/alfa nos sprites correspondentes; digitos
 alem do mais significativo ficam com alfa 0 (ocultos), exceto o
@@ -2736,6 +2993,81 @@ valor decide o fallback se o id salvo nao existir mais).</pre>
 <h4><code>save_user_palette_id()</code></h4><pre class="doc">Grava a paleta escolhida -- MESMO arquivo da latencia, campo
 INDEPENDENTE (preserva `output_latency_seconds` ja salvo, e
 vice-versa: `save_user_latency` preserva este campo).</pre>
+</details>
+<details class="module" id="hertzbeats-youtube_import"><summary><code>hertzbeats/youtube_import.py</code> — Pipeline de Importacao Direta (Ctrl+V): baixa um video do YouTube via yt-dlp (subprocess) e devolve o catalogo atualizado.</summary>
+<pre class="doc">Pipeline de Importacao Direta (Ctrl+V): baixa um video do YouTube via yt-dlp (subprocess) e devolve o catalogo atualizado.
+
+Chamado INTEIRAMENTE de dentro de uma thread de background
+(`HertzGameLoop._run_youtube_import_thread`) -- nunca na thread
+principal do jogo, que so deve tocar pygame/ECS. As duas etapas
+bloqueantes (a chamada de rede do `yt-dlp` e a analise offline do
+beatmap via librosa) acontecem aqui; o resultado (video_id + catalogo
+`StageDef` atualizado) e devolvido por uma `queue.Queue` -- NUNCA um
+`pygame.Surface`/textura e criado ou tocado neste modulo (SDL/pygame
+nao e thread-safe para chamadas de renderizacao).</pre>
+<p class='constants'>Constantes: <code>_YOUTUBE_HOST_PATTERN</code>, <code>_YOUTUBE_URL_PATTERN</code>, <code>_YOUTUBE_VIDEO_ID_PATTERN</code>, <code>DEFAULT_YT_DLP_COMMAND</code></p>
+<h4><code>extract_youtube_url()</code></h4><pre class="doc">Encontra a PRIMEIRA URL do YouTube (watch/shorts/embed/youtu.be)
+num texto arbitrario (ex.: conteudo colado do clipboard via
+Ctrl+V) -- funcao PURA, nenhuma chamada de rede. `None` se nada
+bater. Normaliza pra sempre incluir o esquema (`https://`), mesmo
+se o texto colado nao tiver um (comum ao colar so o dominio sem o
+`https://` na frente).</pre>
+<h4><code>extract_video_id()</code></h4><pre class="doc">Extrai o ID do video (11+ caracteres) a partir da URL -- usado
+como nome de pasta ESTAVEL (`musicas/youtube/&lt;video_id&gt;/`) sem
+precisar de nenhuma chamada de rede pra decidir onde salvar (o
+titulo real so vem depois, no `metadata.json` baixado).</pre>
+<h4><code>read_system_clipboard()</code></h4><pre class="doc">Leitura REAL do clipboard do sistema (CTRL+V no Carrossel) --
+via `tkinter` (stdlib, disponivel em qualquer instalacao padrao de
+Python) em vez de `pygame.scrap` (exige um modo de video ja ativo e
+tem suporte inconsistente entre plataformas/versoes do SDL). Uma
+janela Tk invisivel (`withdraw`), destruida imediatamente apos ler.
+String vazia se o clipboard estiver vazio ou nao for texto --
+NUNCA levanta, quem chama (`HertzGameLoop._try_import_from_clipboard`)
+so trata &quot;nenhuma URL encontrada&quot; de um jeito, com ou sem essa
+distincao.</pre>
+<h4><code>_rename_if_exists()</code></h4><pre class="doc">`yt-dlp` deriva os nomes de info-json/miniatura do template de
+saida (`audio.%(ext)s` -&gt; `audio.info.json`/`audio.jpg`) -- renomeia
+pros nomes FIXOS que `music_library.scan_youtube_songs` espera
+(`metadata.json`/`cover.jpg`), sem depender de qual extensao exata o
+yt-dlp escolheu pra miniatura.</pre>
+<h4><code>download_youtube_song()</code></h4><pre class="doc">Baixa audio + `metadata.json` + miniatura de UM video via
+`yt-dlp` (subprocess -- NUNCA a biblioteca `yt-dlp` importada
+diretamente, pra manter o processo do jogo livre de qualquer
+travamento/exception interna dela; um subprocess isolado tambem
+sobrevive a uma versao de yt-dlp instalada globalmente, sem
+precisar ser a mesma que o ambiente Python do jogo usa).
+
+Layout de saida (contrato lido por `music_library.scan_youtube_songs`):
+    &lt;music_dir&gt;/youtube/&lt;video_id&gt;/audio.&lt;ext&gt;
+    &lt;music_dir&gt;/youtube/&lt;video_id&gt;/metadata.json
+    &lt;music_dir&gt;/youtube/&lt;video_id&gt;/cover.jpg
+
+`video_id` (extraido da URL, SEM chamada de rede) e&#x27; o nome de
+pasta -- dispensa uma 1a chamada de rede so pra descobrir o titulo
+antes de decidir onde salvar, e e&#x27; estavel/unico por natureza.
+
+`run_subprocess` e&#x27; injetavel (default `subprocess.run`) -- testes
+NUNCA disparam uma chamada de rede de verdade, so verificam que os
+argumentos/comando montados estao corretos contra um FAKE.
+
+Retorna o `Path` da pasta pronta. Levanta `YoutubeImportError` se a
+URL nao tiver um video ID reconhecivel ou se o subprocess retornar
+codigo de saida diferente de zero.</pre>
+<h4><code>import_youtube_song()</code></h4><pre class="doc">Ponto de entrada da thread de background: baixa
+(`download_youtube_song`) e IMEDIATAMENTE re-varre
+`musicas/youtube/` (`music_library.scan_youtube_songs`, que analisa
+qualquer pasta nova via a MESMA IA offline usada por musicas
+soltas) -- as duas etapas de I/O bloqueante (rede + librosa) na
+MESMA thread secundaria, nunca na thread principal do jogo.
+
+Retorna `(video_id, stages)`: `video_id` identifica qual entrada de
+`stages` e&#x27; a recem-importada (`stage_id == f&quot;youtube_{video_id}&quot;`);
+`stages` e&#x27; a lista COMPLETA e atualizada de musicas do YouTube
+(inclui as ja importadas antes, nao so a nova) -- `HertzGameLoop.
+_apply_youtube_import_result` substitui so essa fatia do catalogo,
+preservando fases curadas e musicas soltas intactas.</pre>
+<h3>classe <code>YoutubeImportError</code></h3><pre class="doc">URL do YouTube nao reconhecida, ou `yt-dlp`/a analise de beatmap
+falharam durante o Pipeline de Importacao Direta.</pre>
 </details>
 
 <p class="muted" style="margin-top:4rem">Gerado por <code>tools/build_docs.py</code> a partir do código e
