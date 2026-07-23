@@ -123,6 +123,8 @@ class GameState:
         "hit_delta_filled_count",
         "bot_mode",
         "rogue_run",
+        "phalanx_mode",
+        "core_pulse_seconds_left",
     )
 
     def __init__(
@@ -304,6 +306,36 @@ class GameState:
         corrida). `HertzGameLoop` sincroniza `health` de volta pra
         `rogue_run.health` ao fim de cada fase (vitoria ou derrota),
         nunca no meio dela."""
+        self.phalanx_mode: bool = False
+        """Modo Falange (Undyne, Defensor -- opt-in via "phalanx" em
+        `active_modifiers`): quando `True`, `JudgmentSystem` ignora por
+        completo os cliques de "fire"/"fire_alt" -- em vez de mirar e
+        atirar, o jogador so posiciona um ESCUDO (arco em torno da mira,
+        largura `HertzConfig.phalanx_shield_arc_degrees`) sobre o anel
+        de julgamento; toda ameaca que cruzar o anel DENTRO do arco e
+        bloqueada como PERFECT automatico, sem clique nenhum -- ver
+        `JudgmentSystem._run_phalanx_block_check`. Alternado por
+        `toggle_phalanx` em `PlayerInputSystem` (SFX de equipar +
+        tremor de camera na troca); `HBPygameRenderer` oculta o crosshair
+        convencional (`tint_a=0`) e desenha o arco do escudo enquanto
+        ativo."""
+        self.core_pulse_seconds_left: float = 0.0
+        """Modo Falange -- Juice Visual: segundos restantes do pulso de
+        escala do nucleo (encolhe `HertzConfig.core_pulse_depth` e volta
+        LINEARMENTE ao normal) a cada bloqueio bem-sucedido do escudo --
+        decaido por `CameraShakeSystem` (mesmo criterio de
+        `blindness_timer_sec`: segundos restantes, nao quadros), que
+        tambem escreve a escala interpolada direto no `transform` do
+        nucleo. Acionado via `trigger_core_pulse`, nunca escrito
+        diretamente (mesmo criterio de `trigger_shake`/`trigger_blindness`
+        -- `max()`, nao soma, pra 2 bloqueios no mesmo frame nao
+        somarem um pulso absurdo)."""
+
+    def trigger_core_pulse(self, seconds: float) -> None:
+        """Modo Falange: aciona/reforca o pulso de escala do nucleo a
+        cada bloqueio do escudo. Mesmo criterio de `trigger_shake`:
+        `max()`, nao soma."""
+        self.core_pulse_seconds_left = max(self.core_pulse_seconds_left, float(seconds))
 
     def record_hit_delta(self, delta_seconds: float) -> None:
         """Acessibilidade -- Hit-Error Meter/Histograma de Resultados:

@@ -58,6 +58,7 @@ from hertzbeats.audio.sfx_synth import (
     SFX_NOTE_HIT_VARIANTS,
     SFX_PARRY,
     SFX_SHIELD_BREAK,
+    SFX_SHIELD_EQUIP,
     SFX_TAP,
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
@@ -325,6 +326,9 @@ def _compose_defender_mode(ctx: _ModeContext):
     wormholes_enabled = "wormholes" in modifiers
     mirages_enabled = "mirages" in modifiers
     rubber_band_enabled = "rubber_band" in modifiers
+    # Modo Falange (Undyne): independente (nao exige "polarity") -- e'
+    # o OPOSTO da Polaridade, substitui o tiro por completo.
+    phalanx_enabled = "phalanx" in modifiers
 
     scheduled = _reinterpret_scheduled_for_modifiers(ctx.scheduled, config, modifiers)
 
@@ -388,6 +392,10 @@ def _compose_defender_mode(ctx: _ModeContext):
             game_state=ctx.game_state,
             dash_duration_seconds=config.dash_duration_seconds,
             dash_cooldown_seconds=config.dash_cooldown_seconds,
+            phalanx_enabled=phalanx_enabled,
+            audio_engine=ctx.audio_engine,
+            phalanx_equip_sound_id=SFX_SHIELD_EQUIP,
+            phalanx_activate_shake_px=config.phalanx_activate_shake_px,
         )
     )
     ctx.world.register_system(spawner_system)
@@ -495,6 +503,10 @@ def _compose_defender_mode(ctx: _ModeContext):
             mirage_vanish_seconds=config.mirage_vanish_seconds,
             vampirism_combo_threshold=config.vampirism_combo_threshold,
             vampirism_max_health=config.vampirism_max_health,
+            center_xy=(center_x, center_y),
+            phalanx_radius_tolerance=config.phalanx_radius_tolerance_px,
+            phalanx_shield_arc_rad=math.radians(config.phalanx_shield_arc_degrees) / 2.0,
+            core_pulse_seconds=config.core_pulse_seconds,
         )
     )
     # Captura Orbital ("orbital_shields"): mesmo padrao de
@@ -1164,8 +1176,23 @@ def compose_world(
 
     # Screen Shake: decaimento comum aos 2 modos, independente de quem
     # aciona `GameState.trigger_shake` -- qualquer mecanica so precisa
-    # chamar o mesmo metodo, sem registrar nada extra aqui.
-    world.register_system(CameraShakeSystem(game_state, config.shake_decay_per_second))
+    # chamar o mesmo metodo, sem registrar nada extra aqui. Tambem cuida
+    # do Pulso do Nucleo (Modo Falange, Defensor) -- `player_entity_index`
+    # existe nos 2 modos (a entidade "player_core" e criada
+    # incondicionalmente acima), entao a escrita de escala e' inofensiva
+    # no Arcade 4K tambem (so' nunca e' acionada la, sem `JudgmentSystem`
+    # do Defensor pra chamar `trigger_core_pulse`).
+    world.register_system(
+        CameraShakeSystem(
+            game_state,
+            config.shake_decay_per_second,
+            memory_manager=memory_manager,
+            player_entity_index=player_entity_index,
+            core_base_scale=config.core_half_extent / 8.0,
+            core_pulse_seconds=config.core_pulse_seconds,
+            core_pulse_depth=config.core_pulse_depth,
+        )
+    )
 
     # Eventos de Gameplay via Capitulos do YouTube ("Deformacao de
     # Arena"): comum aos 2 modos, so registrado quando ha PELO MENOS um

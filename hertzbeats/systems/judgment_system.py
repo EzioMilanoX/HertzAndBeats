@@ -110,6 +110,10 @@ class JudgmentSystem(ISystem):
         mirage_vanish_seconds: float = 0.03,
         vampirism_combo_threshold: int = 0,
         vampirism_max_health: int = 0,
+        center_xy: tuple = (0.0, 0.0),
+        phalanx_radius_tolerance: float = 0.0,
+        phalanx_shield_arc_rad: float = 0.0,
+        core_pulse_seconds: float = 0.15,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -210,6 +214,24 @@ class JudgmentSystem(ISystem):
         aqui (inteiro/resto), sem o `JudgmentSystem` saber que "Perks"
         existem -- os campos ja chegam prontos de
         `HertzGameLoop._compose_stage`/`GameState.rogue_run`.
+
+        MODO FALANGE (Undyne, `GameState.phalanx_mode`, opt-in via
+        "phalanx" em `active_modifiers`): substitui por COMPLETO o
+        tiro manual -- nenhuma leitura de `is_action_pressed`/misfire
+        acontece enquanto ativo (ver `update`). Em vez disso,
+        `_run_phalanx_block_check` varre TODA ameaca PENDENTE a cada
+        frame: se o RAIO atual (lido do `transform_pool`, distancia ao
+        centro -- nao o relogio) estiver a `phalanx_radius_tolerance`
+        do anel de julgamento (`GameState.current_judgment_radius`) E o
+        angulo (`spawn_angle_rad`, fixo desde o spawn -- o movimento
+        radial e sempre puramente angular-constante) estiver dentro de
+        `phalanx_shield_arc_rad` da mira atual, e bloqueada como PERFECT
+        automatico (destruida, pontua, mantem o combo, aciona
+        `GameState.trigger_core_pulse`). Uma ameaca que passa direto
+        (fora do raio ou do arco) segue seu curso normal -- a varredura
+        generica de MISS (`_sweep_overdue_misses`) e o dano por colisao
+        do `CoreDamageSystem` continuam intocados, "MISS e dano como de
+        costume".
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -265,6 +287,11 @@ class JudgmentSystem(ISystem):
         self._mirage_vanish_seconds = float(mirage_vanish_seconds)
         self._vampirism_combo_threshold = int(vampirism_combo_threshold)
         self._vampirism_max_health = int(vampirism_max_health)
+        self._center_x = float(center_xy[0])
+        self._center_y = float(center_xy[1])
+        self._phalanx_radius_tolerance = float(phalanx_radius_tolerance)
+        self._phalanx_shield_arc_rad = float(phalanx_shield_arc_rad)
+        self._core_pulse_seconds = float(core_pulse_seconds)
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -284,6 +311,10 @@ class JudgmentSystem(ISystem):
         self._duration_mask = np.zeros(capacity, dtype=bool)
         self._orbiting_mask = np.zeros(capacity, dtype=bool)
         self._mirage_mask = np.zeros(capacity, dtype=bool)
+        self._phalanx_pending_mask = np.zeros(capacity, dtype=bool)
+        self._phalanx_radius_buffer = np.zeros(capacity, dtype=np.float64)
+        self._phalanx_angle_buffer = np.zeros(capacity, dtype=np.float64)
+        self._phalanx_block_mask = np.zeros(capacity, dtype=bool)
 
     def update(self, world: World, delta_time: float) -> None:
         """Executa o julgamento do frame: (1) varre MISSes vencidos,
@@ -302,30 +333,38 @@ class JudgmentSystem(ISystem):
             self._run_bot_mode(world)
             return
 
+        # Modo Falange: enquanto ativo, o tiro manual nao existe -- nem
+        # sequer LEMOS "fire"/"fire_alt" (nenhum misfire, nenhuma troca
+        # de forma do nucleo por cor). O bloqueio passivo roda mais
+        # abaixo (`_run_phalanx_block_check`), depois das varreduras de
+        # MISS/Hold/Mirage de sempre.
+        phalanx_active = self._game_state.phalanx_mode
+
         player_row = self._player_pool.dense_row_of(self._player_entity_index)
         gun_jammed = float(self._player_pool.active_view()["gun_jam_sec"][player_row]) > 0.0
 
-        # Sem Polaridade: um unico gatilho, sem cor. Com Polaridade: os
-        # dois botoes (azul/rosa) sao checados nesta ordem fixa a cada
-        # frame -- cada um e um disparo INDEPENDENTE contra a pool.
-        fire_events = [(self._fire_action_name, POLARITY_BLUE)]
-        if self._polarity_enabled:
-            fire_events.append((self._fire_alt_action_name, POLARITY_PINK))
-
         triggered_polarities = []
-        for action_name, polarity in fire_events:
-            if self._input_provider.is_action_pressed(action_name):
-                if gun_jammed:
-                    self._play(self._jam_sound_id, 0.4)
-                else:
-                    triggered_polarities.append(polarity)
+        if not phalanx_active:
+            # Sem Polaridade: um unico gatilho, sem cor. Com Polaridade:
+            # os dois botoes (azul/rosa) sao checados nesta ordem fixa a
+            # cada frame -- cada um e um disparo INDEPENDENTE contra a pool.
+            fire_events = [(self._fire_action_name, POLARITY_BLUE)]
+            if self._polarity_enabled:
+                fire_events.append((self._fire_alt_action_name, POLARITY_PINK))
 
-        if self._polarity_enabled and triggered_polarities:
-            # acessibilidade a daltonismo (item 1 do pedido de polimento):
-            # o NUCLEO muda de forma (triangulo/quadrado, mesmo simbolo
-            # das ameacas) ao trocar de cor -- reforco visual de "voce
-            # esta atirando NESTA cor agora", independente de acerto.
-            self._set_core_polarity_shape(triggered_polarities[-1])
+            for action_name, polarity in fire_events:
+                if self._input_provider.is_action_pressed(action_name):
+                    if gun_jammed:
+                        self._play(self._jam_sound_id, 0.4)
+                    else:
+                        triggered_polarities.append(polarity)
+
+            if self._polarity_enabled and triggered_polarities:
+                # acessibilidade a daltonismo (item 1 do pedido de polimento):
+                # o NUCLEO muda de forma (triangulo/quadrado, mesmo simbolo
+                # das ameacas) ao trocar de cor -- reforco visual de "voce
+                # esta atirando NESTA cor agora", independente de acerto.
+                self._set_core_polarity_shape(triggered_polarities[-1])
 
         active_count = self._threat_pool.count
         if active_count == 0:
@@ -413,8 +452,11 @@ class JudgmentSystem(ISystem):
         if self._hold_threat_type_id is not None:
             self._sweep_engaged_holds(world, threat_view, active_count, now_effective, delta_time)
 
-        for polarity in triggered_polarities:
-            self._try_player_hit(world, threat_view, deltas, active_count, polarity)
+        if phalanx_active:
+            self._run_phalanx_block_check(world, threat_view, active_count)
+        else:
+            for polarity in triggered_polarities:
+                self._try_player_hit(world, threat_view, deltas, active_count, polarity)
 
     def _run_bot_mode(self, world: World) -> None:
         """Developer Tools -- Auto-Play (Modo Deus, `GameState.bot_mode`):
@@ -567,6 +609,105 @@ class JudgmentSystem(ISystem):
             row_int = int(row)
             threat_view["judgment"][row_int] = JUDGMENT_DODGED
             world.destroy_entity(int(threat_view["packed_handle"][row_int]))
+
+    def _run_phalanx_block_check(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        active_count: int,
+    ) -> None:
+        """Modo Falange (Undyne): bloqueio PASSIVO continuo -- roda TODO
+        frame que `GameState.phalanx_mode` estiver ativo, sem precisar de
+        nenhum clique. Uma ameaca vira PERFECT automatico quando o RAIO
+        atual (lido do `transform_pool`, distancia ate o centro -- nao o
+        relogio) estiver a `phalanx_radius_tolerance` do anel de
+        julgamento E o angulo (`spawn_angle_rad`, fixo desde o spawn --
+        o voo radial e sempre puramente angular-constante) estiver
+        dentro de `phalanx_shield_arc_rad` da mira atual.
+
+        Recalcula `pending` do ZERO com a MESMA cadeia de exclusao do
+        topo de `update()` (Holds engajados/refletidos/escudos
+        orbitais/fantasmas continuam PENDING de proposito, cada um com
+        seu proprio ciclo de vida) -- nunca reusa a mascara de la, ja
+        desatualizada apos as varreduras de MISS/Hold/Mirage rodarem
+        neste mesmo frame (mesmo motivo de `_sweep_vanishing_mirages`).
+        """
+        pending = self._phalanx_pending_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(pending, self._owned_mask[:active_count], out=pending)
+
+        not_engaged = self._phalanx_block_mask[:active_count]
+        np.logical_not(threat_view["is_hit"], out=not_engaged)
+        np.logical_and(pending, not_engaged, out=pending)
+
+        if self._heavy_threat_type_id is not None:
+            not_reflected = self._phalanx_block_mask[:active_count]
+            np.logical_not(threat_view["is_reflected"], out=not_reflected)
+            np.logical_and(pending, not_reflected, out=pending)
+
+        if self._orbit_threat_type_id is not None:
+            not_orbiting = self._phalanx_block_mask[:active_count]
+            np.not_equal(threat_view["phase"], PHASE_ORBITING, out=not_orbiting)
+            np.logical_and(pending, not_orbiting, out=pending)
+
+        if self._mirages_enabled:
+            not_mirage = self._phalanx_block_mask[:active_count]
+            np.logical_not(threat_view["is_mirage"], out=not_mirage)
+            np.logical_and(pending, not_mirage, out=pending)
+
+        if not np.any(pending):
+            return
+
+        player_row = self._player_pool.dense_row_of(self._player_entity_index)
+        aim_angle = float(self._player_pool.active_view()["aim_angle_rad"][player_row])
+
+        entity_indices = self._threat_pool.active_entity_indices()
+        transform_rows = self._transform_pool.dense_rows_of(entity_indices)
+        transform_view = self._transform_pool.active_view()
+
+        radius = self._phalanx_radius_buffer[:active_count]
+        dx = transform_view["position_x"][transform_rows] - self._center_x
+        dy = transform_view["position_y"][transform_rows] - self._center_y
+        np.hypot(dx, dy, out=radius)
+        np.subtract(radius, self._game_state.current_judgment_radius, out=radius)
+        np.abs(radius, out=radius)
+        in_band = self._candidate_mask[:active_count]
+        np.less_equal(radius, self._phalanx_radius_tolerance, out=in_band)
+
+        angles = self._phalanx_angle_buffer[:active_count]
+        np.subtract(threat_view["spawn_angle_rad"], aim_angle, out=angles)
+        np.add(angles, math.pi, out=angles)
+        np.mod(angles, _TAU, out=angles)
+        np.subtract(angles, math.pi, out=angles)
+        np.abs(angles, out=angles)
+        in_arc = self._pre_polarity_mask[:active_count]
+        np.less_equal(angles, self._phalanx_shield_arc_rad, out=in_arc)
+
+        blocked = self._phalanx_block_mask[:active_count]
+        np.logical_and(in_band, in_arc, out=blocked)
+        np.logical_and(blocked, pending, out=blocked)
+
+        rows = np.flatnonzero(blocked)
+        if rows.shape[0] == 0:
+            return
+
+        state = self._game_state
+        for row in rows:
+            row = int(row)
+            threat_view["is_hit"][row] = True
+            threat_view["judgment"][row] = JUDGMENT_PERFECT
+            world.destroy_entity(int(threat_view["packed_handle"][row]))
+            state.score += self._score_perfect
+            state.perfect_count += 1
+            state.combo_count += 1
+            if state.combo_count > state.max_combo:
+                state.max_combo = state.combo_count
+            if self._vampirism_combo_threshold > 0:
+                self._apply_vampirism_heal(state)
+            self._emit_perfect_sparks()
+        state.trigger_core_pulse(self._core_pulse_seconds)
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+        self._play(self._parry_sound_id, 1.0)
 
     def _set_core_polarity_shape(self, polarity: int) -> None:
         """Troca o `texture_id` do sprite do nucleo para a variante com o

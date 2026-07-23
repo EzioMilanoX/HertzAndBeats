@@ -33,6 +33,13 @@ class PlayerInputSystem(ISystem):
           frame -- Colapso do Anel de Julgamento -- nunca uma constante
           capturada no construtor) e pisca o tint do nucleo durante os
           i-frames.
+        - Modo Falange (Undyne, opt-in via "phalanx" em `active_modifiers`):
+          `toggle_phalanx` alterna `GameState.phalanx_mode` (SFX de
+          equipar + tremor de camera nos 2 sentidos -- entrar E sair) e
+          o crosshair convencional some (`tint_a=0`, mesmo mecanismo ja
+          usado pelo dimming do jam da arma) enquanto ativo -- o
+          `HBPygameRenderer` desenha o arco do escudo no lugar dele (ver
+          `JudgmentSystem._run_phalanx_block_check`).
 
     Zero-GC: apenas leituras/escritas escalares em linhas densas
     re-resolvidas por frame (`dense_row_of`, nunca cacheadas -- um
@@ -49,6 +56,11 @@ class PlayerInputSystem(ISystem):
         game_state: GameState,
         dash_duration_seconds: float,
         dash_cooldown_seconds: float,
+        phalanx_enabled: bool = False,
+        toggle_phalanx_action_name: str = "toggle_phalanx",
+        audio_engine=None,
+        phalanx_equip_sound_id: str = None,
+        phalanx_activate_shake_px: float = 0.0,
     ) -> None:
         """Resolve pools uma unica vez; guarda indices/afinacao primitivos."""
         self._input_provider = input_provider
@@ -62,6 +74,11 @@ class PlayerInputSystem(ISystem):
         self._game_state = game_state
         self._dash_duration_seconds = float(dash_duration_seconds)
         self._dash_cooldown_seconds = float(dash_cooldown_seconds)
+        self._phalanx_enabled = bool(phalanx_enabled)
+        self._toggle_phalanx_action_name = toggle_phalanx_action_name
+        self._audio_engine = audio_engine
+        self._phalanx_equip_sound_id = phalanx_equip_sound_id
+        self._phalanx_activate_shake_px = float(phalanx_activate_shake_px)
 
     def update(self, world: World, delta_time: float) -> None:
         """Atualiza mira, dash e timers do jogador para este frame."""
@@ -86,6 +103,18 @@ class PlayerInputSystem(ISystem):
         gun_jam = float(player_view["gun_jam_sec"][player_row]) - delta_time
         player_view["gun_jam_sec"][player_row] = gun_jam if gun_jam > 0.0 else 0.0
 
+        # Modo Falange (Undyne, opt-in "phalanx"): alterna nos 2
+        # sentidos (entrar E sair tocam o MESMO SFX de equipar + o
+        # MESMO tremor -- e' a mesma acao fisica de erguer/baixar o
+        # escudo). So' reage a tecla quando o modifier esta ativo nesta
+        # fase (`_phalanx_enabled`), mesma filosofia graciosa do resto
+        # das Mecanicas Modulares.
+        if self._phalanx_enabled and self._input_provider.is_action_pressed(self._toggle_phalanx_action_name):
+            self._game_state.phalanx_mode = not self._game_state.phalanx_mode
+            self._play(self._phalanx_equip_sound_id, 0.8)
+            if self._phalanx_activate_shake_px > 0.0:
+                self._game_state.trigger_shake(self._phalanx_activate_shake_px)
+
         crosshair_row = self._transform_pool.dense_row_of(self._crosshair_entity_index)
         transform_view = self._transform_pool.active_view()
         orbit_radius = self._game_state.current_judgment_radius
@@ -97,10 +126,15 @@ class PlayerInputSystem(ISystem):
         )
         transform_view["rotation_rad"][crosshair_row] = aim_angle
 
-        # feedback do jam: a mira apaga enquanto a arma nao responde
+        # feedback do jam/Falange: a mira apaga enquanto a arma nao
+        # responde OU some por completo (o escudo desenhado pelo
+        # renderer ocupa o lugar dela) durante o Modo Falange.
         crosshair_sprite_row = self._sprite_pool.dense_row_of(self._crosshair_entity_index)
         sprite_view = self._sprite_pool.active_view()
-        sprite_view["tint_a"][crosshair_sprite_row] = 80 if gun_jam > 0.0 else 255
+        if self._game_state.phalanx_mode:
+            sprite_view["tint_a"][crosshair_sprite_row] = 0
+        else:
+            sprite_view["tint_a"][crosshair_sprite_row] = 80 if gun_jam > 0.0 else 255
 
         player_sprite_row = self._sprite_pool.dense_row_of(self._player_entity_index)
         sprite_view = self._sprite_pool.active_view()
@@ -112,3 +146,10 @@ class PlayerInputSystem(ISystem):
             sprite_view["tint_r"][player_sprite_row] = 240
             sprite_view["tint_g"][player_sprite_row] = 240
             sprite_view["tint_b"][player_sprite_row] = 255
+
+    def _play(self, sound_id, volume: float) -> None:
+        """Dispara um SFX se houver backend e som configurados (testes
+        headless injetam NullAudioEngine ou nada) -- mesmo helper
+        duplicado em `JudgmentSystem`/`CoreDamageSystem`."""
+        if self._audio_engine is not None and sound_id is not None:
+            self._audio_engine.play_one_shot(sound_id, volume)

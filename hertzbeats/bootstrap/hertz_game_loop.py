@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 import queue
 import random
 import shutil
@@ -267,6 +268,7 @@ DEFENDER_MODIFIER_ROWS = (
     "boomerang",
     "corrupcao",
     "roleta_russa",
+    "phalanx",
 )
 LANES_MODIFIER_ROWS = ("corrupcao", "roleta_russa")
 """Linhas de modifier BOOLEANO (checkbox) mostradas por `game_mode`,
@@ -2334,6 +2336,30 @@ class HertzGameLoop(GameLoop):
             self._dev_mode, self._dev_mode_code_progress, self._debug_unlock_all,
         )
 
+    def _sync_phalanx_mode(self) -> None:
+        """Modo Falange (Undyne, Defensor): publica `GameState.phalanx_mode`
+        + a mira atual (lida do `rotation_rad` do crosshair -- o
+        `PlayerInputSystem` ja o alinha com `aim_angle_rad` neste mesmo
+        frame, mesma entidade ja resolvida por `_sync_ghost_trail`) +
+        metade do arco do escudo (`HertzConfig.phalanx_shield_arc_degrees`)
+        pro renderer desenhar o arco em `begin_frame`. Fora de
+        `FLOW_PLAYING`/Defensor, ou entre uma fase e outra, sempre
+        desliga -- mesmo criterio de `_sync_bot_mode_indicator`."""
+        if not hasattr(self._renderer, "set_phalanx_state"):
+            return
+        if self._composed is None or self._flow != FLOW_PLAYING or self._stage_config.game_mode != "defender":
+            self._renderer.set_phalanx_state(False, 0.0, 0.0)
+            return
+        state = self._composed.game_state
+        if not state.phalanx_mode:
+            self._renderer.set_phalanx_state(False, 0.0, 0.0)
+            return
+        transform_pool = self._composed.memory_manager.get_pool("transform")
+        row = transform_pool.dense_row_of(self._composed.crosshair_entity_index)
+        aim_angle = float(transform_pool.active_view()["rotation_rad"][row])
+        half_arc = math.radians(self._stage_config.phalanx_shield_arc_degrees) / 2.0
+        self._renderer.set_phalanx_state(True, aim_angle, half_arc)
+
     def _sync_ghost_trail(self) -> None:
         """Juice Visual -- Ghost Trails: grava a posicao ATUAL da mira no
         RingBuffer do renderer, so durante `FLOW_PLAYING` no Defensor
@@ -2505,6 +2531,7 @@ class HertzGameLoop(GameLoop):
             self._sync_low_health_danger()
             self._sync_bot_mode_indicator()
             self._sync_dev_mode_indicator()
+            self._sync_phalanx_mode()
             self._sync_ghost_trail()
             self._sync_corruption_glitch()
             self._sync_reactive_background()

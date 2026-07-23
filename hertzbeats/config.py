@@ -113,6 +113,13 @@ class HertzConfig:
     #                            cosmetico, nenhuma mudanca de
     #                            jogabilidade (`HBPygameRenderer.
     #                            _draw_glitch_bars`)
+    #      "phalanx"          -- Defensor (independente), Modo Falange
+    #                            (Undyne): `toggle_phalanx` troca o tiro
+    #                            manual por um escudo automatico (arco em
+    #                            torno da mira sobre o anel de julgamento)
+    #                            -- reduz fadiga de clique variando o
+    #                            ritmo (ver `JudgmentSystem.
+    #                            _run_phalanx_block_check`)
     #    Um modifier cuja dependencia nao esta presente (ex.:
     #    "orbital_shields" sem "polarity") degrada silenciosamente para
     #    no-op -- nunca lanca erro (mesma filosofia de opt-in gracioso ja
@@ -374,6 +381,31 @@ class HertzConfig:
     vampirism_combo_threshold: int = 0
     vampirism_max_health: int = 0
 
+    # -- Modo Falange (Undyne, Defensor) -- opt-in via "phalanx" em
+    #    `active_modifiers`: substitui o tiro manual por um ESCUDO que
+    #    bloqueia automaticamente qualquer ameaca que cruze o anel de
+    #    julgamento DENTRO do arco em torno da mira -- ver
+    #    `PlayerInputSystem` (alterna via `toggle_phalanx`) e
+    #    `JudgmentSystem._run_phalanx_block_check`.
+    phalanx_radius_tolerance_px: float = 24.0
+    """Faixa (px, em torno de `current_judgment_radius`) em que o
+    escudo bloqueia -- MESMA unidade de `spawn_radius`/`wormhole_teleport_radius`,
+    escalada junto com a janela em `fit_config_to_display`."""
+    phalanx_shield_arc_degrees: float = 45.0
+    """Largura TOTAL do arco do escudo (metade pra cada lado da mira) --
+    mesma convencao de `aim_tolerance_degrees` (graus, convertido pra
+    radianos na composicao)."""
+    phalanx_activate_shake_px: float = 12.0
+    """Tremor de camera ao ALTERNAR o Modo Falange (entrar OU sair) --
+    `GameState.trigger_shake`, mesmo mecanismo de sempre."""
+    core_pulse_seconds: float = 0.15
+    """Modo Falange -- Juice Visual: duracao do pulso de escala do
+    nucleo a cada bloqueio (encolhe `core_pulse_depth` e volta
+    LINEARMENTE ao normal ao longo deste tempo)."""
+    core_pulse_depth: float = 0.10
+    """Modo Falange: fracao de encolhimento do nucleo no INSTANTE do
+    bloqueio (0.10 = 90% do tamanho normal), decaindo de volta a 1.0."""
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -496,6 +528,11 @@ class HertzConfig:
             mirage_vanish_seconds=raw.get("mirage_vanish_seconds", 0.03),
             vampirism_combo_threshold=raw.get("vampirism_combo_threshold", 0),
             vampirism_max_health=raw.get("vampirism_max_health", 0),
+            phalanx_radius_tolerance_px=raw.get("phalanx_radius_tolerance_px", 24.0),
+            phalanx_shield_arc_degrees=raw.get("phalanx_shield_arc_degrees", 45.0),
+            phalanx_activate_shake_px=raw.get("phalanx_activate_shake_px", 12.0),
+            core_pulse_seconds=raw.get("core_pulse_seconds", 0.15),
+            core_pulse_depth=raw.get("core_pulse_depth", 0.10),
         )
 
 
@@ -534,4 +571,5 @@ def fit_config_to_display(
             name: half * scale for name, half in config.threat_half_extents.items()
         },
         wormhole_teleport_radius=config.wormhole_teleport_radius * scale,
+        phalanx_radius_tolerance_px=config.phalanx_radius_tolerance_px * scale,
     )

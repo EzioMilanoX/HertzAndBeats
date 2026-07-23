@@ -217,6 +217,13 @@ a largura padrao da janela (960px) -- todos abaixo de ~910px (mesma faixa
 dos hints ja existentes, 886-894px) para nunca estourar as bordas do
 `_blit_centered` (que so centraliza, nunca quebra linha nem escala)."""
 
+_PHALANX_CONTROL_HINT = (
+    "C alterna o Escudo  |  MOUSE mira o arco  |  bloqueia sozinho -- sem clique"
+)
+"""Modo Falange (Undyne): o UNICO modifier que troca o controle de
+disparo por COMPLETO (nada de clique) -- por isso vence QUALQUER outro
+na prioridade de dica abaixo, mais ainda que o Overload."""
+
 _HOLDS_HINT_BY_MODE = {
     "defender": _HOLDS_CONTROL_HINT,
     "lanes": _LANES_HOLDS_CONTROL_HINT,
@@ -245,6 +252,7 @@ _MODIFIER_ROW_LABELS = {
     "boomerang": "Ameacas Bumerangue (deixe ir, atire na volta)",
     "corrupcao": "Corrupcao (estatica visual na tela)",
     "roleta_russa": "Roleta Russa (1 de vida -- qualquer erro e Game Over)",
+    "phalanx": "Modo Falange (C alterna: escudo automatico em vez de tiro)",
 }
 """Rotulo de CADA linha BOOLEANA (checkbox) do menu de opcoes do
 seletor de minigame -- um por modifier de
@@ -383,7 +391,9 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         # Overload vence porque e o UNICO que muda um controle de
         # verdade (uso do Dash), os demais so mudam o que acontece no
         # campo de batalha em cima do mesmo clique esq/dir de Polaridade.
-        if "overload" in stage.active_modifiers:
+        if "phalanx" in stage.active_modifiers:
+            hint_text = _PHALANX_CONTROL_HINT
+        elif "overload" in stage.active_modifiers:
             hint_text = _OVERLOAD_CONTROL_HINT
         elif "orbital_shields" in stage.active_modifiers:
             hint_text = _ORBITAL_SHIELDS_CONTROL_HINT

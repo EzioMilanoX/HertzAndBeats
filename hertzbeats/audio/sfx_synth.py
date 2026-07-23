@@ -40,6 +40,12 @@ SFX_GLITCH = "data/sfx/glitch.wav"
 `MindGamesSystem` reflete uma ameaca pelo centro -- bipe digital
 "quebrado", distinto de qualquer outro SFX do jogo (nenhum outro usa
 degraus de frequencia abruptos)."""
+
+SFX_SHIELD_EQUIP = "data/sfx/shield_equip.wav"
+"""Modo Falange (Undyne, Defensor): toca ao ALTERNAR o escudo (entrar
+OU sair) em `PlayerInputSystem` -- um "clunk" metalico solido seguido
+de um brilho harmonico ascendente curto, distinto do impacto do Parry
+(mais pesado/grave) e do chime do Unlock All (mais agudo/festivo)."""
 """Developer Tools -- Unlock All: chime de confirmacao ao completar a
 sequencia secreta (Cima/Cima/Baixo/Baixo/Esquerda/Direita) na Tela de
 Titulo (`HertzGameLoop._advance_unlock_all_code`). Reset de Save reusa
@@ -279,6 +285,28 @@ def _glitch(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _shield_equip(sample_rate: int) -> np.ndarray:
+    """Modo Falange (Undyne): "clunk" metalico solido (thump curto e
+    grave) seguido de um brilho harmonico ASCENDENTE -- o mesmo tom
+    ligado/desligado ao alternar (nao ha som separado pra "guardar" o
+    escudo, a mesma equip toca nos dois sentidos)."""
+    clunk_length = int(0.08 * sample_rate)
+    shimmer_length = int(0.22 * sample_rate)
+    length = clunk_length + shimmer_length
+    t = np.arange(length) / sample_rate
+    mix = np.zeros(length, dtype=np.float64)
+
+    clunk_t = t[:clunk_length]
+    clunk = np.exp(-clunk_t * 40.0) * np.sin(2 * np.pi * 110.0 * clunk_t)
+    mix[:clunk_length] += clunk * 0.9
+
+    shimmer_t = np.arange(shimmer_length) / sample_rate
+    sweep = np.cumsum(700.0 + 900.0 * (shimmer_t / shimmer_t[-1])) / sample_rate
+    shimmer = np.exp(-shimmer_t * 6.0) * np.sin(2 * np.pi * sweep)
+    mix[clunk_length:] += shimmer * 0.6
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -298,6 +326,7 @@ def ensure_sfx() -> None:
         (SFX_ANNOUNCER_RANK, _announcer_rank),
         (SFX_UNLOCK_ALL, _unlock_all),
         (SFX_GLITCH, _glitch),
+        (SFX_SHIELD_EQUIP, _shield_equip),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

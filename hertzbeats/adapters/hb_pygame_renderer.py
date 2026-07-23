@@ -91,6 +91,13 @@ ficam no rastro (`RingBuffer` circular, tamanho FIXO -- nunca cresce) e
 a cor/raio maximo do rastro mais recente, esmaecendo ate quase
 invisivel na posicao mais antiga."""
 
+_PHALANX_SHIELD_SEGMENTS = 16
+_PHALANX_SHIELD_WIDTH_PX = 6
+_PHALANX_SHIELD_DEFAULT_COLOR = (200, 200, 255)
+"""Modo Falange (Undyne, Defensor): quantos segmentos aproximam o arco
+do escudo (`_draw_phalanx_shield`) e a espessura da linha -- cor
+DEFAULT (sem Paleta Dinamica ativa, `self._palette_tint is None`)."""
+
 _HEARTBEAT_DECAY_RATE = 6.0
 """Heartbeat: quao rapido o pulso decai apos o inicio do compasso (maior
 = "thump" mais curto e seco). Ver `_heartbeat_pulse`."""
@@ -350,6 +357,14 @@ class HBPygameRenderer(PygameRenderer):
         `_flow` -- o badge "[ DEV ]" fica visivel em QUALQUER tela
         (ao contrario do indicador do Auto-Play, so' visivel durante
         PLAYING)."""
+        self._phalanx_active: bool = False
+        self._phalanx_aim_angle_rad: float = 0.0
+        self._phalanx_shield_arc_half_rad: float = 0.0
+        """Modo Falange (Undyne, Defensor): sincronizados TODO frame por
+        `HertzGameLoop._sync_phalanx_mode` -- consumidos em `begin_frame`
+        (arco do escudo, mesmo playfield "radial" do anel de julgamento)
+        pra desenhar sobre o anel, na cor da Paleta Dinamica atual
+        (`self._palette_tint`)."""
         self._dim_surface: Optional[pygame.Surface] = None
         self._flow_mode_active: bool = False
         self._flow_tier: int = 0
@@ -506,6 +521,17 @@ class HBPygameRenderer(PygameRenderer):
         self._dev_mode_code_progress = int(code_progress)
         self._dev_mode_unlock_all_active = bool(unlock_all_active)
 
+    def set_phalanx_state(self, active: bool, aim_angle_rad: float, shield_arc_half_rad: float) -> None:
+        """Modo Falange (Undyne, Defensor): estado sincronizado TODO
+        frame por `HertzGameLoop._sync_phalanx_mode` -- consumido em
+        `begin_frame` (arco do escudo desenhado sobre o anel de
+        julgamento "radial"). O crosshair convencional some sozinho via
+        `tint_a=0` no ECS (`PlayerInputSystem`), nenhum estado extra
+        precisa viver aqui pra isso."""
+        self._phalanx_active = bool(active)
+        self._phalanx_aim_angle_rad = float(aim_angle_rad)
+        self._phalanx_shield_arc_half_rad = float(shield_arc_half_rad)
+
     def set_flow_mode(self, active: bool) -> None:
         """Flow State (Arcade 4K): escurece o fundo da arena enquanto o
         combo se mantiver acima do limiar -- a "imersao total" que resta
@@ -593,6 +619,39 @@ class HBPygameRenderer(PygameRenderer):
                 int(bg + (fg - bg) * fraction) for bg, fg in zip(background, _GHOST_TRAIL_COLOR)
             )
             pygame.draw.circle(self._surface, color, (x, y), radius, 1)
+
+    def _draw_phalanx_shield(self, center: Tuple[int, int], judgment_radius: float) -> None:
+        """Modo Falange (Undyne): arco espesso sobre o anel de
+        julgamento, de `aim_angle - arco/2` ate `aim_angle + arco/2`,
+        na cor da Paleta Dinamica atual (`self._palette_tint`, mesma
+        fonte de `_tinted_ring_color` -- neutro/branco-azulado sem
+        nenhuma paleta ativa). Pontos calculados com a MESMA convencao
+        `x=cx+r*cos(a), y=cy+r*sin(a)` usada em TODO o resto do jogo
+        (posicao de ameacas/crosshair) -- deliberadamente NAO usa
+        `pygame.draw.arc` (a convencao de angulo dele, com Y de tela
+        pra baixo, inverte visualmente em relacao a essa formula, um
+        jeito facil de desenhar o arco do lado ERRADO sem perceber).
+        `pygame.draw.lines` com `width` da' a espessura sem alocar
+        nenhuma Surface nova -- so uma lista Python transiente de
+        pontos, mesmo criterio ja aceito por `_draw_carousel_filmstrip`/
+        `_draw_dot_row`."""
+        if not self._phalanx_active:
+            return
+        half_arc = self._phalanx_shield_arc_half_rad
+        if half_arc <= 0.0:
+            return
+        aim_angle = self._phalanx_aim_angle_rad
+        color = self._palette_tint if self._palette_tint is not None else _PHALANX_SHIELD_DEFAULT_COLOR
+        center_x, center_y = center
+        points = []
+        for i in range(_PHALANX_SHIELD_SEGMENTS + 1):
+            t = i / _PHALANX_SHIELD_SEGMENTS
+            angle = aim_angle - half_arc + t * (2.0 * half_arc)
+            points.append((
+                center_x + judgment_radius * math.cos(angle),
+                center_y + judgment_radius * math.sin(angle),
+            ))
+        pygame.draw.lines(self._surface, color, False, points, _PHALANX_SHIELD_WIDTH_PX)
 
     def set_background_intensity(self, intensity: float) -> None:
         """Fundo Reativo: `0.0..1.0` publicado pelo `HertzGameLoop`
@@ -824,6 +883,7 @@ class HBPygameRenderer(PygameRenderer):
             pygame.draw.circle(self._surface, self._tinted_ring_color((36, 28, 70)), center, int(params["spawn_radius"]), 1)
             pygame.draw.circle(self._surface, self._tinted_ring_color((90, 70, 160)), center, int(judgment_radius), 2)
             self._draw_ghost_trail()
+            self._draw_phalanx_shield(center, judgment_radius)
         if kind == "lanes":
             height = int(params["height"])
             judgment_y = int(params["judgment_y"])
