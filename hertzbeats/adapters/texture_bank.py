@@ -452,6 +452,15 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text("dev_panel_unlock_all", hint_font, "F9: Desbloquear Tudo", _LABEL_COLOR)
     register_text("dev_panel_unlock_all_active", hint_font, "F9: Desbloquear Tudo", _GOOD_COLOR)
     register_text("dev_panel_wipe_save", hint_font, "CTRL+SHIFT+DEL: Reset de Save", _LABEL_COLOR)
+    register_text("unlock_all_persistent_badge", hint_font, "[ TUDO DESBLOQUEADO ]", _GOOD_COLOR)
+    """Developer Tools -- Unlock All: badge PERSISTENTE (abaixo de
+    "[ DEV ]", canto superior direito) enquanto `_debug_unlock_all`
+    estiver ligado -- ao contrario do flash de 1.8s ou do painel lateral
+    (que some assim que o gate mestre desliga), este fica visivel
+    INDEPENDENTE do gate, ja que o desbloqueio e' permanente pelo resto
+    da sessao. Existe porque o efeito de verdade (destrancar fases) so'
+    aparece ao navegar ate uma fase de Campanha -- sem isso, nao ha jeito
+    de confirmar de relance se o cheat esta ativo."""
 
     register_text("slash", stage_font, "/", _LABEL_COLOR)
     register_text("colon", stage_font, ":", _LABEL_COLOR)

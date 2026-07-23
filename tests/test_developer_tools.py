@@ -309,6 +309,30 @@ def test_draw_dev_mode_badge_progress_dots_and_panel_render_without_crashing():
     renderer.end_frame()  # badge rosa + painel (Unlock All destacado em verde)
 
 
+def test_unlock_all_persistent_badge_shows_even_with_the_gate_off():
+    """O badge "[ TUDO DESBLOQUEADO ]" NAO depende do gate mestre estar
+    ligado (ao contrario do painel lateral) -- confirma visualmente que
+    o cheat continua ativo mesmo depois do jogador desligar o gate."""
+    from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
+    from hertzbeats.adapters.texture_bank import build_and_register_overlay_surfaces
+    from hertzbeats.stages import StageDef
+
+    stage = StageDef(
+        stage_id="s", name="FASE", subtitle="", track_path="", beatmap_path="unused",
+        synth=None, beatmap_params={}, overrides={},
+    )
+    renderer = HBPygameRenderer()
+    renderer.initialize(320, 240, "test")
+    build_and_register_overlay_surfaces(renderer, (stage,))
+
+    renderer.set_dev_mode_state(False, 0, True)  # gate DESLIGADO, unlock all ATIVO
+    assert renderer._dev_mode_unlock_all_active is True
+    renderer.end_frame()  # nao deve levantar
+
+    renderer.set_dev_mode_state(False, 0, False)
+    assert renderer._dev_mode_unlock_all_active is False
+
+
 # -- Gate mestre (dev_mode): "W W S S A D A D" em qualquer tela ------------
 
 
@@ -414,6 +438,21 @@ def test_unlock_all_persists_after_leaving_the_title_screen(flow_game, null_inpu
     _goto_hub(loop, null_input)
     assert loop.flow == FLOW_HUB
     assert loop._debug_unlock_all is True  # nenhuma tela desliga de novo
+
+
+def test_unlock_all_survives_toggling_the_gate_back_off(flow_game, null_input):
+    """`_debug_unlock_all` NAO depende de `_dev_mode` continuar ligado
+    -- so' a ATIVACAO (F9) exige o gate no instante do toggle; uma vez
+    ativo, o desbloqueio e' permanente mesmo que o jogador digite a
+    sequencia secreta de novo depois (desligando o gate)."""
+    loop, _clock = flow_game([[_basic(3.0)]])
+    _activate_dev_mode(loop, null_input)
+    _press(loop, null_input, "cheat_unlock_all")
+    assert loop._debug_unlock_all is True
+
+    _activate_dev_mode(loop, null_input)  # mesma sequencia -- desliga o gate de novo
+    assert loop._dev_mode is False
+    assert loop._debug_unlock_all is True  # continua desbloqueado
 
 
 def test_is_campaign_entry_locked_bypassed_by_unlock_all(flow_game, null_input):

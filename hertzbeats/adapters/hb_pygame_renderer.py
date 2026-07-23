@@ -864,6 +864,7 @@ class HBPygameRenderer(PygameRenderer):
             self._blit_centered(self._notice_key, self._width // 2, 64)
         self._draw_bot_mode_indicator()
         self._draw_dev_mode_badge()
+        self._draw_unlock_all_persistent_badge()
         self._draw_dev_mode_progress_dots()
         self._draw_dev_mode_panel()
         self._draw_hit_error_meter()
@@ -882,6 +883,21 @@ class HBPygameRenderer(PygameRenderer):
         if surface is None:
             return
         self._surface.blit(surface, (self._width - surface.get_width() - 16, 12))
+
+    def _draw_unlock_all_persistent_badge(self) -> None:
+        """Developer Tools -- Unlock All: "[ TUDO DESBLOQUEADO ]"
+        SEMPRE visivel enquanto `_dev_mode_unlock_all_active`
+        (INDEPENDENTE de `_dev_mode_active`/gate -- ao contrario do
+        painel lateral, que some quando o gate desliga). Desenhado logo
+        ABAIXO do badge "[ DEV ]" -- confirma de relance que o cheat
+        esta ativo, sem precisar navegar ate uma fase de Campanha pra
+        ver o efeito de verdade (destrancar) acontecendo."""
+        if not self._dev_mode_unlock_all_active:
+            return
+        surface = self._overlay_surfaces.get("unlock_all_persistent_badge")
+        if surface is None:
+            return
+        self._surface.blit(surface, (self._width - surface.get_width() - 16, 36))
 
     def _draw_dev_mode_progress_dots(self) -> None:
         """Developer Tools -- bolinhas no canto inferior esquerdo
