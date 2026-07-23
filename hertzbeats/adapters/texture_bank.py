@@ -224,6 +224,21 @@ _PHALANX_CONTROL_HINT = (
 disparo por COMPLETO (nada de clique) -- por isso vence QUALQUER outro
 na prioridade de dica abaixo, mais ainda que o Overload."""
 
+_FOCUS_BEAM_CONTROL_HINT = (
+    "Hexagono: SEGURE a mira em cima -- sem clique, afastar reseta a sustentacao"
+)
+"""Raio de Foco: so muda o verbo pra FRACAO de ameacas marcadas
+`is_focus_target` no spawner -- clique normal continua valendo pras
+demais, por isso a dica fica ABAIXO da Falange (que troca o controle
+inteiro) na prioridade."""
+
+_RADIAL_SLASH_CONTROL_HINT = (
+    "Barra: passe o MOUSE rapido sobre ela no anel -- sem clique, e um golpe"
+)
+"""A Lamina: mesma logica do Raio de Foco -- so a FRACAO
+`is_slash_target` muda de verbo, o resto da ameaca comum continua no
+clique normal."""
+
 _HOLDS_HINT_BY_MODE = {
     "defender": _HOLDS_CONTROL_HINT,
     "lanes": _LANES_HOLDS_CONTROL_HINT,
@@ -253,6 +268,8 @@ _MODIFIER_ROW_LABELS = {
     "corrupcao": "Corrupcao (estatica visual na tela)",
     "roleta_russa": "Roleta Russa (1 de vida -- qualquer erro e Game Over)",
     "phalanx": "Modo Falange (C alterna: escudo automatico em vez de tiro)",
+    "focus_beam": "Raio de Foco (segure a mira no hexagono, sem clicar)",
+    "radial_slash": "A Lamina (passe o mouse rapido, sem clicar)",
 }
 """Rotulo de CADA linha BOOLEANA (checkbox) do menu de opcoes do
 seletor de minigame -- um por modifier de
@@ -393,6 +410,10 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
         # campo de batalha em cima do mesmo clique esq/dir de Polaridade.
         if "phalanx" in stage.active_modifiers:
             hint_text = _PHALANX_CONTROL_HINT
+        elif "focus_beam" in stage.active_modifiers:
+            hint_text = _FOCUS_BEAM_CONTROL_HINT
+        elif "radial_slash" in stage.active_modifiers:
+            hint_text = _RADIAL_SLASH_CONTROL_HINT
         elif "overload" in stage.active_modifiers:
             hint_text = _OVERLOAD_CONTROL_HINT
         elif "orbital_shields" in stage.active_modifiers:

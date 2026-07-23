@@ -269,6 +269,8 @@ DEFENDER_MODIFIER_ROWS = (
     "corrupcao",
     "roleta_russa",
     "phalanx",
+    "focus_beam",
+    "radial_slash",
 )
 LANES_MODIFIER_ROWS = ("corrupcao", "roleta_russa")
 """Linhas de modifier BOOLEANO (checkbox) mostradas por `game_mode`,

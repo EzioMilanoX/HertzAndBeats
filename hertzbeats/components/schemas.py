@@ -77,6 +77,9 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("teleport_radius", np.float32),
         ("is_mirage", np.bool_),
         ("nonlinear_approach", np.bool_),
+        ("is_focus_target", np.bool_),
+        ("focus_health", np.float32),
+        ("is_slash_target", np.bool_),
     ]
 )
 """Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
@@ -203,6 +206,39 @@ Campos:
         "tempo de spawn") -- a ameaca acelera muito ao nascer e freia
         perto do nucleo, em vez do avanco linear padrao do
         `PhysicsSystem`.
+    is_focus_target: Raio de Foco/"Microondas" (Defensor, opt-in via
+        "focus_beam" em `HertzConfig.active_modifiers`): ameaca que
+        NAO aceita clique (excluida das candidatas de
+        `JudgmentSystem._try_player_hit`) -- em vez disso, o jogador
+        precisa manter a mira travada sobre ela (`focus_tolerance_rad`)
+        enquanto seu raio atual estiver dentro da faixa de foco
+        (`HertzConfig.focus_radius_tolerance_px` em torno do anel de
+        julgamento) para `focus_health` chegar a zero (ver
+        `JudgmentSystem._run_focus_beam_check`). Textura procedural
+        distinta (hexagono pulsante, `TEX_THREAT_FOCUS_HEXAGON`) --
+        `HBPygameRenderer.draw_batch` desenha a forma, `JudgmentSystem`
+        escreve a escala pulsante direto no `transform` a cada frame
+        (mesmo criterio Zero-GC do Pulso do Nucleo no Modo Falange).
+    focus_health: segundos RESTANTES de foco sustentado ate o bloqueio
+        automatico (contador regressivo, nao um relogio) -- inicializado
+        em `HertzConfig.focus_target_seconds` no spawn. Decrementado por
+        `delta_time` de frame (e' "game feel" de sustentacao, mesmo
+        criterio de `hold_grace_timer_sec`) so' enquanto a mira estiver
+        em cima E o raio dentro da faixa; sair da mira ANTES de chegar a
+        zero reseta pra `focus_target_seconds` de novo (punicao maxima:
+        nenhum progresso parcial sobrevive a uma desmirada).
+    is_slash_target: A Lamina/"Radial Slash" (Defensor, opt-in via
+        "radial_slash" em `HertzConfig.active_modifiers`): ameaca que
+        IGNORA cliques (excluida das candidatas de `_try_player_hit`,
+        mesmo criterio de `is_focus_target`) -- so aceita um ARRASTO
+        rapido do mouse (`GameState.mouse_angle_previous` -> mira atual)
+        cuja velocidade angular exceda `HertzConfig.
+        slash_min_angular_speed_rad_per_sec` E cujo arco varrido cruze
+        `spawn_angle_rad`, dentro da janela PERFECT (ver
+        `JudgmentSystem._run_slash_check`). Textura procedural distinta
+        (barra rotacionada tangente ao anel, `TEX_THREAT_SLASH` --
+        `rotation_rad` gravado como `spawn_angle_rad + PI/2` no spawn,
+        primeiro consumidor real de `rotations_rad` em `draw_batch`).
 """
 
 PLAYER_STATE_DTYPE: np.dtype = np.dtype(

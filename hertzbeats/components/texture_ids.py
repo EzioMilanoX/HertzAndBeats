@@ -107,6 +107,23 @@ registrada, cai no fallback procedural de `HBPygameRenderer.draw_batch`
 (escala anisotropica = barra) -- so precisa de um id proprio para nao
 colidir com nenhuma outra textura/forma."""
 
+TEX_THREAT_FOCUS_HEXAGON: int = 18
+"""Raio de Foco/"Microondas" (Defensor, opt-in "focus_beam"): sem
+textura pre-renderizada -- cai no fallback procedural de `draw_batch`
+(hexagono regular via `pygame.draw.polygon`, 6 pontos calculados por
+trigonometria simples, zero Surface nova). `JudgmentSystem` escreve a
+escala pulsante direto no `transform` a cada frame (mesmo criterio
+Zero-GC do Pulso do Nucleo do Modo Falange) -- o "pulsar" e' so a
+escala variando, nao um efeito novo no renderer."""
+
+TEX_THREAT_SLASH: int = 19
+"""A Lamina/"Radial Slash" (Defensor, opt-in "radial_slash"): sem
+textura pre-renderizada -- cai no fallback procedural de `draw_batch`
+(barra ROTACIONADA via `pygame.draw.polygon`, PRIMEIRO consumidor real
+de `rotations_rad` nesse metodo -- antes desta feature, nenhuma forma
+procedural usava rotacao). `rotation_rad` e' gravado como
+`spawn_angle_rad + PI/2` no spawn (tangente ao anel, nao radial)."""
+
 TEX_TUTORIAL_BASE: int = 200
 """Textos de instrucao do tutorial, pre-renderizados na composicao:
 o passo `j` da fase de indice `i` usa

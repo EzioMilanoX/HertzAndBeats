@@ -46,6 +46,11 @@ SFX_SHIELD_EQUIP = "data/sfx/shield_equip.wav"
 OU sair) em `PlayerInputSystem` -- um "clunk" metalico solido seguido
 de um brilho harmonico ascendente curto, distinto do impacto do Parry
 (mais pesado/grave) e do chime do Unlock All (mais agudo/festivo)."""
+
+SFX_SLASH = "data/sfx/slash.wav"
+"""A Lamina (Radial Slash, Defensor): "swish" cortante -- ruido
+filtrado de decaimento MUITO rapido com um sweep agudo por cima,
+distinto do thud grave do Miss/Bomba e do chime metalico do Deflect."""
 """Developer Tools -- Unlock All: chime de confirmacao ao completar a
 sequencia secreta (Cima/Cima/Baixo/Baixo/Esquerda/Direita) na Tela de
 Titulo (`HertzGameLoop._advance_unlock_all_code`). Reset de Save reusa
@@ -307,6 +312,21 @@ def _shield_equip(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _slash(sample_rate: int) -> np.ndarray:
+    """A Lamina (Radial Slash): "swish" cortante -- ruido filtrado com
+    decaimento MUITO rapido (a "lamina de vento") somado a um sweep
+    agudo DESCENDENTE por cima (o "corte" propriamente dito)."""
+    length = int(0.14 * sample_rate)
+    t = np.arange(length) / sample_rate
+    rng = np.random.RandomState(2024)
+    noise = rng.uniform(-1.0, 1.0, size=length)
+    whoosh = np.exp(-t * 26.0) * noise
+    sweep = np.cumsum(3200.0 - 2400.0 * (t / t[-1])) / sample_rate
+    cut = np.exp(-t * 18.0) * np.sin(2 * np.pi * sweep)
+    mix = whoosh * 0.5 + cut * 0.7
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -327,6 +347,7 @@ def ensure_sfx() -> None:
         (SFX_UNLOCK_ALL, _unlock_all),
         (SFX_GLITCH, _glitch),
         (SFX_SHIELD_EQUIP, _shield_equip),
+        (SFX_SLASH, _slash),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

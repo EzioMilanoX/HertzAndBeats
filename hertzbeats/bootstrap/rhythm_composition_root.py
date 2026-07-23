@@ -59,6 +59,7 @@ from hertzbeats.audio.sfx_synth import (
     SFX_PARRY,
     SFX_SHIELD_BREAK,
     SFX_SHIELD_EQUIP,
+    SFX_SLASH,
     SFX_TAP,
 )
 from hertzbeats.components.schemas import PLAYER_STATE_DTYPE, RHYTHM_THREAT_DTYPE
@@ -329,6 +330,12 @@ def _compose_defender_mode(ctx: _ModeContext):
     # Modo Falange (Undyne): independente (nao exige "polarity") -- e'
     # o OPOSTO da Polaridade, substitui o tiro por completo.
     phalanx_enabled = "phalanx" in modifiers
+    # Raio de Foco / Lamina: tambem independentes -- cada um muda o
+    # verbo do jogador so para a FRACAO de ameacas que marca no
+    # spawner (`lane % 3`), nunca a pool inteira, entao coexistem
+    # livremente entre si e com a Falange sem exigir "polarity".
+    focus_beam_enabled = "focus_beam" in modifiers
+    slash_enabled = "radial_slash" in modifiers
 
     scheduled = _reinterpret_scheduled_for_modifiers(ctx.scheduled, config, modifiers)
 
@@ -368,6 +375,9 @@ def _compose_defender_mode(ctx: _ModeContext):
         wormhole_teleport_radius=config.wormhole_teleport_radius,
         mirages_enabled=mirages_enabled,
         rubber_band_enabled=rubber_band_enabled,
+        focus_beam_enabled=focus_beam_enabled,
+        focus_target_seconds=config.focus_target_seconds,
+        slash_enabled=slash_enabled,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -507,6 +517,13 @@ def _compose_defender_mode(ctx: _ModeContext):
             phalanx_radius_tolerance=config.phalanx_radius_tolerance_px,
             phalanx_shield_arc_rad=math.radians(config.phalanx_shield_arc_degrees) / 2.0,
             core_pulse_seconds=config.core_pulse_seconds,
+            focus_beam_enabled=focus_beam_enabled,
+            focus_tolerance_rad=math.radians(config.focus_tolerance_degrees),
+            focus_radius_tolerance=config.focus_radius_tolerance_px,
+            focus_target_seconds=config.focus_target_seconds,
+            slash_enabled=slash_enabled,
+            slash_min_angular_speed_rad_per_sec=config.slash_min_angular_speed_rad_per_sec,
+            slash_sound_id=SFX_SLASH,
         )
     )
     # Captura Orbital ("orbital_shields"): mesmo padrao de

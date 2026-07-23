@@ -125,6 +125,7 @@ class GameState:
         "rogue_run",
         "phalanx_mode",
         "core_pulse_seconds_left",
+        "mouse_angle_previous",
     )
 
     def __init__(
@@ -330,6 +331,15 @@ class GameState:
         diretamente (mesmo criterio de `trigger_shake`/`trigger_blindness`
         -- `max()`, nao soma, pra 2 bloqueios no mesmo frame nao
         somarem um pulso absurdo)."""
+        self.mouse_angle_previous: float = 0.0
+        """A Lamina (Radial Slash, opt-in via "radial_slash"): o angulo
+        da mira NO FRAME ANTERIOR -- escrito por `PlayerInputSystem` no
+        TOPO do proprio `update()` (antes de recalcular `aim_angle_rad`
+        deste frame), entao quando `JudgmentSystem` roda logo em
+        seguida no MESMO frame, este campo ja guarda o angulo PRE-frame
+        e `player_state.aim_angle_rad` ja guarda o angulo ATUAL --
+        exatamente os 2 pontos que `_run_slash_check` precisa pra medir
+        velocidade angular e testar se o arco varrido cruzou a ameaca."""
 
     def trigger_core_pulse(self, seconds: float) -> None:
         """Modo Falange: aciona/reforca o pulso de escala do nucleo a

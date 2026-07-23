@@ -114,6 +114,13 @@ class JudgmentSystem(ISystem):
         phalanx_radius_tolerance: float = 0.0,
         phalanx_shield_arc_rad: float = 0.0,
         core_pulse_seconds: float = 0.15,
+        focus_beam_enabled: bool = False,
+        focus_tolerance_rad: float = 0.0,
+        focus_radius_tolerance: float = 0.0,
+        focus_target_seconds: float = 0.0,
+        slash_enabled: bool = False,
+        slash_min_angular_speed_rad_per_sec: float = 0.0,
+        slash_sound_id: str = None,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -232,6 +239,49 @@ class JudgmentSystem(ISystem):
         generica de MISS (`_sweep_overdue_misses`) e o dano por colisao
         do `CoreDamageSystem` continuam intocados, "MISS e dano como de
         costume".
+
+        RAIO DE FOCO -- O MICROONDAS (`is_focus_target`, opt-in via
+        "focus_beam" em `active_modifiers`, fracao fixa `lane % 3 == 1`
+        do spawner): substitui o CLIQUE por SUSTENTACAO de mira. Roda
+        TODO frame (`_run_focus_beam_check`), independente de
+        `phalanx_mode` -- os dois modificadores mudam o VERBO do
+        jogador para ameacas DIFERENTES da mesma pool, nunca competem
+        pela mesma linha. Enquanto a mira ficar dentro de
+        `focus_tolerance_rad` do angulo fixo da ameaca,
+        `focus_health` decresce `delta_time` por frame (mesmo idioma
+        de escrita in-place por mascara booleana da Tolerancia
+        Organica do Hold: `focus_health[aimed] -= delta_time`).
+        Afastar a mira ANTES da ameaca "morrer" reseta `focus_health`
+        pro maximo INSTANTANEAMENTE -- punicao maxima, sem meio-termo.
+        So vira PERFECT quando `focus_health <= 0` E a ameaca ja
+        estiver dentro de `focus_radius_tolerance` do anel de
+        julgamento (uma ameaca ainda longe do anel so acumula
+        sustentacao, nunca resolve sozinha). O hexagono pulsa
+        (+-10% de escala, escrito DIRETO no `transform_pool` a cada
+        frame) independente de estar sendo mirado -- primeiro uso
+        real de uma animacao continua neste padrao "estado visual
+        derivado escrito direto na ECS", ate agora so usado por
+        eventos pontuais (pulso do nucleo da Falange).
+
+        A LAMINA -- RADIAL SLASH (`is_slash_target`, opt-in via
+        "radial_slash" em `active_modifiers`, fracao fixa
+        `lane % 3 == 2`): substitui o CLIQUE PONTUAL por um ARRASTO
+        fisico. `_run_slash_check` roda TODO frame ignorando por
+        completo `is_action_pressed` -- so considera ameacas dentro
+        da MESMA janela temporal de precisao ja usada por
+        `_try_player_hit` (`|delta| <= perfect_window`). Compara o
+        angulo atual da mira contra `GameState.mouse_angle_previous`
+        (gravado pelo `PlayerInputSystem` ANTES de recalcular a mira
+        neste mesmo frame): se a VELOCIDADE angular do gesto
+        (`|delta_angulo| / delta_time`, normalizada por frame pra nao
+        depender de FPS) atingir `slash_min_angular_speed_rad_per_sec`
+        E o arco varrido (de `mouse_angle_previous` ate a mira atual)
+        cruzar o `spawn_angle_rad` da ameaca (teste de menor-caminho-
+        com-sinal: `0 <= offset <= raw_delta` ou o inverso conforme o
+        sinal do gesto), e PERFECT automatico com SFX de "swish". Uma
+        ameaca de Lamina fora da janela de tempo, ou tocada por um
+        gesto lento demais, simplesmente segue seu curso normal (MISS
+        pela varredura generica, como qualquer outra).
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -292,6 +342,13 @@ class JudgmentSystem(ISystem):
         self._phalanx_radius_tolerance = float(phalanx_radius_tolerance)
         self._phalanx_shield_arc_rad = float(phalanx_shield_arc_rad)
         self._core_pulse_seconds = float(core_pulse_seconds)
+        self._focus_beam_enabled = bool(focus_beam_enabled)
+        self._focus_tolerance_rad = float(focus_tolerance_rad)
+        self._focus_radius_tolerance = float(focus_radius_tolerance)
+        self._focus_target_seconds = float(focus_target_seconds)
+        self._slash_enabled = bool(slash_enabled)
+        self._slash_min_angular_speed_rad_per_sec = float(slash_min_angular_speed_rad_per_sec)
+        self._slash_sound_id = slash_sound_id
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -315,6 +372,20 @@ class JudgmentSystem(ISystem):
         self._phalanx_radius_buffer = np.zeros(capacity, dtype=np.float64)
         self._phalanx_angle_buffer = np.zeros(capacity, dtype=np.float64)
         self._phalanx_block_mask = np.zeros(capacity, dtype=bool)
+        self._focus_pending_mask = np.zeros(capacity, dtype=bool)
+        self._focus_radius_buffer = np.zeros(capacity, dtype=np.float64)
+        self._focus_angle_buffer = np.zeros(capacity, dtype=np.float64)
+        self._focus_in_band_mask = np.zeros(capacity, dtype=bool)
+        self._focus_in_cone_mask = np.zeros(capacity, dtype=bool)
+        self._focus_aimed_mask = np.zeros(capacity, dtype=bool)
+        self._focus_not_aimed_mask = np.zeros(capacity, dtype=bool)
+        self._focus_resolved_mask = np.zeros(capacity, dtype=bool)
+        self._slash_pending_mask = np.zeros(capacity, dtype=bool)
+        self._slash_abs_delta_buffer = np.zeros(capacity, dtype=np.float64)
+        self._slash_window_mask = np.zeros(capacity, dtype=bool)
+        self._slash_offset_buffer = np.zeros(capacity, dtype=np.float64)
+        self._slash_crossed_mask = np.zeros(capacity, dtype=bool)
+        self._slash_scratch_mask = np.zeros(capacity, dtype=bool)
 
     def update(self, world: World, delta_time: float) -> None:
         """Executa o julgamento do frame: (1) varre MISSes vencidos,
@@ -429,6 +500,20 @@ class JudgmentSystem(ISystem):
             np.logical_not(threat_view["is_mirage"], out=not_mirage)
             np.logical_and(pending, not_mirage, out=pending)
 
+        # NOTA -- Raio de Foco/Lamina (`is_focus_target`/`is_slash_target`)
+        # NAO sao excluidos daqui de proposito, ao contrario de
+        # fantasmas/refletidos/orbitais acima: os dois tem janela de
+        # resolucao propria (banda de raio/velocidade de gesto) SEMPRE
+        # mais estreita que a janela generica de miss, entao se o
+        # tempo esgotar sem a condicao especial ser satisfeita a
+        # varredura generica abaixo deve mesmo puni-los como MISS --
+        # e o "afastar renuncia" natural da mecanica, nao um bug.
+        # `_run_focus_beam_check`/`_run_slash_check` recalculam seu
+        # PROPRIO pending a partir do `judgment` (mesmo idioma de
+        # `_sweep_vanishing_mirages`/`_run_phalanx_block_check`) e por
+        # isso nunca reprocessam uma linha que a varredura abaixo ja
+        # resolveu neste mesmo frame.
+
         # Overload do Nucleo: Dash sobre uma batida VIVA (candidata
         # comum dentro da janela Good -- mesmo `pending` ja refinado
         # acima, entao exclui Holds engajados/refletidos/escudos) com a
@@ -451,6 +536,16 @@ class JudgmentSystem(ISystem):
             self._sweep_vanishing_mirages(world, threat_view, deltas, active_count)
         if self._hold_threat_type_id is not None:
             self._sweep_engaged_holds(world, threat_view, active_count, now_effective, delta_time)
+
+        # Raio de Foco / Lamina: rodam TODO frame, independente do
+        # Modo Falange -- os tres modificadores mudam o verbo do
+        # jogador para AMEACAS DIFERENTES da mesma pool (nunca a
+        # mesma linha, ver os `lane % 3`/exclusoes mutuas no spawner e
+        # em `_run_phalanx_block_check`), entao nunca competem entre si.
+        if self._focus_beam_enabled:
+            self._run_focus_beam_check(world, threat_view, active_count, now_effective, delta_time)
+        if self._slash_enabled:
+            self._run_slash_check(world, threat_view, deltas, active_count, delta_time)
 
         if phalanx_active:
             self._run_phalanx_block_check(world, threat_view, active_count)
@@ -655,6 +750,23 @@ class JudgmentSystem(ISystem):
             np.logical_not(threat_view["is_mirage"], out=not_mirage)
             np.logical_and(pending, not_mirage, out=pending)
 
+        if self._focus_beam_enabled:
+            # Raio de Foco: uma linha `is_focus_target` so pode
+            # resolver por `_run_focus_beam_check` -- o bloqueio
+            # generico da Falange nao pode "roubar" o PERFECT dela so
+            # por estar no raio/arco do escudo.
+            not_focus = self._phalanx_block_mask[:active_count]
+            np.logical_not(threat_view["is_focus_target"], out=not_focus)
+            np.logical_and(pending, not_focus, out=pending)
+
+        if self._slash_enabled:
+            # A Lamina: mesma razao, `is_slash_target` so resolve por
+            # `_run_slash_check` (arrasto fisico), nunca pelo bloqueio
+            # passivo da Falange.
+            not_slash = self._phalanx_block_mask[:active_count]
+            np.logical_not(threat_view["is_slash_target"], out=not_slash)
+            np.logical_and(pending, not_slash, out=pending)
+
         if not np.any(pending):
             return
 
@@ -708,6 +820,187 @@ class JudgmentSystem(ISystem):
         state.trigger_core_pulse(self._core_pulse_seconds)
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
         self._play(self._parry_sound_id, 1.0)
+
+    def _run_focus_beam_check(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        active_count: int,
+        now_effective: float,
+        delta_time: float,
+    ) -> None:
+        """Raio de Foco (Microondas): bloqueio PASSIVO continuo, roda
+        TODO frame que `focus_beam_enabled` estiver ligado -- sem
+        precisar de clique. Recalcula `pending` do ZERO a partir de
+        `threat_view["judgment"]` (mesmo motivo de
+        `_sweep_vanishing_mirages`/`_run_phalanx_block_check`: nunca
+        reusa a mascara do topo de `update()`, ja desatualizada apos
+        `_sweep_overdue_misses` rodar neste mesmo frame).
+        """
+        pending = self._focus_pending_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(pending, threat_view["is_focus_target"], out=pending)
+        if not np.any(pending):
+            return
+
+        entity_indices = self._threat_pool.active_entity_indices()
+        transform_rows = self._transform_pool.dense_rows_of(entity_indices)
+        transform_view = self._transform_pool.active_view()
+
+        # Pulso visual continuo (+-10% de escala): escrito DIRETO no
+        # transform, independente de estar sendo mirado -- o
+        # `HBPygameRenderer` so desenha o hexagono no raio JA escalado
+        # (ver comentario em `draw_batch`).
+        pulse_scale = 1.0 + 0.1 * math.sin(now_effective * 6.0)
+        pulsing_rows = transform_rows[pending]
+        transform_view["scale_x"][pulsing_rows] = pulse_scale
+        transform_view["scale_y"][pulsing_rows] = pulse_scale
+
+        player_row = self._player_pool.dense_row_of(self._player_entity_index)
+        aim_angle = float(self._player_pool.active_view()["aim_angle_rad"][player_row])
+
+        angles = self._focus_angle_buffer[:active_count]
+        np.subtract(threat_view["spawn_angle_rad"], aim_angle, out=angles)
+        np.add(angles, math.pi, out=angles)
+        np.mod(angles, _TAU, out=angles)
+        np.subtract(angles, math.pi, out=angles)
+        np.abs(angles, out=angles)
+        in_cone = self._focus_in_cone_mask[:active_count]
+        np.less_equal(angles, self._focus_tolerance_rad, out=in_cone)
+
+        aimed = self._focus_aimed_mask[:active_count]
+        np.logical_and(pending, in_cone, out=aimed)
+        np.logical_not(in_cone, out=in_cone)  # agora "fora do cone"
+        not_aimed = self._focus_not_aimed_mask[:active_count]
+        np.logical_and(pending, in_cone, out=not_aimed)
+
+        # Afastar a mira ANTES da ameaca "morrer" reseta pro maximo
+        # INSTANTANEAMENTE (punicao maxima); sustentar decrementa
+        # `delta_time` -- mesmo idioma de escrita in-place por mascara
+        # booleana ja usado pela Tolerancia Organica do Hold
+        # (`grace_timer[broken] += delta_time`).
+        focus_health = threat_view["focus_health"]
+        focus_health[not_aimed] = self._focus_target_seconds
+        focus_health[aimed] -= delta_time
+
+        radius = self._focus_radius_buffer[:active_count]
+        dx = transform_view["position_x"][transform_rows] - self._center_x
+        dy = transform_view["position_y"][transform_rows] - self._center_y
+        np.hypot(dx, dy, out=radius)
+        np.subtract(radius, self._game_state.current_judgment_radius, out=radius)
+        np.abs(radius, out=radius)
+        in_band = self._focus_in_band_mask[:active_count]
+        np.less_equal(radius, self._focus_radius_tolerance, out=in_band)
+
+        depleted = self._focus_resolved_mask[:active_count]
+        np.less_equal(focus_health, 0.0, out=depleted)
+        np.logical_and(depleted, aimed, out=depleted)
+        np.logical_and(depleted, in_band, out=depleted)
+
+        rows = np.flatnonzero(depleted)
+        if rows.shape[0] == 0:
+            return
+
+        state = self._game_state
+        for row in rows:
+            row = int(row)
+            threat_view["is_hit"][row] = True
+            threat_view["judgment"][row] = JUDGMENT_PERFECT
+            world.destroy_entity(int(threat_view["packed_handle"][row]))
+            state.score += self._score_perfect
+            state.perfect_count += 1
+            state.combo_count += 1
+            if state.combo_count > state.max_combo:
+                state.max_combo = state.combo_count
+            if self._vampirism_combo_threshold > 0:
+                self._apply_vampirism_heal(state)
+            self._emit_perfect_sparks()
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+
+    def _run_slash_check(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        deltas: np.ndarray,
+        active_count: int,
+        delta_time: float,
+    ) -> None:
+        """A Lamina (Radial Slash): ignora POR COMPLETO
+        `is_action_pressed` -- so considera um ARRASTO fisico rapido
+        cujo arco varrido (de `GameState.mouse_angle_previous` ate a
+        mira atual) cruze o angulo de uma ameaca `is_slash_target`
+        dentro da MESMA janela de precisao usada por
+        `_try_player_hit` (`|delta| <= perfect_window`).
+        """
+        pending = self._slash_pending_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
+        np.logical_and(pending, threat_view["is_slash_target"], out=pending)
+        if not np.any(pending):
+            return
+
+        abs_deltas = self._slash_abs_delta_buffer[:active_count]
+        np.abs(deltas, out=abs_deltas)
+        window = self._slash_window_mask[:active_count]
+        np.less_equal(abs_deltas, self._perfect_window, out=window)
+        np.logical_and(window, pending, out=window)
+        if not np.any(window):
+            return
+
+        player_row = self._player_pool.dense_row_of(self._player_entity_index)
+        current_angle = float(self._player_pool.active_view()["aim_angle_rad"][player_row])
+        previous_angle = float(self._game_state.mouse_angle_previous)
+
+        # Velocidade angular do gesto normalizada por `delta_time` --
+        # de proposito, NAO a diferenca bruta pedida ao pe da letra,
+        # pra a deteccao do golpe nao depender do FPS.
+        raw_delta = current_angle - previous_angle
+        raw_delta = (raw_delta + math.pi) % _TAU - math.pi
+        angular_speed = abs(raw_delta) / delta_time if delta_time > 0.0 else 0.0
+        if angular_speed < self._slash_min_angular_speed_rad_per_sec:
+            return
+
+        # Teste de cruzamento por menor-caminho-com-sinal: o arco
+        # varrido cruza o angulo da ameaca sse `offset` (angulo da
+        # ameaca relativo a mira ANTERIOR) estiver entre 0 e
+        # `raw_delta`, inclusive -- o sentido da comparacao inverte
+        # conforme o sinal do gesto.
+        offset = self._slash_offset_buffer[:active_count]
+        np.subtract(threat_view["spawn_angle_rad"], previous_angle, out=offset)
+        np.add(offset, math.pi, out=offset)
+        np.mod(offset, _TAU, out=offset)
+        np.subtract(offset, math.pi, out=offset)
+
+        crossed = self._slash_crossed_mask[:active_count]
+        scratch = self._slash_scratch_mask[:active_count]
+        if raw_delta >= 0.0:
+            np.greater_equal(offset, 0.0, out=crossed)
+            np.less_equal(offset, raw_delta, out=scratch)
+        else:
+            np.less_equal(offset, 0.0, out=crossed)
+            np.greater_equal(offset, raw_delta, out=scratch)
+        np.logical_and(crossed, scratch, out=crossed)
+        np.logical_and(crossed, window, out=crossed)
+
+        rows = np.flatnonzero(crossed)
+        if rows.shape[0] == 0:
+            return
+
+        state = self._game_state
+        for row in rows:
+            row = int(row)
+            threat_view["is_hit"][row] = True
+            threat_view["judgment"][row] = JUDGMENT_PERFECT
+            world.destroy_entity(int(threat_view["packed_handle"][row]))
+            state.score += self._score_perfect
+            state.perfect_count += 1
+            state.combo_count += 1
+            if state.combo_count > state.max_combo:
+                state.max_combo = state.combo_count
+            if self._vampirism_combo_threshold > 0:
+                self._apply_vampirism_heal(state)
+            self._emit_perfect_sparks()
+        state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
+        self._play(self._slash_sound_id, 1.0)
 
     def _set_core_polarity_shape(self, polarity: int) -> None:
         """Troca o `texture_id` do sprite do nucleo para a variante com o
@@ -826,6 +1119,17 @@ class JudgmentSystem(ISystem):
         np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=pending)
         np.logical_and(pending, self._owned_mask[:active_count], out=pending)
         np.logical_and(candidates, pending, out=candidates)
+
+        if self._focus_beam_enabled or self._slash_enabled:
+            # Raio de Foco / Lamina: nenhum dos dois aceita clique --
+            # "o jogador nao clica" / "ignora inputs de botao", so
+            # resolvem por `_run_focus_beam_check`/`_run_slash_check`.
+            # Reusa `_scratch_mask` (o antigo `pending` acima ja foi
+            # incorporado a `candidates`, nao e mais lido).
+            not_special_input = self._scratch_mask[:active_count]
+            np.logical_or(threat_view["is_focus_target"], threat_view["is_slash_target"], out=not_special_input)
+            np.logical_not(not_special_input, out=not_special_input)
+            np.logical_and(candidates, not_special_input, out=candidates)
 
         # Diferenca angular com wrap em +-pi, toda em buffers pre-alocados:
         # ang = |((spawn_angle - aim + pi) mod tau) - pi|

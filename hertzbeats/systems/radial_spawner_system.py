@@ -21,9 +21,11 @@ from hertzbeats.components.schemas import (
 from hertzbeats.components.texture_ids import (
     TEX_CONVERGENCE_RING,
     TEX_THREAT_BASIC,
+    TEX_THREAT_FOCUS_HEXAGON,
     TEX_THREAT_HEAVY,
     TEX_THREAT_POLARITY_BLUE,
     TEX_THREAT_POLARITY_PINK,
+    TEX_THREAT_SLASH,
 )
 from hertzbeats.game_state import GameState
 
@@ -91,6 +93,9 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         wormhole_teleport_radius: float = 0.0,
         mirages_enabled: bool = False,
         rubber_band_enabled: bool = False,
+        focus_beam_enabled: bool = False,
+        focus_target_seconds: float = 0.0,
+        slash_enabled: bool = False,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -165,6 +170,20 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         falso ocasional). `MindGamesSystem` (registrado depois do
         `PhysicsSystem`) consome o teleporte; `JudgmentSystem` cuida do
         desaparecimento/MISS forcado dos fantasmas.
+
+        RAIO DE FOCO/"MICROONDAS" (opt-in via "focus_beam") e A LAMINA/
+        "RADIAL SLASH" (opt-in via "radial_slash"): cada um marca sua
+        PROPRIA fracao deterministica de ameacas comuns (`lane % 3`,
+        restos DIFERENTES do `lane % 4 == 0` das Ameacas Fantasmas do
+        Rogue-lite -- nao ha problema de sobreposicao real, ja que sao
+        modifiers distintos, mas a distincao evita confusao ao ler o
+        codigo). Bumerangues ficam de fora dos dois, mesma exclusao dos
+        Mind Games. Cada tipo ganha uma textura procedural distinta
+        (`TEX_THREAT_FOCUS_HEXAGON`/`TEX_THREAT_SLASH`, ver
+        `HBPygameRenderer.draw_batch`) -- a Lamina TAMBEM grava
+        `rotation_rad` como `spawn_angle_rad + PI/2` (tangente ao anel,
+        nao radial) em vez do angulo normal, para a barra desenhar
+        "deitada" acompanhando a circunferencia.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -207,6 +226,9 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._wormhole_teleport_radius = float(wormhole_teleport_radius)
         self._mirages_enabled = bool(mirages_enabled)
         self._rubber_band_enabled = bool(rubber_band_enabled)
+        self._focus_beam_enabled = bool(focus_beam_enabled)
+        self._focus_target_seconds = float(focus_target_seconds)
+        self._slash_enabled = bool(slash_enabled)
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -347,6 +369,15 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
             self._mirages_enabled and not is_boomerang and (lane % self._lane_count) % 4 == 0
         )
         threat_view["nonlinear_approach"][threat_row] = self._rubber_band_enabled and not is_boomerang
+        # Raio de Foco/A Lamina: fracoes deterministicas DISJUNTAS
+        # (`% 3 == 1`/`% 3 == 2`) -- nunca a mesma linha marcada com os
+        # dois ao mesmo tempo, mesmo se as duas fases estiverem ativas
+        # juntas (nao e o uso pretendido, mas nao gera ambiguidade).
+        is_focus_target = self._focus_beam_enabled and not is_boomerang and (lane % self._lane_count) % 3 == 1
+        is_slash_target = self._slash_enabled and not is_boomerang and (lane % self._lane_count) % 3 == 2
+        threat_view["is_focus_target"][threat_row] = is_focus_target
+        threat_view["focus_health"][threat_row] = self._focus_target_seconds if is_focus_target else 0.0
+        threat_view["is_slash_target"][threat_row] = is_slash_target
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
         threat_view["spawn_angle_rad"][threat_row] = angle
@@ -358,7 +389,10 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         transform_view = self._transform_pool.active_view()
         transform_view["position_x"][transform_row] = spawn_x
         transform_view["position_y"][transform_row] = spawn_y
-        transform_view["rotation_rad"][transform_row] = angle
+        # A Lamina: gira a barra TANGENTE ao anel (perpendicular ao raio)
+        # em vez do angulo radial normal -- so' a orientacao visual muda,
+        # a fisica/velocidade continua puramente radial de sempre.
+        transform_view["rotation_rad"][transform_row] = (angle + math.pi / 2.0) if is_slash_target else angle
         scale = threat_half / 8.0
         transform_view["scale_x"][transform_row] = scale
         transform_view["scale_y"][transform_row] = scale
@@ -386,11 +420,27 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         )
         sprite_row = self._sprite_pool.dense_row_of(entity_index)
         sprite_view = self._sprite_pool.active_view()
+        # Raio de Foco/A Lamina: forma procedural PROPRIA (hexagono/barra
+        # rotacionada, ver `HBPygameRenderer.draw_batch`) -- checados
+        # ANTES de qualquer outro ramo (nunca coexistem com Bumerangue/
+        # Captura Orbital/Polaridade por construcao, ja excluidos na
+        # propria flag acima, mas a ordem aqui documenta a prioridade
+        # visual pretendida de qualquer jeito).
+        if is_focus_target:
+            sprite_view["texture_id"][sprite_row] = TEX_THREAT_FOCUS_HEXAGON
+            sprite_view["tint_r"][sprite_row] = 255
+            sprite_view["tint_g"][sprite_row] = 210
+            sprite_view["tint_b"][sprite_row] = 90
+        elif is_slash_target:
+            sprite_view["texture_id"][sprite_row] = TEX_THREAT_SLASH
+            sprite_view["tint_r"][sprite_row] = 235
+            sprite_view["tint_g"][sprite_row] = 245
+            sprite_view["tint_b"][sprite_row] = 255
         # Bumerangue: tint LARANJA distinto -- "espere, ainda nao atire"
         # -- desde o spawn, checado ANTES de qualquer ramo de Polaridade
         # (o Bumerangue aceita qualquer cor de gatilho, so o TEMPO
         # importa pro julgamento, ver `BoomerangThreatSystem`).
-        if is_boomerang:
+        elif is_boomerang:
             sprite_view["texture_id"][sprite_row] = base_texture_id
             sprite_view["tint_r"][sprite_row] = 255
             sprite_view["tint_g"][sprite_row] = 150

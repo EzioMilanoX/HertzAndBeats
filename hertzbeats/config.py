@@ -120,6 +120,19 @@ class HertzConfig:
     #                            -- reduz fadiga de clique variando o
     #                            ritmo (ver `JudgmentSystem.
     #                            _run_phalanx_block_check`)
+    #      "focus_beam"       -- Defensor (independente), Raio de Foco/
+    #                            "Microondas": uma fracao das ameacas comuns
+    #                            vira `is_focus_target` -- exige mira
+    #                            SUSTENTADA (nao clique) perto do anel de
+    #                            julgamento ate `focus_health` zerar;
+    #                            desmirar antes reseta pro maximo (ver
+    #                            `JudgmentSystem._run_focus_beam_check`)
+    #      "radial_slash"     -- Defensor (independente), A Lamina: uma
+    #                            fracao vira `is_slash_target` -- ignora
+    #                            clique, exige um ARRASTO rapido do mouse
+    #                            cujo arco cruze o angulo da ameaca dentro
+    #                            da janela PERFECT (ver `JudgmentSystem.
+    #                            _run_slash_check`)
     #    Um modifier cuja dependencia nao esta presente (ex.:
     #    "orbital_shields" sem "polarity") degrada silenciosamente para
     #    no-op -- nunca lanca erro (mesma filosofia de opt-in gracioso ja
@@ -406,6 +419,35 @@ class HertzConfig:
     """Modo Falange: fracao de encolhimento do nucleo no INSTANTE do
     bloqueio (0.10 = 90% do tamanho normal), decaindo de volta a 1.0."""
 
+    # -- Raio de Foco/"Microondas" (Defensor) -- opt-in via "focus_beam"
+    #    em `active_modifiers`: ameacas `is_focus_target` NAO aceitam
+    #    clique -- exigem mira sustentada enquanto estiverem perto do
+    #    anel de julgamento, ver `JudgmentSystem._run_focus_beam_check`.
+    focus_target_seconds: float = 0.6
+    """Segundos de mira sustentada necessarios pra `focus_health` zerar
+    (o PROPRIO valor inicial de `focus_health` no spawn) -- reseta pro
+    valor cheio se a mira sair ANTES de chegar a zero."""
+    focus_tolerance_degrees: float = 15.0
+    """Cone de mira (graus, convertido pra radianos na composicao --
+    mesma convencao de `aim_tolerance_degrees") pra contar como "mira em
+    cima" do alvo de foco."""
+    focus_radius_tolerance_px: float = 60.0
+    """Faixa (px, em torno de `current_judgment_radius`, MESMA unidade
+    de `phalanx_radius_tolerance_px`) dentro da qual o foco realmente
+    decrementa -- fora dela (ainda longe do anel), `focus_health` fica
+    parado no valor cheio, nunca decrementa nem reseta."""
+
+    # -- A Lamina/"Radial Slash" (Defensor) -- opt-in via "radial_slash"
+    #    em `active_modifiers`: ameacas `is_slash_target` IGNORAM
+    #    cliques -- exigem um arrasto RAPIDO do mouse cujo arco cruze o
+    #    angulo da ameaca dentro da janela PERFECT, ver
+    #    `JudgmentSystem._run_slash_check`.
+    slash_min_angular_speed_rad_per_sec: float = 12.0
+    """Velocidade angular MINIMA (rad/s, `|mira_atual - mira_anterior| /
+    delta_time`, com wraparound em +-PI) pra contar como um "arrasto
+    rapido" -- movimento normal de mira (rastrear uma ameaca chegando)
+    fica bem abaixo disso; so' um puxao deliberado do pulso qualifica."""
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -533,6 +575,10 @@ class HertzConfig:
             phalanx_activate_shake_px=raw.get("phalanx_activate_shake_px", 12.0),
             core_pulse_seconds=raw.get("core_pulse_seconds", 0.15),
             core_pulse_depth=raw.get("core_pulse_depth", 0.10),
+            focus_target_seconds=raw.get("focus_target_seconds", 0.6),
+            focus_tolerance_degrees=raw.get("focus_tolerance_degrees", 15.0),
+            focus_radius_tolerance_px=raw.get("focus_radius_tolerance_px", 60.0),
+            slash_min_angular_speed_rad_per_sec=raw.get("slash_min_angular_speed_rad_per_sec", 12.0),
         )
 
 
@@ -572,4 +618,5 @@ def fit_config_to_display(
         },
         wormhole_teleport_radius=config.wormhole_teleport_radius * scale,
         phalanx_radius_tolerance_px=config.phalanx_radius_tolerance_px * scale,
+        focus_radius_tolerance_px=config.focus_radius_tolerance_px * scale,
     )

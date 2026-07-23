@@ -85,6 +85,12 @@ class PlayerInputSystem(ISystem):
         player_row = self._player_pool.dense_row_of(self._player_entity_index)
         player_view = self._player_pool.active_view()
 
+        # A Lamina (Radial Slash): guarda o angulo PRE-este-frame ANTES
+        # de recalcula-lo -- `JudgmentSystem` roda logo depois no MESMO
+        # frame e usa os 2 pontos (`mouse_angle_previous` aqui,
+        # `aim_angle_rad` ja atualizado abaixo) pra medir o arrasto.
+        self._game_state.mouse_angle_previous = float(player_view["aim_angle_rad"][player_row])
+
         aim_x = self._input_provider.get_axis("aim_x")
         aim_y = self._input_provider.get_axis("aim_y")
         if (aim_x * aim_x + aim_y * aim_y) > 1e-8:

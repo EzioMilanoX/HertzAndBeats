@@ -15,8 +15,10 @@ from hertzbeats.components.texture_ids import (
     TEX_DIGIT_PALETTE_BASE,
     TEX_PLAYER_CORE_BLUE,
     TEX_PLAYER_CORE_PINK,
+    TEX_THREAT_FOCUS_HEXAGON,
     TEX_THREAT_POLARITY_BLUE,
     TEX_THREAT_POLARITY_PINK,
+    TEX_THREAT_SLASH,
 )
 
 _INNER_MARK_COLOR = (250, 250, 255)
@@ -1973,6 +1975,36 @@ class HBPygameRenderer(PygameRenderer):
                     radius = max(2, int(8.0 * scale_x))
                     pygame.draw.circle(self._surface, color, (int(x), int(y)), radius)
                     self._draw_inner_square(x, y, radius)
+                elif shape_id == TEX_THREAT_FOCUS_HEXAGON:
+                    # Raio de Foco: hexagono regular -- 6 pontos por
+                    # trigonometria simples (lista transiente, zero
+                    # Surface nova). "Pulsar" e' so' a ESCALA variando
+                    # frame a frame (`JudgmentSystem` escreve direto no
+                    # transform), este metodo so' desenha o raio atual.
+                    radius = max(2, int(8.0 * scale_x))
+                    points = [
+                        (x + radius * math.cos(k * (math.pi / 3.0)), y + radius * math.sin(k * (math.pi / 3.0)))
+                        for k in range(6)
+                    ]
+                    pygame.draw.polygon(self._surface, color, points)
+                elif shape_id == TEX_THREAT_SLASH:
+                    # A Lamina: barra ROTACIONADA (4 cantos calculados a
+                    # partir de `rotations_rad[i]` -- PRIMEIRO uso real
+                    # deste parametro neste metodo) tangente ao anel,
+                    # nunca `pygame.draw.rect` (que so desenha eixo-alinhado).
+                    angle = float(rotations_rad[i])
+                    half_len = 16.0 * scale_x
+                    half_wid = max(2.0, 4.0 * scale_y)
+                    cos_a, sin_a = math.cos(angle), math.sin(angle)
+                    dx, dy = cos_a * half_len, sin_a * half_len
+                    px, py = -sin_a * half_wid, cos_a * half_wid
+                    points = [
+                        (x + dx + px, y + dy + py),
+                        (x + dx - px, y + dy - py),
+                        (x - dx - px, y - dy - py),
+                        (x - dx + px, y - dy + py),
+                    ]
+                    pygame.draw.polygon(self._surface, color, points)
                 elif abs(scale_x - scale_y) > 0.01:
                     # escala anisotropica = barra (Notas Longas/Scratch, Arcade 4K)
                     width = max(1, int(16.0 * scale_x))
