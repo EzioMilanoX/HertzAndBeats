@@ -31,6 +31,12 @@ musicas/*
 !musicas/LEIA-ME.txt
 data/beatmaps/user/
 
+# Binarios de terceiros embutidos no build standalone (ffmpeg.exe/ffmpeg
+# -- dezenas de MB, licenciado a parte, baixado pelo empacotador -- nunca
+# versionado; ver bin/LEIA-ME.txt)
+bin/*
+!bin/LEIA-ME.txt
+
 # IDE / SO
 .vscode/
 .idea/

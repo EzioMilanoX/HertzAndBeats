@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -26,6 +27,7 @@ from hertzbeats.music_library import (
     scan_youtube_songs,
 )
 from hertzbeats.stages import StageDef
+from utils.path_resolver import get_resource_path
 
 _YOUTUBE_HOST_PATTERN = (
     r"(?:https?://)?(?:www\.|m\.)?(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)"
@@ -108,11 +110,43 @@ def read_system_clipboard() -> str:
         root.destroy()
 
 
+def _default_bundled_ffmpeg_path() -> str:
+    """Caminho do `ffmpeg` EMBUTIDO na pasta `bin/` do projeto/build
+    PyInstaller -- `.exe` no Windows, sem extensao nos demais SOs
+    (`os.name == "nt"` e' a MESMA checagem que o resto da stdlib usa
+    pra essa distincao)."""
+    return get_resource_path("bin/ffmpeg.exe" if os.name == "nt" else "bin/ffmpeg")
+
+
+def resolve_ffmpeg_path(
+    which_fn: Callable[[str], Optional[str]] = shutil.which,
+    bundled_path_resolver: Callable[[], str] = _default_bundled_ffmpeg_path,
+) -> Optional[str]:
+    """Resolve o caminho ABSOLUTO do `ffmpeg` a usar (nunca so' um
+    booleano) -- mesmo espirito de `resolve_yt_dlp_command`: prefere o
+    `ffmpeg` do PATH do sistema (`shutil.which`, respeita uma instalacao
+    real do jogador), e so' cai pro binario EMBUTIDO em `bin/` (pasta
+    includа no PyInstaller via `hertz_build.spec`) se nada for
+    encontrado no PATH -- o jogador comum, sem `ffmpeg` instalado, nunca
+    precisa saber que essa dependencia existe. `None` se nenhum dos 2
+    existir de verdade (bundled_path_resolver() aponta pra um arquivo
+    que so existe DEPOIS de empacotado -- rodando do codigo-fonte sem um
+    `bin/ffmpeg*` local, cai aqui, e' o comportamento correto)."""
+    which_path = which_fn("ffmpeg")
+    if which_path is not None:
+        return which_path
+    bundled = Path(bundled_path_resolver())
+    if bundled.exists():
+        return str(bundled)
+    return None
+
+
 def ffmpeg_available(which_fn: Callable[[str], Optional[str]] = shutil.which) -> bool:
-    """Presenca do `ffmpeg` no sistema (`shutil.which`, injetavel pra
-    testes) -- checado PROATIVAMENTE na Etapa 2 (Download), antes de
+    """Presenca do `ffmpeg` no sistema OU embutido em `bin/`
+    (`resolve_ffmpeg_path`, injetavel via `which_fn` pra testes) --
+    checado PROATIVAMENTE na Etapa 2 (Download), antes de
     `yt-dlp --extract-audio`."""
-    return which_fn("ffmpeg") is not None
+    return resolve_ffmpeg_path(which_fn=which_fn) is not None
 
 
 def resolve_yt_dlp_command(
@@ -259,6 +293,7 @@ def download_and_analyze_youtube_song(
     run_subprocess: Callable[..., "subprocess.CompletedProcess"] = subprocess.run,
     yt_dlp_command_resolver: Callable[[], Optional[List[str]]] = resolve_yt_dlp_command,
     ffmpeg_checker: Callable[[], bool] = ffmpeg_available,
+    ffmpeg_location_resolver: Callable[[], Optional[str]] = resolve_ffmpeg_path,
     analyzer: Callable[[Path, Path, str], None] = analyze_song,
 ) -> Tuple[str, Tuple[StageDef, ...]]:
     """ETAPA 2 (Download): so' chamada depois que o jogador CONFIRMA a
@@ -275,6 +310,15 @@ def download_and_analyze_youtube_song(
     clara em vez de deixar o subprocess falhar com um erro interno
     criptico.
 
+    `ffmpeg_location_resolver` e' um parametro NOVO e SEPARADO de
+    `ffmpeg_checker` (nao reaproveita o mesmo -- `ffmpeg_checker`
+    continua um booleano puro, mesma assinatura de sempre, pra nao
+    quebrar quem ja injeta `lambda: True/False` em teste): devolve o
+    CAMINHO ABSOLUTO do `ffmpeg` resolvido (sistema OU embutido em
+    `bin/`, ver `resolve_ffmpeg_path`), repassado a `yt-dlp` via
+    `--ffmpeg-location` -- sem isso, um `yt-dlp` que so' encontra o
+    `ffmpeg` embutido (nao no PATH do sistema) nao saberia onde procurar.
+
     Retorna `(video_id, stages)`: `stages` e' a lista COMPLETA e
     atualizada de musicas do YouTube (inclui importacoes anteriores,
     nao so a nova) -- `HertzGameLoop._apply_download_success` substitui
@@ -289,6 +333,11 @@ def download_and_analyze_youtube_song(
     folder = Path(preview["preview_folder"])
     output_template = str(folder / "audio.%(ext)s")
 
+    ffmpeg_location_args = []
+    ffmpeg_path = ffmpeg_location_resolver()
+    if ffmpeg_path is not None:
+        ffmpeg_location_args = ["--ffmpeg-location", ffmpeg_path]
+
     result = run_subprocess(
         [
             *command_prefix,
@@ -296,6 +345,7 @@ def download_and_analyze_youtube_song(
             "--audio-format", "mp3",
             "--write-info-json",
             "--no-playlist",
+            *ffmpeg_location_args,
             "-o", output_template,
             preview["url"],
         ],

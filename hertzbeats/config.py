@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass
 from typing import Dict, Tuple
 
+from utils.path_resolver import get_resource_path
+
 
 @dataclass(frozen=True)
 class HertzConfig:
@@ -455,8 +457,18 @@ class HertzConfig:
 
     @staticmethod
     def from_json(config_path: str) -> "HertzConfig":
-        """Carrega e valida uma `HertzConfig` a partir de um arquivo JSON."""
-        with open(config_path, "r", encoding="utf-8") as f:
+        """Carrega e valida uma `HertzConfig` a partir de um arquivo JSON.
+
+        `config_path` e' o UNICO arquivo curado empacotado com o jogo
+        (`data/config/hertz_beats.config.json`, default de
+        `hertzbeats.__main__.DEFAULT_CONFIG_PATH`) -- resolvido aqui via
+        `get_resource_path` (raiz = `sys._MEIPASS` num build PyInstaller
+        congelado). Os campos QUE ESTE JSON contem (`stages_path`,
+        `track_path`, `input_bindings_path`, ...) continuam strings
+        relativas cruas no dataclass -- cada consumidor resolve o SEU
+        proprio caminho no seu proprio ponto de uso (`load_stages`,
+        `HBPygameAudioEngine`, ...), nunca aqui."""
+        with open(get_resource_path(config_path), "r", encoding="utf-8") as f:
             raw = json.load(f)
         return HertzConfig(
             window_width=raw["window_width"],

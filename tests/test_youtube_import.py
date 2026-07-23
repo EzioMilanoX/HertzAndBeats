@@ -14,6 +14,7 @@ from hertzbeats.youtube_import import (
     extract_youtube_url,
     fetch_youtube_preview,
     ffmpeg_available,
+    resolve_ffmpeg_path,
     resolve_yt_dlp_command,
     yt_dlp_available,
 )
@@ -67,6 +68,44 @@ def test_ffmpeg_available_reflects_which_fn_result():
 def test_yt_dlp_available_reflects_which_fn_result():
     assert yt_dlp_available(which_fn=lambda name: "/usr/bin/yt-dlp") is True
     assert yt_dlp_available(which_fn=lambda name: None) is False
+
+
+# -- resolve_ffmpeg_path (sistema no PATH > binario embutido em bin/) -------
+
+
+def test_resolve_ffmpeg_path_prefers_the_path_executable():
+    path = resolve_ffmpeg_path(
+        which_fn=lambda name: "/usr/bin/ffmpeg",
+        bundled_path_resolver=lambda: "/nunca/consultado/ffmpeg",
+    )
+    assert path == "/usr/bin/ffmpeg"
+
+
+def test_resolve_ffmpeg_path_falls_back_to_the_bundled_binary(tmp_path):
+    """Empacotamento standalone: sem `ffmpeg` no PATH do sistema, mas
+    com o binario embutido em `bin/` (copiado pelo `hertz_build.spec`)
+    presente no disco -- deve resolver pra ele."""
+    bundled = tmp_path / "bin" / "ffmpeg.exe"
+    bundled.parent.mkdir(parents=True)
+    bundled.write_bytes(b"fake ffmpeg binary")
+
+    path = resolve_ffmpeg_path(which_fn=lambda name: None, bundled_path_resolver=lambda: str(bundled))
+    assert path == str(bundled)
+
+
+def test_resolve_ffmpeg_path_returns_none_when_neither_exists(tmp_path):
+    path = resolve_ffmpeg_path(
+        which_fn=lambda name: None,
+        bundled_path_resolver=lambda: str(tmp_path / "bin" / "ffmpeg.exe"),  # nunca criado
+    )
+    assert path is None
+
+
+def test_ffmpeg_available_reflects_the_bundled_fallback_too():
+    """`ffmpeg_available` delega pra `resolve_ffmpeg_path` por completo
+    -- um `which_fn` que nao acha nada no PATH ainda reporta disponivel
+    se o binario embutido existir."""
+    assert ffmpeg_available(which_fn=lambda name: None) is False  # sem PATH e sem bundled real, comportamento antigo preservado
 
 
 # -- resolve_yt_dlp_command (executavel no PATH > fallback "python -m yt_dlp") --
@@ -348,6 +387,67 @@ def test_download_and_analyze_builds_an_extract_audio_command_reusing_the_previe
     assert "--write-thumbnail" not in command  # reusa a miniatura da Previa, nao busca de novo
     output_index = command.index("-o") + 1
     assert Path(command[output_index]).parent == Path(preview["preview_folder"])
+
+
+def test_download_and_analyze_passes_ffmpeg_location_when_resolved(tmp_path):
+    """Empacotamento standalone: quando `ffmpeg_location_resolver`
+    encontra um binario (embutido em `bin/`, tipicamente), o comando
+    passado a `yt-dlp` precisa incluir `--ffmpeg-location <path>` --
+    sem isso, um `ffmpeg` so' embutido (fora do PATH do sistema) nunca
+    seria encontrado pelo proprio `yt-dlp`."""
+    preview = _make_preview(tmp_path)
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        output_index = command.index("-o") + 1
+        folder = Path(command[output_index]).parent
+        (folder / "audio.mp3").write_bytes(b"fake audio")
+        (folder / "audio.info.json").write_text(json.dumps({"title": "Brand New Song"}), encoding="utf-8")
+        return _FakeCompletedProcess(0)
+
+    download_and_analyze_youtube_song(
+        preview,
+        music_dir=str(tmp_path / "musicas"),
+        beatmap_dir=str(tmp_path / "beatmaps"),
+        run_subprocess=fake_run,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
+        ffmpeg_checker=lambda: True,
+        ffmpeg_location_resolver=lambda: "/opt/bundled/bin/ffmpeg",
+        analyzer=_fake_analyzer,
+    )
+    command = captured["command"]
+    location_index = command.index("--ffmpeg-location") + 1
+    assert command[location_index] == "/opt/bundled/bin/ffmpeg"
+
+
+def test_download_and_analyze_omits_ffmpeg_location_when_unresolved(tmp_path):
+    """Contrapartida: se o resolvedor nao acha nada (mesmo com
+    `ffmpeg_checker` confirmando disponibilidade -- os 2 sao
+    independentes de proposito), o comando NAO ganha `--ffmpeg-location`
+    -- yt-dlp cai pro proprio PATH do sistema, comportamento de sempre."""
+    preview = _make_preview(tmp_path)
+    captured = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        output_index = command.index("-o") + 1
+        folder = Path(command[output_index]).parent
+        (folder / "audio.mp3").write_bytes(b"fake audio")
+        (folder / "audio.info.json").write_text(json.dumps({"title": "Brand New Song"}), encoding="utf-8")
+        return _FakeCompletedProcess(0)
+
+    download_and_analyze_youtube_song(
+        preview,
+        music_dir=str(tmp_path / "musicas"),
+        beatmap_dir=str(tmp_path / "beatmaps"),
+        run_subprocess=fake_run,
+        yt_dlp_command_resolver=lambda: ["yt-dlp"],
+        ffmpeg_checker=lambda: True,
+        ffmpeg_location_resolver=lambda: None,
+        analyzer=_fake_analyzer,
+    )
+    assert "--ffmpeg-location" not in captured["command"]
 
 
 def test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_cover(tmp_path):

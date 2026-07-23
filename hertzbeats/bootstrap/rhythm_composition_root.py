@@ -44,6 +44,8 @@ from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.rhythm.runtime.beatmap_loader import BeatmapLoader
 
+from utils.path_resolver import get_resource_path
+
 from hertzbeats.audio.sfx_synth import (
     SFX_BOMB,
     SFX_CANNON,
@@ -1432,10 +1434,15 @@ class RhythmCompositionRoot:
         # sincronizada pelo HertzGameLoop a cada troca de fase.)
         renderer = HBPygameRenderer()
         renderer.initialize(config.window_width, config.window_height, config.window_title)
-        renderer.set_window_icon("assets/icon.png")
+        # `set_window_icon`/`load_bindings` sao metodos da ENGINE (nao
+        # subclassados pelo jogo) -- resolvidos AQUI, no ponto de
+        # chamada, em vez de dentro deles: recurso empacotado SOMENTE
+        # LEITURA (`get_resource_path`), nunca `get_writable_data_path`
+        # (nenhum dos dois e regravado em runtime).
+        renderer.set_window_icon(get_resource_path("assets/icon.png"))
 
         input_provider = HBPygameInputProvider()
-        input_provider.load_bindings(config.input_bindings_path)
+        input_provider.load_bindings(get_resource_path(config.input_bindings_path))
         input_provider.configure_aim_origin(center_x, center_y)
 
         from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG

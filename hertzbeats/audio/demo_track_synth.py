@@ -22,6 +22,8 @@ from typing import Dict, Optional
 
 import numpy as np
 
+from utils.path_resolver import get_writable_data_path
+
 DEMO_TRACK_BPM: float = 128.0
 DEMO_TRACK_BARS: int = 24
 DEMO_TRACK_SAMPLE_RATE: int = 44100
@@ -140,8 +142,17 @@ def write_wav(samples: np.ndarray, destination: Path, sample_rate: int = DEMO_TR
 def ensure_track(track_path: str, synth_spec: Optional[Dict]) -> str:
     """Garante que a faixa exista em `track_path`, re-sintetizando-a
     deterministicamente a partir de `synth_spec` se necessario. Sem
-    `synth_spec` (faixa do usuario), o arquivo precisa existir."""
-    path = Path(track_path)
+    `synth_spec` (faixa do usuario), o arquivo precisa existir.
+
+    `track_path` resolvido via `get_writable_data_path` (pasta do
+    proprio `.exe` num build congelado, nunca `sys._MEIPASS` -- tanto a
+    sintese determinista quanto `musicas/*` do jogador precisam
+    sobreviver entre execucoes) -- a string devolvida ja e' a resolvida,
+    entao quem chama (`HBPygameAudioEngine.load_track` via override, ou
+    os 2 usos diretos de `title_track_path`/`calibration_track_path`)
+    nunca resolve de novo por cima (`get_writable_data_path` e'
+    idempotente sobre um caminho ja absoluto)."""
+    path = Path(get_writable_data_path(track_path))
     if not path.exists():
         if synth_spec is None:
             raise FileNotFoundError(f"faixa de audio nao encontrada: {path}")
@@ -200,8 +211,9 @@ def synthesize_metronome_track(
 
 def ensure_metronome_track(track_path: str, bpm: float, bars: int = 64) -> str:
     """Garante a faixa de metronomo da Calibracao, re-sintetizada
-    deterministicamente se ausente (mesmo criterio de `ensure_track`)."""
-    path = Path(track_path)
+    deterministicamente se ausente (mesmo criterio de `ensure_track`,
+    inclusive a resolucao via `get_writable_data_path`)."""
+    path = Path(get_writable_data_path(track_path))
     if not path.exists():
         write_wav(synthesize_metronome_track(bpm=bpm, bars=bars), path, sample_rate=DEMO_TRACK_SAMPLE_RATE)
     return str(path)

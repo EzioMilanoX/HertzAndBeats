@@ -5,6 +5,8 @@ import pygame
 
 from ouroboros.adapters.pygame_backend.pygame_audio_engine import PygameAudioEngine
 
+from utils.path_resolver import get_writable_data_path
+
 
 class HBPygameAudioEngine(PygameAudioEngine):
     """
@@ -48,9 +50,31 @@ class HBPygameAudioEngine(PygameAudioEngine):
 
     def preload_one_shot(self, sound_id: str) -> None:
         """Carrega um SFX para o cache ANTES do gameplay (o primeiro
-        `play_one_shot` deixaria de tocar no tempo por causa do I/O)."""
+        `play_one_shot` deixaria de tocar no tempo por causa do I/O).
+
+        `sound_id` (ex.: `"data/sfx/cannon.wav"`) e' resolvido via
+        `get_writable_data_path` -- NAO `get_resource_path` -- porque
+        `sfx_synth.ensure_sfx` pode GRAVAR o arquivo ali mesmo (sintese
+        na 1a execucao); `sys._MEIPASS` (a raiz de `get_resource_path`
+        quando congelado) e' apagado ao sair do jogo, o que faria
+        ressintetizar TODO SFX a cada execucao. A chave do cache
+        `self._sounds` continua sendo o `sound_id` ORIGINAL (relativo)
+        -- so' o caminho passado a `pygame.mixer.Sound` e' resolvido --
+        entao `play_one_shot(sound_id)` (chamado em todo o resto do
+        jogo com a MESMA string original) continua encontrando o cache
+        sem nenhuma mudanca no resto do codebase."""
         if sound_id not in self._sounds:
-            self._sounds[sound_id] = pygame.mixer.Sound(sound_id)
+            self._sounds[sound_id] = pygame.mixer.Sound(get_writable_data_path(sound_id))
+
+    def load_track(self, track_id: str, file_path: str) -> None:
+        """Override fino sobre `PygameAudioEngine.load_track` (engine,
+        nao editada) -- resolve `file_path` via `get_writable_data_path`
+        PELO MESMO MOTIVO de `preload_one_shot` (faixas tambem podem
+        ser sintetizadas em runtime por `demo_track_synth.ensure_track`)
+        antes de delegar pro comportamento real da engine. Cobre TODO
+        `self._audio_engine.load_track(...)` do jogo de uma vez so' --
+        nenhum call site em `hertz_game_loop.py` precisa saber disso."""
+        super().load_track(track_id, get_writable_data_path(file_path))
 
     def pause_track(self) -> None:
         """Pausa a faixa em reproducao (e, com ela, o `IAudioClock`)."""

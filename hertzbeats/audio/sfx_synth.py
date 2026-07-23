@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from hertzbeats.audio.demo_track_synth import write_wav
+from utils.path_resolver import get_writable_data_path
 
 SFX_SAMPLE_RATE = 44100
 SFX_CANNON = "data/sfx/cannon.wav"
@@ -329,7 +330,13 @@ def _slash(sample_rate: int) -> np.ndarray:
 
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
-    primeira execucao). Chamado no build, fora do loop de gameplay."""
+    primeira execucao). Chamado no build, fora do loop de gameplay.
+
+    Cada `path` (relativo, ex.: `"data/sfx/cannon.wav"`) e' resolvido
+    via `get_writable_data_path` -- a MESMA raiz gravavel que
+    `HBPygameAudioEngine.preload_one_shot` usa pra depois LER o mesmo
+    arquivo -- senao um build congelado escreveria num lugar e leria
+    de outro."""
     for path, synth in (
         (SFX_CANNON, _cannon),
         (SFX_CLICK, _click),
@@ -349,15 +356,18 @@ def ensure_sfx() -> None:
         (SFX_SHIELD_EQUIP, _shield_equip),
         (SFX_SLASH, _slash),
     ):
-        if not Path(path).exists():
-            write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)
+        resolved = Path(get_writable_data_path(path))
+        if not resolved.exists():
+            write_wav(synth(SFX_SAMPLE_RATE), resolved, sample_rate=SFX_SAMPLE_RATE)
 
     # Combo Pitch Shift: 5 variantes cada, um semitom acima da anterior
     # (indice 0 = afinacao original -- `SFX_CANNON_VARIANTS[0]` e o
     # PROPRIO `SFX_CANNON` de sempre, ja gerado no laco acima).
     for i, path in enumerate(SFX_CANNON_VARIANTS):
-        if not Path(path).exists():
-            write_wav(_cannon(SFX_SAMPLE_RATE, _SEMITONE_RATIO**i), Path(path), sample_rate=SFX_SAMPLE_RATE)
+        resolved = Path(get_writable_data_path(path))
+        if not resolved.exists():
+            write_wav(_cannon(SFX_SAMPLE_RATE, _SEMITONE_RATIO**i), resolved, sample_rate=SFX_SAMPLE_RATE)
     for i, path in enumerate(SFX_NOTE_HIT_VARIANTS):
-        if not Path(path).exists():
-            write_wav(_note_hit(SFX_SAMPLE_RATE, _SEMITONE_RATIO**i), Path(path), sample_rate=SFX_SAMPLE_RATE)
+        resolved = Path(get_writable_data_path(path))
+        if not resolved.exists():
+            write_wav(_note_hit(SFX_SAMPLE_RATE, _SEMITONE_RATIO**i), resolved, sample_rate=SFX_SAMPLE_RATE)

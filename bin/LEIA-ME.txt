@@ -1,0 +1,16 @@
+Coloque aqui o binario do ffmpeg usado pelo Pipeline de Importacao
+Direta (YouTube) no build standalone:
+
+    Windows: bin/ffmpeg.exe
+    Linux/macOS: bin/ffmpeg (sem extensao, com permissao de execucao)
+
+Baixe em https://ffmpeg.org/download.html (ou via `winget`/`brew`/gerenciador
+de pacotes da sua distro) -- so a licenca (LGPL/GPL conforme o build)
+impede versionar o binario neste repositorio, por isso esta pasta e
+gitignored (exceto este arquivo).
+
+Sem o binario aqui E sem `ffmpeg` no PATH do sistema, o jogo roda
+normalmente -- so a Importacao Direta do YouTube degrada com um erro
+claro (`FFmpegNotFoundError`), exatamente como hoje sem nenhum dos dois.
+`hertzbeats.youtube_import.resolve_ffmpeg_path` procura primeiro no
+PATH do sistema, so cai pra este arquivo se nao achar nada la.

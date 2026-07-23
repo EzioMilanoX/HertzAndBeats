@@ -22,6 +22,12 @@ dev = [
 youtube = [
     "yt-dlp>=2024.1.1",
 ]
+# Empacotamento standalone (hertz_build.spec): so' precisa existir na
+# maquina que RODA o build, nunca no PC do jogador (o .exe resultante
+# ja embute o interpretador inteiro).
+build = [
+    "pyinstaller>=6.0",
+]
 
 [project.scripts]
 hertz-beats = "hertzbeats.__main__:main"
@@ -31,7 +37,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["hertzbeats*"]
+# "utils*" e' `utils/path_resolver.py` (resolucao de sys._MEIPASS/pasta
+# do .exe) -- pacote irmao de `hertzbeats`, nao aninhado dentro dele de
+# proposito (usado tambem por `hertz_build.spec`/`tools/`, fora do
+# pacote de gameplay). Sem essa entrada, `pip install .`/o console
+# script instalado nao encontrariam `utils` fora de uma execucao direta
+# do codigo-fonte na raiz do repo.
+include = ["hertzbeats*", "utils*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

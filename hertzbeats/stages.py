@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
 from hertzbeats.config import HertzConfig
+from utils.path_resolver import get_resource_path
 
 
 @dataclass(frozen=True)
@@ -137,8 +138,15 @@ class StageDef:
 
 
 def load_stages(stages_path: str) -> Tuple[StageDef, ...]:
-    """Carrega a lista ordenada de fases de `stages_path` (JSON)."""
-    with open(stages_path, "r", encoding="utf-8") as f:
+    """Carrega a lista ordenada de fases de `stages_path` (JSON).
+
+    `stages_path` e' recurso SOMENTE LEITURA empacotado com o jogo --
+    resolvido aqui via `get_resource_path` (raiz = `sys._MEIPASS` num
+    build PyInstaller congelado, senao a raiz do projeto), nao no
+    chamador: assim TODO caminho de `stages_path` (config real, teste
+    com `tmp_path` absoluto -- idempotente, devolvido sem alteracao)
+    passa pelo MESMO ponto antes do `open()`."""
+    with open(get_resource_path(stages_path), "r", encoding="utf-8") as f:
         raw = json.load(f)
     stages = []
     for entry in raw["stages"]:

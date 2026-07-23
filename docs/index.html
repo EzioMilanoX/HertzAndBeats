@@ -272,7 +272,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>674 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<p>Total: <strong>687 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
 <details><summary><code>test_announcer.py</code> — Meta-Jogo -- Announcer: stinger sintetizado (nao fala real) em marcos de combo e Rank. (8 testes)</summary><ul><li><code>test_combo_announcer_fires_when_crossing_the_threshold</code></li><li><code>test_combo_announcer_does_not_fire_below_the_threshold</code></li><li><code>test_combo_announcer_never_refires_within_the_same_tier</code></li><li><code>test_combo_announcer_fires_again_at_the_next_tier</code></li><li><code>test_combo_announcer_is_silent_outside_playing</code></li><li><code>test_combo_announcer_tier_resets_on_a_fresh_stage</code></li><li><code>test_rank_ss_clear_triggers_the_rank_stinger</code></li><li><code>test_a_low_rank_clear_never_triggers_the_rank_stinger</code></li></ul></details>
 <details><summary><code>test_audio_ducking.py</code> — Audio Ducking: um MISS/dano abaixa a musica para duck_volume_fraction, restaurando gradualmente. (5 testes)</summary><ul><li><code>test_duck_multiplier_is_minimum_right_when_the_timer_is_fresh</code></li><li><code>test_duck_multiplier_recovers_to_normal_as_the_timer_decays</code></li><li><code>test_duck_multiplier_is_a_no_op_outside_the_ducking_window</code></li><li><code>test_a_miss_ducks_the_track_volume_and_it_recovers_over_time</code></li><li><code>test_a_second_miss_before_recovery_restarts_the_ducking_window</code></li></ul></details>
 <details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
@@ -321,6 +321,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_music_library.py</code> — Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu. (6 testes)</summary><ul><li><code>test_slug_and_display_name</code></li><li><code>test_scan_analyzes_new_songs_and_uses_cache</code></li><li><code>test_replaced_song_triggers_reanalysis</code></li><li><code>test_failed_analysis_skips_song_without_crashing</code></li><li><code>test_old_mapper_version_triggers_reanalysis</code></li><li><code>test_non_audio_files_and_missing_dir_are_ignored</code></li></ul></details>
 <details><summary><code>test_palettes.py</code> — Meta-Jogo -- Paletas Cosmeticas: desbloqueio puro por Rank ja alcancado em alguma fase/musica. (9 testes)</summary><ul><li><code>test_only_the_always_unlocked_palettes_are_available_with_no_progress_at_all</code></li><li><code>test_accessibility_palettes_are_never_gated_by_rank</code></li><li><code>test_gold_silver_unlocks_with_an_s_rank_somewhere</code></li><li><code>test_an_ss_rank_unlocks_both_gold_silver_and_neon</code></li><li><code>test_a_rank_below_the_threshold_unlocks_nothing_extra</code></li><li><code>test_the_placeholder_rank_never_unlocks_anything</code></li><li><code>test_none_best_rank_never_unlocks_anything</code></li><li><code>test_only_one_good_stage_among_many_is_enough_to_unlock</code></li><li><code>test_unlocked_ids_preserve_catalog_order</code></li></ul></details>
 <details><summary><code>test_parry_hitlag.py</code> — Defensor -- Juice Extremo de Parry (Hitlag Visual Simulado): congelamento de apresentacao + flash de retorno. (6 testes)</summary><ul><li><code>test_trigger_hitlag_takes_the_larger_freeze_and_always_arms_the_flash</code></li><li><code>test_camera_shake_system_decays_freeze_frames_by_one_per_update_not_by_delta_time</code></li><li><code>test_parry_perfect_triggers_hitlag_freeze_and_invert_flash</code></li><li><code>test_sync_hitlag_freezes_then_flashes_invert_exactly_on_the_return_frame</code></li><li><code>test_end_frame_applies_a_true_negative_color_filter_when_invert_pending</code></li><li><code>test_freeze_active_suspends_begin_frame_and_draw_batch</code></li></ul></details>
+<details><summary><code>test_path_resolver.py</code> — utils.path_resolver: recurso empacotado (get_resource_path, sys._MEIPASS) vs. dado gravavel (get_writable_data_path, pasta do .exe) num build congelado. (7 testes)</summary><ul><li><code>test_get_resource_path_returns_an_absolute_input_unchanged</code></li><li><code>test_get_writable_data_path_returns_an_absolute_input_unchanged</code></li><li><code>test_get_resource_path_resolves_against_the_project_root_when_not_frozen</code></li><li><code>test_get_writable_data_path_resolves_against_the_project_root_when_not_frozen</code></li><li><code>test_get_resource_path_uses_meipass_when_frozen</code></li><li><code>test_get_writable_data_path_uses_the_executable_directory_when_frozen</code></li><li><code>test_resource_and_writable_paths_diverge_only_once_frozen</code></li></ul></details>
 <details><summary><code>test_percussive_extraction.py</code> — Estagio DSP anti-mascaramento: threshold puro, e HPSS+mel+PLP sobre audio sintetico REAL. (6 testes)</summary><ul><li><code>test_peak_selection_enforces_interval_and_amplitude</code></li><li><code>test_peak_selection_min_interval_merges_double_hits</code></li><li><code>test_bpm_from_pulses_is_median_robust</code></li><li><code>test_bpm_octave_ambiguity_is_folded_into_musical_range</code></li><li><code>test_pulse_grid_locks_to_kick_despite_loud_pad</code></li><li><code>test_extraction_feeds_quantized_beatmap_end_to_end</code></li></ul></details>
 <details><summary><code>test_phalanx_mode.py</code> — Modo Falange (Undyne): escudo automatico (raio+angulo) que substitui o tiro manual -- ignora cliques, bloqueia sozinho. (16 testes)</summary><ul><li><code>test_phalanx_mode_starts_disabled</code></li><li><code>test_toggle_key_enables_and_disables_the_mode</code></li><li><code>test_toggle_does_nothing_without_the_phalanx_modifier</code></li><li><code>test_toggle_plays_the_equip_sfx_and_shakes_the_camera_both_ways</code></li><li><code>test_phalanx_mode_hides_the_crosshair</code></li><li><code>test_phalanx_mode_ignores_fire_clicks_entirely</code></li><li><code>test_phalanx_blocks_a_threat_that_crosses_the_ring_inside_the_arc</code></li><li><code>test_phalanx_does_not_block_a_threat_outside_the_shield_arc</code></li><li><code>test_phalanx_does_not_block_a_threat_outside_the_radius_tolerance</code></li><li><code>test_vampirism_perk_heals_during_consecutive_phalanx_blocks</code></li><li><code>test_core_pulse_shrinks_on_block_and_recovers_linearly</code></li><li><code>test_core_pulse_is_inert_outside_the_defender_mode_player_entity</code></li><li><code>test_phalanx_control_hint_texture_is_registered_for_a_curated_stage</code></li><li><code>test_phalanx_checkbox_row_has_a_registered_label_texture</code></li><li><code>test_phalanx_shield_draws_without_crashing_via_real_renderer</code></li><li><code>test_phalanx_shield_is_not_drawn_when_inactive</code></li></ul></details>
 <details><summary><code>test_playability_invariants.py</code> — Invariantes de JOGABILIDADE sobre os beatmaps versionados. (6 testes)</summary><ul><li><code>test_every_threat_is_resolvable_before_the_music_ends</code></li><li><code>test_first_threat_leaves_room_for_full_approach</code></li><li><code>test_density_stays_humanly_playable</code></li><li><code>test_consecutive_threats_never_overlap_judgment_windows</code></li><li><code>test_threat_fields_are_within_domain</code></li><li><code>test_tutorial_simultaneous_waves_are_bounded</code></li></ul></details>
@@ -346,7 +347,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_ui_render_system.py</code> — UIRenderSystem: extracao de digitos por aritmetica e HUD como sprites comuns. (4 testes)</summary><ul><li><code>test_combo_142_extracts_digits_1_4_2</code></li><li><code>test_score_zero_shows_single_zero_digit</code></li><li><code>test_judgment_word_shows_and_expires</code></li><li><code>test_health_pips_follow_health</code></li></ul></details>
 <details><summary><code>test_vignette_flash.py</code> — Vignette Flash (&quot;Cegueira Ritmica&quot;): GameState.blindness_timer_sec, decaimento e o overlay pre-renderizado. (4 testes)</summary><ul><li><code>test_trigger_blindness_takes_the_larger_of_overlapping_triggers</code></li><li><code>test_camera_shake_system_also_decays_blindness_timer</code></li><li><code>test_vignette_surface_is_window_sized_with_a_transparent_hole_at_the_judgment_line</code></li><li><code>test_sync_blindness_publishes_game_state_to_the_renderer</code></li></ul></details>
 <details><summary><code>test_youtube_direct_import.py</code> — Pipeline de Importacao Direta (FLOW_DOWNLOAD_HUB): deteccao de Ctrl+V, tela dedicada em 2 etapas (Previa -&gt; Download), thread persistente e tratamento de erros. (25 testes)</summary><ul><li><code>test_ctrl_v_sets_the_paste_action</code></li><li><code>test_v_alone_without_control_does_not_set_paste</code></li><li><code>test_download_music_category_reaches_the_dedicated_screen</code></li><li><code>test_esc_from_waiting_returns_to_the_hub</code></li><li><code>test_pasting_text_without_a_youtube_url_shows_a_notice_and_starts_no_thread</code></li><li><code>test_pasting_a_valid_url_enters_fetching_preview_and_starts_the_worker</code></li><li><code>test_pasting_a_valid_url_publishes_it_to_the_renderer_immediately</code></li><li><code>test_pasting_invalid_text_never_publishes_a_pasted_url</code></li><li><code>test_a_successful_preview_transitions_to_preview_ready_and_notifies_the_renderer</code></li><li><code>test_enter_from_preview_ready_starts_the_download_stage</code></li><li><code>test_a_successful_download_merges_the_catalog_and_enter_navigates_to_the_new_song</code></li><li><code>test_esc_from_success_returns_to_the_hub_without_navigating</code></li><li><code>test_esc_from_preview_ready_cancels_and_removes_the_partial_folder</code></li><li><code>test_a_failed_preview_transitions_to_error_and_notifies_the_renderer</code></li><li><code>test_a_failed_download_transitions_to_error_including_ffmpeg_missing</code></li><li><code>test_enter_or_esc_from_error_returns_to_waiting_for_a_retry</code></li><li><code>test_fetching_preview_and_downloading_ignore_esc</code></li><li><code>test_reentering_the_download_hub_resets_to_waiting</code></li><li><code>test_download_hub_overlay_textures_are_registered</code></li><li><code>test_draw_overlay_handles_every_download_hub_stage_without_crashing</code></li><li><code>test_set_download_pasted_url_renders_a_surface_with_the_link</code></li><li><code>test_set_download_pasted_url_truncates_long_links</code></li><li><code>test_clear_download_preview_also_clears_the_pasted_url</code></li><li><code>test_renderer_hub_categories_matches_the_game_loop_categories</code></li><li><code>test_draw_hub_overlay_renders_every_category_without_crashing</code></li></ul></details>
-<details><summary><code>test_youtube_import.py</code> — Pipeline de Importacao Direta: deteccao de URL, Previa (Etapa 1) e Download (Etapa 2) via yt-dlp (subprocess FAKE, nunca rede de verdade). (30 testes)</summary><ul><li><code>test_extract_youtube_url_recognizes_common_formats</code></li><li><code>test_extract_youtube_url_normalizes_a_schemeless_link</code></li><li><code>test_extract_youtube_url_returns_none_without_a_match</code></li><li><code>test_extract_video_id_returns_none_for_a_non_youtube_url</code></li><li><code>test_ffmpeg_available_reflects_which_fn_result</code></li><li><code>test_yt_dlp_available_reflects_which_fn_result</code></li><li><code>test_resolve_yt_dlp_command_prefers_the_path_executable</code></li><li><code>test_resolve_yt_dlp_command_falls_back_to_python_dash_m_when_only_the_package_is_installed</code></li><li><code>test_resolve_yt_dlp_command_returns_none_when_neither_is_available</code></li><li><code>test_fetch_youtube_preview_rejects_an_unrecognized_url</code></li><li><code>test_fetch_youtube_preview_raises_yt_dlp_not_found_before_touching_the_subprocess</code></li><li><code>test_fetch_youtube_preview_spreads_a_multi_token_command_prefix</code></li><li><code>test_fetch_youtube_preview_builds_a_skip_download_command</code></li><li><code>test_fetch_youtube_preview_parses_metadata_and_locates_the_thumbnail</code></li><li><code>test_fetch_youtube_preview_thumbnail_is_none_when_not_written</code></li><li><code>test_fetch_youtube_preview_raises_on_a_nonzero_exit_code</code></li><li><code>test_fetch_youtube_preview_raises_on_invalid_json</code></li><li><code>test_fetch_youtube_preview_falls_back_to_channel_field</code></li><li><code>test_download_and_analyze_raises_yt_dlp_not_found_before_touching_the_subprocess</code></li><li><code>test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subprocess</code></li><li><code>test_download_and_analyze_builds_an_extract_audio_command_reusing_the_preview_folder</code></li><li><code>test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_cover</code></li><li><code>test_download_and_analyze_raises_on_a_nonzero_exit_code</code></li><li><code>test_parse_youtube_metadata_normalizes_chapters</code></li><li><code>test_parse_youtube_metadata_falls_back_gracefully_on_missing_fields</code></li><li><code>test_scan_youtube_songs_builds_a_stage_with_real_metadata</code></li><li><code>test_scan_youtube_songs_falls_back_to_folder_name_without_metadata</code></li><li><code>test_scan_youtube_songs_skips_a_folder_without_audio</code></li><li><code>test_scan_youtube_songs_returns_empty_without_the_youtube_subfolder</code></li><li><code>test_scan_user_songs_combines_flat_files_and_youtube_folders</code></li></ul></details>
+<details><summary><code>test_youtube_import.py</code> — Pipeline de Importacao Direta: deteccao de URL, Previa (Etapa 1) e Download (Etapa 2) via yt-dlp (subprocess FAKE, nunca rede de verdade). (36 testes)</summary><ul><li><code>test_extract_youtube_url_recognizes_common_formats</code></li><li><code>test_extract_youtube_url_normalizes_a_schemeless_link</code></li><li><code>test_extract_youtube_url_returns_none_without_a_match</code></li><li><code>test_extract_video_id_returns_none_for_a_non_youtube_url</code></li><li><code>test_ffmpeg_available_reflects_which_fn_result</code></li><li><code>test_yt_dlp_available_reflects_which_fn_result</code></li><li><code>test_resolve_ffmpeg_path_prefers_the_path_executable</code></li><li><code>test_resolve_ffmpeg_path_falls_back_to_the_bundled_binary</code></li><li><code>test_resolve_ffmpeg_path_returns_none_when_neither_exists</code></li><li><code>test_ffmpeg_available_reflects_the_bundled_fallback_too</code></li><li><code>test_resolve_yt_dlp_command_prefers_the_path_executable</code></li><li><code>test_resolve_yt_dlp_command_falls_back_to_python_dash_m_when_only_the_package_is_installed</code></li><li><code>test_resolve_yt_dlp_command_returns_none_when_neither_is_available</code></li><li><code>test_fetch_youtube_preview_rejects_an_unrecognized_url</code></li><li><code>test_fetch_youtube_preview_raises_yt_dlp_not_found_before_touching_the_subprocess</code></li><li><code>test_fetch_youtube_preview_spreads_a_multi_token_command_prefix</code></li><li><code>test_fetch_youtube_preview_builds_a_skip_download_command</code></li><li><code>test_fetch_youtube_preview_parses_metadata_and_locates_the_thumbnail</code></li><li><code>test_fetch_youtube_preview_thumbnail_is_none_when_not_written</code></li><li><code>test_fetch_youtube_preview_raises_on_a_nonzero_exit_code</code></li><li><code>test_fetch_youtube_preview_raises_on_invalid_json</code></li><li><code>test_fetch_youtube_preview_falls_back_to_channel_field</code></li><li><code>test_download_and_analyze_raises_yt_dlp_not_found_before_touching_the_subprocess</code></li><li><code>test_download_and_analyze_raises_ffmpeg_not_found_before_touching_the_subprocess</code></li><li><code>test_download_and_analyze_builds_an_extract_audio_command_reusing_the_preview_folder</code></li><li><code>test_download_and_analyze_passes_ffmpeg_location_when_resolved</code></li><li><code>test_download_and_analyze_omits_ffmpeg_location_when_unresolved</code></li><li><code>test_download_and_analyze_renames_files_and_reuses_the_preview_thumbnail_as_cover</code></li><li><code>test_download_and_analyze_raises_on_a_nonzero_exit_code</code></li><li><code>test_parse_youtube_metadata_normalizes_chapters</code></li><li><code>test_parse_youtube_metadata_falls_back_gracefully_on_missing_fields</code></li><li><code>test_scan_youtube_songs_builds_a_stage_with_real_metadata</code></li><li><code>test_scan_youtube_songs_falls_back_to_folder_name_without_metadata</code></li><li><code>test_scan_youtube_songs_skips_a_folder_without_audio</code></li><li><code>test_scan_youtube_songs_returns_empty_without_the_youtube_subfolder</code></li><li><code>test_scan_user_songs_combines_flat_files_and_youtube_folders</code></li></ul></details>
 <p>Rodar: <code>python -m pytest</code> (na raiz). A suíte inclui <strong>invariantes de jogabilidade</strong>
 sobre os beatmaps versionados: densidade média/pico dentro do humanamente jogável, espaçamento mínimo entre
 janelas de julgamento, margem de fim de faixa (anti-softlock) e pista completa para a primeira ameaça.</p>
@@ -385,7 +386,26 @@ muda ainda -- mesma honestidade de escopo de `set_track_volume`
 acima (aproximacao ao inves de fingir um efeito que o backend
 nao suporta).</pre>
 <h4><code>.preload_one_shot()</code></h4><pre class="doc">Carrega um SFX para o cache ANTES do gameplay (o primeiro
-`play_one_shot` deixaria de tocar no tempo por causa do I/O).</pre>
+`play_one_shot` deixaria de tocar no tempo por causa do I/O).
+
+`sound_id` (ex.: `&quot;data/sfx/cannon.wav&quot;`) e&#x27; resolvido via
+`get_writable_data_path` -- NAO `get_resource_path` -- porque
+`sfx_synth.ensure_sfx` pode GRAVAR o arquivo ali mesmo (sintese
+na 1a execucao); `sys._MEIPASS` (a raiz de `get_resource_path`
+quando congelado) e&#x27; apagado ao sair do jogo, o que faria
+ressintetizar TODO SFX a cada execucao. A chave do cache
+`self._sounds` continua sendo o `sound_id` ORIGINAL (relativo)
+-- so&#x27; o caminho passado a `pygame.mixer.Sound` e&#x27; resolvido --
+entao `play_one_shot(sound_id)` (chamado em todo o resto do
+jogo com a MESMA string original) continua encontrando o cache
+sem nenhuma mudanca no resto do codebase.</pre>
+<h4><code>.load_track()</code></h4><pre class="doc">Override fino sobre `PygameAudioEngine.load_track` (engine,
+nao editada) -- resolve `file_path` via `get_writable_data_path`
+PELO MESMO MOTIVO de `preload_one_shot` (faixas tambem podem
+ser sintetizadas em runtime por `demo_track_synth.ensure_track`)
+antes de delegar pro comportamento real da engine. Cobre TODO
+`self._audio_engine.load_track(...)` do jogo de uma vez so&#x27; --
+nenhum call site em `hertz_game_loop.py` precisa saber disso.</pre>
 <h4><code>.pause_track()</code></h4><pre class="doc">Pausa a faixa em reproducao (e, com ela, o `IAudioClock`).</pre>
 <h4><code>.resume_track()</code></h4><pre class="doc">Retoma a faixa pausada do ponto exato em que congelou.</pre>
 <h4><code>.set_track_volume()</code></h4><pre class="doc">Volume 0.0..1.0 da faixa em reproducao -- usado pelo Flow
@@ -1007,7 +1027,16 @@ strength alta, que o pipeline converte em ameacas pesadas.</pre>
 <h4><code>write_wav()</code></h4><pre class="doc">Grava `samples` (float em [-1, 1]) como WAV mono 16-bit.</pre>
 <h4><code>ensure_track()</code></h4><pre class="doc">Garante que a faixa exista em `track_path`, re-sintetizando-a
 deterministicamente a partir de `synth_spec` se necessario. Sem
-`synth_spec` (faixa do usuario), o arquivo precisa existir.</pre>
+`synth_spec` (faixa do usuario), o arquivo precisa existir.
+
+`track_path` resolvido via `get_writable_data_path` (pasta do
+proprio `.exe` num build congelado, nunca `sys._MEIPASS` -- tanto a
+sintese determinista quanto `musicas/*` do jogador precisam
+sobreviver entre execucoes) -- a string devolvida ja e&#x27; a resolvida,
+entao quem chama (`HBPygameAudioEngine.load_track` via override, ou
+os 2 usos diretos de `title_track_path`/`calibration_track_path`)
+nunca resolve de novo por cima (`get_writable_data_path` e&#x27;
+idempotente sobre um caminho ja absoluto).</pre>
 <h4><code>synthesize_demo_track()</code></h4><pre class="doc">Compat: a faixa demo original e o estilo `standard` em 128 BPM.</pre>
 <h4><code>ensure_demo_track()</code></h4><pre class="doc">Compat: garante a faixa demo (estilo `standard`, 128 BPM, 24 compassos).</pre>
 <h4><code>synthesize_metronome_track()</code></h4><pre class="doc">Meta-Jogo -- tela de Calibracao: faixa de metronomo PURO (so um
@@ -1016,7 +1045,8 @@ faixas de fase (bateria completa), aqui a clareza do instante exato
 da batida importa mais que qualquer groove, pro jogador acertar a
 tecla no tempo com precisao.</pre>
 <h4><code>ensure_metronome_track()</code></h4><pre class="doc">Garante a faixa de metronomo da Calibracao, re-sintetizada
-deterministicamente se ausente (mesmo criterio de `ensure_track`).</pre>
+deterministicamente se ausente (mesmo criterio de `ensure_track`,
+inclusive a resolucao via `get_writable_data_path`).</pre>
 </details>
 <details class="module" id="hertzbeats-audio-sfx_synth"><summary><code>hertzbeats/audio/sfx_synth.py</code> — Efeitos sonoros sintetizados deterministicamente (numpy + stdlib wave),</summary>
 <pre class="doc">Efeitos sonoros sintetizados deterministicamente (numpy + stdlib wave),
@@ -1083,7 +1113,13 @@ escudo, a mesma equip toca nos dois sentidos).</pre>
 decaimento MUITO rapido (a &quot;lamina de vento&quot;) somado a um sweep
 agudo DESCENDENTE por cima (o &quot;corte&quot; propriamente dito).</pre>
 <h4><code>ensure_sfx()</code></h4><pre class="doc">Garante todos os SFX em data/sfx/ (sintese deterministica, so na
-primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
+primeira execucao). Chamado no build, fora do loop de gameplay.
+
+Cada `path` (relativo, ex.: `&quot;data/sfx/cannon.wav&quot;`) e&#x27; resolvido
+via `get_writable_data_path` -- a MESMA raiz gravavel que
+`HBPygameAudioEngine.preload_one_shot` usa pra depois LER o mesmo
+arquivo -- senao um build congelado escreveria num lugar e leria
+de outro.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
@@ -1842,7 +1878,17 @@ papel da `EngineConfig` da engine, estendida com a afinacao do
 gameplay radial/ritmico. Sistemas recebem valores primitivos ja
 resolvidos no construtor; nenhum sistema le JSON em runtime.</pre>
 <h4><code>.center_xy()</code></h4><pre class="doc">Centro da arena (posicao do nucleo), derivado da janela.</pre>
-<h4><code>.from_json()</code></h4><pre class="doc">Carrega e valida uma `HertzConfig` a partir de um arquivo JSON.</pre>
+<h4><code>.from_json()</code></h4><pre class="doc">Carrega e valida uma `HertzConfig` a partir de um arquivo JSON.
+
+`config_path` e&#x27; o UNICO arquivo curado empacotado com o jogo
+(`data/config/hertz_beats.config.json`, default de
+`hertzbeats.__main__.DEFAULT_CONFIG_PATH`) -- resolvido aqui via
+`get_resource_path` (raiz = `sys._MEIPASS` num build PyInstaller
+congelado). Os campos QUE ESTE JSON contem (`stages_path`,
+`track_path`, `input_bindings_path`, ...) continuam strings
+relativas cruas no dataclass -- cada consumidor resolve o SEU
+proprio caminho no seu proprio ponto de uso (`load_stages`,
+`HBPygameAudioEngine`, ...), nunca aqui.</pre>
 </details>
 <details class="module" id="hertzbeats-game_state"><summary><code>hertzbeats/game_state.py</code> — Placar global da partida: o equivalente das &quot;variaveis globais no World&quot; da arquitetura.</summary>
 <pre class="doc">Placar global da partida: o equivalente das &quot;variaveis globais no World&quot; da arquitetura.</pre>
@@ -2245,7 +2291,14 @@ ca ao fim de cada fase (vitoria ou derrota), nunca no meio dela.</pre>
 </details>
 <details class="module" id="hertzbeats-stages"><summary><code>hertzbeats/stages.py</code> — Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</summary>
 <pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>
-<h4><code>load_stages()</code></h4><pre class="doc">Carrega a lista ordenada de fases de `stages_path` (JSON).</pre>
+<h4><code>load_stages()</code></h4><pre class="doc">Carrega a lista ordenada de fases de `stages_path` (JSON).
+
+`stages_path` e&#x27; recurso SOMENTE LEITURA empacotado com o jogo --
+resolvido aqui via `get_resource_path` (raiz = `sys._MEIPASS` num
+build PyInstaller congelado, senao a raiz do projeto), nao no
+chamador: assim TODO caminho de `stages_path` (config real, teste
+com `tmp_path` absoluto -- idempotente, devolvido sem alteracao)
+passa pelo MESMO ponto antes do `open()`.</pre>
 <h4><code>campaign_ids()</code></h4><pre class="doc">Ids de campanha distintos entre as fases CURADAS (`not
 selectable_mode`) de `stages`, na ordem de PRIMEIRA aparicao --
 fonte unica compartilhada por `HertzGameLoop.campaign_ids` (Carrossel)
@@ -3489,8 +3542,23 @@ apos ler. String vazia se o clipboard estiver vazio ou nao for
 texto -- NUNCA levanta, quem chama
 (`HertzGameLoop._advance_download_hub`) so trata &quot;nenhuma URL
 encontrada&quot; de um jeito, com ou sem essa distincao.</pre>
-<h4><code>ffmpeg_available()</code></h4><pre class="doc">Presenca do `ffmpeg` no sistema (`shutil.which`, injetavel pra
-testes) -- checado PROATIVAMENTE na Etapa 2 (Download), antes de
+<h4><code>_default_bundled_ffmpeg_path()</code></h4><pre class="doc">Caminho do `ffmpeg` EMBUTIDO na pasta `bin/` do projeto/build
+PyInstaller -- `.exe` no Windows, sem extensao nos demais SOs
+(`os.name == &quot;nt&quot;` e&#x27; a MESMA checagem que o resto da stdlib usa
+pra essa distincao).</pre>
+<h4><code>resolve_ffmpeg_path()</code></h4><pre class="doc">Resolve o caminho ABSOLUTO do `ffmpeg` a usar (nunca so&#x27; um
+booleano) -- mesmo espirito de `resolve_yt_dlp_command`: prefere o
+`ffmpeg` do PATH do sistema (`shutil.which`, respeita uma instalacao
+real do jogador), e so&#x27; cai pro binario EMBUTIDO em `bin/` (pasta
+includа no PyInstaller via `hertz_build.spec`) se nada for
+encontrado no PATH -- o jogador comum, sem `ffmpeg` instalado, nunca
+precisa saber que essa dependencia existe. `None` se nenhum dos 2
+existir de verdade (bundled_path_resolver() aponta pra um arquivo
+que so existe DEPOIS de empacotado -- rodando do codigo-fonte sem um
+`bin/ffmpeg*` local, cai aqui, e&#x27; o comportamento correto).</pre>
+<h4><code>ffmpeg_available()</code></h4><pre class="doc">Presenca do `ffmpeg` no sistema OU embutido em `bin/`
+(`resolve_ffmpeg_path`, injetavel via `which_fn` pra testes) --
+checado PROATIVAMENTE na Etapa 2 (Download), antes de
 `yt-dlp --extract-audio`.</pre>
 <h4><code>resolve_yt_dlp_command()</code></h4><pre class="doc">Resolve os argumentos INICIAIS pra invocar yt-dlp (uma LISTA,
 nunca uma string unica -- vira o prefixo do comando do subprocess).
@@ -3554,6 +3622,15 @@ levanta `YtDlpNotFoundError`/`FFmpegNotFoundError` com uma mensagem
 clara em vez de deixar o subprocess falhar com um erro interno
 criptico.
 
+`ffmpeg_location_resolver` e&#x27; um parametro NOVO e SEPARADO de
+`ffmpeg_checker` (nao reaproveita o mesmo -- `ffmpeg_checker`
+continua um booleano puro, mesma assinatura de sempre, pra nao
+quebrar quem ja injeta `lambda: True/False` em teste): devolve o
+CAMINHO ABSOLUTO do `ffmpeg` resolvido (sistema OU embutido em
+`bin/`, ver `resolve_ffmpeg_path`), repassado a `yt-dlp` via
+`--ffmpeg-location` -- sem isso, um `yt-dlp` que so&#x27; encontra o
+`ffmpeg` embutido (nao no PATH do sistema) nao saberia onde procurar.
+
 Retorna `(video_id, stages)`: `stages` e&#x27; a lista COMPLETA e
 atualizada de musicas do YouTube (inclui importacoes anteriores,
 nao so a nova) -- `HertzGameLoop._apply_download_success` substitui
@@ -3575,6 +3652,44 @@ levanta um `FileNotFoundError`/`OSError` do sistema operacional
 (ex.: &quot;[WinError 2] O sistema nao pode encontrar o arquivo
 especificado&quot; no Windows) que nao diz ao jogador QUAL dependencia
 falta nem como resolver.</pre>
+</details>
+<details class="module" id="utils-path_resolver"><summary><code>utils/path_resolver.py</code> — Resolucao de caminhos de disco pro empacotamento PyInstaller.</summary>
+<pre class="doc">Resolucao de caminhos de disco pro empacotamento PyInstaller.
+
+Chamado SO na fase de carga/inicializacao (composicao do World, tela de
+Titulo/Loading) -- nunca de dentro de um `ISystem.update()` durante o
+gameplay (Zero-GC: nenhuma destas funcoes e&#x27; vetorizada nem pensada pra
+rodar por frame, so&#x27; uma vez por recurso ao carregar).
+
+DOIS recursos, DOIS resolvedores (nunca o mesmo para os dois):
+
+- `get_resource_path` -- recurso SOMENTE LEITURA empacotado DENTRO do
+  executavel (`assets/`, `data/stages/stages.json`, `bin/ffmpeg*`, JSON
+  curado). Frozen: raiz = `sys._MEIPASS` (pasta de extracao do
+  PyInstaller -- em `--onefile`, recriada e apagada a cada execucao).
+
+- `get_writable_data_path` -- dado GRAVAVEL que precisa sobreviver
+  ENTRE execucoes (save games, `user_settings.json`) ou ser
+  regenerado sob demanda (SFX/faixas sintetizadas por
+  `sfx_synth.ensure_sfx`/`demo_track_synth.ensure_track`). Usar
+  `get_resource_path` aqui seria um bug real: `sys._MEIPASS` e&#x27;
+  apagado ao sair (perderia o progresso salvo) ou, na melhor
+  hipotese, so&#x27; economizaria a re-sintese uma unica execucao. Frozen:
+  raiz = a pasta que CONTEM o `.exe` (`os.path.dirname(sys.executable)`),
+  a mesma pasta que o jogador ve no Explorer/Finder -- persiste e e&#x27;
+  gravavel em qualquer instalacao &quot;portable&quot; padrao.
+
+Ambas devolvem o `relative_path` INALTERADO se ja for absoluto (idempotentes --
+seguro chamar 2x sobre o mesmo valor, e testes que ja passam caminhos
+absolutos de `tmp_path` continuam funcionando sem nenhum caso especial).</pre>
+<p class='constants'>Constantes: <code>_PROJECT_ROOT</code></p>
+<h4><code>get_resource_path()</code></h4><pre class="doc">Resolve `relative_path` contra a raiz de um recurso EMPACOTADO
+somente-leitura: `sys._MEIPASS` se congelado (`hasattr(sys, &quot;frozen&quot;)`),
+senao a raiz do projeto (`os.path.abspath` a partir deste arquivo).</pre>
+<h4><code>get_writable_data_path()</code></h4><pre class="doc">Resolve `relative_path` contra a raiz de um dado GRAVAVEL que
+precisa persistir entre execucoes: a pasta do proprio `.exe` se
+congelado, senao a raiz do projeto (identico a `get_resource_path`
+fora do modo congelado -- so&#x27; diverge dele quando empacotado).</pre>
 </details>
 
 <p class="muted" style="margin-top:4rem">Gerado por <code>tools/build_docs.py</code> a partir do código e

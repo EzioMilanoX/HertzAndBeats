@@ -22,6 +22,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 OUTPUT_PATH = Path("docs/index.html")
 PACKAGE_ROOT = Path("hertzbeats")
 TESTS_ROOT = Path("tests")
+# "utils" e' o pacote IRMAO de infraestrutura de build/packaging
+# (resolucao de caminhos pro PyInstaller, `utils/path_resolver.py`) --
+# fora de `hertzbeats/` de proposito (ver pyproject.toml), mas ainda
+# codigo de verdade do repositorio, entao documentado junto.
+EXTRA_MODULE_ROOTS = (Path("utils"),)
 
 
 # ---------------------------------------------------------------- extracao
@@ -60,7 +65,9 @@ def parse_module(path: Path) -> dict:
 
 
 def collect_modules() -> list:
-    return [parse_module(p) for p in sorted(PACKAGE_ROOT.rglob("*.py")) if p.name != "__init__.py"]
+    roots = (PACKAGE_ROOT,) + EXTRA_MODULE_ROOTS
+    paths = [p for root in roots for p in root.rglob("*.py") if p.name != "__init__.py"]
+    return [parse_module(p) for p in sorted(paths)]
 
 
 def collect_tests() -> list:

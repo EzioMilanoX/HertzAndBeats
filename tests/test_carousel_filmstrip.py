@@ -285,6 +285,7 @@ def test_draw_carousel_filmstrip_is_a_no_op_without_any_neighbor_ids():
 
 def test_play_preview_uses_pygame_mixer_with_start_and_fade(tmp_path, monkeypatch):
     from hertzbeats.adapters.hb_pygame_audio_engine import HBPygameAudioEngine
+    from utils.path_resolver import get_writable_data_path
 
     engine = HBPygameAudioEngine()
     calls = {}
@@ -296,5 +297,10 @@ def test_play_preview_uses_pygame_mixer_with_start_and_fade(tmp_path, monkeypatc
     engine.load_track("song", "fake/path.mp3")
     engine.play_preview("song", start_offset_seconds=12.5, fade_ms=750)
 
-    assert calls["load"] == "fake/path.mp3"
+    # `load_track` (override do jogo) resolve o caminho via
+    # `get_writable_data_path` ANTES de repassar pra engine -- faixas
+    # podem ser sintetizadas em runtime (`demo_track_synth.ensure_track`),
+    # entao precisam da MESMA raiz gravavel que `preload_one_shot` usa
+    # pras SFX (ver `hb_pygame_audio_engine.py`).
+    assert calls["load"] == get_writable_data_path("fake/path.mp3")
     assert calls["play"] == (0, 12.5, 750)
