@@ -50,6 +50,7 @@ from hertzbeats.audio.sfx_synth import (
     SFX_CANNON_VARIANTS,
     SFX_CLICK,
     SFX_DEFLECT,
+    SFX_GLITCH,
     SFX_HEAL,
     SFX_HOLD_BREAK,
     SFX_HOLD_ENGAGE,
@@ -81,6 +82,7 @@ from hertzbeats.systems.distraction_system import (
 )
 from hertzbeats.systems.lane_choreography_system import LaneChoreographySystem
 from hertzbeats.systems.boomerang_threat_system import BoomerangThreatSystem
+from hertzbeats.systems.mind_games_system import MindGamesSystem
 from hertzbeats.systems.orbital_capture_system import OrbitalCaptureSystem
 from hertzbeats.systems.orbital_eclipse_system import OrbitalEclipseSystem
 from hertzbeats.systems.parry_impact_system import (
@@ -317,6 +319,12 @@ def _compose_defender_mode(ctx: _ModeContext):
     # responsabilidade de curadoria do `stages.json`).
     holds_enabled = "holds" in modifiers
     boomerang_enabled = "boomerang" in modifiers and "rhythm_threat_boomerang" in config.threat_type_ids
+    # Rogue-lite -- Mind Games: 3 modifiers independentes (o Mapa
+    # Rogue-lite forca exatamente UM por musica, mas nada aqui impede
+    # uma fase curada combinar mais de um deliberadamente).
+    wormholes_enabled = "wormholes" in modifiers
+    mirages_enabled = "mirages" in modifiers
+    rubber_band_enabled = "rubber_band" in modifiers
 
     scheduled = _reinterpret_scheduled_for_modifiers(ctx.scheduled, config, modifiers)
 
@@ -352,6 +360,10 @@ def _compose_defender_mode(ctx: _ModeContext):
         boomerang_threat_type_id=(
             config.threat_type_ids.get("rhythm_threat_boomerang") if boomerang_enabled else None
         ),
+        wormholes_enabled=wormholes_enabled,
+        wormhole_teleport_radius=config.wormhole_teleport_radius,
+        mirages_enabled=mirages_enabled,
+        rubber_band_enabled=rubber_band_enabled,
     )
     collision_system = CollisionSystem(
         ctx.memory_manager,
@@ -479,6 +491,10 @@ def _compose_defender_mode(ctx: _ModeContext):
             spark_system=spark_system,
             crosshair_entity_index=ctx.crosshair_entity_index,
             spark_burst_count=config.spark_burst_count,
+            mirages_enabled=mirages_enabled,
+            mirage_vanish_seconds=config.mirage_vanish_seconds,
+            vampirism_combo_threshold=config.vampirism_combo_threshold,
+            vampirism_max_health=config.vampirism_max_health,
         )
     )
     # Captura Orbital ("orbital_shields"): mesmo padrao de
@@ -512,6 +528,27 @@ def _compose_defender_mode(ctx: _ModeContext):
             )
         )
     ctx.world.register_system(PhysicsSystem(ctx.memory_manager))
+
+    # Rogue-lite -- Mind Games ("wormholes"/"rubber_band"): registrado
+    # DEPOIS do `PhysicsSystem` generico (mesmo motivo do
+    # `OrbitalEclipseSystem` logo abaixo -- precisa da posicao ja
+    # integrada pelo frame) e ANTES do `CollisionSystem`, pra que um
+    # teleporte/re-easing deste frame ja valha pra colisao do MESMO
+    # frame. So registrado quando algum dos 2 modifiers esta ativo
+    # (mirages e' tratado inteiramente por `RadialRhythmSpawnerSystem`/
+    # `JudgmentSystem`, nao precisa deste sistema).
+    if wormholes_enabled or rubber_band_enabled:
+        ctx.world.register_system(
+            MindGamesSystem(
+                audio_clock=ctx.audio_clock,
+                memory_manager=ctx.memory_manager,
+                center_xy=(center_x, center_y),
+                spawn_radius=config.spawn_radius,
+                judgment_radius=judgment_ring_radius,
+                audio_engine=ctx.audio_engine,
+                glitch_sound_id=SFX_GLITCH,
+            )
+        )
 
     # Eclipses Orbitais ("orbital_eclipses"): ao CONTRARIO da Captura
     # Orbital acima, aqui a rotacao passa PELO `PhysicsSystem` generico

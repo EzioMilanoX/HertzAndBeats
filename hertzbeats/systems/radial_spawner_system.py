@@ -87,6 +87,10 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         threat_blue_rgb: tuple = (70, 140, 255),
         threat_pink_rgb: tuple = (255, 90, 190),
         boomerang_threat_type_id: int = None,
+        wormholes_enabled: bool = False,
+        wormhole_teleport_radius: float = 0.0,
+        mirages_enabled: bool = False,
+        rubber_band_enabled: bool = False,
     ) -> None:
         """`scheduled_spawns` e o array `SCHEDULED_THREAT_DTYPE` com
         timestamps ja deslocados para tempos de spawn; `hit_times`
@@ -148,6 +152,19 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         continua sendo o instante de ACERTO de sempre (aqui, o RETORNO ao
         nucleo) -- `JudgmentSystem` nao precisa saber que o caminho nao e
         reto.
+
+        ROGUE-LITE -- MIND GAMES (opt-in via "wormholes"/"mirages"/
+        "rubber_band" em `HertzConfig.active_modifiers`, cada um um
+        modifier de FASE INTEIRA -- o Mapa Rogue-lite forca exatamente
+        UM por musica, nunca combinados): Bumerangues ficam DE FORA das
+        3 (`is_boomerang`, ja tem sua propria formula de raio) --
+        `will_teleport`/`nonlinear_approach` marcam TODAS as ameacas
+        comuns restantes da fase (efeito do voo inteiro), `is_mirage`
+        marca so uma FRACAO deterministica delas (`lane % 4 == 0` -- um
+        "fantasma" em CADA ameaca destruiria o proposito de um alvo
+        falso ocasional). `MindGamesSystem` (registrado depois do
+        `PhysicsSystem`) consome o teleporte; `JudgmentSystem` cuida do
+        desaparecimento/MISS forcado dos fantasmas.
         """
         super().__init__(
             audio_clock=audio_clock,
@@ -186,6 +203,10 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._threat_blue_rgb = tuple(threat_blue_rgb)
         self._threat_pink_rgb = tuple(threat_pink_rgb)
         self._boomerang_threat_type_id = boomerang_threat_type_id
+        self._wormholes_enabled = bool(wormholes_enabled)
+        self._wormhole_teleport_radius = float(wormhole_teleport_radius)
+        self._mirages_enabled = bool(mirages_enabled)
+        self._rubber_band_enabled = bool(rubber_band_enabled)
 
     def _create_threat_entity(self, world: World, row_index: int) -> PackedEntityId:
         """Cria a entidade via base class (que escreve `lane`/
@@ -313,6 +334,19 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         # swap-remove anterior nao pode carregar um timer de graca de
         # um Hold antigo para este novo ocupante.
         threat_view["hold_grace_timer_sec"][threat_row] = 0.0
+        # Rogue-lite -- Mind Games: sempre explicito (mesmo motivo do
+        # Hold Forgiveness acima -- uma linha reusada nao pode carregar
+        # flags de um ocupante anterior). Bumerangues ficam de fora das
+        # 3 -- ja tem sua propria formula de raio, teleportar/re-easear
+        # a posicao deles conflitaria com o `BoomerangThreatSystem`.
+        threat_view["will_teleport"][threat_row] = self._wormholes_enabled and not is_boomerang
+        threat_view["teleport_radius"][threat_row] = (
+            self._wormhole_teleport_radius if self._wormholes_enabled else 0.0
+        )
+        threat_view["is_mirage"][threat_row] = (
+            self._mirages_enabled and not is_boomerang and (lane % self._lane_count) % 4 == 0
+        )
+        threat_view["nonlinear_approach"][threat_row] = self._rubber_band_enabled and not is_boomerang
         threat_view["target_hit_time_sec"][threat_row] = hit_time
         threat_view["expire_time_sec"][threat_row] = hit_time  # telemetria neste modo
         threat_view["spawn_angle_rad"][threat_row] = angle

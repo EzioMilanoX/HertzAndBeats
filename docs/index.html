@@ -272,7 +272,7 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 </ul>
 
 <h2 id="testes">Testes automatizados</h2>
-<p>Total: <strong>606 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
+<p>Total: <strong>642 testes</strong> headless (backends Null da engine, clock manual).</p><details><summary><code>test_active_modifiers.py</code> — Arquitetura de Mecanicas Modulares: `active_modifiers` decide QUAIS sistemas extras entram na composicao, sem tocar a ordem base. (14 testes)</summary><ul><li><code>test_telegraph_rings_off_never_registers_the_convergence_ring_system</code></li><li><code>test_telegraph_rings_on_registers_the_convergence_ring_system</code></li><li><code>test_polarity_off_never_registers_parry_impact_or_shockwave</code></li><li><code>test_polarity_on_registers_parry_impact_system</code></li><li><code>test_orbital_shields_without_polarity_degrades_to_no_op</code></li><li><code>test_orbital_shields_with_polarity_registers_orbital_capture_system</code></li><li><code>test_overload_without_polarity_never_registers_shockwave</code></li><li><code>test_overload_with_polarity_registers_shockwave</code></li><li><code>test_orbital_eclipses_requires_both_the_modifier_and_a_positive_count</code></li><li><code>test_vision_tunnel_off_never_registers_vision_tunnel_system</code></li><li><code>test_vision_tunnel_on_registers_vision_tunnel_system</code></li><li><code>test_active_modifiers_never_leaks_between_stages</code></li><li><code>test_reinterpret_scheduled_reassigns_a_deterministic_fraction_of_types</code></li><li><code>test_reinterpret_scheduled_is_a_no_op_without_the_relevant_modifiers</code></li></ul></details>
 <details><summary><code>test_announcer.py</code> — Meta-Jogo -- Announcer: stinger sintetizado (nao fala real) em marcos de combo e Rank. (8 testes)</summary><ul><li><code>test_combo_announcer_fires_when_crossing_the_threshold</code></li><li><code>test_combo_announcer_does_not_fire_below_the_threshold</code></li><li><code>test_combo_announcer_never_refires_within_the_same_tier</code></li><li><code>test_combo_announcer_fires_again_at_the_next_tier</code></li><li><code>test_combo_announcer_is_silent_outside_playing</code></li><li><code>test_combo_announcer_tier_resets_on_a_fresh_stage</code></li><li><code>test_rank_ss_clear_triggers_the_rank_stinger</code></li><li><code>test_a_low_rank_clear_never_triggers_the_rank_stinger</code></li></ul></details>
 <details><summary><code>test_audio_ducking.py</code> — Audio Ducking: um MISS/dano abaixa a musica para duck_volume_fraction, restaurando gradualmente. (5 testes)</summary><ul><li><code>test_duck_multiplier_is_minimum_right_when_the_timer_is_fresh</code></li><li><code>test_duck_multiplier_recovers_to_normal_as_the_timer_decays</code></li><li><code>test_duck_multiplier_is_a_no_op_outside_the_ducking_window</code></li><li><code>test_a_miss_ducks_the_track_volume_and_it_recovers_over_time</code></li><li><code>test_a_second_miss_before_recovery_restarts_the_ducking_window</code></li></ul></details>
 <details><summary><code>test_beatmap_mapper.py</code> — Mapeador v2 (funcoes puras, sem librosa): grade de batidas, snap, selecao e lanes por timbre. (7 testes)</summary><ul><li><code>test_grid_subdivides_beats_into_eighths</code></li><li><code>test_notes_are_quantized_to_grid_never_to_raw_onsets</code></li><li><code>test_offgrid_onsets_beyond_tolerance_are_dropped</code></li><li><code>test_selection_prefers_on_beat_over_stronger_offbeat</code></li><li><code>test_empty_slots_never_become_notes</code></li><li><code>test_lanes_follow_timbre_and_repeat_for_same_sound</code></li><li><code>test_anti_jack_bumps_impossible_repeats</code></li></ul></details>
@@ -334,6 +334,8 @@ de todas as fases via IA (preserva beatmaps autorais de tutorial);</li>
 <details><summary><code>test_reactive_palette.py</code> — Estetica Reativa: Paleta Dinamica (GameState.current_palette, tint dos aneis-guia e dos digitos neutros do HUD) e Fundo Imersivo. (10 testes)</summary><ul><li><code>test_compose_world_defaults_to_the_neutral_palette</code></li><li><code>test_compose_world_propagates_a_custom_palette</code></li><li><code>test_score_digits_use_the_custom_palette_base_when_composed_with_one</code></li><li><code>test_apply_palette_tint_registers_a_recolored_digit_atlas</code></li><li><code>test_apply_palette_tint_never_mutates_the_original_white_digit_surface</code></li><li><code>test_tinted_ring_color_blends_toward_the_active_palette</code></li><li><code>test_clear_palette_tint_resets_the_ring_color_to_neutral</code></li><li><code>test_compose_stage_applies_a_cached_non_neutral_palette</code></li><li><code>test_compose_stage_clears_the_palette_for_a_stage_without_a_cached_thumbnail</code></li><li><code>test_compose_stage_works_without_a_renderer_supporting_the_reactive_aesthetic</code></li></ul></details>
 <details><summary><code>test_render_visuals.py</code> — Regressao VISUAL do renderer (pygame headless): textos blitam como glifos, nunca blocos solidos. (6 testes)</summary><ul><li><code>test_word_texture_has_glyph_holes</code></li><li><code>test_word_texture_survives_alpha_roundtrip</code></li><li><code>test_digit_texture_has_glyph_holes</code></li><li><code>test_hidden_sprite_paints_nothing</code></li><li><code>test_modifier_row_labels_fit_within_the_default_window_width</code></li><li><code>test_curated_stage_labels_fit_within_the_default_window_width</code></li></ul></details>
 <details><summary><code>test_results_histogram.py</code> — Acessibilidade -- Histograma de Resultados: distribuicao de precisao sobre o RingBuffer de deltas. (8 testes)</summary><ul><li><code>test_empty_buffer_returns_all_zero_bins</code></li><li><code>test_a_single_on_time_hit_lands_in_the_center_bin</code></li><li><code>test_hits_out_of_range_are_clamped_into_the_edge_bins</code></li><li><code>test_only_the_filled_slots_are_counted_never_the_rest_of_the_ring_buffer</code></li><li><code>test_bin_count_matches_the_declared_constant</code></li><li><code>test_a_perfect_clear_produces_a_histogram_with_one_hit_in_the_center</code></li><li><code>test_draw_hit_error_histogram_is_a_no_op_when_empty</code></li><li><code>test_draw_hit_error_histogram_draws_bars_when_populated</code></li></ul></details>
+<details><summary><code>test_rogue_lite_flow.py</code> — Rogue-lite Endgame: HUB -&gt; Mapa -&gt; Fase -&gt; Recompensa -&gt; Mapa, vida persistente, corrida encerra na derrota/saida. (18 testes)</summary><ul><li><code>test_confirming_roguelite_in_the_hub_starts_a_run_and_shows_the_map</code></li><li><code>test_roguelite_map_with_no_player_songs_shows_empty_and_esc_cancels</code></li><li><code>test_esc_at_the_map_cancels_the_run_and_returns_to_the_hub</code></li><li><code>test_picking_a_map_song_starts_it_with_the_forced_modifier_and_no_preflight</code></li><li><code>test_menu_left_right_toggles_the_map_cursor_between_the_two_choices</code></li><li><code>test_a_forced_map_modifier_never_leaks_into_the_normal_free_play_menu</code></li><li><code>test_winning_a_roguelite_stage_goes_to_reward_not_results</code></li><li><code>test_picking_a_reward_perk_adds_it_and_returns_to_a_fresh_map</code></li><li><code>test_reward_menu_left_right_toggles_the_perk_cursor</code></li><li><code>test_esc_at_the_reward_screen_cancels_the_run</code></li><li><code>test_health_carries_over_between_roguelite_stages_clamped_to_the_new_max</code></li><li><code>test_losing_a_roguelite_stage_ends_the_run</code></li><li><code>test_pausing_and_leaving_to_the_menu_during_a_roguelite_stage_cancels_it</code></li><li><code>test_vampirism_perk_threads_a_nonzero_combo_threshold_into_the_next_stage</code></li><li><code>test_perfect_window_multiplier_perk_widens_the_window_for_the_next_stage</code></li><li><code>test_hub_category_roguelite_has_registered_label_textures</code></li><li><code>test_roguelite_map_and_reward_overlay_textures_are_registered</code></li><li><code>test_roguelite_map_overlay_draws_without_error_via_null_choices</code></li></ul></details>
+<details><summary><code>test_rogue_lite_mind_games.py</code> — Rogue-lite -- Mind Games (Defensor): Buracos de Minhoca, Ameacas Fantasmas, Efeito Elastico, Perk Vampirismo. (18 testes)</summary><ul><li><code>test_mind_games_system_is_absent_without_wormholes_or_rubber_band</code></li><li><code>test_mind_games_system_registers_for_wormholes</code></li><li><code>test_mind_games_system_registers_for_rubber_band</code></li><li><code>test_wormholes_flag_common_threats_but_not_boomerangs</code></li><li><code>test_wormhole_reflects_position_negates_velocity_and_flips_the_aim_angle</code></li><li><code>test_aiming_at_the_original_angle_after_a_wormhole_flip_no_longer_hits</code></li><li><code>test_aiming_at_the_flipped_angle_still_scores_perfect_on_time</code></li><li><code>test_mirages_flag_only_a_deterministic_fraction_of_lanes</code></li><li><code>test_mirage_vanishes_silently_just_before_impact_with_no_penalty</code></li><li><code>test_shooting_a_mirage_before_it_vanishes_forces_a_miss</code></li><li><code>test_mirage_system_has_no_effect_when_the_modifier_is_off</code></li><li><code>test_rubber_band_flags_common_threats_but_not_boomerangs</code></li><li><code>test_rubber_band_eases_ahead_of_the_linear_position_at_the_midpoint</code></li><li><code>test_rubber_band_system_has_no_effect_when_the_modifier_is_off</code></li><li><code>test_vampirism_heals_one_hp_every_n_consecutive_perfects</code></li><li><code>test_vampirism_heal_never_exceeds_the_configured_cap</code></li><li><code>test_vampirism_is_inert_when_the_threshold_is_zero</code></li><li><code>test_judgment_dodged_is_reused_for_mirage_vanish_not_a_new_enum_value</code></li></ul></details>
 <details><summary><code>test_scratch_input_sources.py</code> — scratch_energy tem 3 fontes independentes (mouse/roda/teclas alternadas) -- combinadas por max(). (7 testes)</summary><ul><li><code>test_energy_pulse_saturates_at_one</code></li><li><code>test_energy_pulse_decays_and_floors_at_zero</code></li><li><code>test_energy_pulse_combines_gain_and_decay_in_the_same_call</code></li><li><code>test_alternating_energy_ignores_the_same_side_repeated</code></li><li><code>test_alternating_energy_spikes_on_a_genuine_switch</code></li><li><code>test_alternating_energy_decays_without_any_press</code></li><li><code>test_real_provider_polls_without_crashing_and_starts_at_zero_energy</code></li></ul></details>
 <details><summary><code>test_scratch_judgment.py</code> — Notas de Scratch (Arcade 4K): energia continua de mouse mantem o hold; parar e MISS imediato. (3 testes)</summary><ul><li><code>test_holding_energy_through_the_whole_scratch_scores_perfect</code></li><li><code>test_stopping_mid_hold_is_an_immediate_miss</code></li><li><code>test_scratch_note_ignores_lane_key_presses</code></li></ul></details>
 <details><summary><code>test_spark_system.py</code> — Juice Visual -- Sparks: pool fixo Zero-GC, ativado pelo JudgmentSystem em acertos PERFEITOS. (8 testes)</summary><ul><li><code>test_emit_burst_activates_the_requested_number_of_slots</code></li><li><code>test_emitted_sparks_start_at_the_given_origin_with_zero_length</code></li><li><code>test_sparks_stretch_and_fade_over_their_lifetime</code></li><li><code>test_sparks_fully_expire_and_free_their_slot_for_round_robin_reuse</code></li><li><code>test_emit_burst_wraps_around_the_pool_in_round_robin_order</code></li><li><code>test_perfect_hit_emits_a_spark_burst_at_the_crosshair</code></li><li><code>test_good_hit_does_not_emit_sparks</code></li><li><code>test_lanes_mode_never_registers_a_spark_system</code></li></ul></details>
@@ -522,6 +524,13 @@ titulo/canal/miniatura da Previa e a mensagem de erro (conteudo
 DINAMICO) sao publicados por `set_download_preview`/
 `set_download_error`, chamados SO&#x27; quando o dado muda (nunca
 aqui, que roda todo frame).
+`roguelite_info` (Rogue-lite Endgame, so em &quot;roguelite_map&quot;/
+&quot;roguelite_reward&quot;): dict com `screen` (&quot;map&quot;/&quot;reward&quot;),
+`cursor`, `health`, `stage_level` e ou `song_choices`
+(`((indice_original, modifier_ou_None), ...)`, &quot;map&quot;) ou
+`perk_choices` (tupla de `perk_id`, &quot;reward&quot;) -- os NOMES das
+musicas reusam as texturas `stage_{indice}`/`stage_{indice}_sel`
+ja registradas (nenhum texto dinamico novo).
 Chamado pelo `HertzGameLoop` a cada frame.</pre>
 <h4><code>.set_notice()</code></h4><pre class="doc">Aviso transiente (superficie de overlay pre-registrada, ex.
 calibracao de latencia), desenhado no topo em QUALQUER estado --
@@ -781,6 +790,17 @@ mesmo contrato de `_blit_centered`, pra encadear no `y` do
 chamador.</pre>
 <h4><code>._draw_overlay()</code></h4><pre class="doc">Desenha o overlay do estado publicado por `set_overlay` usando
 apenas superficies pre-renderizadas (nenhum font.render aqui).</pre>
+<h4><code>._draw_roguelite_status()</code></h4><pre class="doc">Rogue-lite Endgame: vida + nivel da corrida, MESMA linha,
+topo das 2 telas (Mapa/Recompensa) -- reusa `_blit_label_and_
+number_centered` (atlas de digitos do HUD, nenhum `font.render`
+no loop).</pre>
+<h4><code>._draw_roguelite_map_overlay()</code></h4><pre class="doc">Mapa Rogue-lite: as 2 opcoes de musica sorteadas (nome via
+`stage_{indice}`/`stage_{indice}_sel`, ja registradas pra TODA
+fase -- ver `texture_bank.py`), cada uma com o rotulo do
+modifier de Mind Games forcado logo abaixo.</pre>
+<h4><code>._draw_roguelite_reward_overlay()</code></h4><pre class="doc">Recompensa Rogue-lite: os 2 Perks sorteados (rotulo estatico
+`roguelite_perk_{perk_id}`), o em FOCO com o mesmo destaque
+&quot;&gt; X &lt;&quot; dourado do resto do menu.</pre>
 <h4><code>.cache_carousel_visuals()</code></h4><pre class="doc">Pre-cacheia, POR `stage_id`, tudo que a Estetica Reativa
 precisa: a miniatura em foco (grande/brilhante) e vizinha
 (pequena/escurecida via `BLEND_RGB_MULT`, mascara pre-aplicada
@@ -871,11 +891,11 @@ esta em andamento, inclusive numa falha.</pre>
 seco no inicio de cada compasso, nunca uma oscilacao simetrica) e
 &quot;PRESSIONE ESPACO&quot; piscando (alfa em seno sobre o relogio de
 parede, mesmo criterio de `_judgment_line_color`).</pre>
-<h4><code>._draw_hub_overlay()</code></h4><pre class="doc">HUB Principal: as 6 categorias grandes (`_HUB_CATEGORIES`),
+<h4><code>._draw_hub_overlay()</code></h4><pre class="doc">HUB Principal: as 7 categorias grandes (`_HUB_CATEGORIES`),
 a em foco (`hub_cursor`) destacada pela MESMA variante &quot;_sel&quot;
 (setas + dourado) das linhas de fase do antigo menu unico --
-&quot;download_music&quot; (Pipeline de Importacao Direta) e&#x27; so mais uma
-linha igual as outras 5, sem moldura/decoracao extra.</pre>
+cada categoria nova (ex.: &quot;roguelite&quot;) e&#x27; so mais uma linha
+igual as outras, sem moldura/decoracao extra.</pre>
 <h4><code>._draw_carousel_overlay()</code></h4><pre class="doc">Carrossel: SO a entrada em foco toma o centro da tela (nunca a
 lista inteira) -- nome, a frase de lore/imersao da fase
 (`StageDef.description`), BPM/duracao, Rank Maximo e Medalhas
@@ -920,7 +940,7 @@ digitos 0-9 e as palavras PERFECT/GOOD/MISS viram Surfaces ESTATICAS
 registradas no renderer UMA unica vez. Nenhum `font.render` acontece
 depois disso -- o `UIRenderSystem` so escolhe `texture_id` por
 aritmetica e o `draw_batch` blita as Surfaces ja prontas.</pre>
-<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_DODGE_COLOR</code>, <code>_PINK_COLOR</code>, <code>_RANK_COLORS</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_ORBITAL_SHIELDS_CONTROL_HINT</code>, <code>_TWIN_THREATS_CONTROL_HINT</code>, <code>_ORBITAL_ECLIPSES_CONTROL_HINT</code>, <code>_OVERLOAD_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_GENERIC_GAME_MODE_HINTS</code>, <code>_MODIFIER_ROW_LABELS</code>, <code>_GAME_MODE_ROW_LABELS</code>, <code>_HEAVY_MECHANIC_ROW_LABELS</code>, <code>_HUB_CATEGORY_LABELS</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_START_ROW_LABEL</code></p>
+<p class='constants'>Constantes: <code>LANE_KEY_LABELS</code>, <code>MAX_LATENCY_STEPS</code>, <code>_DIGIT_COLOR</code>, <code>_LABEL_COLOR</code>, <code>_PERFECT_COLOR</code>, <code>_GOOD_COLOR</code>, <code>_MISS_COLOR</code>, <code>_DODGE_COLOR</code>, <code>_PINK_COLOR</code>, <code>_RANK_COLORS</code>, <code>_VIGNETTE_COLOR</code>, <code>_VIGNETTE_HOLE_FRACTION</code>, <code>_POLARITY_CONTROL_HINT</code>, <code>_HOLDS_CONTROL_HINT</code>, <code>_LANES_HOLDS_CONTROL_HINT</code>, <code>_ORBITAL_SHIELDS_CONTROL_HINT</code>, <code>_TWIN_THREATS_CONTROL_HINT</code>, <code>_ORBITAL_ECLIPSES_CONTROL_HINT</code>, <code>_OVERLOAD_CONTROL_HINT</code>, <code>_HOLDS_HINT_BY_MODE</code>, <code>_GENERIC_GAME_MODE_HINTS</code>, <code>_MODIFIER_ROW_LABELS</code>, <code>_GAME_MODE_ROW_LABELS</code>, <code>_HEAVY_MECHANIC_ROW_LABELS</code>, <code>_HUB_CATEGORY_LABELS</code>, <code>_ROGUE_PERK_LABELS</code>, <code>_ROGUE_MODIFIER_LABELS</code>, <code>_SCORE_MULTIPLIER_MIN</code>, <code>_SCORE_MULTIPLIER_STEP</code>, <code>_SCORE_MULTIPLIER_STEPS</code>, <code>_START_ROW_LABEL</code></p>
 <h4><code>build_and_register_hud_textures()</code></h4><pre class="doc">Renderiza e registra todas as texturas de HUD. Chamado UMA vez na
 composicao, depois de `renderer.initialize` (precisa do display
 ativo para `convert_alpha`).</pre>
@@ -984,7 +1004,7 @@ reconstroi os mesmos sons no primeiro build.
 Gun Sync: o canhao do tiro certeiro E percussao (bumbo pesado + estalo),
 desenhado para se fundir a trilha; o clique seco do misfire e o &quot;tec&quot; de
 arma emperrada; o tap fantasma e um tick discreto de batucada livre.</pre>
-<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code>, <code>SFX_DEFLECT</code>, <code>SFX_PARRY</code>, <code>SFX_HOLD_ENGAGE</code>, <code>SFX_HOLD_BREAK</code>, <code>SFX_SHIELD_BREAK</code>, <code>SFX_BOMB</code>, <code>SFX_HEAL</code>, <code>SFX_MISS</code>, <code>SFX_ANNOUNCER_COMBO</code>, <code>SFX_ANNOUNCER_RANK</code>, <code>SFX_UNLOCK_ALL</code>, <code>_PITCH_VARIANT_COUNT</code>, <code>SFX_CANNON_VARIANTS</code>, <code>SFX_NOTE_HIT_VARIANTS</code>, <code>_SEMITONE_RATIO</code></p>
+<p class='constants'>Constantes: <code>SFX_SAMPLE_RATE</code>, <code>SFX_CANNON</code>, <code>SFX_CLICK</code>, <code>SFX_TAP</code>, <code>SFX_DEFLECT</code>, <code>SFX_PARRY</code>, <code>SFX_HOLD_ENGAGE</code>, <code>SFX_HOLD_BREAK</code>, <code>SFX_SHIELD_BREAK</code>, <code>SFX_BOMB</code>, <code>SFX_HEAL</code>, <code>SFX_MISS</code>, <code>SFX_ANNOUNCER_COMBO</code>, <code>SFX_ANNOUNCER_RANK</code>, <code>SFX_UNLOCK_ALL</code>, <code>SFX_GLITCH</code>, <code>_PITCH_VARIANT_COUNT</code>, <code>SFX_CANNON_VARIANTS</code>, <code>SFX_NOTE_HIT_VARIANTS</code>, <code>_SEMITONE_RATIO</code></p>
 <h4><code>_cannon()</code></h4><pre class="doc">Tiro no tempo: bumbo profundo (sweep 160-&gt;40 Hz) + estalo curto --
 percussao que se soma a musica. `pitch_ratio` escala TODAS as
 frequencias (Combo Pitch Shift: gerar 5 variantes semitom a semitom
@@ -1028,12 +1048,17 @@ final, nao uma reacao rapida de gameplay.</pre>
 distinto de qualquer SFX de gameplay, sem ser tao longo/triunfante
 quanto `_announcer_rank` (isto e&#x27; so uma confirmacao de cheat, nao
 uma celebracao de Rank).</pre>
+<h4><code>_glitch()</code></h4><pre class="doc">Rogue-lite -- Buraco de Minhoca (teleporte instantaneo): tom
+agudo com a frequencia saltando em DEGRAUS abruptos (nao um sweep
+continuo) e amplitude cortada em blocos alternados -- o efeito
+&quot;quebrado&quot; de um teleporte digital, bem distinto do impacto pesado
+do Parry ou do thud grave do Miss.</pre>
 <h4><code>ensure_sfx()</code></h4><pre class="doc">Garante todos os SFX em data/sfx/ (sintese deterministica, so na
 primeira execucao). Chamado no build, fora do loop de gameplay.</pre>
 </details>
 <details class="module" id="hertzbeats-bootstrap-hertz_game_loop"><summary><code>hertzbeats/bootstrap/hertz_game_loop.py</code> — GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</summary>
 <pre class="doc">GameLoop da engine estendido com o fluxo de partida: menu de fases, pausa, derrota e resultados.</pre>
-<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_DOWNLOAD_HUB</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>HUB_CATEGORIES</code>, <code>_DOWNLOAD_STAGE_WAITING</code>, <code>_DOWNLOAD_STAGE_FETCHING_PREVIEW</code>, <code>_DOWNLOAD_STAGE_PREVIEW_READY</code>, <code>_DOWNLOAD_STAGE_DOWNLOADING</code>, <code>_DOWNLOAD_STAGE_SUCCESS</code>, <code>_DOWNLOAD_STAGE_ERROR</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_CHEAT_FLASH_SECONDS</code>, <code>_DEV_MODE_SEQUENCE</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
+<p class='constants'>Constantes: <code>FLOW_TITLE</code>, <code>FLOW_HUB</code>, <code>FLOW_CAROUSEL</code>, <code>FLOW_DOWNLOAD_HUB</code>, <code>FLOW_PREFLIGHT</code>, <code>FLOW_VAULT</code>, <code>FLOW_CALIBRATION</code>, <code>FLOW_PLAYING</code>, <code>FLOW_PAUSED</code>, <code>FLOW_GAME_OVER</code>, <code>FLOW_RESULTS</code>, <code>FLOW_ROGUELITE_MAP</code>, <code>FLOW_ROGUELITE_REWARD</code>, <code>HUB_CATEGORIES</code>, <code>_DOWNLOAD_STAGE_WAITING</code>, <code>_DOWNLOAD_STAGE_FETCHING_PREVIEW</code>, <code>_DOWNLOAD_STAGE_PREVIEW_READY</code>, <code>_DOWNLOAD_STAGE_DOWNLOADING</code>, <code>_DOWNLOAD_STAGE_SUCCESS</code>, <code>_DOWNLOAD_STAGE_ERROR</code>, <code>_RESULTS_GRACE_SECONDS</code>, <code>_LATENCY_STEP_SECONDS</code>, <code>_LATENCY_MAX_SECONDS</code>, <code>_NOTICE_SECONDS</code>, <code>_CHEAT_FLASH_SECONDS</code>, <code>_DEV_MODE_SEQUENCE</code>, <code>_NEUTRAL_PALETTE_RGB</code>, <code>REACTIVE_BACKGROUND_LOOKAHEAD_SECONDS</code>, <code>REACTIVE_BACKGROUND_MAX_COUNT</code>, <code>ANNOUNCER_COMBO_THRESHOLD</code>, <code>_ANNOUNCER_RANK_TIERS</code>, <code>MODIFIER_SCORE_BONUS</code>, <code>PRACTICE_MODE_SCORE_PENALTY</code>, <code>MIN_SCORE_MULTIPLIER</code>, <code>GAME_MODE_ROW</code>, <code>HEAVY_MECHANIC_ROW</code>, <code>START_ROW</code>, <code>DEFENDER_MODIFIER_ROWS</code>, <code>LANES_MODIFIER_ROWS</code>, <code>HEAVY_MECHANIC_VALUES_BY_GAME_MODE</code>, <code>_HEAVY_MECHANIC_DISPLAY_ORDER</code></p>
 <h4><code>compute_duck_multiplier()</code></h4><pre class="doc">Audio Ducking: fracao MULTIPLICATIVA do volume da faixa (1.0 =
 normal). `duck_timer_seconds` (contagem regressiva, MESMO idioma dos
 outros timers do jogo) em `duck_duration_seconds`: `duck_volume_fraction`
@@ -1189,6 +1214,34 @@ so e clampada ao `max_health` da fase nova -- nunca restaurada
 ao maximo, e&#x27; exatamente a ausencia de &quot;cura entre fases&quot; que
 define o Ironman; uma fase com teto MENOR (ex.: Roleta Russa)
 ainda assim nunca deixa a vida acima do proprio teto.</pre>
+<h4><code>.rogue_run_active()</code></h4><pre class="doc">Rogue-lite Endgame: True enquanto uma corrida estiver em
+andamento (entre `_start_rogue_run` e uma derrota/saida pro
+HUB).</pre>
+<h4><code>.rogue_run_state()</code></h4><pre class="doc">A `RogueRunState` da corrida atual, ou `None` fora dela --
+usado pelo renderer pra mostrar vida/nivel/Perks acumulados nas
+telas de Mapa/Recompensa.</pre>
+<h4><code>.rogue_map_choices()</code></h4><pre class="doc">`((indice_original, modifiers), (indice_original, modifiers))`
+das 2 opcoes de musica do Mapa ATUAL -- `()` fora do Mapa.</pre>
+<h4><code>.rogue_reward_choices()</code></h4><pre class="doc">`(perk_id, perk_id)` das 2 opcoes de Perk da tela de
+Recompensa ATUAL -- `()` fora dela.</pre>
+<h4><code>._start_rogue_run()</code></h4><pre class="doc">Rogue-lite Endgame: comeca uma corrida NOVA (vida cheia,
+nenhum Perk, nivel 1) e vai direto pro Mapa -- pula Carrossel/
+Pre-Voo por completo, mesmo espirito &quot;sem menu convencional
+entre fases&quot; do Ironman.</pre>
+<h4><code>._roll_rogue_map()</code></h4><pre class="doc">Sorteia as 2 opcoes de musica (jogador) do Mapa, cada uma com
+UM modifier de Mind Games distinto forcado -- ver
+`hertzbeats.rogue_lite.roll_map_choices`.</pre>
+<h4><code>._advance_roguelite_map()</code></h4><pre class="doc">Esquerda/Direita alterna entre as 2 opcoes; confirmar guarda o
+modifier sorteado em `_rogue_map_active_modifiers` (lido por
+`_compose_stage`, NUNCA `_chosen_modifiers` -- ver o comentario
+la, vazaria pro menu normal de Free Play) e comeca a fase
+direto, sem passar por Pre-Voo. Sair cancela a corrida inteira
+-- mesmo criterio de `_advance_paused` cancelar o Ironman.</pre>
+<h4><code>._advance_roguelite_reward()</code></h4><pre class="doc">Esquerda/Direita alterna entre os 2 Perks sorteados; confirmar
+o adiciona a `RogueRunState.perks` (uniao -- Perks nunca somem),
+sobe `stage_level` e volta pro Mapa com um novo sorteio. Sair
+encerra a corrida (o Perk desta vitoria fica perdido -- mesma
+disciplina de &quot;sem cura/recompensa de graca&quot; do Ironman).</pre>
 <h4><code>._adjust_latency()</code></h4><pre class="doc">Calibracao AO VIVO da latencia de audio (teclas +/-): se as
 ameacas parecem chegar ANTES do som, aumente; DEPOIS, diminua.
 O novo valor vale imediatamente (spawner/julgamento leem o
@@ -2128,6 +2181,28 @@ reanalisa audio nem muda o beatmap.json versionado. `scheduled`/
 `hit_times` sao os arrays JA CARREGADOS pelo `BeatmapLoader`,
 paralelos linha a linha.</pre>
 </details>
+<details class="module" id="hertzbeats-rogue_lite"><summary><code>hertzbeats/rogue_lite.py</code> — Rogue-lite Endgame: estado de uma corrida, catalogo de Perks e sorteio do Mapa/Recompensa.</summary>
+<pre class="doc">Rogue-lite Endgame: estado de uma corrida, catalogo de Perks e sorteio do Mapa/Recompensa.</pre>
+<p class='constants'>Constantes: <code>PERK_VAMPIRISM_THRESHOLD</code>, <code>PERK_PERFECT_WINDOW_MULTIPLIER</code></p>
+<h4><code>roll_map_choices()</code></h4><pre class="doc">Sorteia as 2 opcoes de musica do Mapa Rogue-lite a partir das
+entradas `(indice_original, StageDef)` de `HertzGameLoop.
+free_play_entries()` -- cada uma ganha UM modifier de Mind Games
+distinto forcado (`_MIND_GAMES_MODIFIER_POOL`). Com menos de 2
+musicas de jogador disponiveis, repete a mesma opcao (o repertorio
+vazio ja e tolerado do mesmo jeito pelo Free Play normal).</pre>
+<h4><code>roll_perk_choices()</code></h4><pre class="doc">Sorteia 2 Perks distintos do catalogo, priorizando os que o
+jogador AINDA nao tem nesta corrida -- se sobrar so 1 (ou 0) inedito,
+oferece repetido em vez de travar a tela de Recompensa sem opcao.</pre>
+<h3>classe <code>RogueRunState</code></h3><pre class="doc">Estado de UMA corrida Rogue-lite, persistente ENTRE fases --
+sobrevive a recomposicao de `GameState` a cada musica nova
+(`HertzGameLoop._rogue_run` guarda esta MESMA instancia e a injeta
+em `GameState.rogue_run` a cada `_compose_stage`, mesmo criterio ja
+usado por `HertzGameLoop._ironman_carried_health` para vida
+carregada entre fases do Ironman). `GameState.health` continua
+sendo a copia VIVA usada por `CoreDamageSystem`/`JudgmentSystem`
+durante a fase; `HertzGameLoop` sincroniza `health` de volta pra
+ca ao fim de cada fase (vitoria ou derrota), nunca no meio dela.</pre>
+</details>
 <details class="module" id="hertzbeats-stages"><summary><code>hertzbeats/stages.py</code> — Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</summary>
 <pre class="doc">Fases data-driven: definicoes carregadas de data/stages/stages.json, nunca hardcoded em sistema.</pre>
 <h4><code>load_stages()</code></h4><pre class="doc">Carrega a lista ordenada de fases de `stages_path` (JSON).</pre>
@@ -2497,6 +2572,15 @@ complicaria sem ganho real).</pre>
 pendente cujo tempo ja passou alem da janela de miss
 (`delta &lt; -miss_window`). Quebra o combo UMA vez por frame,
 independente de quantas ameacas vencerem juntas.</pre>
+<h4><code>._sweep_vanishing_mirages()</code></h4><pre class="doc">Rogue-lite -- Mind Games (Ameacas Fantasmas): destroi em
+SILENCIO toda ameaca `is_mirage` ainda pendente a
+`mirage_vanish_seconds` (ou menos) do impacto -- `JUDGMENT_DODGED`
+(nao pune, nao quebra combo, nao pontua) em vez do MISS que a
+varredura generica aplicaria a qualquer outra ameaca no mesmo
+instante. Recalcula `pending` do ZERO a partir de
+`threat_view[&quot;judgment&quot;]` (em vez de reusar a mascara de
+`update()`, ja desatualizada apos `_sweep_overdue_misses` rodar)
+-- evita destruir a mesma linha duas vezes no mesmo frame.</pre>
 <h4><code>._set_core_polarity_shape()</code></h4><pre class="doc">Troca o `texture_id` do sprite do nucleo para a variante com o
 simbolo interno da cor disparada -- so o `texture_id` muda
 (nunca o `tint_r/g/b/a`, que continua 100% do `PlayerInputSystem`
@@ -2599,6 +2683,16 @@ que pela quebra da sustentacao em vez de colisao), e o feedback
 fisico duplo que esta tarefa pediu -- Camera Shake
 (`GameState.trigger_shake`) e Haptics (`IInputProvider.set_rumble`,
 no-op silencioso sem controle conectado).</pre>
+<h4><code>._apply_vampirism_heal()</code></h4><pre class="doc">Rogue-lite -- Perk Vampirismo: a cada `vampirism_combo_threshold`
+acertos PERFEITOS consecutivos (o combo zera em qualquer MISS,
+entao e sempre uma sequencia CONTINUA), cura 1 de vida --
+checado por CRUZAMENTO de multiplo (resto, nao divisao), pra
+nunca curar duas vezes seguidas no mesmo combo. Respeita
+`vampirism_max_health` quando fornecido (`0` = sem teto).</pre>
+<h4><code>._resolve_mirage_miss()</code></h4><pre class="doc">Rogue-lite -- Ameacas Fantasmas: acertar um &quot;fantasma&quot; ANTES
+dele desaparecer sozinho (`_sweep_vanishing_mirages`) e sempre
+MISS -- e um alvo falso, nunca pode ser destruido de verdade
+mesmo com timing+mira perfeitos.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-lane_choreography_system"><summary><code>hertzbeats/systems/lane_choreography_system.py</code> — Pistas Dinamicas: as colunas do Arcade balancam quando um pico de energia (Scratch/pesada) acontece.</summary>
 <pre class="doc">Pistas Dinamicas: as colunas do Arcade balancam quando um pico de energia (Scratch/pesada) acontece.</pre>
@@ -2751,6 +2845,57 @@ Cinematica: `velocidade_y = (linha_julgamento - y_spawn) / tempo_restante`
 (mesma compensacao de atraso de frame dos outros modos: spawn tardio
 cai proporcionalmente mais rapido e cruza a linha na batida).</pre>
 <h4><code>._create_threat_entity()</code></h4><pre class="doc">Materializa a nota do evento `row_index` na sua coluna.</pre>
+</details>
+<details class="module" id="hertzbeats-systems-mind_games_system"><summary><code>hertzbeats/systems/mind_games_system.py</code> — Rogue-lite -- Mind Games (Defensor): Buracos de Minhoca (teleporte) e Efeito Elastico (aproximacao nao-linear).</summary>
+<pre class="doc">Rogue-lite -- Mind Games (Defensor): Buracos de Minhoca (teleporte) e Efeito Elastico (aproximacao nao-linear).</pre>
+<p class='constants'>Constantes: <code>_TAU</code>, <code>_MIN_SPEED</code></p>
+<h3>classe <code>MindGamesSystem</code></h3><pre class="doc">Registrado DEPOIS do `PhysicsSystem` da engine (mesmo slot
+conceitual do `OrbitalEclipseSystem` -- ambos precisam da posicao ja
+integrada pelo frame) -- reprojeta a posicao de ameacas marcadas com
+as flags opt-in de Mind Games (`will_teleport`/`nonlinear_approach`),
+SEM tocar o `PhysicsSystem` generico da engine (mesma disciplina ja
+usada por `BoomerangThreatSystem`/`OrbitalCaptureSystem` para nao
+fazer uma mudanca cross-repo).
+
+BURACOS DE MINHOCA (`will_teleport`, opt-in via &quot;wormholes&quot; em
+`HertzConfig.active_modifiers`): quando a ameaca cruza
+`teleport_radius` rumo ao nucleo, sua posicao e REFLETIDA pelo
+centro e a velocidade e negada -- matematicamente EQUIVALENTE a
+girar `spawn_angle_rad` por PI mantendo o MESMO raio e a MESMA
+velocidade radial de aproximacao (reflexao por um ponto preserva a
+distancia ao centro, so troca de lado). A ameaca reaparece
+INSTANTANEAMENTE do lado OPOSTO do circulo, ainda convergindo pro
+nucleo na mesma velocidade -- `target_hit_time_sec` continua o
+instante CORRETO de impacto (a trajetoria raio-por-tempo nao muda,
+so o angulo); a decepcao e a DIRECAO que o jogador precisa mirar,
+que inverte de surpresa. `spawn_angle_rad` (o angulo usado pelo
+cone de mira do `JudgmentSystem`) e girado em PI JUNTO -- sem isso,
+o jogador continuaria mirando na direcao ANTIGA mesmo depois do
+susto visual. Consome a flag (`will_teleport=False`) no proprio
+frame em que dispara -- evento ONE-SHOT, nunca reflete duas vezes.
+
+EFEITO ELASTICO (`nonlinear_approach`, opt-in via &quot;rubber_band&quot;):
+reprojeta o RAIO (mantendo o angulo fixo) usando uma curva de easing
+sobre a fracao de progresso REAL do voo -- derivada do
+`IAudioClock` (`tempo_restante = target_hit_time_sec - agora_efetivo`,
+MESMA base de tempo do `JudgmentSystem`/spawner) contra a duracao
+TOTAL do voo, recuperada da MAGNITUDE da velocidade constante desta
+linha (`travel_distance / speed`) -- nunca de um campo novo de
+&quot;tempo de spawn&quot; na SoA. CUIDADO: NAO e correto rederivar essa
+fracao a partir do RAIO ATUAL da posicao apos este proprio sistema
+ja ter sobrescrito `position_x/y` na curva de easing -- isso
+realimentaria o proprio easing a cada frame (compondo `sin` sobre
+`sin` indefinidamente em vez de aplicar a curva UMA vez contra o
+tempo real), por isso o relogio de audio (imune a qualquer escrita
+deste sistema) e a UNICA fonte de verdade aqui. `sin(fracao * pi/2)`
+(ease-out: acelera MUITO ao nascer, freia perto do nucleo). Roda
+TODO frame -- ao contrario do teleporte, e um efeito CONTINUO do
+voo inteiro, nunca consome a flag.
+
+Zero-GC: vetorizado sobre as poucas linhas marcadas por frame
+(tipicamente 0-3 candidatas simultaneas), buffers pre-alocados no
+construtor + fancy indexing -- nenhum array transiente novo por
+frame.</pre>
 </details>
 <details class="module" id="hertzbeats-systems-orbital_capture_system"><summary><code>hertzbeats/systems/orbital_capture_system.py</code> — Captura Orbital: escudos capturados orbitam o nucleo via seno/cosseno, fora da jurisdicao do PhysicsSystem generico.</summary>
 <pre class="doc">Captura Orbital: escudos capturados orbitam o nucleo via seno/cosseno, fora da jurisdicao do PhysicsSystem generico.</pre>

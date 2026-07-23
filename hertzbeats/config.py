@@ -349,6 +349,31 @@ class HertzConfig:
     chapter_event_keywords: Tuple[str, ...] = ("drop", "chorus", "climax", "intense")
     arena_warp_shake_px: float = 24.0
 
+    # -- Rogue-lite Endgame -- Mind Games (Defensor): opt-in via
+    #    "wormholes"/"mirages"/"rubber_band" em `active_modifiers`, o
+    #    Mapa Rogue-lite forca exatamente UM por musica (ver
+    #    `hertzbeats.rogue_lite.roll_map_choices`) -- ver
+    #    `RadialRhythmSpawnerSystem`/`MindGamesSystem`/`JudgmentSystem`.
+    wormhole_teleport_radius: float = 220.0
+    # Ameacas Fantasmas: PRECISA ficar MENOR que `good_window_seconds`
+    # (0.10 por padrao) -- e' o unico jeito de "atirar nela antes de
+    # sumir aplica MISS" ser alcancavel de verdade. Se este valor fosse
+    # MAIOR que a janela Good (ex.: 0.2s, ingenuo a primeira vista), o
+    # fantasma sempre teria sumido em silencio ANTES de sequer entrar na
+    # janela de acerto -- o "atirar nela = MISS" nunca aconteceria na
+    # pratica, so' o desaparecimento silencioso. 0.03s deixa uma folga
+    # real (~70ms com a janela Good padrao) onde o disparo pune, e so'
+    # nos ultimos 30ms o fantasma se dissolve de misericordia.
+    mirage_vanish_seconds: float = 0.03
+
+    # -- Rogue-lite Endgame -- Perks (resolvidos em `HertzGameLoop.
+    #    _compose_stage` a partir de `GameState.rogue_run.perks`, nunca
+    #    checados por string dentro do loop de `JudgmentSystem`) --
+    #    ver `hertzbeats.rogue_lite.ROGUE_PERK_CATALOG`. `0`/`0` = os 2
+    #    Perks desligados (fase normal, fora de uma corrida).
+    vampirism_combo_threshold: int = 0
+    vampirism_max_health: int = 0
+
     @property
     def center_xy(self) -> Tuple[float, float]:
         """Centro da arena (posicao do nucleo), derivado da janela."""
@@ -467,6 +492,10 @@ class HertzConfig:
                 raw.get("chapter_event_keywords", ("drop", "chorus", "climax", "intense"))
             ),
             arena_warp_shake_px=raw.get("arena_warp_shake_px", 24.0),
+            wormhole_teleport_radius=raw.get("wormhole_teleport_radius", 220.0),
+            mirage_vanish_seconds=raw.get("mirage_vanish_seconds", 0.03),
+            vampirism_combo_threshold=raw.get("vampirism_combo_threshold", 0),
+            vampirism_max_health=raw.get("vampirism_max_health", 0),
         )
 
 
@@ -504,4 +533,5 @@ def fit_config_to_display(
         threat_half_extents={
             name: half * scale for name, half in config.threat_half_extents.items()
         },
+        wormhole_teleport_radius=config.wormhole_teleport_radius * scale,
     )

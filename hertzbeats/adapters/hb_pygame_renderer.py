@@ -148,16 +148,18 @@ desenhados em TEMPO REAL (`pygame.draw.rect`), nunca pre-renderizados
 retangulo simples nao precisa de `font.render`, so o ROTULO de texto de
 cada linha e uma Surface pronta)."""
 
-_HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration", "ironman", "download_music")
+_HUB_CATEGORIES = (
+    "campaign", "free_play", "vault", "calibration", "ironman", "roguelite", "download_music",
+)
 """Duplicado de proposito de `hertz_game_loop.HUB_CATEGORIES` (mesmo
 criterio de `_GAME_MODE_ROW` acima -- adapter nao importa o game loop):
-ordem das 6 categorias grandes do HUB, indexada por `hub_cursor`. Bug
-real corrigido aqui: esta tupla ficou com so 5 entradas (faltando
-"download_music") quando `HUB_CATEGORIES` ganhou a 6a categoria -- o
-cursor/confirmar SEMPRE funcionou (`_advance_hub` le a tupla REAL do
-game loop), mas a linha "[ IMPORTAR MUSICA ]" nunca era desenhada (o
-loop de `_draw_hub_overlay` so ia ate o indice 4), entao o jogador so
-conseguia chegar la as cegas."""
+ordem das 7 categorias grandes do HUB, indexada por `hub_cursor`. Bug
+real ja corrigido aqui uma vez: esta tupla ficou pra tras (faltando
+"download_music") quando `HUB_CATEGORIES` ganhou uma categoria nova --
+o cursor/confirmar SEMPRE funcionou (`_advance_hub` le a tupla REAL do
+game loop), mas a linha nova nunca era desenhada (o loop de
+`_draw_hub_overlay` parava antes), entao o jogador so conseguia
+chegar la as cegas. Mantenha as duas tuplas SEMPRE em sincronia."""
 
 _CAROUSEL_DOT_RADIUS = 4
 _CAROUSEL_DOT_GAP = 14
@@ -317,6 +319,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_hit_error_histogram: Optional[tuple] = None
         self._overlay_b_side_info: Optional[dict] = None
         self._overlay_download_stage: Optional[str] = None
+        self._overlay_roguelite_info: Optional[dict] = None
         # Pipeline de Importacao Direta: titulo/canal/miniatura da Previa
         # e a mensagem de erro sao conteudo DINAMICO (o video importado
         # muda toda vez) -- ao contrario do resto do overlay (textos
@@ -421,6 +424,7 @@ class HBPygameRenderer(PygameRenderer):
         hit_error_histogram: Optional[tuple] = None,
         b_side_info: Optional[dict] = None,
         download_stage: Optional[str] = None,
+        roguelite_info: Optional[dict] = None,
     ) -> None:
         """Publica o estado do Novo Fluxo de Menus (Experiencia Arcade) a
         desenhar sobre o frame: `None` (jogando, sem overlay) ou uma das
@@ -450,6 +454,13 @@ class HBPygameRenderer(PygameRenderer):
         DINAMICO) sao publicados por `set_download_preview`/
         `set_download_error`, chamados SO' quando o dado muda (nunca
         aqui, que roda todo frame).
+        `roguelite_info` (Rogue-lite Endgame, so em "roguelite_map"/
+        "roguelite_reward"): dict com `screen` ("map"/"reward"),
+        `cursor`, `health`, `stage_level` e ou `song_choices`
+        (`((indice_original, modifier_ou_None), ...)`, "map") ou
+        `perk_choices` (tupla de `perk_id`, "reward") -- os NOMES das
+        musicas reusam as texturas `stage_{indice}`/`stage_{indice}_sel`
+        ja registradas (nenhum texto dinamico novo).
         Chamado pelo `HertzGameLoop` a cada frame."""
         self._overlay_mode = mode
         self._overlay_modifier_panel = modifier_panel
@@ -472,6 +483,7 @@ class HBPygameRenderer(PygameRenderer):
         self._overlay_hit_error_histogram = hit_error_histogram
         self._overlay_b_side_info = b_side_info
         self._overlay_download_stage = download_stage
+        self._overlay_roguelite_info = roguelite_info
 
     def set_notice(self, key: Optional[str]) -> None:
         """Aviso transiente (superficie de overlay pre-registrada, ex.
@@ -1325,6 +1337,65 @@ class HBPygameRenderer(PygameRenderer):
                 y += self._blit_centered(f"rank_{self._overlay_rank}", center_x, y) + 10
             y += self._draw_hit_error_histogram(center_x, y + 8)
             self._blit_centered("hint_results", center_x, self._height - 110)
+        elif self._overlay_mode == "roguelite_map":
+            self._draw_roguelite_map_overlay(center_x)
+        elif self._overlay_mode == "roguelite_reward":
+            self._draw_roguelite_reward_overlay(center_x)
+
+    def _draw_roguelite_status(self, center_x: int, y: int) -> int:
+        """Rogue-lite Endgame: vida + nivel da corrida, MESMA linha,
+        topo das 2 telas (Mapa/Recompensa) -- reusa `_blit_label_and_
+        number_centered` (atlas de digitos do HUD, nenhum `font.render`
+        no loop)."""
+        info = self._overlay_roguelite_info or {}
+        height = self._blit_label_and_number_centered(
+            "label_rogue_health", int(info.get("health", 0)), center_x, y,
+        )
+        height = max(height, self._blit_label_and_number_centered(
+            "label_rogue_level", int(info.get("stage_level", 1)), center_x + 160, y,
+        ))
+        return height
+
+    def _draw_roguelite_map_overlay(self, center_x: int) -> None:
+        """Mapa Rogue-lite: as 2 opcoes de musica sorteadas (nome via
+        `stage_{indice}`/`stage_{indice}_sel`, ja registradas pra TODA
+        fase -- ver `texture_bank.py`), cada uma com o rotulo do
+        modifier de Mind Games forcado logo abaixo."""
+        info = self._overlay_roguelite_info or {}
+        y = int(self._height * 0.10)
+        y += self._blit_centered("roguelite_map_title", center_x, y) + 20
+        y += self._draw_roguelite_status(center_x, y) + 30
+
+        song_choices = info.get("song_choices", ())
+        cursor = int(info.get("cursor", 0))
+        if not song_choices:
+            self._blit_centered("carousel_empty", center_x, y + 20)
+            self._blit_centered("hint_roguelite_map", center_x, self._height - 54)
+            return
+        for i, (stage_index, modifier_name) in enumerate(song_choices):
+            key = f"stage_{stage_index}_sel" if i == cursor else f"stage_{stage_index}"
+            y += self._blit_centered(key, center_x, y) + 6
+            if modifier_name:
+                y += self._blit_centered(f"roguelite_modifier_{modifier_name}", center_x, y) + 20
+            else:
+                y += 20
+        self._blit_centered("hint_roguelite_map", center_x, self._height - 54)
+
+    def _draw_roguelite_reward_overlay(self, center_x: int) -> None:
+        """Recompensa Rogue-lite: os 2 Perks sorteados (rotulo estatico
+        `roguelite_perk_{perk_id}`), o em FOCO com o mesmo destaque
+        "> X <" dourado do resto do menu."""
+        info = self._overlay_roguelite_info or {}
+        y = int(self._height * 0.12)
+        y += self._blit_centered("roguelite_reward_title", center_x, y) + 20
+        y += self._draw_roguelite_status(center_x, y) + 30
+
+        perk_choices = info.get("perk_choices", ())
+        cursor = int(info.get("cursor", 0))
+        for i, perk_id in enumerate(perk_choices):
+            key = f"roguelite_perk_{perk_id}_sel" if i == cursor else f"roguelite_perk_{perk_id}"
+            y += self._blit_centered(key, center_x, y) + 16
+        self._blit_centered("hint_roguelite_reward", center_x, self._height - 54)
 
     # -- Carrossel Horizontal + Estetica Reativa (YouTube) -----------------
 
@@ -1605,11 +1676,11 @@ class HBPygameRenderer(PygameRenderer):
             press_space.set_alpha(255)
 
     def _draw_hub_overlay(self, center_x: int) -> None:
-        """HUB Principal: as 6 categorias grandes (`_HUB_CATEGORIES`),
+        """HUB Principal: as 7 categorias grandes (`_HUB_CATEGORIES`),
         a em foco (`hub_cursor`) destacada pela MESMA variante "_sel"
         (setas + dourado) das linhas de fase do antigo menu unico --
-        "download_music" (Pipeline de Importacao Direta) e' so mais uma
-        linha igual as outras 5, sem moldura/decoracao extra."""
+        cada categoria nova (ex.: "roguelite") e' so mais uma linha
+        igual as outras, sem moldura/decoracao extra."""
         y = int(self._height * 0.22)
         y += self._blit_centered("title", center_x, y) + 70
         for i, category in enumerate(_HUB_CATEGORIES):

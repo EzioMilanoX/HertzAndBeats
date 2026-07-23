@@ -1,11 +1,12 @@
 """Placar global da partida: o equivalente das "variaveis globais no World" da arquitetura."""
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
 from hertzbeats.components.schemas import JUDGMENT_PENDING
+from hertzbeats.rogue_lite import RogueRunState
 
 RANK_ORDER = ("SS", "S", "A", "B", "C", "D")
 
@@ -121,6 +122,7 @@ class GameState:
         "hit_delta_write_index",
         "hit_delta_filled_count",
         "bot_mode",
+        "rogue_run",
     )
 
     def __init__(
@@ -287,6 +289,21 @@ class GameState:
         `GameState` entre fases) e e' copiado pra ca em `_start_stage`,
         no instante exato da composicao; nenhum sistema ESCREVE este
         campo depois disso, so' le."""
+        self.rogue_run: Optional[RogueRunState] = None
+        """Rogue-lite Endgame: `None` fora de uma corrida. Quando ativa,
+        `HertzGameLoop._rogue_run` (a MESMA instancia -- nunca uma copia
+        nova, ver `RogueRunState`) e injetada aqui em `_compose_stage`,
+        junto com `health` inicializado a partir de `rogue_run.health`
+        (clampado ao `max_health` da fase nova, mesmo criterio ja usado
+        pela vida carregada do Ironman -- `_ironman_carried_health`).
+        Nenhum sistema LE este campo hoje (os Perks resolvidos em
+        `rogue_run.perks` ja chegam em `JudgmentSystem`/`HertzConfig`
+        como multiplicadores/limiares primitivos na composicao, nunca
+        checados por string em tempo real) -- guardado aqui so para
+        UI/telemetria (ex.: HUD do Rogue-lite mostrar o nivel da
+        corrida). `HertzGameLoop` sincroniza `health` de volta pra
+        `rogue_run.health` ao fim de cada fase (vitoria ou derrota),
+        nunca no meio dela."""
 
     def record_hit_delta(self, delta_seconds: float) -> None:
         """Acessibilidade -- Hit-Error Meter/Histograma de Resultados:

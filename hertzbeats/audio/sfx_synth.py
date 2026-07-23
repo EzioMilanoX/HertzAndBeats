@@ -35,6 +35,11 @@ a ARMA emperrar, nao sobre errar o tempo)."""
 SFX_ANNOUNCER_COMBO = "data/sfx/announcer_combo.wav"
 SFX_ANNOUNCER_RANK = "data/sfx/announcer_rank.wav"
 SFX_UNLOCK_ALL = "data/sfx/unlock_all.wav"
+SFX_GLITCH = "data/sfx/glitch.wav"
+"""Rogue-lite -- Mind Games (Buraco de Minhoca): toca quando o
+`MindGamesSystem` reflete uma ameaca pelo centro -- bipe digital
+"quebrado", distinto de qualquer outro SFX do jogo (nenhum outro usa
+degraus de frequencia abruptos)."""
 """Developer Tools -- Unlock All: chime de confirmacao ao completar a
 sequencia secreta (Cima/Cima/Baixo/Baixo/Esquerda/Direita) na Tela de
 Titulo (`HertzGameLoop._advance_unlock_all_code`). Reset de Save reusa
@@ -255,6 +260,25 @@ def _unlock_all(sample_rate: int) -> np.ndarray:
     return mix / (np.max(np.abs(mix)) * 1.05)
 
 
+def _glitch(sample_rate: int) -> np.ndarray:
+    """Rogue-lite -- Buraco de Minhoca (teleporte instantaneo): tom
+    agudo com a frequencia saltando em DEGRAUS abruptos (nao um sweep
+    continuo) e amplitude cortada em blocos alternados -- o efeito
+    "quebrado" de um teleporte digital, bem distinto do impacto pesado
+    do Parry ou do thud grave do Miss."""
+    length = int(0.18 * sample_rate)
+    t = np.arange(length) / sample_rate
+    step_count = 9
+    step_index = np.minimum((t / t[-1] * step_count).astype(np.int64), step_count - 1)
+    rng = np.random.RandomState(1337)
+    step_freqs = rng.uniform(900.0, 3200.0, size=step_count)
+    freq = step_freqs[step_index]
+    tone = np.sin(2 * np.pi * np.cumsum(freq) / sample_rate)
+    gate = (np.mod(step_index, 2) == 0).astype(np.float64) * 0.7 + 0.3
+    mix = np.exp(-t * 8.0) * tone * gate
+    return mix / (np.max(np.abs(mix)) * 1.05)
+
+
 def ensure_sfx() -> None:
     """Garante todos os SFX em data/sfx/ (sintese deterministica, so na
     primeira execucao). Chamado no build, fora do loop de gameplay."""
@@ -273,6 +297,7 @@ def ensure_sfx() -> None:
         (SFX_ANNOUNCER_COMBO, _announcer_combo),
         (SFX_ANNOUNCER_RANK, _announcer_rank),
         (SFX_UNLOCK_ALL, _unlock_all),
+        (SFX_GLITCH, _glitch),
     ):
         if not Path(path).exists():
             write_wav(synth(SFX_SAMPLE_RATE), Path(path), sample_rate=SFX_SAMPLE_RATE)

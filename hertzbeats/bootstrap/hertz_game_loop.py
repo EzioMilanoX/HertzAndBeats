@@ -46,6 +46,14 @@ from hertzbeats.player_progress import (
     record_stage_cleared,
 )
 from hertzbeats.player_stats import PLAYER_STATS_PATH, load_stats, record_match_stats
+from hertzbeats.rogue_lite import (
+    ROGUE_PERK_CATALOG,
+    PERK_PERFECT_WINDOW_MULTIPLIER,
+    PERK_VAMPIRISM_THRESHOLD,
+    RogueRunState,
+    roll_map_choices,
+    roll_perk_choices,
+)
 from hertzbeats.stages import StageDef, campaign_ids, read_stage_bpm_and_duration, resolve_stage_config
 from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
 from hertzbeats.user_settings import USER_SETTINGS_PATH, save_user_latency, save_user_palette_id
@@ -69,18 +77,29 @@ FLOW_PLAYING = "playing"
 FLOW_PAUSED = "paused"
 FLOW_GAME_OVER = "game_over"
 FLOW_RESULTS = "results"
+FLOW_ROGUELITE_MAP = "roguelite_map"
+FLOW_ROGUELITE_REWARD = "roguelite_reward"
 
-HUB_CATEGORIES = ("campaign", "free_play", "vault", "calibration", "ironman", "download_music")
-"""O Novo Fluxo de Menus (Experiencia Arcade): 6 categorias grandes do
+HUB_CATEGORIES = (
+    "campaign", "free_play", "vault", "calibration", "ironman", "roguelite", "download_music",
+)
+"""O Novo Fluxo de Menus (Experiencia Arcade): 7 categorias grandes do
 HUB principal, nesta ORDEM fixa -- `HertzGameLoop._hub_cursor` e um
 indice nesta tupla. "campaign"/"free_play" levam ao Carrossel
 (`FLOW_CAROUSEL`, filtrado por `StageDef.selectable_mode`); "vault" e
-"calibration" sao telas dedicadas proprias; "ironman" NAO tem tela
-propria -- confirma-la ja inicia o gauntlet (`_start_ironman_run`),
-pulando Carrossel/Pre-Voo por completo (ver `_advance_hub`);
-"download_music" leva a `FLOW_DOWNLOAD_HUB` (Pipeline de Importacao
-Direta -- tela DEDICADA, substituindo o antigo Ctrl+V escondido dentro
-do Carrossel, fragil pra navegacao)."""
+"calibration" sao telas dedicadas proprias; "ironman"/"roguelite" NAO
+tem tela propria -- confirma-las ja inicia o gauntlet/a corrida
+(`_start_ironman_run`/`_start_rogue_run`), pulando Carrossel/Pre-Voo
+por completo (ver `_advance_hub`); "download_music" leva a
+`FLOW_DOWNLOAD_HUB` (Pipeline de Importacao Direta -- tela DEDICADA,
+substituindo o antigo Ctrl+V escondido dentro do Carrossel, fragil pra
+navegacao).
+
+CUIDADO: `HBPygameRenderer` mantem sua PROPRIA copia desta tupla
+(`_HUB_CATEGORIES` em `hb_pygame_renderer.py`, o adapter nunca importa
+o bootstrap) -- ja houve um bug real de uma categoria existir aqui e
+nao ser desenhada por esquecer de atualizar as duas. Adicionar uma
+categoria nova exige mudar AMBAS."""
 
 _DOWNLOAD_STAGE_WAITING = "waiting"
 _DOWNLOAD_STAGE_FETCHING_PREVIEW = "fetching_preview"
@@ -424,6 +443,22 @@ class HertzGameLoop(GameLoop):
         self._ironman_total = 0  # tamanho FIXO do gauntlet atual, pro aviso "FASE N/M"
         self._ironman_stage_number = 0  # posicao ATUAL (1-based) dentro do gauntlet
         self._ironman_carried_health: Optional[int] = None  # vida da fase anterior, carregada pra proxima
+
+        # Rogue-lite Endgame: `_rogue_run` e a MESMA instancia de
+        # `RogueRunState` injetada em `GameState.rogue_run` a cada
+        # `_compose_stage` (nunca uma copia -- ver `RogueRunState`),
+        # `None` fora de uma corrida. `_rogue_rng` e proprio (nao o
+        # modulo `random` global usado pelo Camera Shake) para que os
+        # testes possam substitui-lo por um `random.Random(seed)`
+        # determinista sem afetar mais nada.
+        self._rogue_run: Optional[RogueRunState] = None
+        self._rogue_rng = random.Random()
+        self._rogue_map_choices: tuple = ()  # ((indice, modifiers), (indice, modifiers)) do Mapa atual
+        self._rogue_map_cursor = 0
+        self._rogue_map_active_modifiers: tuple = ()  # modifiers FORCADOS da opcao escolhida, ver `_compose_stage`
+        self._rogue_reward_choices: tuple = ()  # (perk_id, perk_id) da tela de Recompensa atual
+        self._rogue_reward_cursor = 0
+
         self._composed: Optional[ComposedGame] = None
         self._was_in_flow = False
         self._was_frozen = False
@@ -633,11 +668,23 @@ class HertzGameLoop(GameLoop):
         stage = self._stages[stage_index]
         stage_config = resolve_stage_config(self._base_config, stage)
         if stage.selectable_mode:
+            # Rogue-lite Endgame: a musica sorteada no Mapa usa o
+            # modifier FORCADO (`_rogue_map_active_modifiers`), nunca
+            # `chosen_modifiers` -- essa mesma musica pode ter modifiers
+            # DIFERENTES ligados no menu normal de Free Play/Pre-Voo, e
+            # gravar no dict compartilhado por `stage_index` vazaria o
+            # modifier forcado pra fora da corrida (o jogador veria
+            # "wormholes" ainda ligado ao jogar a musica normalmente
+            # depois).
+            active_modifiers = (
+                self._rogue_map_active_modifiers if self._rogue_run is not None
+                else tuple(self.chosen_modifiers(stage_index))
+            )
             stage_config = dataclasses.replace(
                 stage_config,
                 practice_mode=self._practice_mode.get(stage_index, False),
                 game_mode=self.chosen_game_mode(stage_index),
-                active_modifiers=tuple(self.chosen_modifiers(stage_index)),
+                active_modifiers=active_modifiers,
             )
         elif self.b_side_chosen(stage_index):
             # Progressao de Campanha -- Lado B/Remix: SUBSTITUI overrides/
@@ -663,6 +710,30 @@ class HertzGameLoop(GameLoop):
                 frozenset(stage_config.active_modifiers), stage_config.practice_mode
             ),
         )
+        # Rogue-lite Endgame -- Perks: resolvidos AQUI (uma unica vez,
+        # na composicao) em multiplicadores/limiares PRIMITIVOS -- o
+        # `JudgmentSystem` nunca sabe que "Perks"/"Rogue-lite" existem,
+        # so recebe `perfect_window_seconds`/`vampirism_combo_threshold`
+        # ja prontos (Zero-GC: nenhuma checagem de string sobrevive ate
+        # o loop de gameplay). Mesmo criterio do bloco "roleta_russa"
+        # logo acima -- um `dataclasses.replace` a mais sobre o
+        # `stage_config` ja quase final.
+        if self._rogue_run is not None:
+            perks = self._rogue_run.perks
+            perfect_window = stage_config.perfect_window_seconds
+            if PERK_PERFECT_WINDOW_MULTIPLIER in perks:
+                multiplier = ROGUE_PERK_CATALOG[PERK_PERFECT_WINDOW_MULTIPLIER]["perfect_window_multiplier"]
+                perfect_window = perfect_window * multiplier
+            vampirism_threshold = (
+                ROGUE_PERK_CATALOG[PERK_VAMPIRISM_THRESHOLD]["vampirism_combo_threshold"]
+                if PERK_VAMPIRISM_THRESHOLD in perks else 0
+            )
+            stage_config = dataclasses.replace(
+                stage_config,
+                perfect_window_seconds=perfect_window,
+                vampirism_combo_threshold=vampirism_threshold,
+                vampirism_max_health=stage_config.max_health,
+            )
         if stage.track_path:
             ensure_track(stage.track_path, stage.synth)
 
@@ -825,6 +896,16 @@ class HertzGameLoop(GameLoop):
         # sessao (F12 em Preflight) pra cada fase nova, ja que o objeto
         # em si nao sobrevive sozinho de uma fase pra outra.
         self._composed.game_state.bot_mode = self._bot_mode_enabled
+        # Rogue-lite Endgame: injeta a MESMA instancia de `RogueRunState`
+        # (nunca uma copia -- ver docstring de `GameState.rogue_run`) e
+        # clampa a vida carregada ao teto da fase nova, mesmo criterio
+        # ja usado pela vida carregada do Ironman logo abaixo em
+        # `_start_ironman_next_stage`.
+        if self._rogue_run is not None:
+            self._composed.game_state.rogue_run = self._rogue_run
+            self._composed.game_state.health = min(
+                self._rogue_run.health, self._composed.game_state.health
+            )
         self._apply_playfield()
         stage = self._stages[stage_index]
         if stage.track_path:
@@ -890,6 +971,92 @@ class HertzGameLoop(GameLoop):
             )
         self._notice_key = f"ironman_progress_{self._ironman_stage_number}"
         self._notice_timer = _NOTICE_SECONDS
+
+    @property
+    def rogue_run_active(self) -> bool:
+        """Rogue-lite Endgame: True enquanto uma corrida estiver em
+        andamento (entre `_start_rogue_run` e uma derrota/saida pro
+        HUB)."""
+        return self._rogue_run is not None
+
+    def rogue_run_state(self) -> Optional[RogueRunState]:
+        """A `RogueRunState` da corrida atual, ou `None` fora dela --
+        usado pelo renderer pra mostrar vida/nivel/Perks acumulados nas
+        telas de Mapa/Recompensa."""
+        return self._rogue_run
+
+    def rogue_map_choices(self) -> tuple:
+        """`((indice_original, modifiers), (indice_original, modifiers))`
+        das 2 opcoes de musica do Mapa ATUAL -- `()` fora do Mapa."""
+        return self._rogue_map_choices
+
+    def rogue_reward_choices(self) -> tuple:
+        """`(perk_id, perk_id)` das 2 opcoes de Perk da tela de
+        Recompensa ATUAL -- `()` fora dela."""
+        return self._rogue_reward_choices
+
+    def _start_rogue_run(self) -> None:
+        """Rogue-lite Endgame: comeca uma corrida NOVA (vida cheia,
+        nenhum Perk, nivel 1) e vai direto pro Mapa -- pula Carrossel/
+        Pre-Voo por completo, mesmo espirito "sem menu convencional
+        entre fases" do Ironman."""
+        self._rogue_run = RogueRunState(health=self._base_config.max_health)
+        self._roll_rogue_map()
+        self._flow = FLOW_ROGUELITE_MAP
+
+    def _roll_rogue_map(self) -> None:
+        """Sorteia as 2 opcoes de musica (jogador) do Mapa, cada uma com
+        UM modifier de Mind Games distinto forcado -- ver
+        `hertzbeats.rogue_lite.roll_map_choices`."""
+        self._rogue_map_choices = roll_map_choices(self.free_play_entries(), self._rogue_rng)
+        self._rogue_map_cursor = 0
+
+    def _advance_roguelite_map(self) -> None:
+        """Esquerda/Direita alterna entre as 2 opcoes; confirmar guarda o
+        modifier sorteado em `_rogue_map_active_modifiers` (lido por
+        `_compose_stage`, NUNCA `_chosen_modifiers` -- ver o comentario
+        la, vazaria pro menu normal de Free Play) e comeca a fase
+        direto, sem passar por Pre-Voo. Sair cancela a corrida inteira
+        -- mesmo criterio de `_advance_paused` cancelar o Ironman."""
+        inp = self._input_provider
+        if not self._rogue_map_choices:
+            if inp.is_action_pressed("pause") or inp.is_action_pressed("to_menu"):
+                self._rogue_run = None
+                self._flow = FLOW_HUB
+            return
+        if inp.is_action_pressed("menu_left") or inp.is_action_pressed("menu_right"):
+            self._rogue_map_cursor = 1 - self._rogue_map_cursor
+        if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+            stage_index, forced_modifiers = self._rogue_map_choices[self._rogue_map_cursor]
+            self._rogue_map_active_modifiers = forced_modifiers
+            self._start_stage(stage_index)
+        elif inp.is_action_pressed("pause") or inp.is_action_pressed("to_menu"):
+            self._rogue_run = None
+            self._flow = FLOW_HUB
+
+    def _advance_roguelite_reward(self) -> None:
+        """Esquerda/Direita alterna entre os 2 Perks sorteados; confirmar
+        o adiciona a `RogueRunState.perks` (uniao -- Perks nunca somem),
+        sobe `stage_level` e volta pro Mapa com um novo sorteio. Sair
+        encerra a corrida (o Perk desta vitoria fica perdido -- mesma
+        disciplina de "sem cura/recompensa de graca" do Ironman)."""
+        inp = self._input_provider
+        if not self._rogue_reward_choices:
+            if inp.is_action_pressed("pause") or inp.is_action_pressed("to_menu"):
+                self._rogue_run = None
+                self._flow = FLOW_HUB
+            return
+        if inp.is_action_pressed("menu_left") or inp.is_action_pressed("menu_right"):
+            self._rogue_reward_cursor = 1 - self._rogue_reward_cursor
+        if inp.is_action_pressed("confirm") or inp.is_action_pressed("fire"):
+            perk_id = self._rogue_reward_choices[self._rogue_reward_cursor]
+            self._rogue_run.perks = self._rogue_run.perks | frozenset({perk_id})
+            self._rogue_run.stage_level += 1
+            self._roll_rogue_map()
+            self._flow = FLOW_ROGUELITE_MAP
+        elif inp.is_action_pressed("pause") or inp.is_action_pressed("to_menu"):
+            self._rogue_run = None
+            self._flow = FLOW_HUB
 
     def _stop_music(self) -> None:
         stage = self._stages[self._loaded_stage]
@@ -971,6 +1138,10 @@ class HertzGameLoop(GameLoop):
             self._advance_game_over()
         elif self._flow == FLOW_RESULTS:
             self._advance_results()
+        elif self._flow == FLOW_ROGUELITE_MAP:
+            self._advance_roguelite_map()
+        elif self._flow == FLOW_ROGUELITE_REWARD:
+            self._advance_roguelite_reward()
 
     # -- Tela de Titulo ---------------------------------------------------
 
@@ -1074,6 +1245,8 @@ class HertzGameLoop(GameLoop):
                 self._enter_calibration()
             elif category == "ironman":
                 self._start_ironman_run()
+            elif category == "roguelite":
+                self._start_rogue_run()
             elif category == "download_music":
                 self._enter_download_hub()
         elif inp.is_action_pressed("pause"):
@@ -1730,6 +1903,11 @@ class HertzGameLoop(GameLoop):
         self._advance_flow_state(state)
         if state.health <= 0:
             self._accumulate_lifetime_stats()
+            # Rogue-lite Endgame: uma derrota encerra a corrida inteira
+            # (Perks acumulados/nivel se perdem) -- mesma disciplina
+            # "sem cura entre fases" do Ironman (`_ironman_active = False`
+            # logo abaixo, no `_advance_game_over`/`_advance_paused`).
+            self._rogue_run = None
             self._flow = FLOW_GAME_OVER
             self._stop_music()
             return
@@ -1760,7 +1938,19 @@ class HertzGameLoop(GameLoop):
                 # qualquer fase concluida.
                 if self._results_rank in _ANNOUNCER_RANK_TIERS:
                     self._audio_engine.play_one_shot(SFX_ANNOUNCER_RANK, 0.9)
-                self._flow = FLOW_RESULTS
+                # Rogue-lite Endgame: uma vitoria vai pra Recompensa (2
+                # Perks a escolher) em vez da tela de Resultados normal
+                # -- a corrida continua, "resultado" e o proprio Mapa
+                # seguinte. Sincroniza a vida de volta pra `RogueRunState`
+                # ANTES do `GameState` desta fase ser descartado (a
+                # PROXIMA fase recompoe um `GameState` do zero).
+                if self._rogue_run is not None:
+                    self._rogue_run.health = state.health
+                    self._rogue_reward_choices = roll_perk_choices(self._rogue_run.perks, self._rogue_rng)
+                    self._rogue_reward_cursor = 0
+                    self._flow = FLOW_ROGUELITE_REWARD
+                else:
+                    self._flow = FLOW_RESULTS
         else:
             self._results_grace = 0.0
 
@@ -1839,6 +2029,7 @@ class HertzGameLoop(GameLoop):
             self._resume_music()
         elif inp.is_action_pressed("to_menu"):
             self._ironman_active = False  # Ironman: sair pro HUB cancela o gauntlet em andamento
+            self._rogue_run = None  # Rogue-lite: idem -- sair pro HUB encerra a corrida em andamento
             self._stop_music()
             self._flow = FLOW_HUB
 
@@ -1935,6 +2126,33 @@ class HertzGameLoop(GameLoop):
                     entry_stage_ids = tuple(self._stages[i].stage_id for i, _s in entries)
                     carousel_neighbor_stage_ids = carousel_neighbor_window(entry_stage_ids, carousel_position)
 
+            roguelite_info = None
+            if self._flow == FLOW_ROGUELITE_MAP:
+                # `_rogue_map_choices` guarda `(indice, (modifier,))` --
+                # o renderer so precisa do NOME do modifier (ou "" sem
+                # nenhum), nunca da tupla inteira (ela existe pra
+                # `_compose_stage` conseguir passar direto pra
+                # `active_modifiers`, que e sempre uma tupla).
+                song_choices = tuple(
+                    (stage_index, modifiers[0] if modifiers else "")
+                    for stage_index, modifiers in self._rogue_map_choices
+                )
+                roguelite_info = {
+                    "screen": "map",
+                    "song_choices": song_choices,
+                    "cursor": self._rogue_map_cursor,
+                    "health": self._rogue_run.health if self._rogue_run is not None else 0,
+                    "stage_level": self._rogue_run.stage_level if self._rogue_run is not None else 1,
+                }
+            elif self._flow == FLOW_ROGUELITE_REWARD:
+                roguelite_info = {
+                    "screen": "reward",
+                    "perk_choices": self._rogue_reward_choices,
+                    "cursor": self._rogue_reward_cursor,
+                    "health": self._rogue_run.health if self._rogue_run is not None else 0,
+                    "stage_level": self._rogue_run.stage_level if self._rogue_run is not None else 1,
+                }
+
             self._renderer.set_overlay(
                 overlay_mode,
                 modifier_panel=modifier_panel,
@@ -1961,6 +2179,7 @@ class HertzGameLoop(GameLoop):
                     self.calibration_progress() if self._flow == FLOW_CALIBRATION else None
                 ),
                 download_stage=(self._download_stage if self._flow == FLOW_DOWNLOAD_HUB else None),
+                roguelite_info=roguelite_info,
             )
         if hasattr(self._renderer, "set_notice"):
             self._renderer.set_notice(self._notice_key if self._notice_timer > 0.0 else None)

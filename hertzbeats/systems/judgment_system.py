@@ -12,6 +12,7 @@ from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.input_provider import IInputProvider
 
 from hertzbeats.components.schemas import (
+    JUDGMENT_DODGED,
     JUDGMENT_GOOD,
     JUDGMENT_MISS,
     JUDGMENT_PENDING,
@@ -105,6 +106,10 @@ class JudgmentSystem(ISystem):
         crosshair_entity_index: int = None,
         spark_burst_count: int = 5,
         miss_sound_id: str = None,
+        mirages_enabled: bool = False,
+        mirage_vanish_seconds: float = 0.03,
+        vampirism_combo_threshold: int = 0,
+        vampirism_max_health: int = 0,
     ) -> None:
         """Resolve as pools uma unica vez e pre-aloca TODOS os buffers de
         trabalho com o tamanho da capacidade da pool de ameacas -- o
@@ -182,6 +187,29 @@ class JudgmentSystem(ISystem):
         neste MESMO frame, antes deste sistema rodar). Referencia direta
         entre sistemas, mesmo padrao ja usado por `ParryImpactSystem` <-
         `CollisionSystem`.
+
+        ROGUE-LITE -- MIND GAMES: AMEACAS FANTASMAS (`mirages_enabled`,
+        opt-in via "mirages" em `HertzConfig.active_modifiers`): linhas
+        `is_mirage` tem seu PROPRIO ciclo de vida, excluido da varredura
+        generica de MISS (mesmo criterio de exclusao ja aplicado a
+        Holds/refletidos/orbitais) -- `_sweep_vanishing_mirages` as
+        destroi em SILENCIO (`JUDGMENT_DODGED`: nao pune, nao quebra
+        combo, nao pontua -- reaproveita o MESMO veredito ja usado pelos
+        i-frames do Dash) a menos de `mirage_vanish_seconds` do impacto.
+        Se o jogador acertar o tiro ANTES do desaparecimento,
+        `_try_player_hit` forca MISS em vez de PERFECT/GOOD -- e um
+        alvo falso, nunca pode ser destruido de verdade.
+
+        ROGUE-LITE -- PERK VAMPIRISMO (`vampirism_combo_threshold > 0`):
+        a cada N acertos PERFEITOS consecutivos (comum, Parry, Captura
+        Orbital, sustentacao de Hold ou o abate em grupo do Overdrive --
+        QUALQUER site que já incrementa `combo_count` num desfecho
+        vitorioso, exceto o Auto-Play de Developer Tools, que e cheat
+        e nao mecanica real), cura 1 de vida, respeitando o teto opcional
+        `vampirism_max_health` (`0` = sem teto). Resolvido primitivamente
+        aqui (inteiro/resto), sem o `JudgmentSystem` saber que "Perks"
+        existem -- os campos ja chegam prontos de
+        `HertzGameLoop._compose_stage`/`GameState.rogue_run`.
         """
         self._audio_clock = audio_clock
         self._input_provider = input_provider
@@ -233,6 +261,10 @@ class JudgmentSystem(ISystem):
         self._spark_burst_count = int(spark_burst_count)
         self._transform_pool = memory_manager.get_pool("transform")
         self._miss_sound_id = miss_sound_id
+        self._mirages_enabled = bool(mirages_enabled)
+        self._mirage_vanish_seconds = float(mirage_vanish_seconds)
+        self._vampirism_combo_threshold = int(vampirism_combo_threshold)
+        self._vampirism_max_health = int(vampirism_max_health)
 
         capacity = self._threat_pool.capacity
         self._delta_buffer = np.zeros(capacity, dtype=np.float64)
@@ -251,6 +283,7 @@ class JudgmentSystem(ISystem):
         self._pierce_mask = np.zeros(capacity, dtype=bool)
         self._duration_mask = np.zeros(capacity, dtype=bool)
         self._orbiting_mask = np.zeros(capacity, dtype=bool)
+        self._mirage_mask = np.zeros(capacity, dtype=bool)
 
     def update(self, world: World, delta_time: float) -> None:
         """Executa o julgamento do frame: (1) varre MISSes vencidos,
@@ -347,6 +380,16 @@ class JudgmentSystem(ISystem):
             np.not_equal(threat_view["phase"], PHASE_ORBITING, out=not_orbiting)
             np.logical_and(pending, not_orbiting, out=pending)
 
+        if self._mirages_enabled:
+            # Rogue-lite -- Ameacas Fantasmas: `is_mirage` tem seu
+            # PROPRIO ciclo de vida (`_sweep_vanishing_mirages`), fora da
+            # varredura generica de MISS -- mesma classe de exclusao de
+            # refletidos/orbitais acima (senao um fantasma que passou do
+            # tempo viraria MISS de verdade, o oposto do pedido).
+            not_mirage = self._mirage_mask[:active_count]
+            np.logical_not(threat_view["is_mirage"], out=not_mirage)
+            np.logical_and(pending, not_mirage, out=pending)
+
         # Overload do Nucleo: Dash sobre uma batida VIVA (candidata
         # comum dentro da janela Good -- mesmo `pending` ja refinado
         # acima, entao exclui Holds engajados/refletidos/escudos) com a
@@ -365,6 +408,8 @@ class JudgmentSystem(ISystem):
                     self._game_state.consume_overdrive_for_overload()
 
         self._sweep_overdue_misses(world, threat_view, deltas, pending, active_count)
+        if self._mirages_enabled:
+            self._sweep_vanishing_mirages(world, threat_view, deltas, active_count)
         if self._hold_threat_type_id is not None:
             self._sweep_engaged_holds(world, threat_view, active_count, now_effective, delta_time)
 
@@ -490,6 +535,38 @@ class JudgmentSystem(ISystem):
         # musica quem abaixa ao redor dele (`HertzGameLoop._sync_track_volume`),
         # nao o som de erro que precisa competir com ela.
         self._play(self._miss_sound_id, 1.0)
+
+    def _sweep_vanishing_mirages(
+        self,
+        world: World,
+        threat_view: np.ndarray,
+        deltas: np.ndarray,
+        active_count: int,
+    ) -> None:
+        """Rogue-lite -- Mind Games (Ameacas Fantasmas): destroi em
+        SILENCIO toda ameaca `is_mirage` ainda pendente a
+        `mirage_vanish_seconds` (ou menos) do impacto -- `JUDGMENT_DODGED`
+        (nao pune, nao quebra combo, nao pontua) em vez do MISS que a
+        varredura generica aplicaria a qualquer outra ameaca no mesmo
+        instante. Recalcula `pending` do ZERO a partir de
+        `threat_view["judgment"]` (em vez de reusar a mascara de
+        `update()`, ja desatualizada apos `_sweep_overdue_misses` rodar)
+        -- evita destruir a mesma linha duas vezes no mesmo frame."""
+        vanishing = self._mirage_mask[:active_count]
+        np.equal(threat_view["judgment"], JUDGMENT_PENDING, out=vanishing)
+        np.logical_and(vanishing, threat_view["is_mirage"], out=vanishing)
+
+        ready = self._scratch_mask[:active_count]
+        np.less_equal(deltas, self._mirage_vanish_seconds, out=ready)
+        np.logical_and(vanishing, ready, out=vanishing)
+
+        vanishing_rows = np.flatnonzero(vanishing)
+        if vanishing_rows.shape[0] == 0:
+            return
+        for row in vanishing_rows:
+            row_int = int(row)
+            threat_view["judgment"][row_int] = JUDGMENT_DODGED
+            world.destroy_entity(int(threat_view["packed_handle"][row_int]))
 
     def _set_core_polarity_shape(self, polarity: int) -> None:
         """Troca o `texture_id` do sprite do nucleo para a variante com o
@@ -693,6 +770,16 @@ class JudgmentSystem(ISystem):
         selection[rejected] = np.inf
         best_row = int(np.argmin(selection))
 
+        # Rogue-lite -- Ameacas Fantasmas: um "fantasma" e sempre MISS
+        # ao ser atingido ANTES de desaparecer sozinho (ver
+        # `_sweep_vanishing_mirages`) -- checado ANTES de Hold/Parry/
+        # Captura Orbital por construcao (um fantasma nunca deveria
+        # coexistir com essas mecanicas, mas a ordem fixa evita
+        # ambiguidade caso uma fase combine os modifiers por engano).
+        if bool(threat_view["is_mirage"][best_row]):
+            self._resolve_mirage_miss(world, threat_view, best_row)
+            return
+
         # Notas Longas (Hold): Fase 1 (Start) bem-sucedida -- a candidata
         # NAO e destruida, fica "engajada" para `_sweep_engaged_holds`
         # assumir a Fase 2 (Sustain) a partir do proximo frame. Checado
@@ -736,6 +823,8 @@ class JudgmentSystem(ISystem):
         state.combo_count += 1
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
+        if judgment == JUDGMENT_PERFECT and self._vampirism_combo_threshold > 0:
+            self._apply_vampirism_heal(state)
         state.register_judgment_feedback(judgment, self._judgment_display_seconds)
         # Acessibilidade -- Hit-Error Meter/Histograma: delta ASSINADO
         # na convencao "atual - esperado" (negativo=cedo, positivo=tarde)
@@ -794,6 +883,8 @@ class JudgmentSystem(ISystem):
         state.combo_count += 1
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
+        if self._vampirism_combo_threshold > 0:
+            self._apply_vampirism_heal(state)
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
         if self._hitlag_freeze_frames > 0:
             state.trigger_hitlag(self._hitlag_freeze_frames)
@@ -848,6 +939,8 @@ class JudgmentSystem(ISystem):
             state.combo_count += 1
             if state.combo_count > state.max_combo:
                 state.max_combo = state.combo_count
+            if judgment == JUDGMENT_PERFECT and self._vampirism_combo_threshold > 0:
+                self._apply_vampirism_heal(state)
 
         # Gun Sync + Combo Pitch Shift: UM tiro so, mas ja refletindo o
         # combo FINAL apos abater o grupo inteiro (ver `_shot_sound_for_combo`).
@@ -890,6 +983,8 @@ class JudgmentSystem(ISystem):
         state.combo_count += 1
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
+        if self._vampirism_combo_threshold > 0:
+            self._apply_vampirism_heal(state)
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
         if self._hitlag_freeze_frames > 0:
             state.trigger_hitlag(self._hitlag_freeze_frames)
@@ -1016,6 +1111,8 @@ class JudgmentSystem(ISystem):
         state.combo_count += 1
         if state.combo_count > state.max_combo:
             state.max_combo = state.combo_count
+        if self._vampirism_combo_threshold > 0:
+            self._apply_vampirism_heal(state)
         state.register_judgment_feedback(JUDGMENT_PERFECT, self._judgment_display_seconds)
         self._emit_perfect_sparks()
 
@@ -1043,3 +1140,30 @@ class JudgmentSystem(ISystem):
             self._rumble_low_freq, self._rumble_high_freq, self._rumble_duration_seconds
         )
         self._play(self._hold_break_sound_id, 0.7)
+
+    def _apply_vampirism_heal(self, state: GameState) -> None:
+        """Rogue-lite -- Perk Vampirismo: a cada `vampirism_combo_threshold`
+        acertos PERFEITOS consecutivos (o combo zera em qualquer MISS,
+        entao e sempre uma sequencia CONTINUA), cura 1 de vida --
+        checado por CRUZAMENTO de multiplo (resto, nao divisao), pra
+        nunca curar duas vezes seguidas no mesmo combo. Respeita
+        `vampirism_max_health` quando fornecido (`0` = sem teto)."""
+        if state.combo_count % self._vampirism_combo_threshold != 0:
+            return
+        if self._vampirism_max_health > 0 and state.health >= self._vampirism_max_health:
+            return
+        state.health += 1
+
+    def _resolve_mirage_miss(self, world: World, threat_view: np.ndarray, row: int) -> None:
+        """Rogue-lite -- Ameacas Fantasmas: acertar um "fantasma" ANTES
+        dele desaparecer sozinho (`_sweep_vanishing_mirages`) e sempre
+        MISS -- e um alvo falso, nunca pode ser destruido de verdade
+        mesmo com timing+mira perfeitos."""
+        threat_view["judgment"][row] = JUDGMENT_MISS
+        world.destroy_entity(int(threat_view["packed_handle"][row]))
+
+        state = self._game_state
+        state.miss_count += 1
+        state.combo_count = 0
+        state.register_judgment_feedback(JUDGMENT_MISS, self._judgment_display_seconds)
+        self._play(self._miss_sound_id, 1.0)

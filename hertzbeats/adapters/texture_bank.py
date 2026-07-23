@@ -287,12 +287,30 @@ _HUB_CATEGORY_LABELS = {
     "vault": "[ ARQUIVOS (VAULT) ]",
     "calibration": "[ CALIBRACAO ]",
     "ironman": "[ IRONMAN ]",
+    "roguelite": "[ ROGUE-LITE ]",
     "download_music": "[ IMPORTAR MUSICA ]",
 }
-"""HUB Principal: rotulo de cada uma das 6 categorias grandes
-(`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa. "ironman" nao
-tem tela propria -- confirma-la ja inicia o gauntlet. "download_music"
-leva a `FLOW_DOWNLOAD_HUB` (Pipeline de Importacao Direta)."""
+"""HUB Principal: rotulo de cada uma das 7 categorias grandes
+(`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa. "ironman"/
+"roguelite" nao tem tela propria -- confirma-las ja inicia o gauntlet/
+a corrida. "download_music" leva a `FLOW_DOWNLOAD_HUB` (Pipeline de
+Importacao Direta)."""
+
+_ROGUE_PERK_LABELS = {
+    "vampirism_threshold": "VAMPIRISMO -- cura 1 de vida a cada 10 PERFECTs seguidos",
+    "perfect_window_multiplier": "JANELA AMPLIADA -- +15% na janela do PERFECT",
+}
+"""Rogue-lite Endgame -- Recompensa: rotulo de cada Perk do catalogo
+(`hertzbeats.rogue_lite.ROGUE_PERK_CATALOG`) -- textura ESTATICA (so 2
+Perks existem, nenhum valor dinamico precisa de `font.render` no loop)."""
+
+_ROGUE_MODIFIER_LABELS = {
+    "wormholes": "BURACOS DE MINHOCA",
+    "mirages": "AMEACAS FANTASMAS",
+    "rubber_band": "EFEITO ELASTICO",
+}
+"""Rogue-lite Endgame -- Mapa: rotulo de cada modifier de Mind Games
+forcado numa opcao de musica (`hertzbeats.rogue_lite.roll_map_choices`)."""
 
 _SCORE_MULTIPLIER_MIN = 0.10
 _SCORE_MULTIPLIER_STEP = 0.05
@@ -498,6 +516,28 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     register_text(
         "hint_hub", hint_font,
         "SETAS ou W/S escolhem  |  ENTER ou ESPACO confirma  |  ESC volta ao Titulo", _LABEL_COLOR,
+    )
+
+    # Rogue-lite Endgame: titulos/rotulos ESTATICOS das 2 telas novas
+    # (Mapa/Recompensa) -- os nomes das musicas sorteadas reusam as
+    # texturas `stage_{i}`/`stage_{i}_sel` ja registradas acima (todo
+    # `StageDef`, incluindo musicas do jogador, ja tem a sua).
+    register_text("roguelite_map_title", big_font, "MAPA ROGUE-LITE", _DIGIT_COLOR)
+    register_text("roguelite_reward_title", big_font, "ESCOLHA UM PERK", _GOOD_COLOR)
+    register_text("label_rogue_health", hint_font, "VIDA:", _LABEL_COLOR)
+    register_text("label_rogue_level", hint_font, "NIVEL:", _LABEL_COLOR)
+    for modifier_name, label in _ROGUE_MODIFIER_LABELS.items():
+        register_text(f"roguelite_modifier_{modifier_name}", hint_font, label, _MISS_COLOR)
+    for perk_id, label in _ROGUE_PERK_LABELS.items():
+        register_text(f"roguelite_perk_{perk_id}", stage_font, label, _LABEL_COLOR)
+        register_text(f"roguelite_perk_{perk_id}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
+    register_text(
+        "hint_roguelite_map", hint_font,
+        "SETAS escolhem a musica  |  ENTER joga  |  ESC encerra a corrida", _LABEL_COLOR,
+    )
+    register_text(
+        "hint_roguelite_reward", hint_font,
+        "SETAS escolhem o Perk  |  ENTER confirma  |  ESC encerra a corrida", _LABEL_COLOR,
     )
 
     # Carrossel: um cabecalho POR campanha (`StageDef.campaign_id`,

@@ -73,6 +73,10 @@ RHYTHM_THREAT_DTYPE: np.dtype = np.dtype(
         ("is_hold", np.bool_),
         ("duration_sec", np.float32),
         ("hold_grace_timer_sec", np.float32),
+        ("will_teleport", np.bool_),
+        ("teleport_radius", np.float32),
+        ("is_mirage", np.bool_),
+        ("nonlinear_approach", np.bool_),
     ]
 )
 """Estado ritmico de UMA ameaca viva (o "RhythmThreatPool" da
@@ -162,6 +166,43 @@ Campos:
         por padrao) SEM retomar -- humanos nao conseguem manter mira+
         gatilho perfeitamente estaticos por segundos continuos; ver
         `JudgmentSystem._sweep_engaged_holds`.
+    will_teleport: Rogue-lite -- Mind Games "Buraco de Minhoca"
+        (opt-in via "wormholes" em `HertzConfig.active_modifiers`):
+        marca uma ameaca do Defensor que, ao cruzar `teleport_radius`
+        rumo ao nucleo, tem sua posicao refletida pelo centro E sua
+        velocidade negada pelo `MindGamesSystem` -- matematicamente
+        EQUIVALENTE a girar `spawn_angle_rad` por PI mantendo o MESMO
+        raio e a MESMA velocidade radial de aproximacao (reflexao por
+        um ponto preserva distancia ao centro, so inverte o lado). A
+        ameaca reaparece INSTANTANEAMENTE do lado OPOSTO do circulo,
+        ainda convergindo pro nucleo na mesma velocidade -- o
+        `target_hit_time_sec` original continua o instante CORRETO de
+        impacto (a trajetoria raio-por-tempo nao muda, so o angulo);
+        so' a DIRECAO que o jogador precisa mirar inverte de surpresa.
+        Consumida (volta a False) no proprio frame em que dispara -- e
+        um evento ONE-SHOT por ameaca, nao um estado continuo.
+    teleport_radius: raio (mesma unidade de `spawn_radius`/
+        `current_judgment_radius`) no qual o Buraco de Minhoca desta
+        linha dispara; escrito pelo spawner a partir de
+        `HertzConfig.wormhole_teleport_radius` quando `will_teleport`
+        e marcado.
+    is_mirage: Rogue-lite -- Mind Games "Ameaca Fantasma" (opt-in via
+        "mirages" em `HertzConfig.active_modifiers`): a ameaca segue a
+        fisica normalmente, mas o `JudgmentSystem` a destroi em
+        silencio (sem MISS, sem quebrar combo) assim que faltar menos
+        de `HertzConfig.mirage_vanish_seconds` para o impacto. Se o
+        jogador acertar o tiro ANTES do desaparecimento, o acerto e
+        forcado para JUDGMENT_MISS em vez de PERFECT/GOOD -- e um
+        "fantasma", nao pode ser destruido de verdade.
+    nonlinear_approach: Rogue-lite -- Mind Games "Efeito Elastico"
+        (opt-in via "rubber_band" em `HertzConfig.active_modifiers`):
+        o `MindGamesSystem` reprojeta o RAIO desta linha (mantendo
+        `spawn_angle_rad` fixo) a cada frame usando uma curva de
+        easing sobre a fracao linear de progresso ja percorrida
+        (derivada do raio atual, sem precisar de um campo novo de
+        "tempo de spawn") -- a ameaca acelera muito ao nascer e freia
+        perto do nucleo, em vez do avanco linear padrao do
+        `PhysicsSystem`.
 """
 
 PLAYER_STATE_DTYPE: np.dtype = np.dtype(
