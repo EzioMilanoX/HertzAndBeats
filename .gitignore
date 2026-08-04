@@ -8,6 +8,11 @@ dist/
 .venv/
 venv/
 
+# Empacotamento standalone (tools/build_exe.ps1) -- sempre regenerados
+# do zero, nunca versionados
+.build_venv/
+wheels/
+
 # Audio gerado em runtime (re-sintetizado deterministicamente pelo jogo;
 # o beatmap.json correspondente E versionado)
 data/tracks/*.wav

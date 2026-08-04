@@ -1,0 +1,23 @@
+# Variante de dependencias para EMPACOTAR o executavel (nunca para
+# desenvolvimento do dia a dia -- para isso, `pip install -e .` como de
+# costume, que instala a engine em modo editavel).
+#
+# NAO lista `ouroboros-engine` aqui de proposito -- ela e' instalada
+# separadamente com `--no-deps` por `tools/build_exe.ps1` (rode esse
+# script em vez de `pip install -r` direto neste arquivo). Motivo (mesmo
+# achado documentado no ImpureBloodline, a OuroborosEngine e' o MESMO
+# repositorio compartilhado pelos dois jogos): o `pyproject.toml` da
+# OuroborosEngine declara `pygame>=2.5` (o pacote ORIGINAL do PyPI) como
+# dependencia, mas o codigo de verdade da engine roda sobre `pygame-ce`
+# (o fork usado abaixo) -- os dois nomes de pacote sao DIFERENTES pro
+# pip, entao um `pip install` normal do wheel da engine tenta baixar/
+# compilar o "pygame" de verdade, que ainda nao tem wheel pronto pro
+# Python desta maquina e falha tentando rodar `pacman` (um helper de
+# build do pygame que so existe no Linux). Instalar a engine com
+# `--no-deps` e listar aqui, a mao, o que ela REALMENTE precisa (numpy +
+# pygame-ce) evita isso por completo, sem precisar tocar no repositorio
+# da engine.
+numpy>=1.26
+pygame-ce>=2.5
+
+pyinstaller>=6.0

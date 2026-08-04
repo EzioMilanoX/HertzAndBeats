@@ -1083,9 +1083,19 @@ def compose_world(
     # 3. Beatmap: tempos de IMPACTO do JSON viram tempos de SPAWN
     #    (deslocados por approach_seconds) para o cursor do spawner;
     #    o array original de impacto segue paralelo, linha a linha.
-    scheduled = BeatmapLoader(config.threat_type_ids).load(Path(config.beatmap_path))
+    # `config.beatmap_path` e' relativo cru pra uma fase CURADA (vem
+    # direto de `stages.json`, nunca resolvido por `load_stages` -- so' o
+    # PROPRIO `stages_path` e' resolvido ali) -- `get_resource_path`
+    # cobre esse caso (recurso somente-leitura empacotado) sem quebrar o
+    # caso de musica do jogador (ja' absoluto, resolvido antes por
+    # `music_library.scan_user_songs`/`scan_youtube_songs` -- idempotente
+    # aqui). Achado real rodando o 1o build congelado de verdade: sem
+    # isso, `BeatmapLoader.load` falhava com `FileNotFoundError` pra
+    # qualquer fase curada.
+    resolved_beatmap_path = get_resource_path(config.beatmap_path)
+    scheduled = BeatmapLoader(config.threat_type_ids).load(Path(resolved_beatmap_path))
     hit_times = scheduled["timestamp_seconds"].copy()
-    bpm = _read_beatmap_bpm(config.beatmap_path)
+    bpm = _read_beatmap_bpm(resolved_beatmap_path)
     if config.practice_mode:
         # Modo Treino: reduz a densidade de onsets ANTES de qualquer
         # spawner ver o beatmap -- pura interpretacao game-side, o

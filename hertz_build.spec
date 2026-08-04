@@ -2,8 +2,19 @@
 """
 hertz_build.spec -- empacotamento standalone do Hertz & Beats via PyInstaller.
 
-    pip install -e ".[build]"
-    pyinstaller hertz_build.spec --clean
+FLUXO COMPLETO, um unico comando (venv de build LIMPA -- nunca a venv de
+desenvolvimento com a engine em modo editavel):
+
+    .\tools\build_exe.ps1
+
+(o que esse script faz passo a passo, se preferir rodar na mao ou algo
+falhar no meio -- ver `requirements-frozen.txt` pro motivo do
+`--no-deps` no passo 4):
+    1. tools\build_engine_wheel.ps1        -> wheels\ouroboros_engine-*.whl
+    2. python -m venv .build_venv
+    3. .build_venv\Scripts\pip install -r requirements-frozen.txt
+    4. .build_venv\Scripts\pip install --no-deps wheels\ouroboros_engine-*.whl
+    5. .build_venv\Scripts\pyinstaller hertz_build.spec --clean
 
 Gera `dist/HertzAndBeats/` (modo --onedir, NAO --onefile de proposito --
 ver nota abaixo) com `HertzAndBeats.exe`/`HertzAndBeats` + tudo que ele
@@ -44,20 +55,28 @@ a = Analysis(
     pathex=[str(PROJECT_ROOT)],  # garante que `utils.path_resolver`/`hertzbeats` sejam encontrados na analise
     binaries=[],
     datas=[
-        # Pilar 3 do pedido: assets/, bin/ (pasta inteira cada -- o
-        # PyInstaller copia recursivamente quando a origem e' um
-        # diretorio) e o stages.json isolado.
+        # assets/, bin/ (pasta inteira cada -- o PyInstaller copia
+        # recursivamente quando a origem e' um diretorio; bin/ so' tem
+        # LEIA-ME.txt hoje, sem ffmpeg real, ver bin/LEIA-ME.txt) e o
+        # stages.json isolado.
         (str(PROJECT_ROOT / "assets"), "assets"),
         (str(PROJECT_ROOT / "bin"), "bin"),
         (str(PROJECT_ROOT / "data" / "stages" / "stages.json"), "data/stages"),
-        # Mesma categoria (recurso curado/SOMENTE LEITURA) do stages.json
-        # acima, so' nao foi pedido explicitamente no briefing -- sem
-        # isso o 1o `input_provider.load_bindings(...)`/
-        # `HertzConfig.from_json(...)` real do build vai falhar com
-        # FileNotFoundError. Descomentar antes de gerar um build real:
-        # (str(PROJECT_ROOT / "data" / "input_bindings" / "default_keyboard.json"), "data/input_bindings"),
-        # (str(PROJECT_ROOT / "data" / "config" / "hertz_beats.config.json"), "data/config"),
-        # (str(PROJECT_ROOT / "data" / "beatmaps"), "data/beatmaps"),  # so as 4 fases curadas -- NUNCA a subpasta data/beatmaps/user/ (gravavel, ver get_writable_data_path)
+        (str(PROJECT_ROOT / "data" / "input_bindings" / "default_keyboard.json"), "data/input_bindings"),
+        # SO' o JSON curado -- NUNCA a pasta `data/config/` inteira, que
+        # tambem tem `user_settings.json`/`player_progress.json`/
+        # `player_lifetime_stats.json` (save/config LOCAL desta maquina
+        # de build, gitignored -- embutir eles vazaria o progresso do
+        # DESENVOLVEDOR pro jogador, alem de nunca ser regravado depois).
+        (str(PROJECT_ROOT / "data" / "config" / "hertz_beats.config.json"), "data/config"),
+        # SO' as 4 fases curadas, uma por uma -- NUNCA `data/beatmaps/`
+        # inteira, que tambem contem `data/beatmaps/user/` (beatmaps das
+        # musicas importadas NESTA maquina, gravavel/pessoal, ver
+        # get_writable_data_path).
+        (str(PROJECT_ROOT / "data" / "beatmaps" / "stage1_pulso_leve.beatmap.json"), "data/beatmaps"),
+        (str(PROJECT_ROOT / "data" / "beatmaps" / "stage2_batida_franca.beatmap.json"), "data/beatmaps"),
+        (str(PROJECT_ROOT / "data" / "beatmaps" / "stage3_sobrecarga.beatmap.json"), "data/beatmaps"),
+        (str(PROJECT_ROOT / "data" / "beatmaps" / "tutorial.beatmap.json"), "data/beatmaps"),
     ],
     hiddenimports=[
         # pygame-ce/numpy tem hooks proprios que o PyInstaller ja
@@ -93,7 +112,13 @@ a = Analysis(
 # Dados de runtime do proprio pygame-ce (fonte padrao interna, etc.) --
 # normalmente ja cobertos pelo hook oficial, mas incluido explicitamente
 # aqui como salvaguarda pra um build --onedir nunca ficar sem eles.
-a.datas += collect_data_files("pygame")
+#
+# `collect_data_files` devolve pares (dest, src) de 2 elementos, mas
+# `a.datas` exige tuplas de 3 (dest, src, typecode) -- um `+=` direto
+# (sem completar o typecode) faz o COLLECT() final falhar tentando
+# desempacotar essas entradas (`ValueError: not enough values to
+# unpack`), erro real encontrado rodando o build pela 1a vez.
+a.datas += [(dest, src, "DATA") for dest, src in collect_data_files("pygame")]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from utils.path_resolver import get_writable_data_path
+
 USER_SETTINGS_PATH = "data/config/user_settings.json"
 """Arquivo local (gitignored): cada maquina tem sua propria calibracao."""
 
@@ -13,7 +15,7 @@ def load_user_latency(path: str = USER_SETTINGS_PATH) -> Optional[float]:
     """Latencia calibrada pelo jogador nesta maquina, ou None se ainda
     nao houve calibracao (usa-se entao o default da config)."""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(get_writable_data_path(path), "r", encoding="utf-8") as f:
             raw = json.load(f)
         value = float(raw["output_latency_seconds"])
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
@@ -32,7 +34,7 @@ def _save_field(key: str, value, path: str) -> None:
     """Merge de UM campo no JSON de preferencias locais -- le o que ja
     existe (recomeca do zero se ausente/corrompido) e grava de volta com
     o campo atualizado, preservando os demais."""
-    destination = Path(path)
+    destination = Path(get_writable_data_path(path))
     destination.parent.mkdir(parents=True, exist_ok=True)
     try:
         with open(destination, "r", encoding="utf-8") as f:
@@ -53,7 +55,7 @@ def load_user_palette_id(path: str = USER_SETTINGS_PATH) -> Optional[str]:
     contra `PALETTE_CATALOG` aqui (evita import circular -- quem le o
     valor decide o fallback se o id salvo nao existir mais)."""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(get_writable_data_path(path), "r", encoding="utf-8") as f:
             raw = json.load(f)
         return str(raw["palette_id"])
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):

@@ -224,7 +224,7 @@ def read_stage_bpm_and_duration(stage: StageDef) -> Tuple[float, float]:
     calculo de jogabilidade (o `IAudioClock` real e sempre quem manda
     nisso)."""
     try:
-        with open(stage.beatmap_path, "r", encoding="utf-8") as f:
+        with open(get_resource_path(stage.beatmap_path), "r", encoding="utf-8") as f:
             beatmap = json.load(f)
         bpm = float(beatmap.get("bpm", 120.0))
         threats = beatmap.get("threats", [])

@@ -30,6 +30,7 @@ from typing import Callable, Dict, Optional, Tuple
 
 from hertzbeats.mapper_version import MAPPER_VERSION
 from hertzbeats.stages import StageDef
+from utils.path_resolver import get_writable_data_path
 
 AUDIO_EXTENSIONS = (".mp3", ".ogg", ".wav", ".flac")
 USER_MUSIC_DIR = "musicas"
@@ -105,6 +106,8 @@ def scan_user_songs(
     (analisando as novas). `on_progress(nome)` e chamado antes de cada
     analise (tela de carregamento); `analyzer` e injetavel para testes.
     """
+    music_dir = get_writable_data_path(music_dir)
+    beatmap_dir = get_writable_data_path(beatmap_dir)
     music_path = Path(music_dir)
     if not music_path.is_dir():
         return ()
@@ -202,6 +205,8 @@ def scan_youtube_songs(
     (`scan_user_songs`) quanto de dentro da thread de background do
     Pipeline de Importacao Direta, apos um download novo terminar
     (`HertzGameLoop._apply_youtube_import_result`)."""
+    music_dir = get_writable_data_path(music_dir)
+    beatmap_dir = get_writable_data_path(beatmap_dir)
     youtube_root = Path(music_dir) / YOUTUBE_IMPORT_SUBDIR
     if not youtube_root.is_dir():
         return ()

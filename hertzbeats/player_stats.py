@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Dict
 
+from utils.path_resolver import get_writable_data_path
+
 PLAYER_STATS_PATH = "data/config/player_lifetime_stats.json"
 """Arquivo local, MESMO criterio de `player_progress.py`/`user_settings.py`:
 cada maquina acumula seu proprio historico -- nao e um placar competitivo
@@ -22,7 +24,7 @@ def load_stats(path: str = PLAYER_STATS_PATH) -> Dict[str, float]:
     arquivo ainda nao existir ou estiver corrompido -- uma estatistica
     vitalicia jamais derruba o jogo."""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(get_writable_data_path(path), "r", encoding="utf-8") as f:
             raw = json.load(f)
         return {
             "lifetime_perfect_count": int(raw.get("lifetime_perfect_count", 0)),
@@ -47,7 +49,7 @@ def record_match_stats(
     stats["lifetime_shots_fired"] += int(shots_fired)
     stats["lifetime_playtime_seconds"] += float(playtime_seconds)
 
-    destination = Path(path)
+    destination = Path(get_writable_data_path(path))
     destination.parent.mkdir(parents=True, exist_ok=True)
     with open(destination, "w", encoding="utf-8") as f:
         json.dump(stats, f)

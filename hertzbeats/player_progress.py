@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, FrozenSet, Optional
 
 from hertzbeats.game_state import RANK_ORDER
+from utils.path_resolver import get_writable_data_path
 
 PLAYER_PROGRESS_PATH = "data/config/player_progress.json"
 """Arquivo local (gitignored, mesmo criterio de `user_settings.json`):
@@ -34,7 +35,7 @@ def load_progress(path: str = PLAYER_PROGRESS_PATH) -> Dict[str, dict]:
     str|None}`. Dict vazio se o arquivo ainda nao existir ou estiver
     corrompido -- uma medalha/rank jamais derruba o jogo."""
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(get_writable_data_path(path), "r", encoding="utf-8") as f:
             raw = json.load(f)
         return {
             stage_id: {
@@ -72,7 +73,7 @@ def record_stage_cleared(
         best_rank = rank
     progress[stage_id] = {"modifiers": frozenset(merged_modifiers), "best_rank": best_rank}
 
-    destination = Path(path)
+    destination = Path(get_writable_data_path(path))
     destination.parent.mkdir(parents=True, exist_ok=True)
     with open(destination, "w", encoding="utf-8") as f:
         json.dump(
@@ -96,4 +97,4 @@ def delete_progress(path: str = PLAYER_PROGRESS_PATH) -> None:
     progresso de fases/musicas. Quem chama (`HertzGameLoop`) tambem
     precisa zerar o cache em-memoria (`self._player_progress = {}`),
     nunca feito automaticamente aqui (esta funcao so' cuida do disco)."""
-    Path(path).unlink(missing_ok=True)
+    Path(get_writable_data_path(path)).unlink(missing_ok=True)

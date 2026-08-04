@@ -27,7 +27,7 @@ from hertzbeats.music_library import (
     scan_youtube_songs,
 )
 from hertzbeats.stages import StageDef
-from utils.path_resolver import get_resource_path
+from utils.path_resolver import get_resource_path, get_writable_data_path
 
 _YOUTUBE_HOST_PATTERN = (
     r"(?:https?://)?(?:www\.|m\.)?(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)"
@@ -202,7 +202,7 @@ def _destination_folder(url: str, music_dir: str) -> Path:
     video_id = extract_video_id(url)
     if video_id is None:
         raise YoutubeImportError(f"URL do YouTube nao reconhecida: {url!r}")
-    folder = Path(music_dir) / YOUTUBE_IMPORT_SUBDIR / video_id
+    folder = Path(get_writable_data_path(music_dir)) / YOUTUBE_IMPORT_SUBDIR / video_id
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 
