@@ -72,7 +72,10 @@ from hertzbeats.modchart import (
     parse_swap_events,
     parse_vision_tunnel_events,
 )
+from hertzbeats.i18n import set_locale
 from hertzbeats.practice_thinning import thin_schedule_for_practice
+from hertzbeats.playability_reduction import gap_for_mode, reduce_for_playability
+from hertzbeats.rate_scaling import is_scaled, scale_schedule_for_rate
 from hertzbeats.systems.camera_shake_system import CameraShakeSystem
 from hertzbeats.systems.chapter_event_system import ChapterEventSystem
 from hertzbeats.systems.convergence_ring_system import (
@@ -1096,6 +1099,45 @@ def compose_world(
     scheduled = BeatmapLoader(config.threat_type_ids).load(Path(resolved_beatmap_path))
     hit_times = scheduled["timestamp_seconds"].copy()
     bpm = _read_beatmap_bpm(resolved_beatmap_path)
+    if is_scaled(config.playback_rate):
+        # Escala de Tempo: estica os instantes ANTES do desconto de
+        # approach (que e tempo de relogio e nao escala) e escala o BPM
+        # exibido, senao metronomo/heartbeat contradiriam o que se ouve.
+        scheduled, hit_times = scale_schedule_for_rate(scheduled, hit_times, config.playback_rate)
+        bpm = bpm * config.playback_rate
+    if config.practice_section_end_seconds > config.practice_section_start_seconds:
+        # Treino por Secao: so as ameacas DENTRO da janela. O audio comeca
+        # no offset da secao (ver `_start_stage`), entao os instantes
+        # seguem absolutos -- nao ha nada a reindexar.
+        window = (
+            hit_times >= config.practice_section_start_seconds
+        ) & (hit_times < config.practice_section_end_seconds)
+        scheduled, hit_times = scheduled[window].copy(), hit_times[window].copy()
+    # -- REDUCAO DE JOGABILIDADE, ciente do modo -----------------------
+    # O beatmap em disco de musica do jogador e a TRANSCRICAO fiel da
+    # musica (densa de proposito: cobertura medida de ~100% dos ataques
+    # reais). O que cada modo aguenta e outra pergunta, e ela e respondida
+    # aqui: o Defensor radial tem um cursor so (espacamento GLOBAL), o
+    # Arcade 4K tem 4 colunas independentes (espacamento POR COLUNA, o que
+    # multiplica a densidade possivel sem exigir nada de sobre-humano).
+    #
+    # Fases CURADAS nao passam por aqui na pratica: a curadoria delas e
+    # AUTORAL (a ponte esparsa e decisao de design, nao falta de nota), e os
+    # charts ja respeitam o piso -- a poda vira no-op. Ver
+    # `hertzbeats.playability_reduction`.
+    if config.playability_reduction:
+        reduction_gap, reduction_per_lane = gap_for_mode(config.game_mode)
+        keep = reduce_for_playability(
+            hit_times,
+            scheduled["strength"].astype(np.float64),
+            scheduled["lane"].astype(np.int64),
+            min_gap_seconds=reduction_gap,
+            bpm=bpm,
+            per_lane=reduction_per_lane,
+        )
+        if keep.shape[0] < hit_times.shape[0]:
+            scheduled, hit_times = scheduled[keep].copy(), hit_times[keep].copy()
+
     if config.practice_mode:
         # Modo Treino: reduz a densidade de onsets ANTES de qualquer
         # spawner ver o beatmap -- pura interpretacao game-side, o
@@ -1505,11 +1547,21 @@ class RhythmCompositionRoot:
         for stage in stages:
             if stage.track_path:
                 ensure_track(stage.track_path, stage.synth)
-        user_songs = scan_user_songs(
-            on_progress=lambda name: renderer.show_loading_message(
-                f"Analisando '{name}' com a IA (so na primeira vez)..."
+        # Contador na tela: a analise leva DEZENAS DE SEGUNDOS por musica
+        # (medido: 18-35 s), e sem numero nem estimativa uma pasta
+        # `musicas/` cheia parece travamento. Acontece tambem quando
+        # `MAPPER_VERSION` sobe -- ai TODO beatmap cacheado reanalisa de
+        # uma vez, e foi exatamente assim que este aviso virou necessario.
+        analysis_progress = {"count": 0}
+
+        def _on_analysis(name: str) -> None:
+            analysis_progress["count"] += 1
+            renderer.show_loading_message(
+                f"Analisando musica {analysis_progress['count']}: '{name[:42]}'",
+                "A IA extrai as batidas -- ~30 s por musica, so na primeira vez. Nao feche.",
             )
-        )
+
+        user_songs = scan_user_songs(on_progress=_on_analysis)
         stages = stages + user_songs
 
         # Tela de Titulo (BGM em loop) + Calibracao (metronomo puro):
@@ -1535,6 +1587,10 @@ class RhythmCompositionRoot:
 
         # Texturas de HUD, overlays e textos de tutorial pre-renderizados
         # (tela de carregamento).
+        # i18n: idioma fixado ANTES de construir as texturas -- os textos
+        # do HUD sao pre-renderizados uma vez, entao trocar depois nao
+        # mudaria nada na tela (mesma natureza da troca de paleta).
+        set_locale(config.locale or None)
         build_and_register_hud_textures(renderer)
         build_and_register_overlay_surfaces(renderer, stages)
         build_and_register_tutorial_textures(renderer, stages)

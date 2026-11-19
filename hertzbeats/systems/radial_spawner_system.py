@@ -192,6 +192,7 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
             lane_pool_name="rhythm_threat",
             threat_type_pool_name="rhythm_threat",
             max_threats_per_frame=max_threats_per_frame,
+            hit_times=hit_times,
         )
         self._transform_pool = memory_manager.get_pool("transform")
         self._velocity_pool = memory_manager.get_pool("velocity")
@@ -199,7 +200,6 @@ class RadialRhythmSpawnerSystem(RhythmSpawnerSystem):
         self._sprite_pool = memory_manager.get_pool("sprite")
         self._threat_pool = memory_manager.get_pool("rhythm_threat")
 
-        self._hit_times = hit_times
         self._center_x = float(center_xy[0])
         self._center_y = float(center_xy[1])
         self._spawn_radius = float(spawn_radius)

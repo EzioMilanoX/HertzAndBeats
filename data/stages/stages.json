@@ -31,7 +31,14 @@
       "description": "As primeiras ameacas testam seus reflexos.",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
-      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
+      "synth": {
+        "bpm": 100.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "calm", "progression": "base" },
+          { "name": "tema", "bars": 8, "style": "calm", "progression": "base", "lead": true, "min_gap_seconds": 0.54, "target_density_per_second": 1.1 },
+          { "name": "final", "bars": 4, "style": "standard", "progression": "lift", "lead": true, "min_gap_seconds": 0.54, "target_density_per_second": 1.4 }
+        ]
+      },
       "beatmap": { "min_gap_seconds": 0.75, "min_start_seconds": 3.2, "target_density_per_second": 0.9 },
       "overrides": {
         "approach_seconds": 2.8,
@@ -51,7 +58,14 @@
       "description": "Sustente o contato -- soltar cedo demais custa caro.",
       "track_path": "data/tracks/stage1_pulso_leve.wav",
       "beatmap_path": "data/beatmaps/stage1_pulso_leve.beatmap.json",
-      "synth": { "bpm": 100.0, "bars": 16, "style": "calm" },
+      "synth": {
+        "bpm": 100.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "calm", "progression": "base" },
+          { "name": "tema", "bars": 8, "style": "calm", "progression": "base", "lead": true, "min_gap_seconds": 0.54, "target_density_per_second": 1.1 },
+          { "name": "final", "bars": 4, "style": "standard", "progression": "lift", "lead": true, "min_gap_seconds": 0.54, "target_density_per_second": 1.4 }
+        ]
+      },
       "overrides": {
         "approach_seconds": 2.4,
         "max_health": 4,
@@ -67,8 +81,16 @@
       "description": "Os Aneis de Convergencia comecam a sussurrar o proximo golpe.",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
-      "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
-      "beatmap": { "min_gap_seconds": 0.45, "min_start_seconds": 2.6, "target_density_per_second": 1.6 },
+      "synth": {
+        "bpm": 128.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "calm", "progression": "base", "min_gap_seconds": 0.6, "target_density_per_second": 1.0 },
+          { "name": "verso", "bars": 8, "style": "standard", "progression": "base", "lead": true },
+          { "name": "refrao", "bars": 8, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.32, "target_density_per_second": 2.0 },
+          { "name": "saida", "bars": 4, "style": "standard", "progression": "base", "lead": true, "min_gap_seconds": 0.42, "target_density_per_second": 1.1 }
+        ]
+      },
+      "beatmap": { "min_gap_seconds": 0.45, "min_start_seconds": 2.6, "target_density_per_second": 1.6, "profile": "hybrid", "min_note_separation_seconds": 0.32 },
       "overrides": {
         "approach_seconds": 2.0,
         "aim_tolerance_degrees": 38.0,
@@ -95,7 +117,15 @@
       "description": "Azul contra rosa -- so a polaridade certa perfura o inimigo.",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
-      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "synth": {
+        "bpm": 150.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "standard", "progression": "dark", "min_gap_seconds": 0.6, "target_density_per_second": 1.0 },
+          { "name": "assalto", "bars": 8, "style": "intense", "progression": "base", "lead": true },
+          { "name": "ponte", "bars": 4, "style": "calm", "progression": "dark", "lead": true, "min_gap_seconds": 0.7, "target_density_per_second": 0.8 },
+          { "name": "climax", "bars": 12, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.32, "target_density_per_second": 2.2 }
+        ]
+      },
       "beatmap": { "min_gap_seconds": 0.35, "min_start_seconds": 2.2, "target_density_per_second": 2.2 },
       "overrides": {
         "approach_seconds": 1.8,
@@ -114,7 +144,15 @@
       "description": "Escudos rotativos selam o nucleo -- encontre a brecha.",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
-      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "synth": {
+        "bpm": 150.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "standard", "progression": "dark", "min_gap_seconds": 0.6, "target_density_per_second": 1.0 },
+          { "name": "assalto", "bars": 8, "style": "intense", "progression": "base", "lead": true },
+          { "name": "ponte", "bars": 4, "style": "calm", "progression": "dark", "lead": true, "min_gap_seconds": 0.7, "target_density_per_second": 0.8 },
+          { "name": "climax", "bars": 12, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.32, "target_density_per_second": 2.2 }
+        ]
+      },
       "overrides": {
         "approach_seconds": 1.5,
         "aim_tolerance_degrees": 25.0,
@@ -132,7 +170,15 @@
       "description": "Tudo o que o nucleo aprendeu, de uma so vez.",
       "track_path": "data/tracks/stage3_sobrecarga.wav",
       "beatmap_path": "data/beatmaps/stage3_sobrecarga.beatmap.json",
-      "synth": { "bpm": 150.0, "bars": 28, "style": "intense" },
+      "synth": {
+        "bpm": 150.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "standard", "progression": "dark", "min_gap_seconds": 0.6, "target_density_per_second": 1.0 },
+          { "name": "assalto", "bars": 8, "style": "intense", "progression": "base", "lead": true },
+          { "name": "ponte", "bars": 4, "style": "calm", "progression": "dark", "lead": true, "min_gap_seconds": 0.7, "target_density_per_second": 0.8 },
+          { "name": "climax", "bars": 12, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.32, "target_density_per_second": 2.2 }
+        ]
+      },
       "overrides": {
         "approach_seconds": 1.2,
         "aim_tolerance_degrees": 20.0,
@@ -163,8 +209,17 @@
       "description": "Quatro colunas, um so ritmo -- bem-vindo a Matrix.",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
-      "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
+      "synth": {
+        "bpm": 128.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "calm", "progression": "base", "min_gap_seconds": 0.6, "target_density_per_second": 1.0 },
+          { "name": "verso", "bars": 8, "style": "standard", "progression": "base", "lead": true },
+          { "name": "refrao", "bars": 8, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.32, "target_density_per_second": 2.0 },
+          { "name": "saida", "bars": 4, "style": "standard", "progression": "base", "lead": true, "min_gap_seconds": 0.42, "target_density_per_second": 1.1 }
+        ]
+      },
       "overrides": {
+        "karaoke_sync": true,
         "game_mode": "lanes",
         "approach_seconds": 1.8
       }
@@ -177,12 +232,58 @@
       "description": "Segure a coluna enquanto o Shield absorve o impacto.",
       "track_path": "data/tracks/stage2_batida_franca.wav",
       "beatmap_path": "data/beatmaps/stage2_batida_franca.beatmap.json",
-      "synth": { "bpm": 128.0, "bars": 24, "style": "standard" },
+      "synth": {
+        "bpm": 128.0,
+        "sections": [
+          { "name": "intro", "bars": 4, "style": "calm", "progression": "base", "min_gap_seconds": 0.6, "target_density_per_second": 1.0 },
+          { "name": "verso", "bars": 8, "style": "standard", "progression": "base", "lead": true },
+          { "name": "refrao", "bars": 8, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.32, "target_density_per_second": 2.0 },
+          { "name": "saida", "bars": 4, "style": "standard", "progression": "base", "lead": true, "min_gap_seconds": 0.42, "target_density_per_second": 1.1 }
+        ]
+      },
       "overrides": {
         "game_mode": "lanes",
         "approach_seconds": 1.8
       },
       "active_modifiers": ["holds"]
+    },
+    {
+      "stage_id": "banco_de_provas",
+      "name": "BANCO DE PROVAS",
+      "subtitle": "132 BPM - 5 secoes de contraste exagerado",
+      "campaign_id": "banco_de_provas",
+      "description": "Cada trecho existe para uma feature ser ouvida, nao medida.",
+      "track_path": "data/tracks/banco_de_provas.wav",
+      "beatmap_path": "data/beatmaps/banco_de_provas.beatmap.json",
+      "synth": {
+        "bpm": 132.0,
+        "sections": [
+          { "name": "vazio", "bars": 2, "style": "calm", "progression": "dark", "min_gap_seconds": 1.2, "target_density_per_second": 0.5 },
+          { "name": "groove", "bars": 6, "style": "standard", "progression": "base", "min_gap_seconds": 0.41, "target_density_per_second": 1.3 },
+          { "name": "melodia", "bars": 6, "style": "standard", "progression": "base", "lead": true, "min_gap_seconds": 0.41, "target_density_per_second": 1.5 },
+          { "name": "refrao", "bars": 8, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.34, "target_density_per_second": 2.3 },
+          { "name": "respiro", "bars": 4, "style": "calm", "progression": "dark", "min_gap_seconds": 1.5, "target_density_per_second": 0.4 },
+          { "name": "climax", "bars": 10, "style": "intense", "progression": "lift", "lead": true, "min_gap_seconds": 0.34, "target_density_per_second": 2.4 }
+        ]
+      },
+      "beatmap": {
+        "min_gap_seconds": 0.45,
+        "min_start_seconds": 2.0,
+        "target_density_per_second": 1.4,
+        "profile": "hybrid",
+        "min_note_separation_seconds": 0.34
+      },
+      "overrides": {
+        "karaoke_sync": true,
+        "approach_seconds": 2.2,
+        "max_health": 10,
+        "aim_tolerance_degrees": 40.0,
+        "perfect_window_seconds": 0.07,
+        "good_window_seconds": 0.14,
+        "miss_window_seconds": 0.2,
+        "misfire_breaks_combo": false
+      },
+      "active_modifiers": []
     }
   ]
 }

@@ -11,6 +11,7 @@ import random
 
 import pygame
 
+from hertzbeats.i18n import labels_for_prefix
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
 from hertzbeats.components.texture_ids import (
     BUMP_FADE_STEPS,
@@ -286,10 +287,12 @@ font.render). Modifiers que dependem de "polarity"
 ("orbital_shields"/"twin_threats"/"overload") dizem isso no proprio
 rotulo -- mais simples que uma segunda textura "desabilitado"."""
 
-_GAME_MODE_ROW_LABELS = {
-    "defender": "<  DEFENSOR  >",
-    "lanes": "<  ARCADE 4K  >",
-}
+def _game_mode_row_labels():
+    """Resolvido na CONSTRUCAO das texturas (nao no import): o locale e
+    fixado na composicao, e um dicionario de modulo congelaria o idioma
+    que estivesse ativo no momento do primeiro import -- ordem fragil e
+    invisivel."""
+    return labels_for_prefix("mode")
 """Rotulo da linha ESPECIAL `GAME_MODE_ROW` (sempre a 1a do menu de
 opcoes) -- multipla escolha (A/D alternam Defensor/Arcade 4K), por isso
 o estilo de seta "< X >" em vez de um checkbox."""
@@ -306,15 +309,9 @@ antigos checkboxes independentes "polarity"/"holds" -- as duas
 mecanicas sao mutuamente exclusivas (mesmo `threat_type` "pesada"), uma
 multipla escolha de 3 valores torna isso estrutural."""
 
-_HUB_CATEGORY_LABELS = {
-    "campaign": "[ CAMPANHA ]",
-    "free_play": "[ FREE PLAY ]",
-    "vault": "[ ARQUIVOS (VAULT) ]",
-    "calibration": "[ CALIBRACAO ]",
-    "ironman": "[ IRONMAN ]",
-    "roguelite": "[ ROGUE-LITE ]",
-    "download_music": "[ IMPORTAR MUSICA ]",
-}
+def _hub_category_labels():
+    """Idem `_game_mode_row_labels`: catalogo lido na hora de renderizar."""
+    return labels_for_prefix("hub")
 """HUB Principal: rotulo de cada uma das 7 categorias grandes
 (`hertz_game_loop.HUB_CATEGORIES`), na MESMA ordem fixa. "ironman"/
 "roguelite" nao tem tela propria -- confirma-las ja inicia o gauntlet/
@@ -462,7 +459,7 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
     # seletor de minigame das musicas do jogador: menu de opcoes
     # (GAME_MODE_ROW + HEAVY_MECHANIC_ROW de multipla escolha, modifiers
     # booleanos e START_ROW) + indicadores de rolagem da lista de fases.
-    for game_mode, label in _GAME_MODE_ROW_LABELS.items():
+    for game_mode, label in _game_mode_row_labels().items():
         register_text(f"modifier_row_game_mode_{game_mode}", hint_font, label, _PERFECT_COLOR)
     for heavy_mechanic, label in _HEAVY_MECHANIC_ROW_LABELS.items():
         register_text(f"modifier_row_heavy_mechanic_{heavy_mechanic}", hint_font, label, _PERFECT_COLOR)
@@ -541,7 +538,7 @@ def build_and_register_overlay_surfaces(renderer: HBPygameRenderer, stages) -> N
 
     # HUB Principal: 4 categorias grandes, normal + foco ("_sel", MESMO
     # estilo "> X <" dourado das linhas de fase do antigo menu unico).
-    for category, label in _HUB_CATEGORY_LABELS.items():
+    for category, label in _hub_category_labels().items():
         register_text(f"hub_category_{category}", stage_font, label, _LABEL_COLOR)
         register_text(f"hub_category_{category}_sel", stage_font, f"> {label} <", _PERFECT_COLOR)
     register_text(

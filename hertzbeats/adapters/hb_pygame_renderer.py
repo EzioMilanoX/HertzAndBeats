@@ -43,6 +43,26 @@ opcoes (as 2 primeiras sao multipla escolha -- Defensor/Arcade 4K e
 Nenhuma/Polaridade/Holds -- a ultima e o botao de Acao "Iniciar Fase")
 e desenha-las SEM quadrado de marcar."""
 
+_DRAW_CULL_MARGIN_PX = 10_000.0
+"""Margem de culling em `draw_batch`: um sprite cujo centro esteja mais
+longe que isto da Surface nao e' desenhado.
+
+Serve a dois propositos de uma vez. O barato: sprite fora da tela nao
+precisa de chamada de desenho. O importante: uma coordenada ABSURDA
+(linha de pool ainda nao inicializada, tempo restante degenerado) fazia
+o pygame LEVANTAR -- "center argument must be a pair of numbers", quando
+o valor estoura o int de 32 bits do SDL -- e a excecao subia pelo loop
+de render e derrubava o JOGO INTEIRO por causa de um unico sprite.
+Reproduzido no Arcade 4K com relogio de audio degenerado: y chegou a
+1.2e10. A margem e deliberadamente enorme (10 mil px) pra nunca poder
+descartar um sprite legitimamente grande que ainda toque a tela -- o
+lixo que isto barra esta 6 ordens de grandeza acima.
+
+Bonus de graca: `not (a <= x <= b)` e' True para NaN, entao a mesma
+comparacao tambem barra coordenada NaN, que levantaria ValueError no
+`int()`.
+"""
+
 _GLITCH_BAR_COLOR = (5, 5, 8)
 _GLITCH_MAX_BARS = 4
 """Modificador "Corrupcao" (Breakcore/Glitchhop): barras de estatica
@@ -841,12 +861,26 @@ class HBPygameRenderer(PygameRenderer):
         self._danger_red_surface = pygame.Surface((width, height))
         self._danger_blue_surface = pygame.Surface((width, height))
 
-    def show_loading_message(self, message: str) -> None:
+    def show_loading_message(self, message: str, submessage: str = "") -> None:
         """Tela de carregamento imediata (ex.: 'analisando musica nova').
         Renderizacao direta com font.render -- permitido: roda na fase de
-        carregamento, nunca no loop de gameplay."""
+        carregamento, nunca no loop de gameplay.
+
+        `pygame.event.pump()` e' obrigatorio aqui, nao cosmetico: durante a
+        analise da IA (dezenas de segundos por musica) o processo nao volta
+        ao loop principal, e um app que nao atende a fila de mensagens por
+        alguns segundos e' marcado pelo Windows como "Nao Respondendo" --
+        janela cinza, as vezes branca. O jogador ve um travamento e mata o
+        processo no meio da analise, que ai nunca termina de cachear e
+        repete tudo na abertura seguinte.
+
+        `pump()` e nao `get()`: atende o SO sem CONSUMIR os eventos, que
+        seguem na fila para o loop de gameplay ler depois -- `get()` aqui
+        engoliria um QUIT legitimo do jogador.
+        """
         if not pygame.font.get_init():
             pygame.font.init()
+        pygame.event.pump()
         font = pygame.font.Font(None, 40)
         self._surface.fill((8, 6, 20))
         text = font.render(message, True, (235, 235, 255))
@@ -854,7 +888,18 @@ class HBPygameRenderer(PygameRenderer):
             text,
             (self._width // 2 - text.get_width() // 2, self._height // 2 - text.get_height() // 2),
         )
+        if submessage:
+            small = pygame.font.Font(None, 26)
+            hint = small.render(submessage, True, (150, 150, 185))
+            self._surface.blit(
+                hint,
+                (
+                    self._width // 2 - hint.get_width() // 2,
+                    self._height // 2 - text.get_height() // 2 + text.get_height() + 14,
+                ),
+            )
         pygame.display.flip()
+        pygame.event.pump()
 
     def set_window_icon(self, icon_path: str) -> None:
         """Define o icone da janela/barra de tarefas a partir de um PNG.
@@ -1938,6 +1983,11 @@ class HBPygameRenderer(PygameRenderer):
             return
         draw_order = np.argsort(layer_z[:count], kind="stable")
         cam_dx, cam_dy = self._cam_dx, self._cam_dy
+        # limites de culling resolvidos UMA vez, fora do laco (zero custo por sprite)
+        cull_min_x = -_DRAW_CULL_MARGIN_PX
+        cull_min_y = -_DRAW_CULL_MARGIN_PX
+        cull_max_x = self._surface.get_width() + _DRAW_CULL_MARGIN_PX
+        cull_max_y = self._surface.get_height() + _DRAW_CULL_MARGIN_PX
         for i in draw_order:
             i = int(i)
             alpha = int(tint_rgba[i, 3])
@@ -1945,6 +1995,8 @@ class HBPygameRenderer(PygameRenderer):
                 continue
             x = float(positions_xy[i, 0]) + cam_dx
             y = float(positions_xy[i, 1]) + cam_dy
+            if not (cull_min_x <= x <= cull_max_x and cull_min_y <= y <= cull_max_y):
+                continue  # ver `_DRAW_CULL_MARGIN_PX`: fora da tela, ou coordenada absurda/NaN
             texture = self._textures.get(int(texture_ids[i]))
             if texture is not None:
                 # NUNCA set_alpha(None): em pygame isso DESLIGA o alpha

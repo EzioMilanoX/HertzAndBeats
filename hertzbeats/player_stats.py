@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Dict
 
+from utils.atomic_json import write_json_atomically
 from utils.path_resolver import get_writable_data_path
 
 PLAYER_STATS_PATH = "data/config/player_lifetime_stats.json"
@@ -49,8 +50,5 @@ def record_match_stats(
     stats["lifetime_shots_fired"] += int(shots_fired)
     stats["lifetime_playtime_seconds"] += float(playtime_seconds)
 
-    destination = Path(get_writable_data_path(path))
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with open(destination, "w", encoding="utf-8") as f:
-        json.dump(stats, f)
+    write_json_atomically(Path(get_writable_data_path(path)), stats)
     return stats

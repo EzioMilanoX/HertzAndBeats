@@ -27,8 +27,9 @@ librosa entra apenas via os extratores da engine e no centroide.
 from __future__ import annotations
 
 import bisect
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -45,6 +46,7 @@ from ouroboros.rhythm.offline.extraction_profiles import (
 )
 from ouroboros.rhythm.offline.onset_extractor import OnsetExtractor
 
+from hertzbeats.audio.demo_track_synth import section_time_windows
 from hertzbeats.mapper_version import MAPPER_VERSION
 
 THREAT_TYPE_BASIC = "rhythm_threat_basic"
@@ -76,6 +78,53 @@ def build_beat_grid(beat_times: np.ndarray, subdivisions: int = 2) -> Tuple[np.n
     grid.append(beat_times[-1])
     on_beat.append(True)
     return np.asarray(grid, dtype=np.float64), np.asarray(on_beat, dtype=bool)
+
+
+def build_uniform_grid(
+    bpm: float,
+    span_start_seconds: float,
+    span_end_seconds: float,
+    subdivisions: int,
+    phase_reference_times: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Grade REGULAR no BPM detectado, com a fase travada nos pulsos reais.
+
+    Substitui `build_beat_grid` (que interpola entre pulsos CONSECUTIVOS do
+    beat-tracker) porque aquela abordagem herda a esparsez do detector de
+    pulso. Medido num piano solo de 183 s: o PLP achou 75 pulsos -- piano nao
+    tem bumbo pra dar pulso forte -- e a grade resultante tinha 149 pontos,
+    um teto de 0.81 nota/s para 942 onsets detectados. Nenhum parametro de
+    densidade conseguia furar esse teto, porque nao havia CASA na grade.
+
+    A fase vem da media CIRCULAR dos pulsos modulo o periodo da batida: e o
+    jeito correto de achar "onde caem os tempos" a partir de deteccoes
+    ruidosas -- media aritmetica de valores que dao a volta em 0 (um pulso a
+    0.01 e outro a 0.39 de um periodo de 0.40) daria o meio errado.
+
+    `on_beat` marca batidas inteiras; as subdivisoes entre elas ficam False,
+    e e' isso que `select_slots` usa pra preferir o tempo forte quando
+    precisa escolher.
+    """
+    if bpm <= 0.0 or span_end_seconds <= span_start_seconds:
+        return np.zeros(0), np.zeros(0, dtype=bool)
+
+    beat_seconds = 60.0 / float(bpm)
+    step = beat_seconds / max(1, int(subdivisions))
+
+    offset = 0.0
+    reference = np.asarray(phase_reference_times, dtype=np.float64)
+    if reference.shape[0] > 0:
+        angles = 2.0 * np.pi * (reference % beat_seconds) / beat_seconds
+        offset = float(np.angle(np.mean(np.exp(1j * angles))) / (2.0 * np.pi) * beat_seconds)
+
+    first_index = int(np.floor((span_start_seconds - offset) / step))
+    last_index = int(np.ceil((span_end_seconds - offset) / step))
+    indices = np.arange(first_index, last_index + 1)
+    grid = offset + indices * step
+    inside = (grid >= span_start_seconds) & (grid <= span_end_seconds)
+    grid = grid[inside]
+    on_beat = (indices[inside] % max(1, int(subdivisions))) == 0
+    return grid, on_beat
 
 
 def snap_onsets_to_grid(
@@ -184,6 +233,40 @@ def select_strongest_unquantized(
     return sorted(accepted, key=lambda i: float(times[i]))
 
 
+def enforce_minimum_separation(
+    times: np.ndarray, strengths: np.ndarray, layers: List[str], minimum_seconds: float
+) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    """Passagem FINAL: varre o chart ja fundido em ordem e descarta toda
+    nota que caia a menos de `minimum_seconds` da ultima ACEITA.
+
+    Existe por duas brechas que nem a selecao por janela nem a fusao
+    fecham:
+
+    1. A fusao aceita uma nota vocal a `0.5 * min_gap` de um kick -- com o
+       gap de 0.45 s das fases curadas isso da 0.225 s, ABAIXO do piso
+       jogavel de 0.30 s que `tests/test_playability_invariants.py`
+       protege. Medido: um gap real de 0.232 s apareceu no verso.
+    2. A selecao por SECAO nao ve as vizinhas, entao dois kicks podem
+       ficar colados na FRONTEIRA entre duas janelas -- cada um legitimo
+       dentro da sua secao, injogaveis juntos.
+
+    Prioridade temporal (nunca por forca) de proposito: manter a nota
+    ANTERIOR preserva o alinhamento do downbeat, e um chart que perde o
+    downbeat pra manter um onset mais forte soa errado mesmo estando
+    "mais certo" no papel.
+    """
+    if minimum_seconds <= 0.0 or times.shape[0] == 0:
+        return times, strengths, layers
+    keep = [0]
+    last_kept = float(times[0])
+    for i in range(1, times.shape[0]):
+        if float(times[i]) - last_kept >= minimum_seconds:
+            keep.append(i)
+            last_kept = float(times[i])
+    indices = np.asarray(keep, dtype=np.int64)
+    return times[indices], strengths[indices], [layers[i] for i in keep]
+
+
 def merge_note_layers(
     kick_times: np.ndarray,
     kick_strengths: np.ndarray,
@@ -261,6 +344,189 @@ def _spectral_centroids_at(audio, times: np.ndarray) -> np.ndarray:
     return centroids[indices]
 
 
+TRANSCRIPTION_SUBDIVISIONS = 8
+TRANSCRIPTION_MIN_GAP_BEATS = 0.24
+"""Configuracao da TRANSCRICAO (nao do chart jogavel).
+
+Separar transcricao de jogabilidade foi a mudanca que destravou tudo. Antes,
+o piso de jogabilidade (300 ms) era aplicado DENTRO da selecao, e por isso
+destruia informacao de forma irreversivel: pedir 0.24 batidas de
+espacamento dava o mesmo resultado que pedir 0.75, porque os dois eram
+elevados a 300 ms. O beatmap em disco era, ao mesmo tempo, a melhor
+transcricao possivel e o chart jogavel -- e nao pode ser as duas coisas.
+
+Agora o beatmap em disco e' a transcricao FIEL, e a reducao para o que e
+jogavel acontece na composicao, ciente do modo
+(`hertzbeats.playability_reduction`).
+
+Medido num piano solo (183 s, 1051 onsets detectados):
+
+  grade dos pulsos, sub=2, piso 300 ms ->  216 notas, cobertura  56%
+  grade uniforme,   sub=4, piso 300 ms ->  428 notas, cobertura  68%
+  grade uniforme,   sub=8, piso 300 ms ->  469 notas, cobertura  74%
+  grade uniforme,   sub=8, SEM piso    ->  951 notas, cobertura 100%
+
+Zero notas fantasma em todas as configuracoes -- a fidelidade subiu sem
+custo nenhum de precisao.
+
+`sub=8` (fusas) e nao 16: com 16 a contagem sobe para 1882 notas sem ganho
+de cobertura, ou seja, passa a inventar subdivisao que a musica nao tem.
+"""
+
+DEFAULT_SNAP_TOLERANCE_SECONDS = 0.04
+"""Distancia maxima entre um ataque real e o ponto da grade em que ele
+vira nota.
+
+Era 0.08 s, e isso produzia NOTAS FANTASMA -- notas que o jogador ve mas
+nao ouve. A nota e gravada no instante da GRADE, nao do ataque: com 80 ms
+de tolerancia, um ataque a 80 ms do ponto de grade ainda "preenchia" aquele
+ponto, e a nota nascia 80 ms longe do som que a justificou. A janela
+PERFECT do jogo e 50 ms -- ou seja, a nota podia cair FORA da propria
+janela em que o som acontece.
+
+A regra e simples e nao tinha sido aplicada: a tolerancia de snap precisa
+ser MENOR que a janela PERFECT, senao quantizar move a nota para fora do
+evento que a gerou.
+
+Medido numa faixa de rhythm game a 161 BPM: com 0.08 s, 4.8% das notas
+ficavam a mais de 50 ms de qualquer ataque real; com 0.04 s, 0.0% -- e a
+cobertura dos ataques fortes ainda SUBIU de leve (80.1% -> 80.9%), porque
+notas mal-encaixadas deixaram de gastar espacamento minimo que valia mais
+para vizinhas bem-encaixadas."""
+
+MIN_PLAYABLE_GAP_SECONDS = 0.30
+"""Piso de jogabilidade: ameacas mais juntas que isto caem dentro da janela
+de julgamento uma da outra. Mesmo valor que
+`tests/test_playability_invariants.py` protege."""
+
+DEFAULT_MIN_GAP_BEATS = 0.75
+"""Espacamento minimo entre notas, em BATIDAS -- nao em segundos.
+
+O bug que isto conserta: um `min_gap_seconds` fixo significa coisas
+DIFERENTES em cada tempo. A 0.45 s (o default historico):
+
+    90 BPM -> 0.68 batidas   (cabe 1 nota por batida)
+   120 BPM -> 0.90 batidas   (cabe 1 nota por batida)
+   152 BPM -> 1.14 batidas   (IMPOSSIVEL tocar 2 batidas seguidas)
+   180 BPM -> 1.35 batidas   (pior ainda)
+
+Acima de 1 batida o chart nao pode marcar batidas consecutivas -- e como a
+selecao escolhe por FORCA, ele pula de forma irregular: toca na 1, depois na
+3, depois na 4, depois na 2. Cada nota individual cai num ataque real do
+audio (medido: 81% a menos de 10 ms), mas o conjunto nao forma PULSO. O
+jogador sente exatamente isso: "as notas estao certas mas nao parece
+sincronizado".
+
+Medido num piano solo a 152 BPM, variando so este parametro:
+
+    1.15 batidas -> IOI mediano 789 ms (2 batidas!), regularidade 30%
+    1.00 batidas -> IOI mediano 604 ms,              regularidade 25%
+    0.90 batidas -> IOI mediano 418 ms (1 batida),   regularidade 63%
+    0.75 batidas -> IOI mediano 418 ms,              regularidade 63%
+
+Medido depois, com a tolerancia de snap corrigida: 0.75 batidas cobre mais
+ataques fortes que 0.90 nas duas familias de musica testadas (rhythm game
+161 BPM: 80.9% -> 83.3%; piano solo 152 BPM: 57.9% -> 58.1%), sem nenhuma
+nota fantasma. Por isso o default e 0.75 e nao 0.90.
+
+O 1.00 ser PIOR que 1.15 nao e ruido: no limite exato, o jitter dos onsets
+faz o seletor aceitar algumas batidas consecutivas e rejeitar outras -- o
+maximo de irregularidade possivel. Por isso o default e 0.9 e nao 1.0:
+precisa de folga abaixo da batida, nao de igualdade.
+
+Em musica muito rapida o piso de jogabilidade vence (a 200 BPM, 0.9 batidas
+= 0.27 s < 0.30 s) e pular batida volta a ser inevitavel -- ai e limite do
+jogo, nao da analise.
+"""
+
+DEFAULT_ONSET_LAG_SECONDS = 0.018
+"""Atraso SISTEMATICO do extrator de onsets, em segundos.
+
+Nao e chute: medido contra a verdade fundamental das faixas sintetizadas
+(`demo_track_synth.percussive_onset_times`, que sabe exatamente onde cada
+bumbo esta). Em 213 notas de 4 faixas, 98% caiam ATRASADAS -- media
++18.4 ms, desvio 9.0 ms.
+
+A causa e a convencao de frame do DSP, nao a musica: o instante vem do
+PICO do envelope de fluxo espectral, que acontece 1-2 frames depois do
+transiente que o gerou (hop 512 a 44.1 kHz = 11.6 ms por frame). Por isso
+o vies e praticamente o mesmo em faixas de BPM e estilo diferentes -- e
+por isso vale como default tambem pra musica do jogador, onde nao existe
+verdade fundamental pra medir.
+
+Nas faixas CURADAS este default nem e usado: `generate_stage_assets.py`
+mede o desvio real de cada faixa e desconta exatamente aquele. A constante
+serve pra `music_library` (musica do jogador), onde medir e impossivel.
+
+Num jogo cuja janela PERFECT e 50 ms, 18 ms de vies consomem 40% da janela
+antes de o jogador tocar em nada -- era a diferenca entre "a IA acerta a
+batida" e "quase".
+"""
+
+
+@dataclass(frozen=True)
+class _CurationWindow:
+    """Uma janela de tempo com seus proprios parametros de curadoria."""
+
+    name: str
+    start_seconds: float
+    end_seconds: float
+    min_gap_seconds: float
+    density: float
+
+    @property
+    def span_seconds(self) -> float:
+        return max(0.0, self.end_seconds - self.start_seconds)
+
+
+def _build_curation_windows(
+    synth_spec: Optional[Dict],
+    min_start_seconds: float,
+    max_end_seconds: float,
+    min_gap_seconds: float,
+    target_density_per_second: float,
+) -> List[_CurationWindow]:
+    """Uma janela por secao musical, recortadas contra a faixa jogavel.
+
+    Cada secao pode declarar `min_gap_seconds`/`target_density_per_second`
+    proprios; o que ela nao declarar herda o parametro global. Secoes que
+    caem inteiramente fora de `[min_start_seconds, max_end_seconds)` (a
+    intro antes do primeiro instante jogavel, a cauda depois da margem
+    final) sao descartadas -- sem isso, uma janela de span zero pediria
+    `max_notes=0` e so gastaria trabalho.
+
+    Sem faixa seccionada, devolve a UNICA janela global: o comportamento
+    historico, e a razao de a saida seguir bit a bit identica pras faixas
+    planas.
+    """
+    windows: List[_CurationWindow] = []
+    for name, start, end, raw in section_time_windows(synth_spec or {}):
+        clipped_start = max(start, min_start_seconds)
+        clipped_end = min(end, max_end_seconds)
+        if clipped_end - clipped_start <= 0.0:
+            continue
+        windows.append(
+            _CurationWindow(
+                name=name,
+                start_seconds=clipped_start,
+                end_seconds=clipped_end,
+                min_gap_seconds=float(raw.get("min_gap_seconds", min_gap_seconds)),
+                density=float(raw.get("target_density_per_second", target_density_per_second)),
+            )
+        )
+    if not windows:
+        windows.append(
+            _CurationWindow(
+                name="",
+                start_seconds=min_start_seconds,
+                end_seconds=max_end_seconds,
+                min_gap_seconds=min_gap_seconds,
+                density=target_density_per_second,
+            )
+        )
+    return windows
+
+
 def generate_beatmap(
     audio_path: Path,
     output_path: Path,
@@ -272,9 +538,16 @@ def generate_beatmap(
     end_margin_seconds: float = 1.2,
     heavy_quantile: float = 0.92,
     subdivisions: int = 2,
-    snap_tolerance_seconds: float = 0.08,
+    snap_tolerance_seconds: float = DEFAULT_SNAP_TOLERANCE_SECONDS,
     profile: str = "groove",
     hybrid_kick_share: float = 0.60,
+    synth_spec: Optional[Dict] = None,
+    min_note_separation_seconds: Optional[float] = None,
+    onset_lag_seconds: float = 0.0,
+    min_gap_beats: Optional[float] = None,
+    target_density_per_beat: Optional[float] = None,
+    grid_mode: str = "pulses",
+    playability_floor_seconds: float = MIN_PLAYABLE_GAP_SECONDS,
 ) -> dict:
     """Roda a IA da engine sobre `audio_path` com o PERFIL DE EXTRACAO
     pedido e grava um beatmap.json.
@@ -291,6 +564,39 @@ def generate_beatmap(
                          cima, fundidas com prioridade do kick; cada
                          nota carrega a tag `layer` para o roteamento
                          espacial do jogo.
+
+    CURADORIA POR SECAO (`synth_spec`): com uma faixa seccionada
+    (`{"bpm", "sections": [...]}`), a selecao de notas roda uma vez POR
+    SECAO, cada uma com seu proprio `min_gap_seconds`/
+    `target_density_per_second` (declarados na propria secao em
+    `stages.json`, com os parametros globais como default). E o que faz a
+    dificuldade do chart seguir a MUSICA em vez de ser uniforme: uma
+    ponte `calm` respira com gap largo, um climax `intense` aperta e
+    libera as semicolcheias da melodia, que um gap global de 0.45 s
+    descartaria sempre.
+
+    Sem `synth_spec` (ou faixa plana), roda uma unica janela cobrindo
+    `[min_start_seconds, max_end_seconds)` com os parametros globais --
+    exatamente o comportamento historico, bit a bit.
+
+    `min_note_separation_seconds` (opt-in, default `None` = desligado)
+    aplica `enforce_minimum_separation` no chart final. Fica opcional de
+    proposito: liga-lo por default mudaria TODO beatmap ja cacheado de
+    musica do jogador (que usa o perfil "hybrid") e exigiria bumpar
+    `MAPPER_VERSION`. Ver o docstring daquela funcao para as duas brechas
+    que ela fecha.
+
+    `min_gap_beats`/`target_density_per_beat` expressam espacamento e
+    densidade em BATIDAS em vez de segundos, resolvidos contra o BPM que a
+    extracao detectou. E o que faz o chart seguir o PULSO da musica em vez
+    de uma constante cega ao tempo -- ver `DEFAULT_MIN_GAP_BEATS` para a
+    medicao que justifica o valor. Ambos `None` (default) preservam o
+    comportamento absoluto historico.
+
+    `onset_lag_seconds` desconta o atraso SISTEMATICO do extrator de cada
+    instante gravado (ver `DEFAULT_ONSET_LAG_SECONDS`). Default 0.0 =
+    desligado, preservando o comportamento historico de quem chamar sem
+    pedir a correcao.
 
     Retorna um resumo primitivo (bpm, contagens por camada) para a CLI."""
     if profile not in EXTRACTION_PROFILES:
@@ -314,49 +620,95 @@ def generate_beatmap(
     kick_layer = layers.get(LAYER_KICK)
     vocal_layer = layers.get(LAYER_VOCAL)
 
+    # -- espacamento RELATIVO AO TEMPO (ver `DEFAULT_MIN_GAP_BEATS`) ----
+    # Resolvido aqui porque o BPM da camada de groove ja existe -- vem da
+    # extracao, antes de qualquer selecao. Sem BPM confiavel (perfil
+    # vocal_shred, audio sem pulso), mantem os valores absolutos.
+    beat_bpm = kick_layer.tempo_bpm_estimate if kick_layer is not None else 0.0
+    if beat_bpm > 0.0 and (min_gap_beats is not None or target_density_per_beat is not None):
+        beat_seconds = 60.0 / float(beat_bpm)
+        if min_gap_beats is not None:
+            # o piso e PARAMETRO, nao constante: a transcricao fiel precisa
+            # poder ignora-lo (`playability_floor_seconds=0.0`) e deixar a
+            # reducao para um estagio posterior, consciente de modo. Com o
+            # piso embutido aqui, pedir 0.24 batidas dava o MESMO resultado
+            # que pedir 0.75 -- os dois eram elevados a 0.30 s.
+            min_gap_seconds = max(
+                float(playability_floor_seconds), float(min_gap_beats) * beat_seconds
+            )
+        if target_density_per_beat is not None:
+            target_density_per_second = float(target_density_per_beat) / beat_seconds
+
+    # -- janelas de curadoria: uma por secao musical, ou uma so global --
+    curation_windows = _build_curation_windows(
+        synth_spec, min_start_seconds, max_end_seconds, min_gap_seconds, target_density_per_second
+    )
+
     # -- camada kick: quantizada na grade dos pulsos do PLP ------------
     kick_times = np.zeros(0)
     kick_strengths = np.zeros(0)
     on_beat_count = 0
     quantized = False
-    kick_budget = target_density_per_second * (hybrid_kick_share if vocal_layer is not None else 1.0)
+    vocal_times = np.zeros(0)
+    vocal_strengths = np.zeros(0)
     if kick_layer is not None and kick_layer.pulse_timestamps_seconds.shape[0] >= 8:
-        grid_times, on_beat = build_beat_grid(
-            kick_layer.pulse_timestamps_seconds, subdivisions=subdivisions
-        )
+        # A grade e o snap sao GLOBAIS (dependem do pulso da faixa
+        # inteira, nao da secao) -- calculados uma vez, fora do laco; so a
+        # SELECAO e por janela.
+        if grid_mode == "uniform" and kick_layer.tempo_bpm_estimate > 0.0:
+            grid_times, on_beat = build_uniform_grid(
+                kick_layer.tempo_bpm_estimate,
+                min_start_seconds,
+                max_end_seconds,
+                subdivisions,
+                kick_layer.pulse_timestamps_seconds,
+            )
+        else:
+            grid_times, on_beat = build_beat_grid(
+                kick_layer.pulse_timestamps_seconds, subdivisions=subdivisions
+            )
         slot_strengths, slot_has_event = snap_onsets_to_grid(
             grid_times,
             kick_layer.onset_timestamps_seconds,
             kick_layer.onset_strengths,
             snap_tolerance=snap_tolerance_seconds,
         )
-        chosen = select_slots(
-            grid_times, on_beat, slot_strengths, slot_has_event,
-            min_start_seconds=min_start_seconds,
-            max_end_seconds=max_end_seconds,
-            min_gap_seconds=min_gap_seconds,
-            target_density_per_second=kick_budget,
-        )
-        kick_times = grid_times[chosen]
-        kick_strengths = slot_strengths[chosen]
-        on_beat_count = int(np.count_nonzero(on_beat[chosen]))
+        kick_parts = []
+        strength_parts = []
+        for window in curation_windows:
+            kick_budget = window.density * (hybrid_kick_share if vocal_layer is not None else 1.0)
+            chosen = select_slots(
+                grid_times, on_beat, slot_strengths, slot_has_event,
+                min_start_seconds=window.start_seconds,
+                max_end_seconds=window.end_seconds,
+                min_gap_seconds=window.min_gap_seconds,
+                target_density_per_second=kick_budget,
+            )
+            kick_parts.append(grid_times[chosen])
+            strength_parts.append(slot_strengths[chosen])
+            on_beat_count += int(np.count_nonzero(on_beat[chosen]))
+        kick_times = np.concatenate(kick_parts) if kick_parts else np.zeros(0)
+        kick_strengths = np.concatenate(strength_parts) if strength_parts else np.zeros(0)
         quantized = True
 
     # -- camada vocal: sincopada, sem grade ----------------------------
-    vocal_times = np.zeros(0)
-    vocal_strengths = np.zeros(0)
     if vocal_layer is not None:
         vocal_share = 1.0 if kick_layer is None else (1.0 - hybrid_kick_share)
-        vocal_chosen = select_strongest_unquantized(
-            vocal_layer.onset_timestamps_seconds,
-            vocal_layer.onset_strengths,
-            min_start_seconds=min_start_seconds,
-            max_end_seconds=max_end_seconds,
-            min_gap_seconds=min_gap_seconds,
-            max_notes=int(round(target_density_per_second * vocal_share * playable_span)),
-        )
-        vocal_times = vocal_layer.onset_timestamps_seconds[vocal_chosen]
-        vocal_strengths = vocal_layer.onset_strengths[vocal_chosen]
+        vocal_parts = []
+        vocal_strength_parts = []
+        for window in curation_windows:
+            vocal_chosen = select_strongest_unquantized(
+                vocal_layer.onset_timestamps_seconds,
+                vocal_layer.onset_strengths,
+                min_start_seconds=window.start_seconds,
+                max_end_seconds=window.end_seconds,
+                min_gap_seconds=window.min_gap_seconds,
+                max_notes=int(round(window.density * vocal_share * window.span_seconds)),
+            )
+            vocal_parts.append(vocal_layer.onset_timestamps_seconds[vocal_chosen])
+            vocal_strength_parts.append(vocal_layer.onset_strengths[vocal_chosen])
+        vocal_times = np.concatenate(vocal_parts) if vocal_parts else np.zeros(0)
+        vocal_strengths = np.concatenate(vocal_strength_parts) if vocal_strength_parts else np.zeros(0)
 
     # -- fallback generico (sem camada alguma) -------------------------
     generic_bpm = None
@@ -391,10 +743,18 @@ def generate_beatmap(
             kick_strengths = onset_result.onset_strengths[chosen]
 
     # -- fusao multi-camada com prioridade do esqueleto ritmico --------
+    # A fusao usa a MENOR separacao entre as janelas: com um unico valor
+    # global (o antigo `0.5 * min_gap_seconds`), a secao mais folgada
+    # ditaria o corte pra faixa inteira e apagaria justamente as notas
+    # densas que uma secao apertada acabou de escolher de proposito.
     note_times, note_strengths, note_layers = merge_note_layers(
         kick_times, kick_strengths, vocal_times, vocal_strengths,
-        min_separation_seconds=0.5 * min_gap_seconds,
+        min_separation_seconds=0.5 * min(w.min_gap_seconds for w in curation_windows),
     )
+    if min_note_separation_seconds is not None:
+        note_times, note_strengths, note_layers = enforce_minimum_separation(
+            note_times, note_strengths, note_layers, float(min_note_separation_seconds)
+        )
 
     if kick_layer is not None and kick_layer.tempo_bpm_estimate > 0.0:
         detected_bpm = kick_layer.tempo_bpm_estimate
@@ -429,7 +789,11 @@ def generate_beatmap(
         heavy_count += int(is_heavy)
         threats.append(
             ScheduledThreatDefinition(
-                timestamp_seconds=float(note_times[i]),
+                # correcao do vies do extrator aplicada AQUI, no instante
+                # gravado -- e nao antes: `lanes`/`centroids` amostram o
+                # audio na posicao ORIGINAL da nota, e desloca-los faria a
+                # pista ser decidida por um trecho de audio vizinho.
+                timestamp_seconds=max(0.0, float(note_times[i]) - onset_lag_seconds),
                 threat_type=THREAT_TYPE_HEAVY if is_heavy else THREAT_TYPE_BASIC,
                 lane=int(lanes[i]),
                 strength=strength,

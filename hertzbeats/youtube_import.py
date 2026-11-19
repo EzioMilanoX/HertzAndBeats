@@ -184,6 +184,64 @@ def yt_dlp_available(which_fn: Callable[[str], Optional[str]] = shutil.which) ->
     return which_fn("yt-dlp") is not None
 
 
+_YT_DLP_FAILURE_HINTS = (
+    (
+        ("http error 403", "unable to download video data", "unable to download webpage"),
+        "O YouTube recusou o download (403). Quase sempre e' yt-dlp DESATUALIZADO: "
+        "o YouTube muda a protecao dos formatos com frequencia e cada versao nova do "
+        "yt-dlp acompanha. Rode: python -m pip install -U yt-dlp",
+    ),
+    (
+        ("no supported javascript runtime", "challenge solving failed", "n challenge"),
+        "O yt-dlp nao conseguiu resolver o desafio JavaScript do YouTube. Atualize "
+        "primeiro (python -m pip install -U yt-dlp); as versoes novas resolvem sozinhas.",
+    ),
+    (
+        ("sign in to confirm", "confirm you're not a bot", "cookies"),
+        "O YouTube pediu login pra esse video. O jogo nao faz login -- escolha outro "
+        "video, ou baixe o audio por fora e solte o arquivo na pasta musicas/.",
+    ),
+    (
+        ("private video", "video unavailable", "removed by the uploader", "has been terminated"),
+        "Esse video nao esta disponivel publicamente (privado, removido ou com regiao "
+        "restrita). Nada a corrigir no jogo -- tente outro link.",
+    ),
+    (
+        ("is not a valid url", "unsupported url"),
+        "O yt-dlp nao reconheceu esse link como um video do YouTube.",
+    ),
+    (
+        ("ffmpeg", "postprocessing"),
+        "A conversao do audio falhou (ffmpeg). Confira se o ffmpeg esta instalado e "
+        "acessivel.",
+    ),
+)
+"""Padroes de stderr do yt-dlp -> o que o JOGADOR pode fazer.
+
+Existe porque a mensagem crua nao ajuda ninguem: um download que falhava
+por yt-dlp velho aparecia na tela como um paragrafo de stderr com aviso de
+runtime JS, link de wiki e um "HTTP Error 403" no fim. A acao necessaria
+(`pip install -U yt-dlp`) nao estava em lugar nenhum.
+
+Ordem importa: o primeiro padrao que casar ganha, entao os casos mais
+especificos vem antes dos genericos (`ffmpeg` e o ultimo justamente porque
+a palavra aparece em saidas de sucesso tambem)."""
+
+
+def explain_yt_dlp_failure(stderr: Optional[str]) -> str:
+    """Traduz o stderr do yt-dlp numa frase com a ACAO a tomar.
+
+    Mantem um trecho do stderr original no fim: sem ele, uma causa que
+    ainda nao esta no catalogo ficaria indepuravel."""
+    raw = (stderr or "").strip()
+    lowered = raw.lower()
+    for needles, hint in _YT_DLP_FAILURE_HINTS:
+        if any(needle in lowered for needle in needles):
+            return hint
+    tail = raw[-300:] if raw else "sem saida de erro do yt-dlp"
+    return f"Causa nao reconhecida. Saida do yt-dlp: {tail}"
+
+
 def _rename_if_exists(folder: Path, expected_name: str, final_name: str) -> None:
     """`yt-dlp` deriva os nomes de info-json/miniatura do template de
     saida (`audio.%(ext)s` -> `audio.info.json`) -- renomeia pro nome
@@ -212,6 +270,7 @@ def fetch_youtube_preview(
     music_dir: str = USER_MUSIC_DIR,
     run_subprocess: Callable[..., "subprocess.CompletedProcess"] = subprocess.run,
     yt_dlp_command_resolver: Callable[[], Optional[List[str]]] = resolve_yt_dlp_command,
+    ffmpeg_location_resolver: Callable[[], Optional[str]] = resolve_ffmpeg_path,
 ) -> Dict:
     """ETAPA 1 (Previa): SO metadados + miniatura, NUNCA audio
     (`--skip-download`) -- `--dump-json` imprime o JSON no STDOUT
@@ -241,14 +300,29 @@ def fetch_youtube_preview(
     folder = _destination_folder(url, music_dir)
     output_template = str(folder / "preview.%(ext)s")
 
+    ffmpeg_location_args = []
+    ffmpeg_path = ffmpeg_location_resolver()
+    if ffmpeg_path is not None:
+        # `--convert-thumbnails jpg` tambem passa por ffmpeg, entao a previa
+        # precisa da mesma localizacao explicita que o download usa
+        ffmpeg_location_args = ["--ffmpeg-location", ffmpeg_path]
+
     result = run_subprocess(
         [
             *command_prefix,
             "--dump-json",
             "--skip-download",
+            # `--dump-json` implica modo SIMULATE no yt-dlp, e simulate
+            # descarta em silencio toda escrita de arquivo -- inclusive
+            # `--write-thumbnail`. Sem `--no-simulate` a miniatura NUNCA era
+            # gravada: `thumbnail_path` voltava None e a Estetica Reativa do
+            # Carrossel (fundo desfocado derivado da capa) caia no
+            # placeholder generico, sem erro nenhum na tela.
+            "--no-simulate",
             "--write-thumbnail",
             "--convert-thumbnails", "jpg",
             "--no-playlist",
+            *ffmpeg_location_args,
             "-o", output_template,
             url,
         ],
@@ -256,8 +330,9 @@ def fetch_youtube_preview(
         text=True,
     )
     if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        raise YoutubeImportError(f"yt-dlp (previa) falhou (codigo {result.returncode}) pra {url!r}: {stderr}")
+        raise YoutubeImportError(
+            f"Previa do YouTube falhou. {explain_yt_dlp_failure(result.stderr)}"
+        )
 
     try:
         metadata = json.loads(result.stdout)
@@ -353,8 +428,9 @@ def download_and_analyze_youtube_song(
         text=True,
     )
     if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        raise YoutubeImportError(f"yt-dlp (download) falhou (codigo {result.returncode}): {stderr}")
+        raise YoutubeImportError(
+            f"Download do YouTube falhou. {explain_yt_dlp_failure(result.stderr)}"
+        )
 
     _rename_if_exists(folder, "audio.info.json", "metadata.json")
     preview_thumbnail = folder / PREVIEW_THUMBNAIL_FILENAME

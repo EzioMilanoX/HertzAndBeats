@@ -1,4 +1,7 @@
-"""PygameAudioEngine estendido com pausa/retomada da faixa (congela o IAudioClock junto)."""
+"""PygameAudioEngine estendido com a camada vocal, volume da faixa e caminhos graváveis.
+
+A pausa/retomada da faixa (que congela o IAudioClock junto) agora vem da engine:
+`IAudioEngine.pause_track(track_id)` / `resume_track(track_id)`."""
 from __future__ import annotations
 
 import pygame
@@ -10,8 +13,8 @@ from utils.path_resolver import get_writable_data_path
 
 class HBPygameAudioEngine(PygameAudioEngine):
     """
-    `PygameAudioEngine` da engine estendido com `pause_track`/
-    `resume_track` para o fluxo de pausa do Hertz & Beats.
+    `PygameAudioEngine` da engine estendido para o Hertz & Beats (a pausa
+    `pause_track`/`resume_track` e' a da engine).
 
     Propriedade central: `pygame.mixer.music.pause()` congela tambem o
     `music.get_pos()` (verificado empiricamente -- a posicao conta audio
@@ -24,29 +27,97 @@ class HBPygameAudioEngine(PygameAudioEngine):
     def __init__(self) -> None:
         super().__init__()
         self._vocals_muffled = False
+        self._vocal_channel = None
+        self._vocal_sound = None
+
+    VOCAL_MUFFLED_VOLUME = 0.15
+    """Volume do canal vocal quando abafado. Nao ZERO de proposito: a voz
+    sumir por completo soa como bug de audio; abafada soa como punicao."""
 
     @property
     def vocals_muffled(self) -> bool:
-        """ESQUELETO -- Crossfading Vocal: intencao ATUAL registrada por
-        `muffle_vocals`, nunca lida por nenhum sistema de gameplay
-        ainda -- so' exposta pra inspecao/teste do proprio esqueleto."""
+        """Crossfading Vocal: estado ATUAL do abafamento da voz."""
         return self._vocals_muffled
 
+    @property
+    def has_vocal_layer(self) -> bool:
+        """True quando ha um stem vocal carregado -- entao `muffle_vocals`
+        muda audio de verdade. False numa fase sem stems (musica do
+        jogador, faixa sem melodia): a chamada segue valida e registra a
+        intencao, so nao ha o que abafar."""
+        return self._vocal_sound is not None
+
+    def load_vocal_layer(self, vocal_track_path: str) -> None:
+        """Carrega o stem VOCAL num canal `Sound` proprio, em paralelo ao
+        instrumental que toca em `pygame.mixer.music`.
+
+        A divisao importa e e' deliberada: o INSTRUMENTAL fica em
+        `music`, que continua sendo a unica fonte do `IAudioClock` -- logo
+        nada no gameplay ritmico muda, nem a pausa (que congela o relogio
+        via `music.pause()`), nem a calibracao de latencia. O vocal fica
+        num canal secundario, cujo volume o jogo abaixa ao errar.
+
+        `pygame.mixer.music` e' streaming de canal UNICO, e era essa a
+        razao pela qual o Crossfading Vocal foi documentado como
+        impossivel. A saida nao foi filtrar audio (o backend nao tem EQ):
+        foi RENDERIZAR duas faixas, o que so e' possivel porque as faixas
+        curadas sao sintetizadas -- ver `demo_track_synth.STEMS`.
+        """
+        resolved = get_writable_data_path(vocal_track_path)
+        if pygame.mixer.get_init() is None:
+            pygame.mixer.init()
+        self._vocal_sound = pygame.mixer.Sound(resolved)
+        self._vocal_channel = None
+
+    def start_vocal_layer(self) -> None:
+        """Comeca o stem vocal. Chamar IMEDIATAMENTE depois de
+        `play_track` do instrumental: os dois streams sao independentes,
+        entao qualquer trabalho entre as duas chamadas vira desalinhamento
+        audivel -- e num jogo ritmico alguns milissegundos de deriva entre
+        bateria e melodia sao percebidos como faixa desafinada no tempo.
+        """
+        if self._vocal_sound is None:
+            return
+        self._vocal_channel = self._vocal_sound.play()
+        self._apply_vocal_volume()
+
+    def stop_vocal_layer(self) -> None:
+        if self._vocal_channel is not None:
+            self._vocal_channel.stop()
+            self._vocal_channel = None
+
+    def pause_vocal_layer(self, paused: bool) -> None:
+        """Pausa/retoma o vocal junto com o instrumental -- sem isto, a
+        melodia continuaria tocando com o jogo congelado e, pior,
+        retomaria fora de fase."""
+        if self._vocal_channel is None:
+            return
+        if paused:
+            self._vocal_channel.pause()
+        else:
+            self._vocal_channel.unpause()
+
+    def _apply_vocal_volume(self) -> None:
+        if self._vocal_channel is None:
+            return
+        self._vocal_channel.set_volume(
+            self.VOCAL_MUFFLED_VOLUME if self._vocals_muffled else 1.0
+        )
+
     def muffle_vocals(self, muffled: bool) -> None:
-        """ESQUELETO -- Crossfading Vocal (`HertzConfig.karaoke_sync`):
-        o plano futuro e' abafar SO a voz (nunca o instrumental) quando
-        o jogador errar uma nota, cruzando entre 2 camadas de audio -- o
-        mix completo tocando e um stem SO instrumental em paralelo,
-        crossfadeados por volume. `pygame.mixer.music` (streaming de
-        canal unico, sem EQ/filtro de frequencia) nao consegue isolar
-        uma faixa dentro do MESMO arquivo -- a implementacao de verdade
-        exige essa 2a camada de audio, que ainda nao existe (nenhuma
-        fase tem um stem instrumental separado hoje). Por enquanto so
-        registra a INTENCAO (`self._vocals_muffled`); nenhum audio real
-        muda ainda -- mesma honestidade de escopo de `set_track_volume`
-        acima (aproximacao ao inves de fingir um efeito que o backend
-        nao suporta)."""
+        """Crossfading Vocal: abafa SO a voz, nunca o instrumental.
+
+        Deixou de ser esqueleto. O que mudou nao foi o backend -- segue
+        sem EQ/filtro -- e sim de onde vem o audio: com o stem vocal
+        carregado por `load_vocal_layer` num canal proprio, "abafar a voz"
+        e' baixar o volume DAQUELE canal, uma operacao que
+        `pygame.mixer.Channel` sempre soube fazer.
+
+        Sem stem carregado, segue registrando so a intencao (musica do
+        jogador nao tem stems) -- a chamada nunca falha por isso.
+        """
         self._vocals_muffled = bool(muffled)
+        self._apply_vocal_volume()
 
     def preload_one_shot(self, sound_id: str) -> None:
         """Carrega um SFX para o cache ANTES do gameplay (o primeiro
@@ -75,14 +146,6 @@ class HBPygameAudioEngine(PygameAudioEngine):
         `self._audio_engine.load_track(...)` do jogo de uma vez so' --
         nenhum call site em `hertz_game_loop.py` precisa saber disso."""
         super().load_track(track_id, get_writable_data_path(file_path))
-
-    def pause_track(self) -> None:
-        """Pausa a faixa em reproducao (e, com ela, o `IAudioClock`)."""
-        pygame.mixer.music.pause()
-
-    def resume_track(self) -> None:
-        """Retoma a faixa pausada do ponto exato em que congelou."""
-        pygame.mixer.music.unpause()
 
     def set_track_volume(self, volume: float) -> None:
         """Volume 0.0..1.0 da faixa em reproducao -- usado pelo Flow

@@ -1,645 +1,549 @@
 {
   "version": 1,
-  "track_id": "stage3_sobrecarga",
-  "bpm": 151.99908088235324,
+  "track_id": "defender_3_ikaruga",
+  "bpm": 151.99908088235316,
   "threats": [
     {
-      "timestamp_seconds": 2.414875283446712,
+      "timestamp_seconds": 2.7892970521541978,
       "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.8861581310337413,
+      "lane": 7,
+      "strength": 0.9269733004376274,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 2.809614512471655,
+      "timestamp_seconds": 4.391473922902497,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 7,
+      "strength": 0.8699432551367784,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 5.2041723356009095,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.905788157408111,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 5.993650793650796,
+      "threat_type": "rhythm_threat_heavy",
+      "lane": 6,
+      "strength": 0.9338098076005242,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 6.411609977324266,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 7,
+      "strength": 0.9123610045847224,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 6.80634920634921,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.8248388023936699,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 7.595827664399096,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.8770589755851083,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 7.99056689342404,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.8742091635217628,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 8.408526077097509,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.78580960603895,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 8.803265306122452,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 0,
+      "strength": 0.8037170777979467,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 9.198004535147396,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.8426689667949115,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 9.615963718820865,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.8208284042957867,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 10.010702947845807,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.8624828942405502,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 10.800181405895694,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.8023095329212264,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 11.194920634920638,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.7803221036600414,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 11.612879818594108,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.8146044445934092,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 12.00761904761905,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 0,
+      "strength": 0.7875977763029246,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 12.402358276643994,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.860106683005857,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 12.797097505668937,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 7,
+      "strength": 0.8069013718813339,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 13.191836734693881,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 7,
+      "strength": 0.8025503507928968,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 13.586575963718824,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.7969891567678431,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 14.004535147392293,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.8681935376788141,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 14.399274376417237,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.8167590643594371,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 14.79401360544218,
+      "threat_type": "rhythm_threat_heavy",
+      "lane": 6,
+      "strength": 0.9419709852343521,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 15.188752834467124,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.8519998558306736,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 15.606712018140593,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.8253370818888661,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 16.001451247165537,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.7969494987246295,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 16.39619047619048,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 6,
+      "strength": 0.8087200174288778,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 17.208888888888893,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.785256344770384,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 17.603628117913836,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.7844796554812237,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 17.998367346938778,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.8551153940012245,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 18.39310657596372,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 0,
+      "strength": 0.8022706209772339,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 20.390022675736965,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 6,
+      "strength": 0.9158116560900407,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 21.20272108843538,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.8328215475291604,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 21.992199546485264,
+      "threat_type": "rhythm_threat_heavy",
+      "lane": 6,
+      "strength": 0.9442662733996803,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 23.594376417233562,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 6,
+      "strength": 0.8552692626175135,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 25.196553287981864,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.9170170080778441,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 25.591292517006806,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 7,
+      "strength": 0.9163937856592383,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 26.40399092970522,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 0,
+      "strength": 0.8739900973119996,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 26.798730158730162,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.8386423266909077,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 27.193469387755105,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.8177897717372564,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 27.611428571428576,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.7838939675926638,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 28.006167800453518,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 0,
+      "strength": 0.7580898390698415,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 28.40090702947846,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.8034769486332496,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 28.795646258503403,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.7612396404123151,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 29.213605442176874,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.8078745148346335,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 29.608344671201817,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 0,
+      "strength": 0.7616847172938224,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 30.00308390022676,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 4,
+      "strength": 0.8132439039676179,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 30.397823129251705,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.7767289472034938,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 30.792562358276648,
+      "threat_type": "rhythm_threat_heavy",
+      "lane": 6,
+      "strength": 0.9421821887061699,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 31.60526077097506,
+      "threat_type": "rhythm_threat_heavy",
+      "lane": 4,
+      "strength": 0.9389696576368765,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 32.0,
       "threat_type": "rhythm_threat_heavy",
       "lane": 7,
-      "strength": 0.9696655428275565,
+      "strength": 0.9291526562624469,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 3.2275736961451247,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.8673311247030884,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 3.622312925170068,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.8786507197405412,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 4.4117913832199545,
+      "timestamp_seconds": 32.39473922902495,
       "threat_type": "rhythm_threat_basic",
       "lane": 7,
-      "strength": 0.8579345798731967,
+      "strength": 0.9103068786445512,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 4.829750566893424,
+      "timestamp_seconds": 32.78947845804989,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.9009948142660599,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 33.184217687074835,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 7,
+      "strength": 0.8187402447526841,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 33.6021768707483,
       "threat_type": "rhythm_threat_basic",
       "lane": 0,
-      "strength": 0.8461240691845018,
+      "strength": 0.7982985035086176,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 5.224489795918367,
+      "timestamp_seconds": 33.996916099773244,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 6,
+      "strength": 0.7764534070219186,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 34.80961451247166,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.8055175300029453,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 35.204353741496604,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.7762867399343754,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 35.599092970521546,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 5,
+      "strength": 0.8034223112133663,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 35.99383219954649,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.8221729898766962,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 36.411791383219956,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 3,
+      "strength": 0.8547926199997291,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 36.8065306122449,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 1,
+      "strength": 0.7750369663467929,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 37.20126984126984,
       "threat_type": "rhythm_threat_heavy",
-      "lane": 4,
-      "strength": 0.9610431366237343,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 5.61922902494331,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8908498954528007,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 6.013968253968254,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.9253437129192854,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 6.826666666666667,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.9525869971994342,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 7.22140589569161,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8891071918235542,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 7.616145124716553,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.9559406801181101,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 8.010884353741497,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.9531521916114186,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 8.40562358276644,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.8542491768949626,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 8.823582766439909,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8562772311130763,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 9.218321995464853,
-      "threat_type": "rhythm_threat_basic",
       "lane": 5,
-      "strength": 0.9182902343391649,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 9.613061224489796,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.8951921679773812,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 10.031020408163265,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.8991857621069687,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 10.820498866213152,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.8746533084210588,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 11.215238095238096,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.8512288410348164,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 11.633197278911565,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.8868072410465307,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 12.027936507936507,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.8701409519270614,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 12.422675736961452,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.936193042677059,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 12.817414965986394,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.8770095158163699,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 13.212154195011339,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.8988830151444819,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 13.606893424036281,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.8907789332668851,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 14.02485260770975,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.9449036197097659,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 14.419591836734694,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8904141726128264,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 14.814331065759637,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.9341685553413062,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 15.209070294784581,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.9365807064704873,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 15.62702947845805,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.8990579175339302,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 16.021768707482995,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8687029351436909,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 16.416507936507937,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.8674195458395071,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 17.22920634920635,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.858468923881604,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 17.623945578231293,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.8557700454721182,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 18.018684807256236,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.9022098525801262,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 18.413424036281178,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.8898479143938222,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 19.22612244897959,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.9433711744091584,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 19.620861678004534,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.9583325563370296,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 20.01560090702948,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.8998210426284995,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 20.410340136054423,
-      "threat_type": "rhythm_threat_heavy",
-      "lane": 7,
       "strength": 1.0,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 20.805079365079365,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.8523251880341485,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 21.223038548752836,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.9086157229926619,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 21.61777777777778,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8700723676627196,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 22.01251700680272,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.9441231608184606,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 22.430476190476192,
+      "timestamp_seconds": 37.59600907029479,
       "threat_type": "rhythm_threat_basic",
       "lane": 0,
-      "strength": 0.8936841902382314,
+      "strength": 0.8187157382628836,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 22.825215419501134,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.8881508918895478,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 23.61469387755102,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.8590109022698013,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 24.03265306122449,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.8754360826570545,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 24.427392290249433,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.9242993047332779,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 24.822131519274375,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.9155835963961222,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 25.21687074829932,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.8906687979518836,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 25.611609977324264,
+      "timestamp_seconds": 37.99074829931973,
       "threat_type": "rhythm_threat_basic",
       "lane": 7,
-      "strength": 0.9117597107746505,
+      "strength": 0.8698099329451934,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 26.424308390022677,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.887583632440407,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 26.81904761904762,
+      "timestamp_seconds": 38.80344671201814,
       "threat_type": "rhythm_threat_basic",
       "lane": 5,
-      "strength": 0.9476339742916641,
+      "strength": 0.9111293095551894,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 27.213786848072562,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.9199599107453394,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 27.608526077097505,
-      "threat_type": "rhythm_threat_heavy",
-      "lane": 7,
-      "strength": 0.9759277367155221,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 28.026485260770976,
+      "timestamp_seconds": 39.198185941043086,
       "threat_type": "rhythm_threat_basic",
       "lane": 0,
-      "strength": 0.8499769904799284,
+      "strength": 0.8844004197439433,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 28.421224489795918,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.9089185325320321,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 28.81596371882086,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.8836091242602943,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 29.23392290249433,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.8637897737107253,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 30.023401360544216,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 4,
-      "strength": 0.8814656782689632,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 30.418140589569163,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8417349891510457,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 30.812879818594105,
+      "timestamp_seconds": 39.59292517006803,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
-      "strength": 0.9366803288690567,
+      "strength": 0.8622409285239242,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 31.62557823129252,
-      "threat_type": "rhythm_threat_heavy",
-      "lane": 4,
-      "strength": 0.9736891112843518,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 32.02031746031746,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.9358685189591062,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 32.41505668934241,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 6,
-      "strength": 0.947358323119743,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 32.80979591836735,
+      "timestamp_seconds": 39.98766439909297,
       "threat_type": "rhythm_threat_basic",
       "lane": 2,
-      "strength": 0.9546556012380711,
+      "strength": 0.8337763249631714,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 33.20453514739229,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.9208632080590015,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 33.62249433106576,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8889011261461113,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 34.0172335600907,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.9223368310890968,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 34.411972789115644,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.9051906398498856,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 34.82993197278912,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.925836005261965,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 35.22467120181406,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.8735649712628177,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 35.619410430839004,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 5,
-      "strength": 0.8753954076827642,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 36.432108843537414,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.8885038255126204,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 36.826848072562356,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.8774428607347703,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 37.2215873015873,
-      "threat_type": "rhythm_threat_heavy",
-      "lane": 5,
-      "strength": 0.9608238046469844,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 37.61632653061225,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 2,
-      "strength": 0.859290933823569,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 38.01106575963719,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 7,
-      "strength": 0.9190548612789389,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 38.8237641723356,
-      "threat_type": "rhythm_threat_heavy",
-      "lane": 5,
-      "strength": 0.9622894804128722,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 39.21850340136054,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8899280753816158,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 39.613242630385486,
-      "threat_type": "rhythm_threat_heavy",
-      "lane": 6,
-      "strength": 0.9717805789137679,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 40.00798185941043,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.9492292467833292,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 40.4259410430839,
+      "timestamp_seconds": 40.405623582766445,
       "threat_type": "rhythm_threat_basic",
       "lane": 4,
-      "strength": 0.9048225626210002,
+      "strength": 0.8029852118542999,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 40.820680272108845,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 1,
-      "strength": 0.8580230010096155,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 41.21541950113379,
+      "timestamp_seconds": 41.19510204081633,
       "threat_type": "rhythm_threat_basic",
       "lane": 6,
-      "strength": 0.929153706472615,
+      "strength": 0.7904059215943842,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 41.633378684807255,
+      "timestamp_seconds": 41.6130612244898,
       "threat_type": "rhythm_threat_basic",
-      "lane": 0,
-      "strength": 0.9210594491657312,
+      "lane": 2,
+      "strength": 0.7902673767082515,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 42.0281179138322,
+      "timestamp_seconds": 42.00780045351474,
       "threat_type": "rhythm_threat_basic",
       "lane": 4,
-      "strength": 0.8808021755729634,
+      "strength": 0.813375906137504,
       "layer": "kick"
     },
     {
-      "timestamp_seconds": 42.840816326530614,
-      "threat_type": "rhythm_threat_basic",
-      "lane": 3,
-      "strength": 0.871395743595475,
-      "layer": "kick"
-    },
-    {
-      "timestamp_seconds": 43.23555555555556,
+      "timestamp_seconds": 42.40253968253968,
       "threat_type": "rhythm_threat_basic",
       "lane": 0,
-      "strength": 0.8636015424450866,
+      "strength": 0.8012971336704477,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 42.82049886621316,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.8157308248482721,
+      "layer": "kick"
+    },
+    {
+      "timestamp_seconds": 43.2152380952381,
+      "threat_type": "rhythm_threat_basic",
+      "lane": 2,
+      "strength": 0.8057886509814419,
       "layer": "kick"
     }
   ],
-  "mapper_version": 4
+  "mapper_version": 7,
+  "onset_lag_correction_seconds": 0.020317460317457403,
+  "track_fingerprint": "265307c492e32bc4"
 }

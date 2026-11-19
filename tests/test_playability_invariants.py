@@ -8,6 +8,7 @@ precisa passar por aqui.
 """
 import json
 
+from hertzbeats.audio.demo_track_synth import section_time_windows, total_bars
 from hertzbeats.config import HertzConfig
 from hertzbeats.stages import load_stages, resolve_stage_config
 
@@ -29,9 +30,14 @@ def _load_all_stages():
 
 def _synth_duration_seconds(stage) -> float:
     """Duracao da faixa derivada da especificacao de sintese (pura
-    aritmetica: compassos * 4 batidas * 60/bpm), sem precisar do .wav."""
+    aritmetica: compassos * 4 batidas * 60/bpm), sem precisar do .wav.
+
+    Os compassos vem de `demo_track_synth.total_bars`, nunca de
+    `synth["bars"]` direto: uma faixa SECCIONADA nao tem esse campo no
+    topo (a estrutura mora em `sections`), e ler o campo cru fazia este
+    teste estourar com KeyError em vez de medir a invariante."""
     assert stage.synth is not None, f"{stage.stage_id}: fase versionada sem synth spec"
-    return stage.synth["bars"] * 4 * (60.0 / stage.synth["bpm"])
+    return total_bars(stage.synth) * 4 * (60.0 / stage.synth["bpm"])
 
 
 def test_every_threat_is_resolvable_before_the_music_ends():
@@ -114,3 +120,26 @@ def test_tutorial_simultaneous_waves_are_bounded():
                 others = [t for t in sorted(set(timestamps)) if t != when]
                 nearest = min(abs(t - when) for t in others)
                 assert nearest >= 1.5, f"tutorial: onda em {when}s sem respiro (vizinho a {nearest}s)"
+
+
+def test_authored_section_gaps_respect_the_playability_floor():
+    """A curadoria POR SECAO deixa autorar densidade em `stages.json` --
+    inclusive densidade INJOGAVEL. Este guarda pega isso no dado, antes de
+    regenerar qualquer beatmap: um `min_gap_seconds` de secao abaixo do
+    piso produz ameacas consecutivas dentro da janela de julgamento uma da
+    outra, que foi exatamente a regressao que tornou o jogo injogavel.
+
+    Descoberto na pratica: um refrao autorado com 0.2s gerou um gap real
+    de 0.232s. O piso vale para o CHART, e o chart e compartilhado entre o
+    Defensor radial (cone estreito) e o Arcade 4K -- entao vale o mais
+    restritivo dos dois.
+    """
+    offenders = []
+    for stage in load_stages("data/stages/stages.json"):
+        if stage.synth is None:
+            continue
+        for name, _start, _end, raw in section_time_windows(stage.synth):
+            gap = raw.get("min_gap_seconds")
+            if gap is not None and float(gap) < MIN_GAP_SECONDS:
+                offenders.append(f"{stage.stage_id}/{name}: {gap}s < {MIN_GAP_SECONDS}s")
+    assert not offenders, "secao(oes) autorada(s) abaixo do piso jogavel: " + "; ".join(offenders)

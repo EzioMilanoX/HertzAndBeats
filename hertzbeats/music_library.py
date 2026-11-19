@@ -89,10 +89,43 @@ def analyze_song(audio_path: Path, beatmap_path: Path, track_id: str) -> None:
     na memoria se houver musica nova para analisar). Perfil "hybrid":
     esqueleto de kick quantizado + melodia vocal por cima, com tags de
     camada -- o melhor padrao para musica arbitraria do jogador."""
-    from hertzbeats.offline.beatmap_pipeline import generate_beatmap
+    from hertzbeats.offline.beatmap_pipeline import (
+    DEFAULT_ONSET_LAG_SECONDS,
+    TRANSCRIPTION_MIN_GAP_BEATS,
+    TRANSCRIPTION_SUBDIVISIONS,
+    generate_beatmap,
+)
 
     generate_beatmap(
-        audio_path=audio_path, output_path=beatmap_path, track_id=track_id, profile="hybrid"
+        audio_path=audio_path,
+        output_path=beatmap_path,
+        track_id=track_id,
+        profile="hybrid",
+        # Musica do jogador nao tem verdade fundamental pra medir o vies do
+        # extrator (nao foi sintetizada), entao usa a constante medida nas
+        # faixas curadas -- a causa e a convencao de frame do DSP, nao a
+        # musica, e por isso o valor transporta.
+        onset_lag_seconds=DEFAULT_ONSET_LAG_SECONDS,
+        # Espacamento em BATIDAS, nao em segundos: o default absoluto de
+        # 0.45 s valia 1.14 batidas numa musica de 152 BPM, tornando
+        # impossivel marcar batidas consecutivas -- o chart pulava batida de
+        # forma irregular e a musica nao tinha pulso, mesmo com cada nota
+        # caindo num ataque real. Ver `DEFAULT_MIN_GAP_BEATS`.
+        # TRANSCRICAO FIEL: o beatmap em disco representa a musica, nao o
+        # que da pra jogar. A reducao acontece na composicao, ciente do modo
+        # (`playability_reduction`) -- um chart denso serve os 2 modos, um
+        # chart ja podado nao pode ser "des-podado".
+        subdivisions=TRANSCRIPTION_SUBDIVISIONS,
+        grid_mode="uniform",
+        min_gap_beats=TRANSCRIPTION_MIN_GAP_BEATS,
+        target_density_per_beat=8.0,
+        playability_floor_seconds=0.0,
+        # A fusao de camadas aceita uma nota vocal a `0.5 * min_gap` de um
+        # kick, o que pode cair ABAIXO do piso jogavel: medido num chart de
+        # musica do jogador, um gap real de 255 ms com piso de 300 ms. Passar
+        # o piso explicitamente fecha essa brecha (o default e' `None` =
+        # desligado, pra nao mexer em quem chama sem pedir).
+
     )
 
 

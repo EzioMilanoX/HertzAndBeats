@@ -539,14 +539,14 @@ def test_every_menu_row_has_a_registered_label_texture():
     composicao pega isso sozinho, usam `NullRenderer`, que nunca toca
     essas texturas)."""
     from hertzbeats.adapters.texture_bank import (
-        _GAME_MODE_ROW_LABELS,
+        _game_mode_row_labels,
         _HEAVY_MECHANIC_ROW_LABELS,
         _MODIFIER_ROW_LABELS,
     )
     from hertzbeats.bootstrap.hertz_game_loop import LANES_MODIFIER_ROWS
 
-    assert "defender" in _GAME_MODE_ROW_LABELS
-    assert "lanes" in _GAME_MODE_ROW_LABELS
+    assert "defender" in _game_mode_row_labels()
+    assert "lanes" in _game_mode_row_labels()
     for values in HEAVY_MECHANIC_VALUES_BY_GAME_MODE.values():
         for value in values:
             assert value in _HEAVY_MECHANIC_ROW_LABELS, f"{value!r} sem rotulo em _HEAVY_MECHANIC_ROW_LABELS"

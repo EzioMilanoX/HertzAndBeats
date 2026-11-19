@@ -1,0 +1,23 @@
+# Exemplo de chart AUTORAL na DSL -- serve de documentacao executavel.
+# Escrito contra a estrutura da faixa do Pesadelo (150 BPM):
+#   intro 1-4 | assalto 5-12 | ponte 13-16 | climax 17-28
+bpm 150
+lane_count 8
+
+# -- intro: esparso, so marcando o downbeat de cada compasso
+2:1  basic  0
+3:1  basic  4
+4:1  heavy  2  0.9
+
+# -- assalto: alternando lados opostos a cada meia batida forte
+5:1..8:1   basic  0        # 8 notas, 1 por batida
+7:1..8:1   basic  4
+
+# -- ponte: RESPIRO deliberado, duas notas em 4 compassos
+13:1  heavy  6  0.95
+15:3  basic  2
+
+# -- climax: adensando, mas nunca abaixo do piso jogavel de 0.30s
+#    (a 150 BPM uma batida sao 0.4s, entao 1 nota por batida cabe)
+17:1..16:1  basic  1
+21:1..8:1   heavy  5  0.92

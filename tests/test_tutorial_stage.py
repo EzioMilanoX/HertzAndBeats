@@ -28,9 +28,27 @@ def test_repo_stage_data_is_valid():
 
     assert stages[0].stage_id == "tutorial"
     assert len(stages[0].tutorial_steps) == 5
-    # tutorial + 5 campanha do Defensor (Iniciacao..Pesadelo) + arcade +
-    # notas longas (Defensor) + arcade notas longas
-    assert len(stages) == 9
+
+    # O nucleo curado tem de continuar inteiro: tutorial + 5 da campanha do
+    # Defensor (Iniciacao..Pesadelo) + Notas Longas + as 2 do Arcade.
+    # Checado como SUBCONJUNTO, nao como contagem exata: um `len(stages) == 9`
+    # transformava toda fase nova legitima em teste vermelho, sem pegar nada
+    # que este subconjunto nao pegue -- deletar ou renomear uma fase do
+    # nucleo continua falhando aqui.
+    nucleo_curado = {
+        "tutorial",
+        "defender_1_iniciacao",
+        "stage_notas_longas",
+        "defender_2_despertar",
+        "defender_3_ikaruga",
+        "defender_4_clausura",
+        "defender_5_pesadelo",
+        "stage5_arcade_4k",
+        "stage9_arcade_notas_longas",
+    }
+    ids = [stage.stage_id for stage in stages]
+    assert nucleo_curado <= set(ids), f"fase(s) do nucleo ausente(s): {sorted(nucleo_curado - set(ids))}"
+    assert len(ids) == len(set(ids)), "stage_id duplicado em stages.json"
 
     from hertzbeats.bootstrap.rhythm_composition_root import MODE_COMPOSERS
 

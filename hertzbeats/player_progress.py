@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, FrozenSet, Optional
 
 from hertzbeats.game_state import RANK_ORDER
+from utils.atomic_json import write_json_atomically
 from utils.path_resolver import get_writable_data_path
 
 PLAYER_PROGRESS_PATH = "data/config/player_progress.json"
@@ -73,16 +74,13 @@ def record_stage_cleared(
         best_rank = rank
     progress[stage_id] = {"modifiers": frozenset(merged_modifiers), "best_rank": best_rank}
 
-    destination = Path(get_writable_data_path(path))
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with open(destination, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                sid: {"modifiers": sorted(e["modifiers"]), "best_rank": e["best_rank"]}
-                for sid, e in progress.items()
-            },
-            f,
-        )
+    write_json_atomically(
+        Path(get_writable_data_path(path)),
+        {
+            sid: {"modifiers": sorted(e["modifiers"]), "best_rank": e["best_rank"]}
+            for sid, e in progress.items()
+        },
+    )
     return progress
 
 

@@ -13,21 +13,22 @@ from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
 
-from ouroboros.bootstrap.game_loop import (
-    _EMPTY_F32,
-    _EMPTY_I16,
-    _EMPTY_RGBA,
-    _EMPTY_U32,
-    _EMPTY_XY,
-    GameLoop,
-)
+from ouroboros.bootstrap.game_loop import GameLoop
 from ouroboros.core.memory.component_pool import intersect_entity_indices
 from ouroboros.interfaces.audio_clock import IAudioClock
 from ouroboros.interfaces.audio_engine import IAudioEngine
 from ouroboros.interfaces.input_provider import IInputProvider
 from ouroboros.interfaces.renderer import IRenderer
 
-from hertzbeats.audio.demo_track_synth import ensure_track
+from hertzbeats.audio.demo_track_synth import (
+    STEM_INSTRUMENTAL,
+    section_time_windows,
+    STEM_LEAD,
+    ensure_stem_tracks,
+    ensure_track,
+)
+from hertzbeats.rate_scaling import scaled_synth_spec
+from hertzbeats.section_diagnostics import accumulate_section_misses, format_section_report, worst_section
 from hertzbeats.audio.sfx_synth import SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK, SFX_BOMB, SFX_UNLOCK_ALL
 from hertzbeats.bootstrap.rhythm_composition_root import (
     ComposedGame,
@@ -66,6 +67,13 @@ from hertzbeats.youtube_import import (
     fetch_youtube_preview,
     read_system_clipboard,
 )
+
+# Lotes vazios para limpar a tela sem alocar (a engine guarda os dela como privados em ouroboros.bootstrap.scene).
+_EMPTY_XY = np.zeros((0, 2), dtype=np.float32)
+_EMPTY_F32 = np.zeros(0, dtype=np.float32)
+_EMPTY_U32 = np.zeros(0, dtype=np.uint32)
+_EMPTY_RGBA = np.zeros((0, 4), dtype=np.uint8)
+_EMPTY_I16 = np.zeros(0, dtype=np.int16)
 
 FLOW_TITLE = "title"
 FLOW_HUB = "hub"
@@ -467,6 +475,12 @@ class HertzGameLoop(GameLoop):
         self._was_in_flow = False
         self._was_frozen = False
         self._last_miss_count_seen = 0  # Audio Ducking: baseline pra detectar um NOVO miss/dano
+        # Diagnostico por Secao: baseline PROPRIO, deliberadamente separado
+        # do baseline do Ducking -- duas features lendo/escrevendo o mesmo
+        # contador viram bug quando uma delas mudar de ponto no frame.
+        self._last_miss_count_for_sections = 0
+        self._section_windows: tuple = ()
+        self._section_miss_counts: dict = {}
         self._duck_timer_seconds = 0.0
         self._last_announcer_combo_tier = 0  # Announcer: baseline do cruzamento de ANNOUNCER_COMBO_THRESHOLD
         self._results_rank = "-"  # Meta-Jogo -- Rank: calculado ao entrar em FLOW_RESULTS
@@ -739,7 +753,13 @@ class HertzGameLoop(GameLoop):
                 vampirism_max_health=stage_config.max_health,
             )
         if stage.track_path:
-            ensure_track(stage.track_path, stage.synth)
+            # Escala de Tempo: `stage_config.track_path` ja e o caminho da
+            # variante (`resolve_stage_config`), e a spec vai com o BPM
+            # escalado -- as duas taxas coexistem em disco.
+            ensure_track(
+                stage_config.track_path,
+                scaled_synth_spec(stage.synth, stage_config.playback_rate),
+            )
 
         # Estetica Reativa -- Paleta Dinamica/Fundo Imersivo: resolvidos
         # ANTES de compor. `renderer` pode nao existir ainda na 1a
@@ -913,14 +933,56 @@ class HertzGameLoop(GameLoop):
         self._apply_playfield()
         stage = self._stages[stage_index]
         if stage.track_path:
-            self._audio_engine.load_track(stage.stage_id, stage.track_path)
-            self._audio_engine.play_track(stage.stage_id)
+            # Crossfading Vocal (opt-in por `karaoke_sync`): quando ha
+            # stems, o INSTRUMENTAL vai pra `music` (que segue sendo a
+            # unica fonte do IAudioClock -- gameplay/pausa/calibracao
+            # intactos) e a MELODIA vai pra um canal Sound a parte, cujo
+            # volume abaixa quando o combo cai. Sem stems (musica do
+            # jogador, faixa sem melodia), toca a mixagem completa como
+            # sempre.
+            stage_config = self._stage_config
+            track_to_play = stage_config.track_path
+            stems = None
+            if stage_config.karaoke_sync:
+                stems = ensure_stem_tracks(
+                    stage_config.track_path,
+                    scaled_synth_spec(stage.synth, stage_config.playback_rate),
+                )
+            if stems is not None and hasattr(self._audio_engine, "load_vocal_layer"):
+                track_to_play = stems[STEM_INSTRUMENTAL]
+                self._audio_engine.load_vocal_layer(stems[STEM_LEAD])
+            elif hasattr(self._audio_engine, "stop_vocal_layer"):
+                self._audio_engine.stop_vocal_layer()
+            self._audio_engine.load_track(stage.stage_id, track_to_play)
+            # Treino por Secao: comeca a musica no inicio da secao pedida
+            # (0.0 = fase inteira). O relogio de audio ja sabe compensar o
+            # offset (`_set_start_offset`), entao o julgamento segue lendo
+            # instantes ABSOLUTOS da faixa -- nada a reindexar.
+            self._audio_engine.play_track(
+                stage.stage_id,
+                start_offset_seconds=stage_config.practice_section_start_seconds,
+            )
+            if stems is not None and hasattr(self._audio_engine, "start_vocal_layer"):
+                # imediatamente depois do instrumental: qualquer trabalho
+                # entre as 2 chamadas vira deriva audivel entre as camadas
+                self._audio_engine.start_vocal_layer()
         self._was_in_flow = False
         # Audio Ducking: fase nova, GameState.miss_count novo -- nunca
         # carrega um "erro" da fase ANTERIOR para a de agora (o valor
         # real e recalculado no proximo `_sync_track_volume`, chamado
         # ainda neste mesmo frame).
         self._last_miss_count_seen = 0
+        # Diagnostico por Secao: janelas da faixa DESTA fase (ja escaladas
+        # pela taxa, senao as fronteiras nao casariam com o audio) e
+        # contagem zerada -- nunca carrega os misses da fase anterior.
+        self._section_windows = tuple(
+            (name, start, end)
+            for name, start, end, _raw in section_time_windows(
+                scaled_synth_spec(stage.synth, self._stage_config.playback_rate) or {}
+            )
+        )
+        self._section_miss_counts = {name: 0 for name, _s, _e in self._section_windows}
+        self._last_miss_count_for_sections = 0
         self._duck_timer_seconds = 0.0
         self._last_announcer_combo_tier = 0
         if hasattr(self._renderer, "reset_ghost_trail"):
@@ -1068,12 +1130,15 @@ class HertzGameLoop(GameLoop):
             self._audio_engine.stop_track(stage.stage_id)
 
     def _pause_music(self) -> None:
-        if hasattr(self._audio_engine, "pause_track"):
-            self._audio_engine.pause_track()
+        # pause_track/resume_track agora sao da IAudioEngine (engine M2): congelam a faixa E o relogio.
+        self._audio_engine.pause_track(self._stages[self._loaded_stage].stage_id)
+        if hasattr(self._audio_engine, "pause_vocal_layer"):
+            self._audio_engine.pause_vocal_layer(True)
 
     def _resume_music(self) -> None:
-        if hasattr(self._audio_engine, "resume_track"):
-            self._audio_engine.resume_track()
+        self._audio_engine.resume_track(self._stages[self._loaded_stage].stage_id)
+        if hasattr(self._audio_engine, "pause_vocal_layer"):
+            self._audio_engine.pause_vocal_layer(False)
 
     # -- maquina de estados por frame ------------------------------------
 
@@ -2223,6 +2288,59 @@ class HertzGameLoop(GameLoop):
         xs, ys, angles, lengths, alphas, count = spark_system.render_arrays()
         self._renderer.set_sparks(xs, ys, angles, lengths, alphas, count)
 
+    def _sync_section_misses(self) -> None:
+        """Diagnostico por Secao: atribui cada miss NOVO a secao que estava
+        tocando.
+
+        Reusa a deteccao "miss_count subiu neste frame" que o Audio Ducking
+        ja provou funcionar para os 2 modos e para TODAS as fontes de erro
+        (timing, dano no nucleo, nota perdida, Bomba, Hold quebrado), sem
+        precisar de evento/callback dedicado -- e sem tocar em nenhum
+        `ISystem`, o que manteria a disciplina Zero-GC sob risco por uma
+        feature de meta-jogo.
+
+        No-op numa faixa plana (sem secoes): nao ha a que atribuir.
+        """
+        if self._composed is None or not self._section_windows:
+            return
+        state = self._composed.game_state
+        new_misses = state.miss_count - self._last_miss_count_for_sections
+        if new_misses > 0:
+            accumulate_section_misses(
+                self._section_miss_counts,
+                self._section_windows,
+                self._audio_engine.get_clock().now_seconds(),
+                new_misses,
+            )
+        self._last_miss_count_for_sections = state.miss_count
+
+    @property
+    def worst_section_report(self):
+        """`(nome, misses)` da secao onde o jogador mais errou, ou `None`.
+
+        Fecha o ciclo com o Treino por Secao: sabendo o trecho, o jogador
+        pratica so ele (`--section climax`) em vez de repetir a musica
+        inteira pra chegar onde falhou."""
+        return worst_section(self._section_miss_counts)
+
+    def _sync_vocal_muffle(self) -> None:
+        """Crossfading Vocal: a voz abafa enquanto o combo estiver zerado.
+
+        Reusa `combo_count` em vez de inventar um temporizador de erro
+        proprio -- o combo JA e' exatamente "errei desde a ultima nota
+        certa", e derivar o abafamento dele significa que a voz volta no
+        primeiro acerto, sem nenhum estado extra pra dessincronizar. Mesma
+        familia de sincronizacao apresentacao<-estado de
+        `_sync_track_volume`, e no mesmo ponto do frame.
+
+        No-op completo numa fase sem stem vocal carregado.
+        """
+        if self._composed is None or not hasattr(self._audio_engine, "muffle_vocals"):
+            return
+        if not getattr(self._audio_engine, "has_vocal_layer", False):
+            return
+        self._audio_engine.muffle_vocals(self._composed.game_state.combo_count == 0)
+
     def _sync_track_volume(self, delta_time: float) -> None:
         """Audio Ducking: UM unico lugar decide o volume real da faixa
         a cada frame, combinando o swell do Flow State (`_flow_base_volume`/
@@ -2544,6 +2662,8 @@ class HertzGameLoop(GameLoop):
             self._sync_sparks()
             self._sync_beat_phase()
             self._sync_track_volume(delta_time)
+            self._sync_vocal_muffle()
+            self._sync_section_misses()
             self._sync_announcer()
             self._render_frame()
 

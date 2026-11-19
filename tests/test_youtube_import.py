@@ -262,7 +262,7 @@ def test_fetch_youtube_preview_raises_on_a_nonzero_exit_code(tmp_path):
     def failing_run(*args, **kwargs):
         return _FakeCompletedProcess(1, stderr="ERROR: video unavailable")
 
-    with pytest.raises(YoutubeImportError, match="video unavailable"):
+    with pytest.raises(YoutubeImportError, match="nao esta disponivel"):
         fetch_youtube_preview(
             "https://youtu.be/dQw4w9WgXcQ", music_dir=str(tmp_path), run_subprocess=failing_run,
             yt_dlp_command_resolver=lambda: ["yt-dlp"],
@@ -484,7 +484,7 @@ def test_download_and_analyze_raises_on_a_nonzero_exit_code(tmp_path):
     def failing_run(*args, **kwargs):
         return _FakeCompletedProcess(1, stderr="ERROR: video unavailable")
 
-    with pytest.raises(YoutubeImportError, match="video unavailable"):
+    with pytest.raises(YoutubeImportError, match="nao esta disponivel"):
         download_and_analyze_youtube_song(
             preview,
             music_dir=str(tmp_path / "musicas"),

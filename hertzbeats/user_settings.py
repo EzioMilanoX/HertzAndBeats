@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from utils.atomic_json import write_json_atomically
 from utils.path_resolver import get_writable_data_path
 
 USER_SETTINGS_PATH = "data/config/user_settings.json"
@@ -44,8 +45,7 @@ def _save_field(key: str, value, path: str) -> None:
     except (OSError, ValueError, json.JSONDecodeError):
         raw = {}
     raw[key] = value
-    with open(destination, "w", encoding="utf-8") as f:
-        json.dump(raw, f)
+    write_json_atomically(destination, raw)
 
 
 def load_user_palette_id(path: str = USER_SETTINGS_PATH) -> Optional[str]:

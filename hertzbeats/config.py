@@ -237,6 +237,39 @@ class HertzConfig:
     practice_mode: bool = False
     practice_density_keep_fraction: float = 0.5
 
+    # -- Acessibilidade: Escala de Tempo. 1.0 = normal; 0.75 toca a fase
+    #    25% mais devagar. So funciona em fase com `synth` spec (a faixa e
+    #    RE-SINTETIZADA no BPM escalado, nunca resampleada) -- ver
+    #    `hertzbeats.rate_scaling`. As janelas de julgamento e o
+    #    `approach_seconds` NAO escalam de proposito: sao tempo de relogio,
+    #    e e justamente isso que torna a fase mais facil.
+    playback_rate: float = 1.0
+
+    # -- Treino por Secao: nome da secao a praticar ("climax"), vazio =
+    #    fase inteira. `resolve_stage_config` traduz o NOME na janela de
+    #    tempo abaixo (ja considerando `playback_rate`), porque so ali a
+    #    fase -- e portanto a estrutura da faixa -- e conhecida. A
+    #    composicao filtra o schedule pela janela e o audio comeca no
+    #    offset dela: repetir o climax deixa de exigir tocar a musica toda.
+    # -- i18n: idioma da interface ("pt_BR" default, "en" disponivel).
+    #    Vazio = resolve por `HERTZ_LOCALE` e depois pelo default. Lido UMA
+    #    vez na composicao, antes de construir as texturas (os textos sao
+    #    pre-renderizados) -- ver `hertzbeats.i18n`.
+    # -- Reducao de jogabilidade: LIGADA so em chart TRANSCRITO (musica do
+    #    jogador), onde o beatmap representa a musica e nao o desenho de
+    #    fase. Chart AUTORAL nunca passa por aqui: o tutorial tem ondas
+    #    simultaneas de proposito (ensinam o Dash), as fases curadas tem
+    #    curadoria por secao decidida a mao, e os clusters de Scratch sao
+    #    desenho. Podar isso apagaria intencao. Ver
+    #    `hertzbeats.playability_reduction`.
+    playability_reduction: bool = False
+
+    locale: str = ""
+
+    practice_section: str = ""
+    practice_section_start_seconds: float = 0.0
+    practice_section_end_seconds: float = 0.0
+
     # -- Meta-Jogo: tela de Calibracao (metronomo + tecla no tempo) --
     calibration_bpm: float = 120.0
     calibration_target_taps: int = 8
@@ -543,6 +576,9 @@ class HertzConfig:
             calibration_target_taps=raw.get("calibration_target_taps", 8),
             practice_mode=raw.get("practice_mode", False),
             practice_density_keep_fraction=raw.get("practice_density_keep_fraction", 0.5),
+            playback_rate=raw.get("playback_rate", 1.0),
+            locale=raw.get("locale", ""),
+            practice_section=raw.get("practice_section", ""),
             bomb_hit_shake_px=raw.get("bomb_hit_shake_px", 18.0),
             bomb_blindness_seconds=raw.get("bomb_blindness_seconds", 1.2),
             stutter_scroll_enabled=raw.get("stutter_scroll_enabled", False),

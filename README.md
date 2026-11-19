@@ -74,7 +74,27 @@ As duas campanhas reaproveitam os **mesmos 3 `beatmap.json`** já extraídos (a 
 
 O **tutorial** ensina jogando: faixas de instrução aparecem no topo da tela em sincronia com a música (mova a mira → atire quando a ameaça tocar o anel → janelas PERFECT/GOOD → uma onda de 3 ameaças simultâneas para aprender o Dash → sequência final). O beatmap do tutorial é **autoral** (timing didático, em [data/beatmaps/tutorial.beatmap.json](data/beatmaps/tutorial.beatmap.json)) — o `generate_stage_assets.py` preserva ele e só regenera os das fases via IA. Por baixo, é o mesmo motor: um `TutorialSystem` zero-GC avança um cursor de passos contra o `IAudioClock` (a mesma base de tempo do spawner) e troca a textura de um sprite-banner pré-renderizado; os passos vêm do JSON da fase (`tutorial_steps`), então qualquer fase pode virar um tutorial.
 
-Cada fase tem sua faixa sintetizada deterministicamente (o `.wav` não é versionado; é reconstruído bit a bit no primeiro uso) e seu beatmap extraído pela IA offline da engine — 107, 180 e 168 ameaças respectivamente (fases 1-3; as demais reusam esses 3 arquivos). Para regenerar tudo: `python tools/generate_stage_assets.py --force` (requer `librosa`).
+Cada fase tem sua faixa sintetizada deterministicamente (o `.wav` não é versionado; é reconstruído bit a bit no primeiro uso) e seu beatmap extraído pela IA offline da engine — 30, 66 e 91 ameaças respectivamente (fases 1-3; as demais reusam esses 3 arquivos). Para regenerar tudo: `python tools/generate_stage_assets.py --force` (requer `librosa`).
+
+### Faixas com estrutura (seções)
+
+As 3 faixas curadas não são mais um compasso em loop: cada uma declara **seções** em `stages.json` (`synth.sections`), e cada seção tem sua própria densidade de bateria, progressão harmônica e camada melódica:
+
+| Faixa | Estrutura |
+| --- | --- |
+| `stage1_pulso_leve` (100 BPM) | `intro` 4 (calm) → `tema` 8 (calm, +lead) → `final` 4 (standard, +lead) |
+| `stage2_batida_franca` (128 BPM) | `intro` 4 (calm) → `verso` 8 (standard, +lead) → `refrao` 8 (**intense**, +lead) → `saida` 4 (standard, +lead) |
+| `stage3_sobrecarga` (150 BPM) | `intro` 4 (standard) → `assalto` 8 (intense, +lead) → **`ponte` 4 (calm**, +lead) → `climax` 12 (intense, +lead) |
+
+A `ponte` em `calm` no meio da faixa mais dura é o **respiro deliberado**: a curva do Defensor só apertava, monotonicamente, e é o alívio que faz o clímax de 12 compassos existir *como* clímax. O total de compassos de cada faixa é o mesmo de antes, então **toda duração de fase permaneceu idêntica**.
+
+Três decisões que a implementação registra em comentário porque foram medidas, não deduzidas:
+
+- **A forma plana (`{"bpm","bars","style"}`) é bit a bit idêntica à de antes** — os `beatmap.json` versionados foram extraídos sobre exatamente aqueles samples, e o beatmap do **tutorial é autoral**, com timestamps casados à mão. Dar estrutura à faixa do tutorial moveria os instantes com bateria audível e as ameaças didáticas cairiam no silêncio, *sem nenhum teste de lógica falhar*. Há regressão por hash (`tests/test_track_sections.py`) e um guarda explícito contra seccionar o tutorial.
+- **A camada melódica vive 3 oitavas acima do baixo (~330–1250 Hz), e é a banda que a torna segura** — inteiramente acima do corte de ~250 Hz do perfil de extração `groove` e dentro da banda 300–8000 Hz do `vocal_shred`. A intuição inicial foi o oposto (ataque *lento* de 40 ms, para nunca criar transiente que a IA confundisse com batida) e estava errada por otimizar demais: a melodia ficava audível para o jogador e **invisível para o extrator** — 0 onsets nas posições exclusivas dela. O que protege o esqueleto rítmico é a frequência, não o envelope: com o lead acima de 250 Hz, o `groove` não muda nada com ataque seco (kick=58 e BPM=129.20 constantes em toda a varredura).
+- **O motivo mistura contratempos de colcheia com semicolcheias por causa da curadoria, não da síntese** — `beatmap_pipeline.merge_note_layers` exige que uma nota vocal esteja a `0.5 × min_gap_seconds` de qualquer kick. Com o `min_gap` de 0.45 s das fases curadas isso dá 0.225 s: uma semicolcheia a 128 BPM dista 0.117 s da batida e é *sempre* descartada, enquanto uma colcheia dista 0.234 s e sobrevive por 9 ms de margem. Medido: só semicolcheias → 3 notas vocais no chart; o motivo misto → 8; só colcheias → 14 (mas uma melodia inteira no contratempo é um pulso, não uma frase). **As semicolcheias seguem valendo:** os onsets existem no áudio (71 dos 232 onsets vocais brutos caem nelas, contra 0 antes desta camada) e esperam apenas uma fase que baixe `min_gap_seconds` na curadoria — nenhuma mudança de síntese será necessária lá.
+
+Drops e fills são contados **relativamente ao início da seção**, não da faixa: assim toda virada de seção se anuncia com o próprio crash + bumbo pesado, em vez de cair num compasso qualquer da grade global.
 
 - **PERFECT** — tiro com \|delta\| ≤ 50 ms da batida (300 pts)
 - **GOOD** — \|delta\| ≤ 100 ms (100 pts)
@@ -510,6 +530,135 @@ O esqueleto acima virou um `.exe` de verdade, gerado e RODADO até ficar estáve
 3. **`config.beatmap_path` nunca passava por `get_resource_path`.** O `.exe` abria, sintetizava SFX/faixas com sucesso — e travava com `FileNotFoundError` só ao tentar carregar o beatmap de uma fase curada. `stages.load_stages` resolve `stages_path` (o `stages.json` em si), mas nunca os campos *dentro* dele (`beatmap_path`/`track_path` por fase) — um gap que o próprio resumo da sessão anterior já tinha marcado como "não rastreado nesta passada". Corrigido nos 2 pontos reais de consumo: `rhythm_composition_root.py` (`BeatmapLoader.load`/`_read_beatmap_bpm`, na composição) e `stages.py::read_stage_bpm_and_duration` (o Carrossel, ANTES do jogador nem confirmar a fase). `track_path` não precisou do mesmo tratamento — já passa por `ensure_track`/`HBPygameAudioEngine.load_track`, ambos já usando `get_writable_data_path` internamente.
 
 Também completado nesta passada (gaps deixados abertos de propósito na sessão anterior, agora fechados porque bloqueavam o build real): `player_progress.py`/`user_settings.py`/`player_stats.py` (saves/preferências locais) e `music_library.py`/`youtube_import.py` (`musicas/`, beatmaps de música do jogador) passaram a resolver seus caminhos via `get_writable_data_path` nos mesmos moldes do resto — sem isso, o save do jogador dependeria do diretório de trabalho no instante do lançamento, em vez de sempre viver ao lado do `.exe`. Suíte completa (706 testes) confirmada verde antes E depois de cada rodada de mudança.
+
+## Transcrição fiel, separada da jogabilidade
+
+O `beatmap.json` de música do jogador era, ao mesmo tempo, a transcrição da música **e** o chart jogável. Não pode ser as duas coisas — e a confusão custava caro: o piso de jogabilidade (300 ms) era aplicado *dentro* da seleção de notas, destruindo informação de forma irreversível e invisível. Pedir 0.24 batidas de espaçamento produzia exatamente o mesmo chart que pedir 0.75, porque ambos eram elevados a 300 ms.
+
+Agora são dois estágios. O beatmap em disco é a **transcrição mais fiel que a IA consegue**, e a poda para o que cada modo aguenta acontece na composição, ciente do modo.
+
+### O que mudou na transcrição
+
+Medido num piano solo de 183 s com 1051 ataques detectados:
+
+| Configuração | Notas | Cobertura dos ataques reais |
+| --- | --- | --- |
+| grade dos pulsos, sub=2, piso 300 ms *(antes)* | 216 | **56%** |
+| grade uniforme, sub=4, piso 300 ms | 428 | 68% |
+| grade uniforme, sub=8, piso 300 ms | 469 | 74% |
+| grade uniforme, sub=8, **sem piso** | **951** | **100%** |
+
+Zero notas fantasma em todas as configurações — a fidelidade subiu sem custo nenhum de precisão.
+
+Duas causas foram corrigidas:
+
+- **A grade vinha dos pulsos do PLP, não do BPM.** `build_beat_grid` interpolava entre pulsos *consecutivos detectados*. Num piano solo o PLP achou 75 pulsos em 183 s (piano não tem bumbo para dar pulso forte), o que dava **149 pontos de grade para 942 onsets** — teto de 0.81 nota/s que nenhum parâmetro de densidade conseguia furar, porque não havia casa na grade. [`build_uniform_grid`](hertzbeats/offline/beatmap_pipeline.py) gera grade regular no BPM detectado, com a fase travada nos pulsos por média circular.
+- **Subdivisão de colcheia era grosseira demais.** Fração dos ataques a menos de 40 ms de um ponto da grade: colcheia **40–49%**, semicolcheia **87–100%** nas três músicas testadas. Mais da metade dos ataques de toda música não tinha onde encaixar. Hoje a transcrição usa fusas (`sub=8`); com 16 a contagem sobe sem ganho de cobertura, ou seja, passa a inventar subdivisão que a música não tem.
+
+### A redução, ciente do modo
+
+[`hertzbeats/playability_reduction.py`](hertzbeats/playability_reduction.py). A diferença entre os modos não é de grau, é de natureza:
+
+- **Defensor radial** — um cursor, uma mira. Espaçamento **global** de 300 ms.
+- **Arcade 4K** — 4 colunas independentes. Espaçamento **por coluna** de 110 ms, o que multiplica a densidade possível por 4. Modelar isso como "um piso menor" seria errado: permitiria 4 notas colidindo na mesma tecla.
+
+O mesmo chart fiel serve os dois:
+
+| Música | Transcrição | Defensor | Arcade 4K |
+| --- | --- | --- | --- |
+| Chimera (piano) | 951 (5.62/s) | 396 (2.34/s) | **951 (5.62/s)** |
+| Power Hour (FNF) | 745 (4.26/s) | 418 (2.39/s) | 745 (4.26/s) |
+| Melatonin Mind | 544 (3.81/s) | 274 (1.92/s) | 544 (3.81/s) |
+
+E a poda ranqueia por **saliência métrica** (tempo forte > batida > contratempo > subdivisão), com a força só como desempate. Era isso que faltava: podar por volume produzia charts que acertavam ataques reais e não formavam pulso. No chart reduzido do piano, **87% dos intervalos são múltiplos da batida e 84% das notas caem na batida** — contra 30% de regularidade no começo.
+
+### Chart autoral nunca é podado
+
+A redução vale **só** para chart transcrito (`playability_reduction`, ligada em `resolve_stage_config` quando a fase não tem `synth` spec). Chart autoral passa intacto: o tutorial tem ondas simultâneas de propósito (ensinam o Dash), as fases curadas têm curadoria por seção decidida à mão, e os clusters de Scratch são desenho. Podar isso apagaria intenção — descobri isso da forma difícil, quando a primeira versão aplicou a poda a tudo e quebrou 13 testes.
+
+## O chart estava fora do ritmo (corrigido)
+
+A frase de abertura deste README — a ameaça toca o anel *"exatamente no milissegundo da batida"* — nunca tinha sido verificada. Estava errada.
+
+Como as faixas curadas são **sintetizadas**, existe verdade fundamental: [`percussive_onset_times`](hertzbeats/audio/demo_track_synth.py) sabe onde cada bumbo está pela mesma aritmética que os posicionou. Comparando com os beatmaps extraídos pela IA, em 213 notas de 4 faixas:
+
+- **98% das ameaças chegavam ATRASADAS**
+- média **+18.4 ms**, desvio de só 9.0 ms → viés sistemático, não ruído
+- numa janela PERFECT de 50 ms, isso consumia **40% da janela** antes do jogador tocar em nada
+
+A causa é a convenção de frame do DSP, não a música: o instante vem do pico do envelope de fluxo espectral, que acontece 1–2 frames depois do transiente que o gerou (hop 512 a 44.1 kHz = 11.6 ms/frame). +18.4 ms ≈ 1.6 frames.
+
+**A correção**: `tools/generate_stage_assets.py` mede o desvio real de cada faixa curada contra a verdade fundamental e desconta exatamente aquele valor — deslocamento uniforme (a mediana), nunca por nota, porque quantizar cada nota à batida mais próxima apagaria a síncope que a IA legitimamente encontrou. Música do jogador não tem verdade fundamental para medir, então usa a constante `DEFAULT_ONSET_LAG_SECONDS = 0.018` derivada destas medições (`MAPPER_VERSION` foi para 5, então os caches reanalisam sozinhos).
+
+| | Antes | Depois |
+| --- | --- | --- |
+| Viés sistemático | **+18.7 ms** | **+0.0 ms** |
+| Erro mediano | 18.7 ms | **5.8 ms** |
+| Notas dentro de 25 ms | 71% | **100%** |
+
+Auditável a qualquer momento:
+
+```
+python tools/check_beat_alignment.py            # todas as fases curadas
+python tools/check_beat_alignment.py --stage defender_3_ikaruga --verbose
+```
+
+E travado por [tests/test_beat_alignment.py](tests/test_beat_alignment.py) — 47 testes, incluindo um que verifica que a própria verdade fundamental confere com o áudio sintetizado (se a aritmética divergir da síntese, todas as outras medidas passariam medindo nada).
+
+**Por que isso era invisível:** o jogo não quebra, nenhum JSON fica inválido, nenhuma invariante estoura. Só parece "quase certo" — e isso é indistinguível, para quem joga, de latência de áudio não calibrada. Sem verdade fundamental, nenhum ouvido humano consegue separar as duas causas.
+
+## Fases de teste das 11 melhorias
+
+Onze melhorias implementadas como incrementos isolados, cada uma com teste. As jogáveis viraram rota de CLI ou fase real, para você julgar na mão.
+
+### Jogáveis
+
+| # | Melhoria | Como testar |
+| --- | --- | --- |
+| 1 | **Curadoria por seção** — cada seção da faixa tem seu `min_gap_seconds`/`target_density_per_second` em `stages.json` | `--stage 4` — a ponte cai para **0.78 notas/s** contra 2.19 do assalto e 2.08 do clímax |
+| 2 | **Crossfading Vocal** (era esqueleto) — stems reais, voz abafa ao perder o combo | `--stage 7` (fase `stage5_arcade_4k`, com `karaoke_sync` ligado) |
+| 3 | **Treino por Seção** + **Diagnóstico por Seção** | `--stage 4 --section climax` · o resumo de fim de partida imprime a pior seção |
+| 4 | **Escala de Tempo** (acessibilidade) | `--stage 4 --rate 0.75` — faixa re-sintetizada, 44.80s → 59.73s |
+| 11 | **i18n** — catálogo de textos, `pt_BR` e `en` | `--locale en` (ou `HERTZ_LOCALE=en`) |
+
+### Endurecimento
+
+| # | Melhoria | O que mudou |
+| --- | --- | --- |
+| 5 | **Save atômico** | Os 3 arquivos graváveis passam por [utils/atomic_json.py](utils/atomic_json.py) (tmp + `fsync` + `os.replace`). Antes, `open(destino, "w")` truncava antes de escrever: um crash ali deixava o save vazio, e todo carregador trata JSON inválido como "começa do zero" — o progresso era apagado em silêncio |
+| 6 | **Crash do Arcade corrigido** | Guarda de coordenada em `draw_batch`: uma posição absurda (y chegou a **1.2×10¹⁰**, estourando o int de 32 bits do SDL) derrubava o jogo inteiro por causa de um sprite. Meu diagnóstico inicial estava errado — os dois spawners **já tinham** piso de tempo (`min_travel_seconds`); a defesa certa era na fronteira de desenho |
+| 7 | **Constantes duplicadas travadas** | `HUB_CATEGORIES` e as 3 linhas especiais do Pré-Voo existem em cópia no renderer (o adapter não importa o bootstrap, de propósito). O docstring já registrava *"bug real já corrigido aqui uma vez"* — agora há teste |
+| 8 | **Digital da faixa no beatmap** | `track_fingerprint` (sha256 do `.wav`) carimbado por `generate_stage_assets.py`, inclusive no beatmap **autoral** do tutorial. Mudar a síntese sem regenerar deixava o jogo fora do tempo sem nenhum teste falhar |
+| 9 | **Orçamento do hot-path** | A promessa Zero-GC nunca tinha guarda. Medido: **0.40 ms e 25 B alocados por frame**; os tetos (8 ms / 500 B) têm 20× de folga, mas pegam um `np.array` novo por frame |
+| 10 | **DSL de autoria + linter** | [tools/compile_beatmap.py](tools/compile_beatmap.py) compila `compasso:batida` para beatmap.json e roda as invariantes de jogabilidade **antes** de gravar, apontando a linha do arquivo. Exemplo executável em [charts/exemplo_chefao.hbm](charts/exemplo_chefao.hbm) |
+
+### Fase `BANCO DE PROVAS` (`--stage 9`)
+
+Campanha própria (`banco_de_provas`, não interfere na progressão do Defensor), 132 BPM, 36 compassos, 6 seções de contraste **exagerado de propósito** — a ideia é cada feature ser *ouvida*, não medida. Janelas generosas (70/140/200 ms), 10 de vida, sem misfire: é banco de provas, não desafio.
+
+| Seção | Janela | Notas | notas/s | `min_gap` |
+| --- | --- | --- | --- | --- |
+| `vazio` | 0.0–3.6s | 0 | **0.00** | 1.2 |
+| `groove` | 3.6–14.5s | 9 | 0.83 | 0.5 |
+| `melodia` | 14.5–25.5s | 9 | 0.83 | 0.5 |
+| `refrao` | 25.5–40.0s | 22 | **1.51** | 0.34 |
+| `respiro` | 40.0–47.3s | 2 | **0.27** | 1.5 |
+| `climax` | 47.3–65.5s | 26 | 1.43 | 0.34 |
+
+Contraste de **5.6×** entre `respiro` e `refrao`. `karaoke_sync` ligado (stems gerados na primeira abertura), perfil `hybrid` com `min_note_separation_seconds` de 0.34.
+
+```
+python -m hertzbeats --stage 9                      # a faixa inteira, com o arco
+python -m hertzbeats --stage 9 --section respiro    # só o respiro
+python -m hertzbeats --stage 9 --section climax     # só o clímax
+python -m hertzbeats --stage 9 --rate 0.75          # 65.5s → 87.3s
+```
+
+### Três coisas que a implementação refutou
+
+- **As semicolcheias da melodia são incompatíveis com o piso de jogabilidade, não só com a curadoria.** Autorei o refrão a `min_gap: 0.2` e o teste pegou um gap real de 0.232s, abaixo do piso de 0.30s que existe porque mapas densos já tornaram o jogo injogável. A 128 BPM uma semicolcheia dista 0.117s da batida — nenhum parâmetro resolve. Só um chart escrito à mão (a DSL, #10) coloca 16 avos sem encostar em outra nota.
+- **O gargalo da camada vocal é a força, não o espaçamento.** Com o perfil `hybrid`, a melodia entra no chart (40 kicks + 5 vocais na fase 3). Mas a seleção pega os onsets mais fortes primeiro, e os reforçados por chimbal vencem o lead sozinho — por isso os vocais caem em colcheias, nunca nas semicolcheias.
+- **A fusão de camadas violava o piso desde antes.** `merge_note_layers` aceita uma nota vocal a `0.5 × min_gap` de um kick: com o gap de 0.45s das fases curadas isso dá 0.225s, abaixo de 0.30s. Só não aparecia porque nenhuma fase curada usava `hybrid`. A correção (`enforce_minimum_separation`) é **opt-in** de propósito: ligá-la por default mudaria todo beatmap já cacheado de música do jogador e exigiria bumpar `MAPPER_VERSION`.
 
 ## Testes
 

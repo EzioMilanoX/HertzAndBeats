@@ -88,7 +88,7 @@ def test_modifier_row_labels_fit_within_the_default_window_width():
     verdade na tela) -- contra a largura padrao da janela real."""
     from hertzbeats.adapters.hb_pygame_renderer import _CHECKBOX_GAP, _CHECKBOX_SIZE
     from hertzbeats.adapters.texture_bank import (
-        _GAME_MODE_ROW_LABELS,
+        _game_mode_row_labels,
         _HEAVY_MECHANIC_ROW_LABELS,
         _MODIFIER_ROW_LABELS,
         _START_ROW_LABEL,
@@ -101,7 +101,7 @@ def test_modifier_row_labels_fit_within_the_default_window_width():
     hint_font = pygame.font.Font(None, 28)
     checkbox_span = _CHECKBOX_SIZE + _CHECKBOX_GAP
 
-    for game_mode, label in _GAME_MODE_ROW_LABELS.items():
+    for game_mode, label in _game_mode_row_labels().items():
         width, _ = hint_font.size(label)
         assert width < config.window_width, (
             f"rotulo do modo {game_mode!r} estoura a janela: {width}px >= {config.window_width}px"

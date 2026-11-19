@@ -6,7 +6,9 @@ import json
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple
 
+from hertzbeats.audio.demo_track_synth import section_time_windows, total_bars
 from hertzbeats.config import HertzConfig
+from hertzbeats.rate_scaling import rate_variant_track_path, scaled_synth_spec
 from utils.path_resolver import get_resource_path
 
 
@@ -24,9 +26,16 @@ class StageDef:
             (usado por testes headless).
         beatmap_path: beatmap.json correspondente (gerado pela IA
             offline e VERSIONADO no repositorio).
-        synth: especificacao de re-sintese deterministica da faixa
-            (`{"bpm", "bars", "style"}`) -- permite nao versionar o .wav;
-            `None` desabilita a re-sintese (faixa do usuario).
+        synth: especificacao de re-sintese deterministica da faixa --
+            permite nao versionar o .wav; `None` desabilita a re-sintese
+            (faixa do usuario). Duas formas, ambas aceitas por
+            `demo_track_synth.synthesize_track`: plana
+            (`{"bpm", "bars", "style"}`, N compassos iguais) ou
+            SECCIONADA (`{"bpm", "sections": [...]}`, faixa com
+            estrutura -- intro/verso/refrao/ponte/climax, cada secao com
+            sua densidade, progressao harmonica e camada melodica). O
+            total de compassos vem de `demo_track_synth.total_bars` nas
+            duas formas, nunca de `spec["bars"]` direto.
         beatmap_params: parametros da curadoria pos-IA usados por
             `tools/generate_stage_assets.py` (`min_gap_seconds`,
             `min_start_seconds`); ignorados em runtime.
@@ -200,11 +209,39 @@ def resolve_stage_config(base_config: HertzConfig, stage: StageDef) -> HertzConf
     (TypeError), nunca silenciosamente ignorado. `overrides` NAO deve
     conter `active_modifiers` (usar o campo dedicado da fase) -- faria
     `dataclasses.replace` reclamar de argumento duplicado."""
+    # Escala de Tempo: a fase aponta pra faixa VARIANTE (`...@0.75.wav`),
+    # nunca pra original -- so quando ha `synth` spec pra re-sintetizar.
+    # Musica do jogador (`synth=None`) ignora a taxa: resamplear um mp3
+    # aqui seria outra feature (ver `hertzbeats.rate_scaling`).
+    track_path = stage.track_path
+    if stage.synth is not None:
+        track_path = rate_variant_track_path(track_path, base_config.playback_rate)
+
+    # Treino por Secao: o NOME pedido vira janela de tempo aqui, o unico
+    # lugar que conhece a estrutura da faixa desta fase. A janela sai da
+    # spec JA ESCALADA, senao pedir o climax a 0.75x cairia no compasso
+    # errado (o audio estica, os nomes nao).
+    section_start = 0.0
+    section_end = 0.0
+    if base_config.practice_section and stage.synth is not None:
+        scaled = scaled_synth_spec(stage.synth, base_config.playback_rate)
+        for name, start, end, _raw in section_time_windows(scaled or {}):
+            if name == base_config.practice_section:
+                section_start, section_end = start, end
+                break
+
+    # `synth is None` identifica musica do jogador: nao ha especificacao pra
+    # re-sintetizar porque o audio veio de fora, e o beatmap dela e uma
+    # TRANSCRICAO (gerada pela IA sobre audio arbitrario), nao um desenho de
+    # fase. E o unico caso em que podar notas respeita a intencao.
     return dataclasses.replace(
         base_config,
         beatmap_path=stage.beatmap_path,
-        track_path=stage.track_path,
+        track_path=track_path,
+        playability_reduction=stage.synth is None,
         active_modifiers=stage.active_modifiers,
+        practice_section_start_seconds=section_start,
+        practice_section_end_seconds=section_end,
         **stage.overrides,
     )
 
@@ -216,7 +253,10 @@ def read_stage_bpm_and_duration(stage: StageDef) -> Tuple[float, float]:
     YouTube) -- nunca abre o audio real (evitaria puxar uma lib de
     decodificacao so pra mostrar duracao numa tela de selecao). Fases
     com `synth` (curadas ou re-sintetizadas): duracao EXATA
-    (`bars*4*60/bpm`, a MESMA formula de `synthesize_track`). Musicas
+    (`bars*4*60/bpm`, a MESMA formula de `synthesize_track`, com os
+    compassos vindo de `demo_track_synth.total_bars` -- que soma as
+    secoes numa faixa seccionada, onde nao existe campo `bars` no topo).
+    Musicas
     do jogador (`synth=None`): `known_duration_seconds` (Pipeline de
     Importacao Direta, EXATA -- vem do `metadata.json` do video) se
     disponivel, senao aproximada pelo ultimo instante de ameaca do
@@ -235,7 +275,7 @@ def read_stage_bpm_and_duration(stage: StageDef) -> Tuple[float, float]:
 
     if stage.synth is not None:
         synth_bpm = float(stage.synth.get("bpm", bpm))
-        bars = int(stage.synth.get("bars", 0))
+        bars = total_bars(stage.synth)
         duration = bars * 4 * (60.0 / synth_bpm) if bars > 0 else last_hit + 3.0
     elif stage.known_duration_seconds is not None:
         duration = float(stage.known_duration_seconds)
