@@ -1,0 +1,85 @@
+# MARE LENTA -- 76 BPM, downtempo (fase 1 da campanha `trilhas_originais`)
+#
+# Origem: rascunho `normal` de tools/rascunho_beatmap.py (librosa, --bpm 76:
+# a deteccao leu 152, o dobro, e listou 76 como 2o candidato), revisado a
+# mao. O que a revisao mudou:
+#   - `offset 0.0051` removido: a faixa sintetizada comeca no downbeat; os
+#     5 ms eram vies da fase detectada, nao anacruse.
+#   - notas em batidas "cheias" de piano/chimbal (3:3, 4:3...) trocadas
+#     pelo que o jogador SENTE: bumbo no 1 e no 3.5, caixa no 2 e no 4.
+#   - densidade em degraus: o tema entra com 3 notas/compasso (1-2-4) e so
+#     depois ganha o bumbo sincopado (3.5); a ponte e respiro (bumbo so).
+#   - lanes desenhadas por frase: a mira gira devagar em volta do nucleo,
+#     inverte o sentido no fim de cada frase de 4 compassos; nenhum salto
+#     maior que 3 setores com menos de 1.2 s.
+#   - acentos (heavy) so onde ha prato: inicio do tema, da 2a frase, do
+#     final, e o golpe final.
+#
+# Estrutura: intro 1-2 (so piano) | tema 3-10 | ponte 11-14 | final 15-20
+bpm 76
+lane_count 8
+
+# -- tema, frase 1: 1-2-4 (caixa no 2 e no 4)
+3:1     heavy  2  0.95
+3:2     basic  3  0.70
+3:4     basic  5  0.70
+4:1     basic  6  0.85
+4:2     basic  7  0.70
+4:4     basic  1  0.70
+5:1     basic  2  0.85
+5:2     basic  3  0.70
+5:4     basic  5  0.70
+6:1     basic  6  0.85
+6:2     basic  5  0.70
+6:4     basic  3  0.70
+
+# -- tema, frase 2: entra o bumbo do 3.5 (o primeiro contratempo)
+7:1     heavy  2  0.95
+7:2     basic  1  0.70
+7:3.5   basic  7  0.80
+7:4     basic  6  0.70
+8:1     basic  5  0.85
+8:2     basic  4  0.70
+8:3.5   basic  2  0.80
+8:4     basic  1  0.70
+9:1     basic  2  0.85
+9:2     basic  3  0.70
+9:3.5   basic  5  0.80
+9:4     basic  6  0.70
+10:1    basic  7  0.85
+10:2    basic  0  0.70
+10:3.5  basic  2  0.80
+10:4    basic  3  0.70
+
+# -- ponte: so o bumbo -- respira
+11:1    basic  6  0.80
+12:1    basic  2  0.80
+12:4    basic  3  0.60
+13:1    basic  6  0.80
+14:1    basic  2  0.80
+14:4    basic  3  0.60
+
+# -- final: o bumbo ganha a pegada do 2.75 nos compassos pares
+15:1    heavy  6  0.95
+15:2    basic  7  0.70
+15:3.5  basic  1  0.80
+15:4    basic  2  0.70
+16:1    basic  3  0.85
+16:2    basic  4  0.70
+16:2.75 basic  5  0.60
+16:3.5  basic  6  0.80
+16:4    basic  7  0.70
+17:1    basic  0  0.85
+17:2    basic  7  0.70
+17:3.5  basic  5  0.80
+17:4    basic  4  0.70
+18:1    basic  3  0.85
+18:2    basic  2  0.70
+18:2.75 basic  1  0.60
+18:3.5  basic  0  0.80
+18:4    basic  7  0.70
+19:1    basic  6  0.85
+19:2    basic  5  0.70
+19:3.5  basic  3  0.80
+19:4    basic  2  0.70
+20:1    heavy  2  1.00

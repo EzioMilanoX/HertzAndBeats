@@ -1,7 +1,5 @@
 """Heartbeat (Juice Visual): beat_phase derivado do bpm da fase, pulso decaindo por compasso."""
-import math
 
-import pygame
 import pytest
 
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer

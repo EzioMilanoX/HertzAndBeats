@@ -1,14 +1,11 @@
 """Acessibilidade -- Histograma de Resultados: distribuicao de precisao sobre o RingBuffer de deltas."""
-import math
 
 import numpy as np
-import pytest
 
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
 from hertzbeats.bootstrap.hertz_game_loop import FLOW_RESULTS
 from hertzbeats.game_state import (
     RESULTS_HISTOGRAM_BIN_COUNT,
-    RESULTS_HISTOGRAM_RANGE_SECONDS,
     compute_hit_error_histogram,
 )
 

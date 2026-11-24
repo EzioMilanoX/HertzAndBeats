@@ -1,0 +1,136 @@
+# CONTRATEMPO -- 112 BPM, funk em tresillo (fase 2 da campanha `trilhas_originais`)
+#
+# Origem: rascunho `normal` de tools/rascunho_beatmap.py (librosa, --bpm 112:
+# a deteccao deu 111.982 e o 1:1 8 ms antes do compasso 2 -- a deriva do
+# BPM nao-inteiro), revisado a mao. O que a revisao mudou:
+#   - BPM inteiro e sem offset (faixa sintetizada, comeca no downbeat).
+#   - a sincopa vira o ASSUNTO: so ha tiro onde o bumbo cai fora do tempo
+#     (1.75, 2.5, 3.5) ou na palma do 4. A 112 BPM uma colcheia sao 0.27 s,
+#     abaixo do piso jogavel de 0.30 s -- por isso as cadeias usam so
+#     intervalos de 3 semicolcheias (0.40 s) ou mais: 1 -> 1.75 -> 2.5.
+#   - verso alterna "3+3+2" em colcheias (1, 2.5, 4) com o tresillo em
+#     semicolcheias (1, 1.75, 2.5, 3.5); o refrao usa so o segundo.
+#   - quebra so com palmas (o bumbo some na musica), crescendo no rufar.
+#   - o 2o refrao e o ESPELHO do 1o (mesmos passos, sentido contrario):
+#     o jogador reconhece a frase e ainda assim precisa ler.
+#
+# Estrutura: intro 1-4 | verso 5-12 | refrao 13-20 | quebra 21-24 | refrao2 25-32 | fim 33
+bpm 112
+lane_count 8
+
+# -- intro: o "e" do 2 ja e o bumbo
+2:2.5   basic  0  0.70
+3:1     basic  1  0.85
+3:2.5   basic  2  0.75
+4:1     basic  3  0.85
+4:2.5   basic  4  0.75
+
+# -- verso: 3+3+2 (impares) / tresillo (pares)
+5:1     heavy  4  0.95
+5:2.5   basic  6  0.75
+5:4     basic  7  0.70
+6:1     basic  6  0.85
+6:1.75  basic  5  0.65
+6:2.5   basic  4  0.75
+6:3.5   basic  3  0.70
+7:1     basic  2  0.85
+7:2.5   basic  0  0.75
+7:4     basic  7  0.70
+8:1     basic  0  0.85
+8:1.75  basic  1  0.65
+8:2.5   basic  2  0.75
+8:3.5   basic  3  0.70
+9:1     basic  4  0.85
+9:2.5   basic  6  0.75
+9:4     basic  7  0.70
+10:1    basic  6  0.85
+10:1.75 basic  5  0.65
+10:2.5  basic  4  0.75
+10:3.5  basic  3  0.70
+11:1    basic  2  0.85
+11:2.5  basic  0  0.75
+11:4    basic  7  0.70
+12:1    basic  0  0.85
+12:1.75 basic  1  0.65
+12:2.5  basic  2  0.75
+12:3.5  basic  3  0.70
+
+# -- refrao: tresillo, fechando na palma do 4 a cada 2 compassos
+13:1    heavy  4  0.95
+13:1.75 basic  5  0.65
+13:2.5  basic  6  0.75
+13:3.5  basic  7  0.70
+14:1    basic  0  0.85
+14:1.75 basic  1  0.65
+14:2.5  basic  2  0.75
+14:4    basic  4  0.70
+15:1    basic  3  0.85
+15:1.75 basic  2  0.65
+15:2.5  basic  1  0.75
+15:3.5  basic  0  0.70
+16:1    basic  7  0.85
+16:1.75 basic  6  0.65
+16:2.5  basic  5  0.75
+16:4    basic  3  0.70
+17:1    heavy  4  0.90
+17:1.75 basic  5  0.65
+17:2.5  basic  6  0.75
+17:3.5  basic  7  0.70
+18:1    basic  0  0.85
+18:1.75 basic  1  0.65
+18:2.5  basic  2  0.75
+18:4    basic  4  0.70
+19:1    basic  3  0.85
+19:1.75 basic  2  0.65
+19:2.5  basic  1  0.75
+19:3.5  basic  0  0.70
+20:1    basic  7  0.85
+20:1.75 basic  6  0.65
+20:2.5  basic  5  0.75
+20:3.5  basic  4  0.70
+
+# -- quebra: so palmas; o rufar do 24 avisa a volta
+21:2    basic  2  0.70
+22:2    basic  6  0.70
+23:2    basic  2  0.70
+23:4    basic  3  0.70
+24:2    basic  4  0.70
+24:3    basic  5  0.75
+24:4    basic  6  0.80
+
+# -- refrao2: espelho do refrao
+25:1    heavy  4  0.95
+25:1.75 basic  3  0.65
+25:2.5  basic  2  0.75
+25:3.5  basic  1  0.70
+26:1    basic  0  0.85
+26:1.75 basic  7  0.65
+26:2.5  basic  6  0.75
+26:4    basic  4  0.70
+27:1    basic  5  0.85
+27:1.75 basic  6  0.65
+27:2.5  basic  7  0.75
+27:3.5  basic  0  0.70
+28:1    basic  1  0.85
+28:1.75 basic  2  0.65
+28:2.5  basic  3  0.75
+28:4    basic  5  0.70
+29:1    heavy  4  0.90
+29:1.75 basic  3  0.65
+29:2.5  basic  2  0.75
+29:3.5  basic  1  0.70
+30:1    basic  0  0.85
+30:1.75 basic  7  0.65
+30:2.5  basic  6  0.75
+30:4    basic  4  0.70
+31:1    basic  5  0.85
+31:1.75 basic  6  0.65
+31:2.5  basic  7  0.75
+31:3.5  basic  0  0.70
+32:1    basic  1  0.85
+32:1.75 basic  2  0.65
+32:2.5  basic  3  0.75
+32:3.5  basic  4  0.70
+
+# -- fim
+33:1    heavy  4  1.00

@@ -1,7 +1,7 @@
 """Tags de Campanha/Lore + Filtro do Carrossel: `StageDef.campaign_id`/`description`, visoes alternaveis (TAB/Q/E)."""
 from hertzbeats.adapters.hb_pygame_renderer import HBPygameRenderer
 from hertzbeats.adapters.texture_bank import build_and_register_overlay_surfaces
-from hertzbeats.bootstrap.hertz_game_loop import FLOW_CAROUSEL, FLOW_HUB, FLOW_PREFLIGHT, HertzGameLoop
+from hertzbeats.bootstrap.hertz_game_loop import FLOW_CAROUSEL, FLOW_PREFLIGHT
 from hertzbeats.stages import StageDef, campaign_ids
 
 from tests.test_match_flow import _basic, _goto_hub, _press, flow_game  # noqa: F401

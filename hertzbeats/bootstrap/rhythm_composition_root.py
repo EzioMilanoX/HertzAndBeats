@@ -1456,7 +1456,6 @@ class RhythmCompositionRoot:
             SFX_ANNOUNCER_COMBO,
             SFX_ANNOUNCER_RANK,
             SFX_BOMB,
-            SFX_CANNON,
             SFX_CANNON_VARIANTS,
             SFX_CLICK,
             SFX_DEFLECT,

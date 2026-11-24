@@ -31,6 +31,11 @@ Regras deliberadas:
   compilacao com numero de linha, nunca um `threat_type` invalido no JSON.
 - `strength` e' opcional e default 0.5; acima de `heavy_quantile` do
   pipeline e' o que a IA chamaria de acento.
+- `offset <segundos>` (opcional, default 0) diz ONDE cai o `1:1` no
+  audio. Faixa sintetizada comeca no downbeat (offset 0), mas musica de
+  verdade tem silencio/anacruse antes do primeiro tempo forte -- sem
+  isto o rascunho gerado por `tools/rascunho_beatmap.py` nao teria como
+  ser escrito em `compasso:batida`.
 
 O compilador e' PURO (texto -> dicionario) e nao escreve arquivo: quem
 grava e' `tools/compile_beatmap.py`, que tambem roda o linter de
@@ -114,6 +119,7 @@ def compile_beatmap_source(
     """
     bpm: Optional[float] = None
     lane_count = 8
+    offset_seconds = 0.0
     notes: List[AuthoredNote] = []
 
     for line_number, raw_line in enumerate(source.splitlines(), start=1):
@@ -132,6 +138,21 @@ def compile_beatmap_source(
                 raise BeatmapSyntaxError(line_number, raw_line, f"bpm {parts[1]!r} invalido") from None
             if bpm <= 0.0:
                 raise BeatmapSyntaxError(line_number, raw_line, "bpm precisa ser > 0")
+            continue
+
+        if head == "offset":
+            if len(parts) != 2:
+                raise BeatmapSyntaxError(line_number, raw_line, "use: offset <segundos>")
+            try:
+                offset_seconds = float(parts[1])
+            except ValueError:
+                raise BeatmapSyntaxError(line_number, raw_line, f"offset {parts[1]!r} invalido") from None
+            if offset_seconds < 0.0:
+                raise BeatmapSyntaxError(line_number, raw_line, "offset precisa ser >= 0")
+            if notes:
+                # declarado depois de notas, valeria so para as seguintes --
+                # um chart com dois "zeros" diferentes e erro, nao recurso
+                raise BeatmapSyntaxError(line_number, raw_line, "offset precisa vir antes das notas")
             continue
 
         if head == "lane_count":
@@ -196,7 +217,7 @@ def compile_beatmap_source(
             if not (0.0 <= strength <= 1.0):
                 raise BeatmapSyntaxError(line_number, raw_line, f"forca {strength} fora de [0, 1]")
 
-        base_seconds = bar_beat_to_seconds(bar, beat, bpm)
+        base_seconds = offset_seconds + bar_beat_to_seconds(bar, beat, bpm)
         step_seconds = repeat_step * (60.0 / bpm)
         for index in range(repeat_count):
             notes.append(

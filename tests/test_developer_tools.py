@@ -14,7 +14,7 @@ from hertzbeats.bootstrap.hertz_game_loop import (
 )
 from hertzbeats.player_progress import delete_progress
 
-from tests.test_match_flow import _basic, _goto_carousel, _goto_hub, _goto_preflight, _press, flow_game
+from tests.test_match_flow import _basic, _goto_carousel, _goto_hub, _goto_preflight, _press, flow_game  # noqa: F401 (fixture do pytest)
 
 _DEV_MODE_SEQUENCE_ACTIONS = (
     "menu_up", "menu_up", "menu_down", "menu_down",

@@ -19,7 +19,6 @@ parece sincronizado"): 87% dos intervalos do chart reduzido sao multiplos
 da batida, contra 30% no comeco.
 """
 import numpy as np
-import pytest
 
 from hertzbeats.playability_reduction import (
     LANE_MIN_GAP_SECONDS,
@@ -103,8 +102,8 @@ def _chart(tempos, forcas=None, pistas=None):
 
 
 def test_reduction_enforces_the_gap_globally():
-    t, f, l = _chart([0.0, 0.05, 0.10, 0.40, 0.80])
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.30, bpm=BPM)
+    t, f, pistas = _chart([0.0, 0.05, 0.10, 0.40, 0.80])
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.30, bpm=BPM)
     sobrou = t[mantidos]
     assert np.all(np.diff(sobrou) >= 0.30 - 1e-9)
 
@@ -112,8 +111,8 @@ def test_reduction_enforces_the_gap_globally():
 def test_reduction_returns_chronological_indices():
     """A poda e gulosa por SALIENCIA, entao a ordem final nao e acidente --
     o jogo exige instantes crescentes."""
-    t, f, l = _chart([0.0, 0.5, 1.0, 1.5, 2.0])
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.30, bpm=BPM)
+    t, f, pistas = _chart([0.0, 0.5, 1.0, 1.5, 2.0])
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.30, bpm=BPM)
     assert list(mantidos) == sorted(mantidos)
 
 
@@ -126,48 +125,48 @@ def test_reduction_keeps_the_beat_and_drops_the_subdivision():
     # como "na batida" e o desempate cai na forca.
     tempos = [0.0, 0.5, 1.0, 1.5, 2.0, 2.12]
     forcas = [0.5, 0.5, 0.5, 0.5, 0.2, 0.95]  # 2.0 = batida FRACA, 2.12 = subdivisao FORTE
-    t, f, l = _chart(tempos, forcas=forcas)
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.30, bpm=BPM)
+    t, f, pistas = _chart(tempos, forcas=forcas)
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.30, bpm=BPM)
     sobrou = t[mantidos].tolist()
     assert 2.0 in sobrou, "a batida fraca tem de sobreviver"
     assert 2.12 not in sobrou, "a subdivisao forte tem de cair"
 
 
 def test_strength_breaks_ties_within_the_same_metric_weight():
-    t, f, l = _chart([1.0, 1.02], forcas=[0.3, 0.9])  # ambas na mesma batida
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.30, bpm=BPM)
+    t, f, pistas = _chart([1.0, 1.02], forcas=[0.3, 0.9])  # ambas na mesma batida
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.30, bpm=BPM)
     assert t[mantidos].tolist() == [1.02]
 
 
 def test_per_lane_reduction_allows_simultaneous_notes_in_other_columns():
     """4 notas no MESMO instante em 4 colunas: um acorde de FNF, nao um
     problema. Com espacamento global as 3 ultimas morreriam."""
-    t, f, l = _chart([0.0, 0.0, 0.0, 0.0], pistas=[0, 1, 2, 3])
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.11, bpm=BPM, per_lane=True)
+    t, f, pistas = _chart([0.0, 0.0, 0.0, 0.0], pistas=[0, 1, 2, 3])
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.11, bpm=BPM, per_lane=True)
     assert len(mantidos) == 4
-    global_ = reduce_for_playability(t, f, l, min_gap_seconds=0.11, bpm=BPM, per_lane=False)
+    global_ = reduce_for_playability(t, f, pistas, min_gap_seconds=0.11, bpm=BPM, per_lane=False)
     assert len(global_) == 1
 
 
 def test_per_lane_reduction_still_spaces_inside_a_column():
     """O que a poda por coluna NAO pode virar: 4 notas colidindo na mesma
     tecla."""
-    t, f, l = _chart([0.0, 0.03, 0.06], pistas=[2, 2, 2])
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.11, bpm=BPM, per_lane=True)
+    t, f, pistas = _chart([0.0, 0.03, 0.06], pistas=[2, 2, 2])
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.11, bpm=BPM, per_lane=True)
     assert len(mantidos) == 1
 
 
 def test_reduction_is_a_noop_when_the_chart_already_fits():
-    t, f, l = _chart([0.0, 0.5, 1.0])
-    mantidos = reduce_for_playability(t, f, l, min_gap_seconds=0.30, bpm=BPM)
+    t, f, pistas = _chart([0.0, 0.5, 1.0])
+    mantidos = reduce_for_playability(t, f, pistas, min_gap_seconds=0.30, bpm=BPM)
     assert len(mantidos) == 3
 
 
 def test_empty_and_disabled_cases():
-    t, f, l = _chart([])
-    assert reduce_for_playability(t, f, l, min_gap_seconds=0.3, bpm=BPM).shape[0] == 0
-    t, f, l = _chart([0.0, 0.01])
-    assert reduce_for_playability(t, f, l, min_gap_seconds=0.0, bpm=BPM).shape[0] == 2
+    t, f, pistas = _chart([])
+    assert reduce_for_playability(t, f, pistas, min_gap_seconds=0.3, bpm=BPM).shape[0] == 0
+    t, f, pistas = _chart([0.0, 0.01])
+    assert reduce_for_playability(t, f, pistas, min_gap_seconds=0.0, bpm=BPM).shape[0] == 2
 
 
 # --------------------------------- os charts reais, transcricao -> reduzido

@@ -1,7 +1,7 @@
 """Arcade 4K: Inversao de Gravidade (Reverse Scroll) -- espelha spawn/linha de julgamento em tempo real; o julgamento nunca muda."""
 import dataclasses
 
-from hertzbeats.bootstrap.rhythm_composition_root import compose_world, lane_center_positions
+from hertzbeats.bootstrap.rhythm_composition_root import compose_world
 from hertzbeats.modchart import compute_scroll_flip_fraction, parse_reverse_scroll_events
 
 from tests.conftest import make_config, write_beatmap

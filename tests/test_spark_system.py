@@ -1,5 +1,4 @@
 """Juice Visual -- Sparks: pool fixo Zero-GC, ativado pelo JudgmentSystem em acertos PERFEITOS."""
-import math
 
 from hertzbeats.bootstrap.rhythm_composition_root import compose_world
 from hertzbeats.systems.spark_system import SparkSystem

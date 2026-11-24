@@ -1,5 +1,4 @@
 """Smoke headless: a composicao completa roda uma faixa inteira sem vazar entidades."""
-from hertzbeats.components.schemas import JUDGMENT_PENDING
 
 
 def _make_track(threat_count: int = 12, first_hit: float = 3.0, spacing: float = 0.5) -> list:

@@ -45,6 +45,24 @@ build-backend = "setuptools.build_meta"
 # do codigo-fonte na raiz do repo.
 include = ["hertzbeats*", "utils*"]
 
+[tool.ruff]
+# Mesma selecao da OuroborosEngine. Sem esta secao o ruff caia no conjunto
+# padrao da versao instalada (0.16: ~750 achados, quase todos de estilo --
+# anotacoes PEP 585/604, ordem de import) e `ruff check .` nunca ficava
+# verde, o que escondia os achados que importam (havia um F821 real: o
+# feedback da tela de Calibracao levantava NameError no primeiro toque).
+target-version = "py311"
+line-length = 125
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Fixtures do pytest importadas de outro modulo de teste (`flow_game` de
+# test_match_flow) e depois pedidas como PARAMETRO: o pyflakes ve isso como
+# redefinicao, mas e o mecanismo de injecao do pytest funcionando.
+"tests/*" = ["F811"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

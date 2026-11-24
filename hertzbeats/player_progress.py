@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, FrozenSet, Optional
+from typing import Dict, Optional
 
 from hertzbeats.game_state import RANK_ORDER
 from utils.atomic_json import write_json_atomically

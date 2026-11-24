@@ -284,6 +284,96 @@
         "misfire_breaks_combo": false
       },
       "active_modifiers": []
+    },
+    {
+      "stage_id": "original_1_mare_lenta",
+      "name": "1 - MARE LENTA",
+      "subtitle": "76 BPM - downtempo, batida e contratempo",
+      "campaign_id": "trilhas_originais",
+      "description": "A mare sobe devagar -- respire junto com o baixo.",
+      "track_path": "data/tracks/original_mare_lenta.wav",
+      "beatmap_path": "data/beatmaps/original_mare_lenta.beatmap.json",
+      "synth": {
+        "bpm": 76.0,
+        "song": "mare_lenta",
+        "sections": [
+          { "name": "intro", "bars": 2 },
+          { "name": "tema", "bars": 8, "lead": true },
+          { "name": "ponte", "bars": 4, "lead": true },
+          { "name": "final", "bars": 6, "lead": true }
+        ]
+      },
+      "beatmap": { "authored_source": "charts/mare_lenta.hbm" },
+      "overrides": {
+        "approach_seconds": 2.6,
+        "max_health": 5,
+        "aim_tolerance_degrees": 42.0,
+        "perfect_window_seconds": 0.065,
+        "good_window_seconds": 0.13,
+        "miss_window_seconds": 0.2
+      },
+      "active_modifiers": []
+    },
+    {
+      "stage_id": "original_2_contratempo",
+      "name": "2 - CONTRATEMPO",
+      "subtitle": "112 BPM - funk em tresillo, sincopa no bumbo",
+      "campaign_id": "trilhas_originais",
+      "description": "O bumbo chega antes do esperado -- confie no 3+3+2.",
+      "track_path": "data/tracks/original_contratempo.wav",
+      "beatmap_path": "data/beatmaps/original_contratempo.beatmap.json",
+      "synth": {
+        "bpm": 112.0,
+        "song": "contratempo",
+        "sections": [
+          { "name": "intro", "bars": 4 },
+          { "name": "verso", "bars": 8 },
+          { "name": "refrao", "bars": 8, "lead": true },
+          { "name": "quebra", "bars": 4 },
+          { "name": "refrao2", "part": "refrao", "bars": 8, "lead": true },
+          { "name": "fim", "bars": 1 }
+        ]
+      },
+      "beatmap": { "authored_source": "charts/contratempo.hbm" },
+      "overrides": {
+        "karaoke_sync": true,
+        "approach_seconds": 2.1,
+        "aim_tolerance_degrees": 36.0,
+        "perfect_window_seconds": 0.055,
+        "good_window_seconds": 0.11,
+        "miss_window_seconds": 0.17
+      },
+      "active_modifiers": ["telegraph_rings"]
+    },
+    {
+      "stage_id": "original_3_hiperpulso",
+      "name": "3 - HIPERPULSO",
+      "subtitle": "170 BPM - drum'n'bass em two-step",
+      "campaign_id": "trilhas_originais",
+      "description": "O pulso dobra -- leia o two-step, nao a tela.",
+      "track_path": "data/tracks/original_hiperpulso.wav",
+      "beatmap_path": "data/beatmaps/original_hiperpulso.beatmap.json",
+      "synth": {
+        "bpm": 170.0,
+        "song": "hiperpulso",
+        "sections": [
+          { "name": "intro", "bars": 4 },
+          { "name": "build", "bars": 8 },
+          { "name": "drop", "bars": 16, "lead": true },
+          { "name": "quebra", "bars": 4, "lead": true },
+          { "name": "drop2", "bars": 16, "lead": true },
+          { "name": "fim", "bars": 2 }
+        ]
+      },
+      "beatmap": { "authored_source": "charts/hiperpulso.hbm" },
+      "overrides": {
+        "approach_seconds": 1.6,
+        "aim_tolerance_degrees": 30.0,
+        "perfect_window_seconds": 0.05,
+        "good_window_seconds": 0.1,
+        "miss_window_seconds": 0.15
+      },
+      "active_modifiers": ["telegraph_rings"]
     }
   ]
 }

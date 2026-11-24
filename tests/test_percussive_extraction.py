@@ -131,7 +131,9 @@ def test_extraction_feeds_quantized_beatmap_end_to_end(tmp_path):
     wav_path = tmp_path / "lofi_mascarada.wav"
     pcm = (audio.samples * np.iinfo(np.int16).max * 0.9).astype(np.int16)
     with wave.open(str(wav_path), "wb") as f:
-        f.setnchannels(1); f.setsampwidth(2); f.setframerate(audio.sample_rate)
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(audio.sample_rate)
         f.writeframes(pcm.tobytes())
 
     from hertzbeats.offline.beatmap_pipeline import generate_beatmap

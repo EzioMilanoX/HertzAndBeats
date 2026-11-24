@@ -28,6 +28,13 @@ Estilos (a densidade da bateria, por secao):
     intense  -- chimbal em colcheias acentuadas, bumbo dobrado no fim de
                 cada 4 compassos e drop a cada 4: mapa denso.
 
+3. Musica original: `{"bpm", "song", "sections": [{"name", "bars",
+   "part", "lead"}, ...]}` -- composicao propria com instrumentos,
+   groove e melodia de verdade (`hertzbeats.audio.original_songs`). Este
+   modulo so DESPACHA pela chave `song` (`synthesize_from_spec`,
+   `percussive_onset_times`); duracao/secoes (`total_bars`,
+   `section_time_windows`) sao a mesma aritmetica das outras formas.
+
 Os drops/fills sao contados RELATIVAMENTE ao inicio da secao, nao ao
 inicio da faixa: assim toda secao comeca no seu proprio downbeat de
 drop (crash + bumbo pesado), telegrafando a virada pro jogador. Na
@@ -44,6 +51,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 import numpy as np
 
+from hertzbeats.audio import original_songs
 from utils.path_resolver import get_writable_data_path
 
 DEMO_TRACK_BPM: float = 128.0
@@ -444,6 +452,24 @@ def synthesize_track(
     return wanted / divisor
 
 
+def synthesize_from_spec(synth_spec: Dict, stem: Optional[str] = None) -> np.ndarray:
+    """Sintetiza a faixa descrita por uma especificacao `synth` de fase,
+    em QUALQUER uma das 3 formas -- ponto unico que `ensure_track` e
+    `ensure_stem_tracks` usam, para que uma musica original (`song`) ganhe
+    de graca re-sintese, stems e Escala de Tempo."""
+    if "song" in synth_spec:
+        if stem is not None and stem not in STEMS:
+            raise ValueError(f"stem desconhecido {stem!r} (validos: {STEMS})")
+        return original_songs.render_song(synth_spec, stem=stem, extra_section_keys=CURATION_SECTION_KEYS)
+    return synthesize_track(
+        bpm=float(synth_spec["bpm"]),
+        bars=int(synth_spec["bars"]) if "bars" in synth_spec else None,
+        style=synth_spec.get("style", "standard"),
+        sections=synth_spec.get("sections"),
+        stem=stem,
+    )
+
+
 def stem_track_path(track_path: str, stem: str) -> str:
     """`data/tracks/x.wav` + "lead" -> `data/tracks/x@lead.wav`.
 
@@ -475,14 +501,7 @@ def ensure_stem_tracks(track_path: str, synth_spec: Optional[Dict]) -> Optional[
     for stem in STEMS:
         destination = Path(get_writable_data_path(stem_track_path(track_path, stem)))
         if not destination.exists():
-            samples = synthesize_track(
-                bpm=float(synth_spec["bpm"]),
-                bars=int(synth_spec["bars"]) if "bars" in synth_spec else None,
-                style=synth_spec.get("style", "standard"),
-                sections=synth_spec.get("sections"),
-                stem=stem,
-            )
-            write_wav(samples, destination)
+            write_wav(synthesize_from_spec(synth_spec, stem=stem), destination)
         paths[stem] = str(destination)
     return paths
 
@@ -506,8 +525,12 @@ def percussive_onset_times(synth_spec: Dict) -> np.ndarray:
     Com a verdade fundamental em maos o conserto deixa de ser um numero
     chutado: `tools/generate_stage_assets.py` mede o desvio real de cada
     faixa curada e o desconta. Faixa plana (sem `sections`) tambem
-    funciona -- ha uma secao implicita.
+    funciona -- ha uma secao implicita. Musica original (`song`) delega a
+    `original_songs.percussive_onset_times`, que executa a MESMA partitura
+    sem renderizar audio.
     """
+    if "song" in synth_spec:
+        return original_songs.percussive_onset_times(synth_spec, extra_section_keys=CURATION_SECTION_KEYS)
     resolved = _resolve_sections(
         synth_spec.get("bars"), synth_spec.get("style", "standard"), synth_spec.get("sections")
     )
@@ -608,13 +631,7 @@ def ensure_track(track_path: str, synth_spec: Optional[Dict]) -> str:
     if not path.exists():
         if synth_spec is None:
             raise FileNotFoundError(f"faixa de audio nao encontrada: {path}")
-        samples = synthesize_track(
-            bpm=float(synth_spec["bpm"]),
-            bars=int(synth_spec["bars"]) if "bars" in synth_spec else None,
-            style=synth_spec.get("style", "standard"),
-            sections=synth_spec.get("sections"),
-        )
-        write_wav(samples, path)
+        write_wav(synthesize_from_spec(synth_spec), path)
     return str(path)
 
 

@@ -1,6 +1,5 @@
 """Juice Visual -- Ghost Trails: RingBuffer circular das ultimas posicoes da mira (Defensor)."""
 import dataclasses
-import math
 
 import pytest
 

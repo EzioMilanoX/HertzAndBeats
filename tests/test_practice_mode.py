@@ -1,7 +1,6 @@
 """Modo Treino (musicas do jogador): densidade de onsets reduzida + vida infinita, tudo opt-in."""
 import dataclasses
 
-import numpy as np
 import pytest
 
 from ouroboros.interfaces.null.null_audio_engine import NullAudioEngine

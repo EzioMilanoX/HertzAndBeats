@@ -48,8 +48,10 @@ def test_selection_prefers_on_beat_over_stronger_offbeat():
     grid, on_beat = build_beat_grid(beats, subdivisions=2)
     slot_strengths = np.zeros(grid.shape[0])
     slot_has_event = np.zeros(grid.shape[0], dtype=bool)
-    slot_strengths[2] = 0.5; slot_has_event[2] = True   # 2.0 (na batida)
-    slot_strengths[3] = 0.7; slot_has_event[3] = True   # 2.5 (colcheia, mais forte mas sem o bonus)
+    slot_strengths[2] = 0.5   # 2.0 (na batida)
+    slot_has_event[2] = True
+    slot_strengths[3] = 0.7   # 2.5 (colcheia, mais forte mas sem o bonus)
+    slot_has_event[3] = True
     chosen = select_slots(
         grid, on_beat, slot_strengths, slot_has_event,
         min_start_seconds=0.0, max_end_seconds=10.0,

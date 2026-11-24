@@ -1,5 +1,4 @@
 """PlayerInputSystem e afinacoes de mira: crosshair NO anel de julgamento, dash com cooldown, latencia."""
-import math
 
 from hertzbeats.components.schemas import JUDGMENT_PERFECT
 

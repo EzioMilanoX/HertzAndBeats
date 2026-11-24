@@ -134,11 +134,10 @@ class ParryImpactSystem(ISystem):
 
             a_is_attacker = self._is_attacker(threat_view, row_a)
             b_is_attacker = self._is_attacker(threat_view, row_b)
-            attacker_row, victim_row = None, None
             if a_is_attacker and not b_is_attacker:
-                attacker_row, victim_row = row_a, row_b
+                victim_row = row_b
             elif b_is_attacker and not a_is_attacker:
-                attacker_row, victim_row = row_b, row_a
+                victim_row = row_a
             else:
                 continue  # nenhum dos dois e um atacante (ou os dois sao)
 

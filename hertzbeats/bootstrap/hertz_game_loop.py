@@ -28,7 +28,7 @@ from hertzbeats.audio.demo_track_synth import (
     ensure_track,
 )
 from hertzbeats.rate_scaling import scaled_synth_spec
-from hertzbeats.section_diagnostics import accumulate_section_misses, format_section_report, worst_section
+from hertzbeats.section_diagnostics import accumulate_section_misses, worst_section
 from hertzbeats.audio.sfx_synth import SFX_ANNOUNCER_COMBO, SFX_ANNOUNCER_RANK, SFX_BOMB, SFX_UNLOCK_ALL
 from hertzbeats.bootstrap.rhythm_composition_root import (
     ComposedGame,
@@ -60,8 +60,6 @@ from hertzbeats.stages import StageDef, campaign_ids, read_stage_bpm_and_duratio
 from hertzbeats.palettes import DEFAULT_PALETTE_ID, PALETTE_CATALOG, unlocked_palette_ids
 from hertzbeats.user_settings import USER_SETTINGS_PATH, save_user_latency, save_user_palette_id
 from hertzbeats.youtube_import import (
-    FFmpegNotFoundError,
-    YoutubeImportError,
     download_and_analyze_youtube_song,
     extract_youtube_url,
     fetch_youtube_preview,

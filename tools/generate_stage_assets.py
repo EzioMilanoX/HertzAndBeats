@@ -8,6 +8,16 @@ Uso (a partir da raiz do repositorio):
 
 --force re-sintetiza as faixas mesmo se ja existirem (necessario apos
 mudar a especificacao `synth` de alguma fase).
+
+--apenas-autorais pula as fases cujo beatmap vem da IA (nao precisa de
+librosa): so re-sintetiza e recompila os charts AUTORAIS.
+
+Fase com `"beatmap": {"authored_source": "charts/x.hbm"}` (as da campanha
+`trilhas_originais`) NAO passa pela IA: o chart e escrito na DSL
+(`compasso:batida`, normalmente a partir de um rascunho de
+`tools/rascunho_beatmap.py` revisado a mao) e aqui so e compilado,
+checado pelo linter de jogabilidade e carimbado com a digital da faixa.
+Rodar a IA por cima apagaria a revisao.
 """
 from __future__ import annotations
 
@@ -25,7 +35,8 @@ from hertzbeats.audio.demo_track_synth import (
     measure_onset_lag_seconds,
     wav_fingerprint,
 )
-from hertzbeats.offline.beatmap_pipeline import generate_beatmap
+from hertzbeats.audio.demo_track_synth import total_bars
+from hertzbeats.offline.beatmap_dsl import compile_beatmap_source, lint_authored_beatmap
 from hertzbeats.stages import load_stages
 
 STAGES_PATH = "data/stages/stages.json"
@@ -75,9 +86,35 @@ def _stamp_track_fingerprint(beatmap_path: str, fingerprint: str) -> None:
         json.dump(beatmap, f, indent=2, ensure_ascii=False)
 
 
+def _compile_authored(stage, fingerprint: str) -> None:
+    """Compila o chart AUTORAL da fase (`beatmap.authored_source`) para o
+    `beatmap_path`, abortando se o linter de jogabilidade reclamar.
+
+    `onset_lag_correction_seconds` e gravado como 0.0 de proposito: o chart
+    e escrito NA GRADE (`compasso:batida` sobre o BPM exato da sintese),
+    entao nao ha vies de extrator para descontar -- e o campo existe para
+    a correcao ser auditavel (`tests/test_beat_alignment.py`)."""
+    source = Path(stage.beatmap_params["authored_source"])
+    beatmap = compile_beatmap_source(source.read_text(encoding="utf-8"), track_id=stage.stage_id)
+    duration = total_bars(stage.synth) * 4 * 60.0 / float(stage.synth["bpm"]) if stage.synth else None
+    problems = lint_authored_beatmap(beatmap, 0.30, 2.6, track_duration_seconds=duration)
+    if problems:
+        raise SystemExit(f"[{stage.stage_id}] {source}: " + "; ".join(problems))
+    payload = {k: v for k, v in beatmap.items() if not k.startswith("_")}
+    payload["authored_source"] = source.as_posix()
+    payload["onset_lag_correction_seconds"] = 0.0
+    payload["track_fingerprint"] = fingerprint
+    with open(stage.beatmap_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--force", action="store_true", help="Re-sintetiza faixas ja existentes.")
+    parser.add_argument(
+        "--apenas-autorais", dest="only_authored", action="store_true",
+        help="So as fases com chart autoral (sem IA, sem librosa).",
+    )
     args = parser.parse_args(argv)
 
     stages = load_stages(STAGES_PATH)
@@ -85,6 +122,9 @@ def main(argv=None) -> int:
     processed_beatmaps = set()
     for stage in stages:
         if not stage.track_path:
+            continue
+        authored = "authored_source" in stage.beatmap_params
+        if args.only_authored and not authored:
             continue
         if stage.track_path not in processed_tracks:
             processed_tracks.add(stage.track_path)
@@ -107,6 +147,15 @@ def main(argv=None) -> int:
             print(f"[{stage.stage_id}] beatmap compartilhado (mesmo json): {stage.beatmap_path}")
             continue
         processed_beatmaps.add(stage.beatmap_path)
+
+        if authored:
+            _compile_authored(stage, fingerprint)
+            print(f"[{stage.stage_id}] chart autoral compilado: {stage.beatmap_params['authored_source']} "
+                  f"-> {stage.beatmap_path}")
+            continue
+
+        # import tardio: so a IA precisa de librosa (via engine)
+        from hertzbeats.offline.beatmap_pipeline import generate_beatmap
 
         summary = generate_beatmap(
             audio_path=Path(stage.track_path),

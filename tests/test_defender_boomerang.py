@@ -3,7 +3,7 @@ import dataclasses
 import math
 
 from hertzbeats.bootstrap.rhythm_composition_root import compose_world
-from hertzbeats.components.schemas import JUDGMENT_MISS, JUDGMENT_PENDING, JUDGMENT_PERFECT
+from hertzbeats.components.schemas import JUDGMENT_PENDING
 from hertzbeats.systems.boomerang_threat_system import BoomerangThreatSystem
 
 from tests.conftest import make_config, write_beatmap

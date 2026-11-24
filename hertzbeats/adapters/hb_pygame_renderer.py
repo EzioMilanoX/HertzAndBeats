@@ -199,6 +199,11 @@ procedurais (mesmo criterio dos glifos de medalha -- um numero pequeno
 e variavel de itens nao pede uma textura pre-renderizada por contagem),
 o ponto da entrada em foco pintado em destaque."""
 
+_CALIBRATION_ONTIME_THRESHOLD_SECONDS = 0.02
+"""Calibracao: desvio do ultimo toque abaixo disto conta como "NO TEMPO".
+Foi apagada por engano junto com a entrada das constantes do gate de dev
+(commit b422ba3) e a tela levantava NameError no primeiro toque."""
+
 _DEV_MODE_SEQUENCE_LENGTH = 8
 _DEV_MODE_DOT_RADIUS = 4
 _DEV_MODE_DOT_GAP = 14

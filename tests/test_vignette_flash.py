@@ -1,7 +1,6 @@
 """Vignette Flash ("Cegueira Ritmica"): GameState.blindness_timer_sec, decaimento e o overlay pre-renderizado."""
 import dataclasses
 
-import pygame
 import pytest
 
 from ouroboros.interfaces.null.null_audio_engine import NullAudioEngine

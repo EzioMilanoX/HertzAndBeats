@@ -1,5 +1,4 @@
 """Combo Pitch Shift: a variante de SFX tocada sobe por indice a cada 10 de combo, nunca pitch-shift em tempo real."""
-import dataclasses
 
 from hertzbeats.audio.sfx_synth import SFX_CANNON, SFX_CANNON_VARIANTS, SFX_NOTE_HIT_VARIANTS
 from ouroboros.interfaces.null.null_audio_engine import NullAudioEngine

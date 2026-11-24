@@ -2,7 +2,6 @@
 import os
 import sys
 
-import pytest
 
 from utils.path_resolver import get_resource_path, get_writable_data_path
 

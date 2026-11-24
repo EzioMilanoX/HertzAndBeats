@@ -1,5 +1,4 @@
 """Biblioteca de musicas do jogador: scan, cache de analise e escolha de minigame no menu."""
-import json
 import os
 import time
 from pathlib import Path

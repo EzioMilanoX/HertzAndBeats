@@ -8,7 +8,6 @@ from hertzbeats.bootstrap.hertz_game_loop import (
     FLOW_PLAYING,
     FLOW_RESULTS,
     HUB_CATEGORIES,
-    HertzGameLoop,
 )
 from hertzbeats.stages import StageDef
 
