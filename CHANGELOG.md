@@ -2,7 +2,13 @@
 
 Mudanças notáveis do Hertz & Beats. O histórico anterior a este arquivo está no `git log` e nas seções do [README](README.md).
 
-## [Não lançado] — 2026-11-24
+## [0.1.0] — 2026-11-25 (pré-lançamento)
+
+Primeira release, com o `.exe` (pasta `HertzAndBeats/` num `.zip`). Os charts das 3 trilhas originais foram revisados à mão, mas ainda não ajustados jogando.
+
+### Mudado
+- Dependência da OuroborosEngine fixada na tag `v0.4.0` (antes seguia o `main`).
+
 
 ### Adicionado
 - **Campanha `trilhas_originais`**: 3 fases com músicas **originais** sintetizadas, de estilos diferentes, e charts autorais revisados à mão.
